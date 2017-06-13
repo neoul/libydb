@@ -1,0 +1,73 @@
+#1
+%TAG !merge! operation:actusnetworks.com
+---
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+      if:operstatus: false
+      if:rx-octet: 10022
+      if:tx-octet: 2222
+      if:ip-addr: [192.168.44.1, 192.168.0.77]
+    eth-0-2:
+      if:operstatus: false
+      if:rx-octet: 10022
+      if:tx-octet: 2222
+      if:abc:
+...
+
+#2
+%TAG !merge! operation:actusnetworks.com
+---
+if:interfaces-state:
+  if:interface:
+    eth-0-2:
+      if:operstatus: true
+    eth-0-1:
+      if:ip-addr: [192.168.44.2, 192.168.0.77]
+...
+
+#3
+%TAG !delete! operation:actusnetworks.com
+---
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+      if:ip-addr: [192.168.44.1]
+...
+
+#4
+%TAG !merge! operation:actusnetworks.com
+---
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+...
+
+#5
+%TAG !merge! operation:actusnetworks.com
+---
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+      if:operstatus: false
+      if:rx-octet: 10022
+      if:tx-octet: 2222
+      if:ip-addr: [192.168.44.1, 192.168.0.77]
+...
+
+#6
+%TAG !get! operation:actusnetworks.com
+---
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+...
+
+#7
+%TAG !delete! operation:actusnetworks.com
+---
+if:interfaces-state:
+  if:interface:
+    eth-0-2:
+    eth-0-2:
+...

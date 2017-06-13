@@ -1,0 +1,115 @@
+# Configuration file for XPATH to CLI, CLI to XPATH command conversion.
+# This is YAML document. you have to consider the indent of each configuration.
+# [Basic syntax]
+# xpath:
+#     XPATH_STRING: ( e.g. /if:interfaces/if:interface[if:name=<if:IFNAME>]/if:enabled=true: )
+#         = MAPPED_CLI_STRING (e.g. =: interface <if:IFNAME>/no shutdown )
+# cli:
+#     CLI_STRING: (e.g. interface <if:IFNAME>/no shutdown: )
+#         =: MAPPED_XPATH_STRING ( e.g. /if:interfaces/if:interface[if:name=<if:IFNAME>]/if:enabled=true: )
+#
+# Mapping command should be started with "=:"
+#
+# The first character of Each XPATH command starts with NETCONF operations.
+# NETCONF operations
+#  - M: Merge = Create or Replace
+#  - C: Create
+#  - D: Delete
+#  - A: All operations
+
+xpath:
+    /if:interfaces/if:interface[if:name=<if:IFNAME>]:
+        =: interface <if:IFNAME>
+        D: no interface <if:IFNAME>
+        /if:name=<if:IFNAME>:
+        /if:type=l3ipvlan: 
+        /if:enabled=true: /no shutdown
+        /if:enabled=false: /shutdown
+        /if:description=<if:LINE>: /description <if:LINE>
+        # /if:ip-address=<if:IPADDR>: /ip addr <if:IPADDR>
+        # /if:netmask=<if:NETMASK>: /ip addr <if:IPADDR> netmask <if:NETMASK>
+        /eth-if:ethernet:
+            /eth-if:auto-negotiation/eth-if:enable=true: /duplex auto
+            /eth-if:auto-negotiation/eth-if:enable=false: /no duplex
+            /eth-if:duplex=<if:DUPLEX>: /duplex <if:DUPLEX>
+            /eth-if:speed=0.01: /speed 10
+            /eth-if:speed=0.1: /speed 100
+            /eth-if:speed=1: /speed 1000
+            /eth-if:speed=10: /speed 10000
+            /eth-if:flow-control/eth-if:pause/direction=disabled:
+                =: /flowcontrol receive off/flowcontrol send off
+            /eth-if:flow-control/eth-if:pause/direction=ingress-only:
+                =: /flowcontrol receive off/flowcontrol send on
+            /eth-if:flow-control/eth-if:pause/direction=egress-only:
+                =: /flowcontrol receive on/flowcontrol send off
+            /eth-if:flow-control/eth-if:pause/direction=bi-directional:
+                =: /flowcontrol receive on/flowcontrol send on
+    D/if:interfaces/if:interface[if:name=<if:IFNAME>]:
+        =: no interface <if:IFNAME>
+    /sys:system/sys:hostname=<sys:HOSTNAME>:
+        =: hostname <sys:HOSTNAME>
+    /sys:system/sys:ntp/sys:server[sys:name=<sys:NTPNAME>]/sys:udp:
+        =: ntp server <sys:NTPNAME>
+        /sys:address=<sys:IPADDR>: ip <sys:IPADDR> # 인접 node와 비교하여 substring이면 삭제
+        /sys:port=<sys:PORT>: ip <sys:IPADDR> port <sys:PORT>
+    D/sys:system/sys:ntp/sys:server[sys:name=<sys:NTPNAME>]:
+        =: no ntp server <sys:NTPNAME>
+
+cli:
+    hostname <sys:HOSTNAME>:
+        =: R/sys:system/sys:hostname=<sys:HOSTNAME>
+    interface Vlan<if:VLANID>: # Vlan Interface
+        =: |
+            M/if:interfaces/if:interface[if:name=Vlan<if:VLANID>]/if:type=l3ipvlan
+        /ip address <if:IPADDR>:
+            =: M/if:interfaces/if:interface[if:name=Vlan<if:VLANID>]/if:address[if:ip=<if:IPADDR>]
+            /<if:IPPREFIX>: 
+                =: /if:subnet/prefix-length=<if:IPPREFIX>
+                secondary:
+    interface ge<if:GEID>: # ge Interface
+        =: M/if:interfaces/if:interface[if:name=ge<if:GEID>]/if:type=ethernetCsmacd
+        /shutdown: M/if:interfaces/if:interface[if:name=ge<if:GEID>]/if:enabled=false
+        /no shutdown: M/if:interfaces/if:interface[if:name=ge<if:GEID>]/if:enabled=true
+        /description <if:LINE>: M/if:interfaces/if:interface[if:name=ge<if:GEID>]/if:description=<if:LINE>
+    interface xe<if:XEID>: # xe Interface
+        =: M/if:interfaces/if:interface[if:name=ge<if:XEID>]/if:type=ethernetCsmacd
+        /shutdown: M/if:interfaces/if:interface[if:name=ge<if:XEID>]/if:enabled=false
+        /no shutdown: M/if:interfaces/if:interface[if:name=ge<if:XEID>]/if:enabled=true
+        /description <if:LINE>: M/if:interfaces/if:interface[if:name=ge<if:XEID>]/if:description=<if:LINE>
+    # interface <if:IFNAME>:
+    #     =: M/if:interfaces/if:interface[if:name=<if:IFNAME>]
+    #     /no shutdown: /if:enabled=true
+    #     /shutdown: /if:enabled=false
+    #     /description <if:LINE>: /if:description=<if:LINE>
+        # /ip address <if:IPADDR>: 
+        #     =: /if:ip-address=<if:IPADDR>
+        #     netmask <if:NETMASK>:
+        #         =: /if:netmask=<if:NETMASK>
+                # =: M/if:interfaces/if:interface[if:name=<if:IFNAME>]/if:netmask=<if:NETMASK>
+                # =: M/ifxxxx/if:interface[if:name=<if:NETMASK>]
+                # secondary <if:IPADDR2>:
+                #     =: /if:secondary/if:ip=<if:IPADDR2>
+                #     subnetmask <if:subnetmask>:
+                #         =: /if:secondary/subnetmask:ip=<if:subnetmask>
+    no interface <if:IFNAME>:
+        =: D/if:interfaces/if:interface[if:name=<if:IFNAME>]
+    ntp server <sys:NTPNAME>:
+        =: M/sys:system/sys:ntp/sys:server[sys:name=<sys:NTPNAME>]/sys:udp
+        ip <sys:IPADDR>: 
+            =: /sys:address=<sys:IPADDR>
+            port <sys:PORT>: /sys:port=<sys:PORT>
+    no ntp server <sys:NTPNAME>:
+        =: D/sys:system/sys:ntp/sys:server[sys:name=<sys:NTPNAME>]
+    ethernet soam meg megid <soam:MEGID>:
+        =: M/soam:meg/soam[name=<soam:MEGID>]
+        +level <soam:LEVEL>: /soam:level=<soam:LEVEL>
+        +vlan <soam:VLAN>: /soam:vlan=<soam:VLAN>
+        +ccm-interval <soam:CCM-INTERVAL>: /soam:ccm-interval=<soam:CCM-INTERVAL>
+
+
+
+
+
+
+
+    
