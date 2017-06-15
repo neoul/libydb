@@ -1,5 +1,5 @@
 #1
-%TAG !merge! operation:actusnetworks.com
+%TAG !merge! actusnetworks.com:op:
 ---
 if:interfaces-state:
   if:interface:
@@ -16,7 +16,7 @@ if:interfaces-state:
 ...
 
 #2
-%TAG !merge! operation:actusnetworks.com
+%TAG !merge! actusnetworks.com:op:
 ---
 if:interfaces-state:
   if:interface:
@@ -27,7 +27,7 @@ if:interfaces-state:
 ...
 
 #3
-%TAG !delete! operation:actusnetworks.com
+%TAG !delete! actusnetworks.com:op:
 ---
 if:interfaces-state:
   if:interface:
@@ -36,7 +36,7 @@ if:interfaces-state:
 ...
 
 #4
-%TAG !merge! operation:actusnetworks.com
+%TAG !merge! actusnetworks.com:op:
 ---
 if:interfaces-state:
   if:interface:
@@ -44,7 +44,7 @@ if:interfaces-state:
 ...
 
 #5
-%TAG !merge! operation:actusnetworks.com
+%TAG !merge! actusnetworks.com:op:
 ---
 if:interfaces-state:
   if:interface:
@@ -56,7 +56,7 @@ if:interfaces-state:
 ...
 
 #6
-%TAG !get! operation:actusnetworks.com
+%TAG !get! actusnetworks.com:op:
 ---
 if:interfaces-state:
   if:interface:
@@ -64,7 +64,7 @@ if:interfaces-state:
 ...
 
 #7
-%TAG !delete! operation:actusnetworks.com
+%TAG !delete! actusnetworks.com:op:
 ---
 if:interfaces-state:
   if:interface:
