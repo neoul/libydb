@@ -24,7 +24,7 @@ struct ymldb
 struct ymldb_cb
 {
     struct ymldb *ydb;
-    struct ymldb *last_notify; // last ancestor ydb
+    struct ymldb *last_notify; // last updated ydb
     int sequence;
     yaml_parser_t *parser;
     yaml_emitter_t *emitter;
@@ -32,8 +32,16 @@ struct ymldb_cb
     yaml_document_t *out_document;
     FILE *in;
     FILE *out;
+    char *op;
 };
 
+#define YMLDB_TAG_OP_GET "!get!"
+#define YMLDB_TAG_OP_DELETE "!delete!"
+#define YMLDB_TAG_OP_MERGE "!merge!"
+#define YMLDB_TAG_BASE "actusnetworks.com:op:"
+#define YMLDB_TAG_GET YMLDB_TAG_BASE "get"
+#define YMLDB_TAG_DELETE YMLDB_TAG_BASE "delete"
+#define YMLDB_TAG_MERGE YMLDB_TAG_BASE "merge"
 
 void ymldb_dump(struct ymldb_cb *cb, struct ymldb *ydb, int print_level, int no_print_children);
 cp_list *ymldb_traverse_ancestors(struct ymldb *ydb, int traverse_level);
