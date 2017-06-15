@@ -1,0 +1,55 @@
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+      if:operstatus: false
+      if:rx-octet: 10022
+      if:tx-octet: 2222
+      if:ip-addr:
+        - 192.168.44.1
+        - 192.168.0.77
+    eth-0-2:
+      if:operstatus: false
+      if:rx-octet: 10022
+      if:tx-octet: 2222
+      if:abc: 
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+      if:ip-addr:
+        - 192.168.0.77
+        - 192.168.44.1
+      if:operstatus: false
+      if:rx-octet: 10022
+      if:tx-octet: 2222
+    eth-0-2:
+      if:abc: 
+      if:operstatus: false
+      if:rx-octet: 10022
+      if:tx-octet: 2222
+if:interfaces-state:
+  if:interface:
+    eth-0-2:
+      if:operstatus: true
+    eth-0-1:
+      if:ip-addr:
+        - 192.168.44.2
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+      if:ip-addr:
+        - 192.168.44.1
+if:interfaces-state:
+  if:interface:
+    eth-0-1: 
+if:interfaces-state:
+  if:interface:
+    eth-0-1:
+      if:operstatus: false
+      if:rx-octet: 10022
+      if:tx-octet: 2222
+      if:ip-addr:
+        - 192.168.44.1
+        - 192.168.0.77
+if:interfaces-state:
+  if:interface:
+    eth-0-2:
