@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
@@ -169,6 +170,15 @@ void _free(void *p)
 #define S10 "          "
 static char *gSpace = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
+static struct ymldb *gTop;
+
+FILE *fopen_from_fd(int fd, char *rw)
+{
+    int dup_fd = dup(fd);
+    return fdopen(dup_fd, rw);
+}
+
+
 char *_str_dump(const char *src)
 {
     static int dbgidx;
@@ -277,19 +287,19 @@ yaml_document_t *yaml_document_init(char *op)
         return NULL;
     }
     // create tag_directives
-    if (strcmp(op, YMLDB_TAG_OP_DELETE) == 0)
+    if (strcmp(op, YMLDB_OP_DELETE) == 0)
     {
-        tag[0].handle = (yaml_char_t *)YMLDB_TAG_OP_DELETE;
+        tag[0].handle = (yaml_char_t *)YMLDB_OP_DELETE;
         tag[0].prefix = (yaml_char_t *)YMLDB_TAG_DELETE;
     }
-    else if (strcmp(op, YMLDB_TAG_OP_GET) == 0)
+    else if (strcmp(op, YMLDB_OP_GET) == 0)
     {
-        tag[0].handle = (yaml_char_t *)YMLDB_TAG_OP_GET;
+        tag[0].handle = (yaml_char_t *)YMLDB_OP_GET;
         tag[0].prefix = (yaml_char_t *)YMLDB_TAG_GET;
     }
     else
     {
-        tag[0].handle = (yaml_char_t *)YMLDB_TAG_OP_MERGE;
+        tag[0].handle = (yaml_char_t *)YMLDB_OP_MERGE;
         tag[0].prefix = (yaml_char_t *)YMLDB_TAG_MERGE;
     }
     tag[1].handle = NULL;
@@ -531,7 +541,7 @@ int _ymldb_get_print_level(struct ymldb *last_ydb, struct ymldb *cur_ydb)
     return print_level;
 }
 
-void ymldb_node_merge_notify(struct ymldb_cb *cb, struct ymldb *ydb)
+void _ymldb_node_merge_notify(struct ymldb_cb *cb, struct ymldb *ydb)
 {
     int print_level = 0;
     if (!cb || !ydb)
@@ -543,7 +553,7 @@ void ymldb_node_merge_notify(struct ymldb_cb *cb, struct ymldb *ydb)
     return;
 }
 
-void ymldb_node_delete_notify(struct ymldb_cb *cb, struct ymldb *parent, char *key)
+void _ymldb_node_delete_notify(struct ymldb_cb *cb, struct ymldb *parent, char *key)
 {
     int print_level = 0;
     struct ymldb *ydb = NULL;
@@ -562,7 +572,7 @@ void ymldb_node_delete_notify(struct ymldb_cb *cb, struct ymldb *parent, char *k
     return;
 }
 
-void ymldb_node_get_reply(struct ymldb_cb *cb, struct ymldb *parent, char *key)
+void _ymldb_node_get_reply(struct ymldb_cb *cb, struct ymldb *parent, char *key)
 {
     int print_level = 0;
     struct ymldb *ydb = NULL;
@@ -581,7 +591,7 @@ void ymldb_node_get_reply(struct ymldb_cb *cb, struct ymldb *parent, char *key)
     return;
 }
 
-struct ymldb *ymldb_node_merge(struct ymldb_cb *cb, struct ymldb *parent,
+struct ymldb *_ymldb_node_merge(struct ymldb_cb *cb, struct ymldb *parent,
                                ymldb_type_t type, char *key, char *value)
 {
     struct ymldb *ydb = NULL;
@@ -613,7 +623,7 @@ struct ymldb *ymldb_node_merge(struct ymldb_cb *cb, struct ymldb *parent,
                 {
                     free(ydb->value);
                     ydb->value = strdup(value);
-                    ymldb_node_merge_notify(cb, ydb);
+                    _ymldb_node_merge_notify(cb, ydb);
                 }
             }
             return ydb;
@@ -665,7 +675,7 @@ new_ydb:
     }
     // _log_debug("ydb->key %s ydb->type %d ydb->value '%s'\n", ydb->key, ydb->type, ydb->value);
     // notify_ydb:
-    ymldb_node_merge_notify(cb, ydb);
+    _ymldb_node_merge_notify(cb, ydb);
     return ydb;
 
 free_ydb:
@@ -689,7 +699,7 @@ free_ydb:
     return NULL;
 }
 
-void ymldb_node_delete(struct ymldb_cb *cb, struct ymldb *parent, char *key)
+void _ymldb_node_delete(struct ymldb_cb *cb, struct ymldb *parent, char *key)
 {
     if (parent)
     {
@@ -700,14 +710,14 @@ void ymldb_node_delete(struct ymldb_cb *cb, struct ymldb *parent, char *key)
             _log_error("- parent ymldb: %s, child ymldb %s\n", parent->key, key);
             return;
         }
-        ymldb_node_delete_notify(cb, parent, key);
+        _ymldb_node_delete_notify(cb, parent, key);
         ydb = cp_avltree_delete(parent->children, key);
         _ymldb_node_free(ydb);
     }
     return;
 }
 
-void ymldb_node_get(struct ymldb_cb *cb, struct ymldb *parent, char *key)
+void _ymldb_node_get(struct ymldb_cb *cb, struct ymldb *parent, char *key)
 {
     if (parent)
     {
@@ -718,12 +728,12 @@ void ymldb_node_get(struct ymldb_cb *cb, struct ymldb *parent, char *key)
             _log_error("- parent ymldb: %s, child ymldb %s\n", parent->key, key);
             return;
         }
-        ymldb_node_get_reply(cb, parent, key);
+        _ymldb_node_get_reply(cb, parent, key);
     }
     return;
 }
 
-int ymldb_merge(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
+int _ymldb_merge(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
 {
     yaml_node_t *node = NULL;
     node = yaml_document_get_node(cb->in_document, index);
@@ -732,6 +742,12 @@ int ymldb_merge(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index
 
     if (!node)
         return 0;
+
+    if(p_ydb->level == 1) {
+        if(strcmp(cb->key, p_ydb->key) != 0) {
+            return -1;
+        }
+    }
 
     switch (node->type)
     {
@@ -746,11 +762,11 @@ int ymldb_merge(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index
             char *key = (char *)node->data.scalar.value;
             if (node->type == YAML_SCALAR_NODE)
             {
-                ymldb_node_merge(cb, p_ydb, YMLDB_LEAFLIST, key, NULL);
+                _ymldb_node_merge(cb, p_ydb, YMLDB_LEAFLIST, key, NULL);
             }
             else
             {
-                ymldb_merge(cb, p_ydb, *item, index);
+                _ymldb_merge(cb, p_ydb, *item, index);
             }
         }
     }
@@ -769,14 +785,14 @@ int ymldb_merge(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index
 
             if (value_node->type == YAML_SCALAR_NODE)
             {
-                ymldb_node_merge(cb, p_ydb, YMLDB_LEAF, key, value);
+                _ymldb_node_merge(cb, p_ydb, YMLDB_LEAF, key, value);
             }
             else
             { // not leaf
                 struct ymldb *ydb = NULL;
                 // _log_debug("key %s, value -\n", key);
-                ydb = ymldb_node_merge(cb, p_ydb, YMLDB_BRANCH, key, NULL);
-                ymldb_merge(cb, ydb, pair->value, index);
+                ydb = _ymldb_node_merge(cb, p_ydb, YMLDB_BRANCH, key, NULL);
+                _ymldb_merge(cb, ydb, pair->value, index);
             }
         }
     }
@@ -790,7 +806,7 @@ int ymldb_merge(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index
     return 0;
 }
 
-int ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
+int _ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
 {
     yaml_node_t *node = NULL;
     if (!p_ydb)
@@ -812,11 +828,11 @@ int ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_inde
             char *key = (char *)node->data.scalar.value;
             if (node->type == YAML_SCALAR_NODE)
             {
-                ymldb_node_delete(cb, p_ydb, key);
+                _ymldb_node_delete(cb, p_ydb, key);
             }
             else
             {
-                ymldb_delete(cb, p_ydb, *item, index);
+                _ymldb_delete(cb, p_ydb, *item, index);
             }
         }
     }
@@ -834,14 +850,14 @@ int ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_inde
 
             if (value_node->type == YAML_SCALAR_NODE)
             {
-                ymldb_node_delete(cb, p_ydb, key);
+                _ymldb_node_delete(cb, p_ydb, key);
             }
             else
             { // not leaf
                 struct ymldb *ydb = NULL;
                 // _log_debug("key %s, value -\n", key);
                 ydb = cp_avltree_get(p_ydb->children, key);
-                ymldb_delete(cb, ydb, pair->value, index);
+                _ymldb_delete(cb, ydb, pair->value, index);
             }
         }
     }
@@ -855,7 +871,7 @@ int ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_inde
     return 0;
 }
 
-int ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
+int _ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
 {
     yaml_node_t *node = NULL;
     if (!p_ydb)
@@ -877,11 +893,11 @@ int ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
             char *key = (char *)node->data.scalar.value;
             if (node->type == YAML_SCALAR_NODE)
             {
-                ymldb_node_get(cb, p_ydb, key);
+                _ymldb_node_get(cb, p_ydb, key);
             }
             else
             {
-                ymldb_get(cb, p_ydb, *item, index);
+                _ymldb_get(cb, p_ydb, *item, index);
             }
         }
     }
@@ -899,14 +915,14 @@ int ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
 
             if (value_node->type == YAML_SCALAR_NODE)
             {
-                ymldb_node_get(cb, p_ydb, key);
+                _ymldb_node_get(cb, p_ydb, key);
             }
             else
             { // not leaf
                 struct ymldb *ydb = NULL;
                 // _log_debug("key %s\n", key);
                 ydb = cp_avltree_get(p_ydb->children, key);
-                ymldb_get(cb, ydb, pair->value, index);
+                _ymldb_get(cb, ydb, pair->value, index);
             }
         }
     }
@@ -922,11 +938,11 @@ int ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
 
 char *ymldb_op_extract(struct ymldb_cb *cb)
 {
-    char *op = YMLDB_TAG_OP_MERGE;
+    char *op = YMLDB_OP_MERGE;
     if (!cb)
-        return YMLDB_TAG_OP_MERGE;
+        return YMLDB_OP_MERGE;
     if (!cb->in_document)
-        return YMLDB_TAG_OP_MERGE;
+        return YMLDB_OP_MERGE;
     if (cb->in_document->tag_directives.start != cb->in_document->tag_directives.end)
     {
         yaml_tag_directive_t *tag;
@@ -940,7 +956,7 @@ char *ymldb_op_extract(struct ymldb_cb *cb)
     return op;
 }
 
-void ymldb_dump_start(struct ymldb_cb *cb)
+void _ymldb_dump_start(struct ymldb_cb *cb)
 {
     if (!cb)
         return;
@@ -948,37 +964,37 @@ void ymldb_dump_start(struct ymldb_cb *cb)
     if (!cb->op)
         return;
     // %TAG !merge! actusnetworks.com:op:
-    if (strcmp(cb->op, YMLDB_TAG_OP_MERGE) == 0) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
+    if (strcmp(cb->op, YMLDB_OP_MERGE) == 0) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_OP_MERGE, YMLDB_TAG_MERGE);
         _out(cb->out, "---\n");
     }
-    else if (strcmp(cb->op, YMLDB_TAG_OP_DELETE) == 0) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
+    else if (strcmp(cb->op, YMLDB_OP_DELETE) == 0) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_OP_DELETE, YMLDB_TAG_DELETE);
         _out(cb->out, "---\n");
     }
-    else if (strcmp(cb->op, YMLDB_TAG_OP_GET) == 0) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
+    else if (strcmp(cb->op, YMLDB_OP_GET) == 0) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_OP_GET, YMLDB_TAG_GET);
         _out(cb->out, "---\n");
     }
 }
 
-void ymldb_dump_end(struct ymldb_cb *cb)
+void _ymldb_dump_end(struct ymldb_cb *cb)
 {
     if (!cb || !cb->op)
         return;
-    if (strcmp(cb->op, YMLDB_TAG_OP_MERGE) == 0) {
+    if (strcmp(cb->op, YMLDB_OP_MERGE) == 0) {
         _out(cb->out, "...\n\n");
     }
-    else if (strcmp(cb->op, YMLDB_TAG_OP_DELETE) == 0) {
+    else if (strcmp(cb->op, YMLDB_OP_DELETE) == 0) {
         _out(cb->out, "...\n\n");
     }
-    else if (strcmp(cb->op, YMLDB_TAG_OP_GET) == 0) {
+    else if (strcmp(cb->op, YMLDB_OP_GET) == 0) {
         _out(cb->out, "...\n\n");
     }
     
 }
 
-int ymldb_construct(struct ymldb_cb *cb, FILE *in, FILE *out)
+int ymldb_construct(struct ymldb_cb *cb)
 {
     int done = 0;
     if (!cb)
@@ -986,16 +1002,13 @@ int ymldb_construct(struct ymldb_cb *cb, FILE *in, FILE *out)
         _log_error("ymldb:construct:invalid ymldb_cb\n");
         return -1;
     }
-    if (!in)
+    if (!cb->in)
     {
         _log_error("ymldb:construct:invalid input stream\n");
         return -1;
     }
 
-    cb->in = in;
-    cb->out = out;
-
-    cb->parser = yaml_parser_init(in);
+    cb->parser = yaml_parser_init(cb->in);
     if (!cb->parser)
     {
         _log_error("ymldb:construct:parser init failed\n");
@@ -1005,7 +1018,7 @@ int ymldb_construct(struct ymldb_cb *cb, FILE *in, FILE *out)
     _log_debug("> start\n");
     while (!done)
     {
-        char *op = YMLDB_TAG_OP_MERGE;
+        char *op = YMLDB_OP_MERGE;
         yaml_node_t *yroot = NULL;
         /* Get the next ymldb document. */
         cb->in_document = yaml_document_load(cb->parser);
@@ -1022,29 +1035,29 @@ int ymldb_construct(struct ymldb_cb *cb, FILE *in, FILE *out)
             cb->sequence++;
             _log_debug("%dth %s\n", cb->sequence, op);
 
-            cb->emitter = yaml_emitter_init(out);
-            cb->out_document = yaml_document_init(op);
+            // cb->emitter = yaml_emitter_init(cb->out);
+            // cb->out_document = yaml_document_init(op);
 
-            ymldb_dump_start(cb);
-            if (strcmp(op, YMLDB_TAG_OP_MERGE) == 0)
+            _ymldb_dump_start(cb);
+            if (strcmp(op, YMLDB_OP_MERGE) == 0)
             {
-                ymldb_merge(cb, cb->ydb, 1, 1);
+                _ymldb_merge(cb, cb->ydb, 1, 1);
             }
-            else if (strcmp(op, YMLDB_TAG_OP_DELETE) == 0)
+            else if (strcmp(op, YMLDB_OP_DELETE) == 0)
             {
-                ymldb_delete(cb, cb->ydb, 1, 1);
+                _ymldb_delete(cb, cb->ydb, 1, 1);
             }
-            else if (strcmp(op, YMLDB_TAG_OP_GET) == 0)
+            else if (strcmp(op, YMLDB_OP_GET) == 0)
             {
-                ymldb_get(cb, cb->ydb, 1, 1);
+                _ymldb_get(cb, cb->ydb, 1, 1);
             }
-            ymldb_dump_end(cb);
+            _ymldb_dump_end(cb);
 
             cb->last_notify = NULL;
 
-            yaml_emitter_flush_and_free(cb->emitter, cb->out_document);
-            cb->out_document = NULL;
-            cb->emitter = NULL;
+            // yaml_emitter_flush_and_free(cb->emitter, cb->out_document);
+            // cb->out_document = NULL;
+            // cb->emitter = NULL;
         }
         else
         { /* Check if this is the in end. */
@@ -1058,34 +1071,79 @@ int ymldb_construct(struct ymldb_cb *cb, FILE *in, FILE *out)
     _log_debug("> end\n\n");
     yaml_parser_free(cb->parser);
     cb->parser = NULL;
-    cb->in = NULL;
-    cb->out = NULL;
     return 0;
 }
 
-struct ymldb_cb *ymldb_init()
+struct ymldb_cb *ymldb_create(char *owner, char *key, FILE *in, FILE *out)
 {
-    struct ymldb_cb *cb = malloc(sizeof(struct ymldb_cb));
-    if (!cb)
-    {
-        _log_error("ymldb:init failed.\n");
+    struct ymldb_cb *cb;
+    if(!key) {
+        _log_error("ymldb:init: no key\n");
+    }
+    if(!owner) {
+        _log_error("ymldb:init: no owner\n");
+    }
+
+    // init top
+    if(!gTop) {
+        gTop = _ymldb_node_merge(NULL, NULL, YMLDB_BRANCH, "top", NULL);
+        if (!gTop)
+        {
+            _log_error("ymldb:init:top failed.\n");
+            return NULL;
+        }
+    }
+    if(cp_avltree_get(gTop->children, key)) {
+        _log_error("ymldb:init: key exsits.\n");
         return NULL;
     }
+
+    cb = malloc(sizeof(struct ymldb_cb));
+    if (!cb)
+    {
+        _log_error("ymldb:init: alloc failed.\n");
+        return NULL;
+    }
+    cb->key = strdup(key);
+    if(!cb->key) {
+        _log_error("ymldb:init: key alloc failed.\n");
+        free(cb);
+        return NULL;
+    }
+
+    cb->owner = strdup(owner);
+    if(!cb->owner) {
+        _log_error("ymldb:init: owner alloc failed.\n");
+        free(cb->key);
+        free(cb);
+        return NULL;
+    }
+    
     cb->parser = NULL;
     cb->in_document = NULL;
     cb->out_document = NULL;
     cb->emitter = NULL;
     cb->sequence = 0;
-    cb->in = NULL;
-    cb->out = NULL;
-    cb->ydb = ymldb_node_merge(cb, NULL, YMLDB_BRANCH, "top", NULL);
+    cb->in = in;
+    cb->out = out;
+
+    cb->ydb = _ymldb_node_merge(cb, gTop, YMLDB_BRANCH, key, NULL);
     if (!cb->ydb)
     {
-        _log_error("ymldb:top init failed.\n");
+        _log_error("ymldb:init: init failed.\n");
+        free(cb->key);
+        free(cb->owner);
         free(cb);
         return NULL;
     }
     return cb;
+}
+
+struct ymldb_cb *ymldb_create_with_fd(char *owner, char *key, int infd, int outfd)
+{
+    FILE *in = fopen_from_fd(infd, "r");
+    FILE *out = fopen_from_fd(outfd, "w");
+    return ymldb_create(owner, key, in, out);
 }
 
 void ymldb_destroy(struct ymldb_cb *cb)
@@ -1112,8 +1170,92 @@ void ymldb_destroy(struct ymldb_cb *cb)
         }
         _ymldb_node_free(ydb);
     }
+    if(cb->key)
+        free(cb->key);
+    if(cb->owner)
+        free(cb->owner);
+    if(cb->in)
+        fclose(cb->in);
+    if(cb->out)
+        fclose(cb->out);
     free(cb);
 }
+
+int ymldb_push(struct ymldb_cb *cb, char *yml_data)
+{
+    FILE *in_backup;
+    _log_debug("start\n");
+    _log_debug("yml_data='%s'\n",yml_data);
+    
+    if(cb) {
+        in_backup = cb->in;
+        cb->in = fmemopen(yml_data, strlen(yml_data), "r");
+        if(cb->in) {
+            ymldb_construct(cb);
+            fclose(cb->in);
+        }
+        cb->in = in_backup;
+    }
+    else {
+        _log_error("ymldb:push: no cb\n");
+    }
+    _log_debug("ymldb:push: end\n");
+    return 0;
+}
+
+int ymldb_write(struct ymldb_cb *cb, char *op, int num, ...)
+{
+    int i;
+    int yml_len = 0;
+    char yml_data[256] = {0,};
+    char *token;
+    va_list args;
+    // %TAG !merge! actusnetworks.com:op:
+    if (strcmp(op, YMLDB_OP_MERGE) == 0) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_OP_MERGE, YMLDB_TAG_MERGE);
+    }
+    else if (strcmp(op, YMLDB_OP_DELETE) == 0) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_OP_DELETE, YMLDB_TAG_DELETE);
+    }
+    else if (strcmp(op, YMLDB_OP_GET) == 0) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_OP_GET, YMLDB_TAG_GET);
+    }
+    yml_len = strlen(yml_data);
+
+    va_start (args, num);
+    for(i=0; i<num; i++) 
+    {
+        token = va_arg(args, char *);
+        if(!token) {
+            snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "\n");
+            break;
+        }
+        // _log_debug("token=%s\n", token);
+        if(i+1 < num) {
+            snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "%.*s%s:\n", i * 2, gSpace, token);
+            yml_len = yml_len + strlen(token) + (i*2) + 2 /* \n and =  the lengh of 2 characters */;
+        }
+        else {
+            snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "%.*s%s\n", i * 2, gSpace, token);
+            yml_len = yml_len + strlen(token) + (i*2) + 1;
+        }
+    }
+
+    va_end (args);
+
+    if (strcmp(op, YMLDB_OP_MERGE) == 0) {
+        snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "...\n\n");
+    }
+    else if (strcmp(op, YMLDB_OP_DELETE) == 0) {
+        snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "...\n\n");
+    }
+    else if (strcmp(op, YMLDB_OP_GET) == 0) {
+        snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "...\n\n");
+    }
+
+    return ymldb_push(cb, yml_data);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -1121,8 +1263,8 @@ int main(int argc, char *argv[])
     int infile = 0;
     int outfile = 0;
     int k;
-    char *infilename = NULL;
-    char *outfilename = NULL;
+    char *infilename = "";
+    char *outfilename = "";
     FILE *infp = NULL;
     FILE *outfp = NULL;
     int infd = 0;
@@ -1178,69 +1320,72 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    if (infile)
-    {
-        if (infilename)
-        {
-            infd = open(infilename, O_RDONLY, 0644);
-            if (infd < 0)
-            {
-                fprintf(stderr, "file open error. %s\n", strerror(errno));
-                return 1;
-            }
-
-            int dup_fd = dup(infd);
-            infp = fdopen(dup_fd, "r");
-            if (!infp)
-            {
-                fprintf(stderr, "infilename fdopen error. %s\n", strerror(errno));
-                return 1;
-            }
-        }
-        else
-        {
-            fprintf(stderr, "No infilename configured.\n");
-            return 1;
-        }
-    }
-    else
+    _log_debug("ymldb created!!");
+    if (strcmp(infilename, "stdin") == 0)
     {
         infp = stdin;
     }
-
-    if (outfile)
+    else if(strlen(infilename) > 0)
     {
-        if (outfilename)
+        infd = open(infilename, O_RDONLY, 0644);
+        if (infd < 0)
         {
-            outfd = open(outfilename, O_WRONLY | O_APPEND | O_CREAT, 0644);
-            if (outfd < 0)
-            {
-                fprintf(stderr, "outfilename file open error. %s\n", strerror(errno));
-                return 1;
-            }
-
-            int dup_fd = dup(outfd);
-            outfp = fdopen(dup_fd, "w");
-            if (!outfp)
-            {
-                fprintf(stderr, "outfile fdopen error. %s\n", strerror(errno));
-                return 1;
-            }
+            fprintf(stderr, "file open error. %s\n", strerror(errno));
+            return 1;
         }
+
+        // infp = fopen_from_fd(infd, "r");
+        // if (!infp)
+        // {
+        //     fprintf(stderr, "infilename fdopen error. %s\n", strerror(errno));
+        //     return 1;
+        // }
     }
-    else
+    
+
+    if (strcmp(outfilename, "stdout") == 0)
     {
-        //outfp = stdout;
+        outfp = stdout;
     }
+    else if(strlen(outfilename) > 0)
+    {
+        outfd = open(outfilename, O_WRONLY | O_APPEND | O_CREAT, 0644);
+        if (outfd < 0)
+        {
+            fprintf(stderr, "outfilename file open error. %s\n", strerror(errno));
+            return 1;
+        }
+
+        // outfp = fopen_from_fd(outfd, "w");
+        // if (!outfp)
+        // {
+        //     fprintf(stderr, "outfile fdopen error. %s\n", strerror(errno));
+        //     return 1;
+        // }
+    }
+
 
     struct ymldb_cb *cb = NULL;
-    cb = ymldb_init();
+    
+    cb = ymldb_create_with_fd("me", "my-ymldb", infd, outfd);
     if (!cb)
         return -1;
 
-    ymldb_construct(cb, infp, outfp);
+    struct ymldb_cb *cb2 = NULL;
+    cb2 = ymldb_create("you", "your-ymldb", NULL, NULL);
+    if (!cb2)
+        return -1;
 
-    ymldb_dump(cb, cb->ydb, cb->ydb->level, 0);
+
+    ymldb_construct(cb);
+    
+    ymldb_push(cb2, 
+        "system:\n"
+        "  product: G.FAST-HN5124D\n"
+        "  serial-number: HN5124-S100213124\n");
+    ymldb_write(cb, YMLDB_OP_MERGE, 3, "system", "product", "abc");
+    
+    ymldb_dump(cb, cb->ydb->parent, 0, 0);
 
     ymldb_destroy(cb);
 

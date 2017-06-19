@@ -23,6 +23,8 @@ struct ymldb
 // ymldb control block
 struct ymldb_cb
 {
+    char *key;
+    char *owner;
     struct ymldb *ydb;
     struct ymldb *last_notify; // last updated ydb
     int sequence;
@@ -35,9 +37,9 @@ struct ymldb_cb
     char *op;
 };
 
-#define YMLDB_TAG_OP_GET "!get!"
-#define YMLDB_TAG_OP_DELETE "!delete!"
-#define YMLDB_TAG_OP_MERGE "!merge!"
+#define YMLDB_OP_GET "!get!"
+#define YMLDB_OP_DELETE "!delete!"
+#define YMLDB_OP_MERGE "!merge!"
 #define YMLDB_TAG_BASE "actusnetworks.com:op:"
 #define YMLDB_TAG_GET YMLDB_TAG_BASE "get"
 #define YMLDB_TAG_DELETE YMLDB_TAG_BASE "delete"
