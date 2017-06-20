@@ -287,19 +287,19 @@ yaml_document_t *yaml_document_init(char *op)
         return NULL;
     }
     // create tag_directives
-    if (strcmp(op, YMLDB_OP_DELETE) == 0)
+    if (strcmp(op, YMLDB_TAG_OP_DELETE) == 0)
     {
-        tag[0].handle = (yaml_char_t *)YMLDB_OP_DELETE;
+        tag[0].handle = (yaml_char_t *)YMLDB_TAG_OP_DELETE;
         tag[0].prefix = (yaml_char_t *)YMLDB_TAG_DELETE;
     }
-    else if (strcmp(op, YMLDB_OP_GET) == 0)
+    else if (strcmp(op, YMLDB_TAG_OP_GET) == 0)
     {
-        tag[0].handle = (yaml_char_t *)YMLDB_OP_GET;
+        tag[0].handle = (yaml_char_t *)YMLDB_TAG_OP_GET;
         tag[0].prefix = (yaml_char_t *)YMLDB_TAG_GET;
     }
     else
     {
-        tag[0].handle = (yaml_char_t *)YMLDB_OP_MERGE;
+        tag[0].handle = (yaml_char_t *)YMLDB_TAG_OP_MERGE;
         tag[0].prefix = (yaml_char_t *)YMLDB_TAG_MERGE;
     }
     tag[1].handle = NULL;
@@ -936,24 +936,42 @@ int _ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
     return 0;
 }
 
-char *ymldb_op_extract(struct ymldb_cb *cb)
+int _ymldb_op_extract(struct ymldb_cb *cb)
 {
-    char *op = YMLDB_OP_MERGE;
-    if (!cb)
-        return YMLDB_OP_MERGE;
-    if (!cb->in_document)
-        return YMLDB_OP_MERGE;
+    // char *op = YMLDB_OP_MERGE;
+    int opcode = 0;
+    if (!cb || !cb->in_document)
+        return opcode;
     if (cb->in_document->tag_directives.start != cb->in_document->tag_directives.end)
     {
+        char *op;
         yaml_tag_directive_t *tag;
         for (tag = cb->in_document->tag_directives.start;
              tag != cb->in_document->tag_directives.end; tag++)
         {
             op = (char *)tag->handle;
+            if (strcmp(op, YMLDB_TAG_OP_MERGE) == 0) {
+                opcode = opcode | YMLDB_OP_MERGE;
+            }
+            else if (strcmp(op, YMLDB_TAG_OP_DELETE) == 0) {
+                opcode = opcode | YMLDB_OP_DELETE;
+            }
+            else if (strcmp(op, YMLDB_TAG_OP_GET) == 0) {
+                opcode = opcode | YMLDB_OP_GET;
+            }
+            else if (strcmp(op, YMLDB_TAG_OP_SUBSCRIBE) == 0) {
+                opcode = opcode | YMLDB_OP_SUBSCRIBE;
+            }
+            else if (strcmp(op, YMLDB_TAG_OP_UNSUBSCRIBE) == 0) {
+                opcode = opcode | YMLDB_OP_UNSUBSCRIBE;
+            }
+            else if (strcmp(op, YMLDB_TAG_OP_PUBLISH) == 0) {
+                opcode = opcode | YMLDB_OP_PUBLISH;
+            }
         }
     }
-    cb->op = op;
-    return op;
+    cb->opcode = opcode;
+    return opcode;
 }
 
 void _ymldb_dump_start(struct ymldb_cb *cb)
@@ -961,37 +979,72 @@ void _ymldb_dump_start(struct ymldb_cb *cb)
     if (!cb)
         return;
     _out(cb->out, "# %d\n", cb->sequence);
-    if (!cb->op)
-        return;
+
     // %TAG !merge! actusnetworks.com:op:
-    if (strcmp(cb->op, YMLDB_OP_MERGE) == 0) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_OP_MERGE, YMLDB_TAG_MERGE);
-        _out(cb->out, "---\n");
+    if (cb->opcode & YMLDB_OP_MERGE) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
     }
-    else if (strcmp(cb->op, YMLDB_OP_DELETE) == 0) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_OP_DELETE, YMLDB_TAG_DELETE);
-        _out(cb->out, "---\n");
+    if (cb->opcode & YMLDB_OP_DELETE) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
     }
-    else if (strcmp(cb->op, YMLDB_OP_GET) == 0) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_OP_GET, YMLDB_TAG_GET);
-        _out(cb->out, "---\n");
+    if (cb->opcode & YMLDB_OP_GET) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
     }
+    if (cb->opcode & YMLDB_OP_SUBSCRIBE) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBE, YMLDB_TAG_SUBSCRIBE);
+    }
+    if (cb->opcode & YMLDB_OP_UNSUBSCRIBE) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_UNSUBSCRIBE, YMLDB_TAG_UNSUBSCRIBE);
+    }
+    if (cb->opcode & YMLDB_OP_PUBLISH) {
+        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_PUBLISH, YMLDB_TAG_PUBLISH);
+    }
+    _out(cb->out, "---\n");
 }
+
 
 void _ymldb_dump_end(struct ymldb_cb *cb)
 {
-    if (!cb || !cb->op)
+    if (!cb)
         return;
-    if (strcmp(cb->op, YMLDB_OP_MERGE) == 0) {
-        _out(cb->out, "...\n\n");
+    _out(cb->out, "...\n\n");
+}
+
+void _ymldb_sprintf_start(int opcode, char *str)
+{
+    char *cur = str;
+    if (!str)
+        return;
+    cur = str + strlen(str);
+
+    // %TAG !merge! actusnetworks.com:op:
+    if (opcode & YMLDB_OP_MERGE) {
+        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
     }
-    else if (strcmp(cb->op, YMLDB_OP_DELETE) == 0) {
-        _out(cb->out, "...\n\n");
+    if (opcode & YMLDB_OP_DELETE) {
+        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
     }
-    else if (strcmp(cb->op, YMLDB_OP_GET) == 0) {
-        _out(cb->out, "...\n\n");
+    if (opcode & YMLDB_OP_GET) {
+        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
     }
-    
+    if (opcode & YMLDB_OP_SUBSCRIBE) {
+        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBE, YMLDB_TAG_SUBSCRIBE);
+    }
+    if (opcode & YMLDB_OP_UNSUBSCRIBE) {
+        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_UNSUBSCRIBE, YMLDB_TAG_UNSUBSCRIBE);
+    }
+    if (opcode & YMLDB_OP_PUBLISH) {
+        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_PUBLISH, YMLDB_TAG_PUBLISH);
+    }
+    strcat(cur, "---\n");
+}
+
+
+void _ymldb_sprintf_end(char *str)
+{
+    if (!str)
+        return;
+    strcat(str, "...\n\n");
 }
 
 int ymldb_construct(struct ymldb_cb *cb)
@@ -1018,7 +1071,7 @@ int ymldb_construct(struct ymldb_cb *cb)
     _log_debug("> start\n");
     while (!done)
     {
-        char *op = YMLDB_OP_MERGE;
+        int opcode = 0;
         yaml_node_t *yroot = NULL;
         /* Get the next ymldb document. */
         cb->in_document = yaml_document_load(cb->parser);
@@ -1028,31 +1081,35 @@ int ymldb_construct(struct ymldb_cb *cb)
             break;
         }
 
-        op = ymldb_op_extract(cb);
+        opcode = _ymldb_op_extract(cb);
         yroot = yaml_document_get_root_node(cb->in_document);
         if (yroot)
         {
             cb->sequence++;
-            _log_debug("%dth %s\n", cb->sequence, op);
+            _log_debug("%dth %d\n", cb->sequence, opcode);
 
             // cb->emitter = yaml_emitter_init(cb->out);
-            // cb->out_document = yaml_document_init(op);
+            // cb->out_document = yaml_document_init(opcode);
 
             _ymldb_dump_start(cb);
-            if (strcmp(op, YMLDB_OP_MERGE) == 0)
+            if (opcode & YMLDB_OP_PUBLISH)
             {
-                _ymldb_merge(cb, cb->ydb, 1, 1);
             }
-            else if (strcmp(op, YMLDB_OP_DELETE) == 0)
+            if (opcode & YMLDB_OP_SUBSCRIBE)
             {
-                _ymldb_delete(cb, cb->ydb, 1, 1);
             }
-            else if (strcmp(op, YMLDB_OP_GET) == 0)
+            if (opcode & YMLDB_OP_UNSUBSCRIBE)
             {
-                _ymldb_get(cb, cb->ydb, 1, 1);
             }
-            _ymldb_dump_end(cb);
 
+            if (opcode & YMLDB_OP_MERGE)
+                _ymldb_merge(cb, cb->ydb, 1, 1);
+            if (opcode & YMLDB_OP_DELETE)
+                _ymldb_delete(cb, cb->ydb, 1, 1);
+            if (opcode & YMLDB_OP_GET)
+                _ymldb_get(cb, cb->ydb, 1, 1);
+
+            _ymldb_dump_end(cb);
             cb->last_notify = NULL;
 
             // yaml_emitter_flush_and_free(cb->emitter, cb->out_document);
@@ -1181,7 +1238,8 @@ void ymldb_destroy(struct ymldb_cb *cb)
     free(cb);
 }
 
-int ymldb_push(struct ymldb_cb *cb, char *yml_data)
+
+int _ymldb_push(struct ymldb_cb *cb, char *yml_data)
 {
     FILE *in_backup;
     _log_debug("start\n");
@@ -1203,7 +1261,26 @@ int ymldb_push(struct ymldb_cb *cb, char *yml_data)
     return 0;
 }
 
-int ymldb_write(struct ymldb_cb *cb, char *op, int num, ...)
+int ymldb_push (struct ymldb_cb *cb, int opcode, char * format, ...)
+{
+    char *pstr = NULL;
+    char pushbuf[512] = {0};
+    int pstr_len = 0;
+    _ymldb_sprintf_start(opcode, pushbuf);
+    pstr_len = strlen(pushbuf);
+    pstr = &pushbuf[pstr_len];
+    va_list args;
+    va_start (args, format);
+    vsnprintf (pstr, sizeof(pushbuf) - pstr_len,format, args);
+    perror (pushbuf);
+    va_end (args);
+    _ymldb_sprintf_end(pushbuf);
+    return _ymldb_push(cb, pushbuf);
+}
+
+
+
+int ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...)
 {
     int i;
     int yml_len = 0;
@@ -1211,15 +1288,35 @@ int ymldb_write(struct ymldb_cb *cb, char *op, int num, ...)
     char *token;
     va_list args;
     // %TAG !merge! actusnetworks.com:op:
-    if (strcmp(op, YMLDB_OP_MERGE) == 0) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_OP_MERGE, YMLDB_TAG_MERGE);
+
+    if(!cb) {
+        _log_error("no cb\n");
+        return -1;
     }
-    else if (strcmp(op, YMLDB_OP_DELETE) == 0) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_OP_DELETE, YMLDB_TAG_DELETE);
+
+    if (opcode & YMLDB_OP_MERGE) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
     }
-    else if (strcmp(op, YMLDB_OP_GET) == 0) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_OP_GET, YMLDB_TAG_GET);
+    else if (opcode & YMLDB_OP_DELETE) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
     }
+    else if (opcode & YMLDB_OP_GET) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
+    }
+    else if (opcode & YMLDB_OP_PUBLISH) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_PUBLISH, YMLDB_TAG_PUBLISH);
+    }
+    else if (opcode & YMLDB_OP_SUBSCRIBE) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBE, YMLDB_TAG_SUBSCRIBE);
+    }
+    else if (opcode & YMLDB_OP_UNSUBSCRIBE) {
+        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_UNSUBSCRIBE, YMLDB_TAG_UNSUBSCRIBE);
+    }
+    else {
+        _log_error("no opcode\n");
+        return -1;
+    }
+
     yml_len = strlen(yml_data);
 
     va_start (args, num);
@@ -1243,17 +1340,8 @@ int ymldb_write(struct ymldb_cb *cb, char *op, int num, ...)
 
     va_end (args);
 
-    if (strcmp(op, YMLDB_OP_MERGE) == 0) {
-        snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "...\n\n");
-    }
-    else if (strcmp(op, YMLDB_OP_DELETE) == 0) {
-        snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "...\n\n");
-    }
-    else if (strcmp(op, YMLDB_OP_GET) == 0) {
-        snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "...\n\n");
-    }
-
-    return ymldb_push(cb, yml_data);
+    snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "...\n\n");
+    return _ymldb_push(cb, yml_data);
 }
 
 
@@ -1371,18 +1459,15 @@ int main(int argc, char *argv[])
     if (!cb)
         return -1;
 
-    struct ymldb_cb *cb2 = NULL;
-    cb2 = ymldb_create("you", "your-ymldb", NULL, NULL);
-    if (!cb2)
-        return -1;
-
-
     ymldb_construct(cb);
     
-    ymldb_push(cb2, 
+    ymldb_push(cb, YMLDB_OP_MERGE,
         "system:\n"
-        "  product: G.FAST-HN5124D\n"
-        "  serial-number: HN5124-S100213124\n");
+        "  product: %s\n"
+        "  serial-number: %s\n",
+        "G.FAST-HN5124D",
+        "HN5124-S100213124"
+        );
     ymldb_write(cb, YMLDB_OP_MERGE, 3, "system", "product", "abc");
     
     ymldb_dump(cb, cb->ydb->parent, 0, 0);
