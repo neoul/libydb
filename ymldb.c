@@ -974,78 +974,38 @@ int _ymldb_op_extract(struct ymldb_cb *cb)
     return opcode;
 }
 
-void _ymldb_dump_start(struct ymldb_cb *cb)
+void _ymldb_dump_start(FILE *out, int opcode, int sequence)
 {
-    if (!cb)
-        return;
-    _out(cb->out, "# %d\n", cb->sequence);
-
-    // %TAG !merge! actusnetworks.com:op:
-    if (cb->opcode & YMLDB_OP_MERGE) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
-    }
-    if (cb->opcode & YMLDB_OP_DELETE) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
-    }
-    if (cb->opcode & YMLDB_OP_GET) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
-    }
-    if (cb->opcode & YMLDB_OP_SUBSCRIBE) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBE, YMLDB_TAG_SUBSCRIBE);
-    }
-    if (cb->opcode & YMLDB_OP_UNSUBSCRIBE) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_UNSUBSCRIBE, YMLDB_TAG_UNSUBSCRIBE);
-    }
-    if (cb->opcode & YMLDB_OP_PUBLISH) {
-        _out(cb->out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_PUBLISH, YMLDB_TAG_PUBLISH);
-    }
-    _out(cb->out, "---\n");
-}
-
-
-void _ymldb_dump_end(struct ymldb_cb *cb)
-{
-    if (!cb)
-        return;
-    _out(cb->out, "...\n\n");
-}
-
-void _ymldb_sprintf_start(int opcode, char *str)
-{
-    char *cur = str;
-    if (!str)
-        return;
-    cur = str + strlen(str);
+    _out(out, "# %d\n", sequence);
 
     // %TAG !merge! actusnetworks.com:op:
     if (opcode & YMLDB_OP_MERGE) {
-        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
+        _out(out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
     }
     if (opcode & YMLDB_OP_DELETE) {
-        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
+        _out(out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
     }
     if (opcode & YMLDB_OP_GET) {
-        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
+        _out(out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
     }
     if (opcode & YMLDB_OP_SUBSCRIBE) {
-        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBE, YMLDB_TAG_SUBSCRIBE);
+        _out(out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBE, YMLDB_TAG_SUBSCRIBE);
     }
     if (opcode & YMLDB_OP_UNSUBSCRIBE) {
-        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_UNSUBSCRIBE, YMLDB_TAG_UNSUBSCRIBE);
+        _out(out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_UNSUBSCRIBE, YMLDB_TAG_UNSUBSCRIBE);
     }
     if (opcode & YMLDB_OP_PUBLISH) {
-        sprintf(cur, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_PUBLISH, YMLDB_TAG_PUBLISH);
+        _out(out, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_PUBLISH, YMLDB_TAG_PUBLISH);
     }
-    strcat(cur, "---\n");
+    _out(out, "---\n");
 }
 
 
-void _ymldb_sprintf_end(char *str)
+void _ymldb_dump_end(FILE *out)
 {
-    if (!str)
-        return;
-    strcat(str, "...\n\n");
+    _out(out, "...\n\n");
 }
+
 
 int ymldb_construct(struct ymldb_cb *cb)
 {
@@ -1091,7 +1051,7 @@ int ymldb_construct(struct ymldb_cb *cb)
             // cb->emitter = yaml_emitter_init(cb->out);
             // cb->out_document = yaml_document_init(opcode);
 
-            _ymldb_dump_start(cb);
+            _ymldb_dump_start(cb->out, cb->opcode, cb->sequence);
             if (opcode & YMLDB_OP_PUBLISH)
             {
             }
@@ -1109,7 +1069,7 @@ int ymldb_construct(struct ymldb_cb *cb)
             if (opcode & YMLDB_OP_GET)
                 _ymldb_get(cb, cb->ydb, 1, 1);
 
-            _ymldb_dump_end(cb);
+            _ymldb_dump_end(cb->out);
             cb->last_notify = NULL;
 
             // yaml_emitter_flush_and_free(cb->emitter, cb->out_document);
@@ -1241,41 +1201,44 @@ void ymldb_destroy(struct ymldb_cb *cb)
 
 int _ymldb_push(struct ymldb_cb *cb, char *yml_data)
 {
-    FILE *in_backup;
-    _log_debug("start\n");
-    _log_debug("yml_data='%s'\n",yml_data);
-    
+    _log_debug("yml_data=\n");
+    _log_debug("\n'%s'\n",yml_data);
     if(cb) {
-        in_backup = cb->in;
+        FILE *backup = cb->in;
         cb->in = fmemopen(yml_data, strlen(yml_data), "r");
         if(cb->in) {
             ymldb_construct(cb);
             fclose(cb->in);
         }
-        cb->in = in_backup;
+        cb->in = backup;
     }
-    else {
-        _log_error("ymldb:push: no cb\n");
-    }
-    _log_debug("ymldb:push: end\n");
     return 0;
 }
 
 int ymldb_push (struct ymldb_cb *cb, int opcode, char * format, ...)
 {
-    char *pstr = NULL;
-    char pushbuf[512] = {0};
-    int pstr_len = 0;
-    _ymldb_sprintf_start(opcode, pushbuf);
-    pstr_len = strlen(pushbuf);
-    pstr = &pushbuf[pstr_len];
+    FILE *stream;
+    char streambuf[512] = {0,};
+    if(!cb || opcode == 0) {
+        _log_error("ymldb:push: no cb or opcode\n");
+        return -1;
+    }
+
+    stream = fmemopen(streambuf, sizeof(streambuf), "w");
+    if(!stream) {
+        _log_error("ymldb:push: unable fmemopen stream\n");
+        return -1;
+    }
+    // write ymldb data to the streambuf
+    _ymldb_dump_start(stream, opcode, 0);
     va_list args;
     va_start (args, format);
-    vsnprintf (pstr, sizeof(pushbuf) - pstr_len,format, args);
-    perror (pushbuf);
+    vfprintf (stream, format, args);
     va_end (args);
-    _ymldb_sprintf_end(pushbuf);
-    return _ymldb_push(cb, pushbuf);
+    _ymldb_dump_end(stream);
+    fclose(stream);
+    // read ymldb data from the streambuf
+    return _ymldb_push(cb, streambuf);
 }
 
 
@@ -1283,64 +1246,42 @@ int ymldb_push (struct ymldb_cb *cb, int opcode, char * format, ...)
 int ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...)
 {
     int i;
-    int yml_len = 0;
     char yml_data[256] = {0,};
     char *token;
+    FILE *stream;
     va_list args;
-    // %TAG !merge! actusnetworks.com:op:
 
-    if(!cb) {
-        _log_error("no cb\n");
+    if(!cb || opcode == 0) {
+        _log_error("ymldb:write: no cb or opcode\n");
         return -1;
     }
 
-    if (opcode & YMLDB_OP_MERGE) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
-    }
-    else if (opcode & YMLDB_OP_DELETE) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
-    }
-    else if (opcode & YMLDB_OP_GET) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
-    }
-    else if (opcode & YMLDB_OP_PUBLISH) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_PUBLISH, YMLDB_TAG_PUBLISH);
-    }
-    else if (opcode & YMLDB_OP_SUBSCRIBE) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBE, YMLDB_TAG_SUBSCRIBE);
-    }
-    else if (opcode & YMLDB_OP_UNSUBSCRIBE) {
-        snprintf(yml_data, sizeof(yml_data), "%s %s %s\n---\n", "%TAG", YMLDB_TAG_OP_UNSUBSCRIBE, YMLDB_TAG_UNSUBSCRIBE);
-    }
-    else {
-        _log_error("no opcode\n");
+    stream = fmemopen(yml_data, sizeof(yml_data), "w");
+    if(!stream) {
+        _log_error("ymldb:write: unable fmemopen stream\n");
         return -1;
     }
-
-    yml_len = strlen(yml_data);
-
+    _ymldb_dump_start(stream, opcode, 0);
     va_start (args, num);
     for(i=0; i<num; i++) 
     {
         token = va_arg(args, char *);
         if(!token) {
-            snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "\n");
+            fprintf(stream, "\n");
             break;
         }
-        // _log_debug("token=%s\n", token);
         if(i+1 < num) {
-            snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "%.*s%s:\n", i * 2, gSpace, token);
-            yml_len = yml_len + strlen(token) + (i*2) + 2 /* \n and =  the lengh of 2 characters */;
+
+            fprintf(stream, "%.*s%s:\n", i * 2, gSpace, token);
         }
         else {
-            snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "%.*s%s\n", i * 2, gSpace, token);
-            yml_len = yml_len + strlen(token) + (i*2) + 1;
+            fprintf(stream, "%.*s%s\n", i * 2, gSpace, token);
         }
     }
-
     va_end (args);
+    _ymldb_dump_end(stream);
+    fclose(stream);
 
-    snprintf(yml_data+yml_len, sizeof(yml_data)-yml_len, "...\n\n");
     return _ymldb_push(cb, yml_data);
 }
 
