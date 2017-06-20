@@ -27,8 +27,7 @@ struct ymldb_cb
     struct ymldb *last_notify; // last updated ydb
     int sequence;
     yaml_parser_t *parser;
-    yaml_document_t *in_document;
-    FILE *in;
+    yaml_document_t *document;
     FILE *out;
     int opcode;
     cp_avltree *subscribers;
@@ -60,9 +59,9 @@ struct ymldb_cb
 void _alloc_cnt();
 void ymldb_dump(struct ymldb_cb *cb, struct ymldb *ydb, int print_level, int no_print_children);
 
-int ymldb_construct(struct ymldb_cb *cb);
-struct ymldb_cb *ymldb_create(char *key, FILE *in, FILE *out);
-struct ymldb_cb *ymldb_create_with_fd(char *key, int infd, int outfd);
+int ymldb_run(struct ymldb_cb *cb, FILE *instream);
+struct ymldb_cb *ymldb_create(char *key, FILE *out);
+struct ymldb_cb *ymldb_create_with_fd(char *key, int outfd);
 void ymldb_destroy(struct ymldb_cb *cb);
 int ymldb_push(struct ymldb_cb *cb, int opcode, char *format, ...);
 int _ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...);
