@@ -1153,13 +1153,20 @@ struct ymldb_cb *ymldb_create(char *owner, char *key, FILE *in, FILE *out)
         free(cb);
         return NULL;
     }
+    cb->last_notify = NULL;
     return cb;
 }
 
 struct ymldb_cb *ymldb_create_with_fd(char *owner, char *key, int infd, int outfd)
 {
-    FILE *in = fopen_from_fd(infd, "r");
-    FILE *out = fopen_from_fd(outfd, "w");
+    FILE *in;
+    FILE *out;
+    if(infd >= 0) {
+        in = fopen_from_fd(infd, "r");
+    }
+    if(outfd >= 0) {
+        out = fopen_from_fd(outfd, "w");
+    }
     return ymldb_create(owner, key, in, out);
 }
 
@@ -1246,9 +1253,8 @@ int ymldb_push (struct ymldb_cb *cb, int opcode, char * format, ...)
 int ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...)
 {
     int i;
-    char yml_data[256] = {0,};
-    char *token;
     FILE *stream;
+    char yml_data[256] = {0,};
     va_list args;
 
     if(!cb || opcode == 0) {
@@ -1265,7 +1271,7 @@ int ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...)
     va_start (args, num);
     for(i=0; i<num; i++) 
     {
-        token = va_arg(args, char *);
+        char *token = va_arg(args, char *);
         if(!token) {
             fprintf(stream, "\n");
             break;
