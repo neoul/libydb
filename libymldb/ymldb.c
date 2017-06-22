@@ -16,12 +16,7 @@
 
 // for debug - start
 
-#define _out(FP, ...)                 \
-    do                                \
-    {                                 \
-        if (FP)                       \
-            fprintf(FP, __VA_ARGS__); \
-    } while (0)
+#define _out(FP, ...) fprintf(FP, __VA_ARGS__)
 
 int _ymldb_log_error_parser(yaml_parser_t *parser)
 {
@@ -457,12 +452,13 @@ static int _ymldb_outstream_init(struct ymldb_cb *cb)
 }
 
 static int _ymldb_local_send(struct ymldb_cb *cb);
+static int _ymldb_conn_send(struct ymldb_cb *cb);
 // Return 1 if outstream is flushed, otherwise 0.
 static int _ymldb_outstream_flush(struct ymldb_cb *cb, int forced)
 {
     if (cb->outstream)
     {
-        if(forced)
+        if (forced)
             goto flushing;
         else if (ftell(cb->outstream) >= YMLDB_STREAM_THRESHOLD)
             goto flushing;
@@ -473,15 +469,15 @@ static int _ymldb_outstream_flush(struct ymldb_cb *cb, int forced)
 
 flushing:
     ymldb_dump_end(cb->outstream);
-    fflush(cb->outstream); // write the stream to outbuf.
+    fflush(cb->outstream);                // write the stream to outbuf.
     cb->outbuf[ftell(cb->outstream)] = 0; // end of string.
-    _log_debug("cb->outbuf - START\n%s", cb->outbuf);
-    _log_debug("cb->outbuf - END\n");
+    // _log_debug("cb->outbuf - START\n%s", cb->outbuf);
+    // _log_debug("cb->outbuf - END\n");
 
-    if(cb->flags & YMLDB_FLAG_LOCAL)
+    if (cb->flags & YMLDB_FLAG_LOCAL)
         _ymldb_local_send(cb);
-    // if(flags & YMLDB_FLAG_CONN)
-    //     ymldb_conn_send(cb);
+    if (cb->flags & YMLDB_FLAG_CONN)
+        _ymldb_conn_send(cb);
     return 1;
 }
 
@@ -543,9 +539,11 @@ void _ymldb_node_merge_notify(struct ymldb_cb *cb, struct ymldb *ydb)
         return;
     if (cb->last_notify)
         print_level = _ymldb_print_level(cb->last_notify, ydb);
-    ymldb_dump(cb->outstream, ydb, print_level, 0);
+    if (cb->outstream)
+        ymldb_dump(cb->outstream, ydb, print_level, 0);
     flushed = _ymldb_outstream_flush(cb, 0);
-    if (flushed) {
+    if (flushed)
+    {
         cb->last_notify = NULL;
         _ymldb_outstream_init(cb);
     }
@@ -569,9 +567,11 @@ void _ymldb_node_delete_notify(struct ymldb_cb *cb, struct ymldb *parent, char *
 
     if (cb->last_notify)
         print_level = _ymldb_print_level(cb->last_notify, ydb);
-    ymldb_dump(cb->outstream, ydb, print_level, 1);
+    if (cb->outstream)
+        ymldb_dump(cb->outstream, ydb, print_level, 1);
     flushed = _ymldb_outstream_flush(cb, 0);
-    if (flushed) {
+    if (flushed)
+    {
         cb->last_notify = NULL;
         _ymldb_outstream_init(cb);
     }
@@ -595,9 +595,11 @@ void _ymldb_node_get_reply(struct ymldb_cb *cb, struct ymldb *parent, char *key)
 
     if (cb->last_notify)
         print_level = _ymldb_print_level(cb->last_notify, ydb);
-    ymldb_dump(cb->outstream, ydb, print_level, 0);
+    if (cb->outstream)
+        ymldb_dump(cb->outstream, ydb, print_level, 0);
     flushed = _ymldb_outstream_flush(cb, 0);
-    if (flushed) {
+    if (flushed)
+    {
         cb->last_notify = NULL;
         _ymldb_outstream_init(cb);
     }
@@ -1040,18 +1042,32 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream)
         }
 
         cb->opcode = _ymldb_op_extract(cb);
-
         yroot = yaml_document_get_root_node(cb->document);
         if (yroot)
         {
             cb->sequence++;
             _log_debug("%dth OPCODE=(%s)\n", cb->sequence, _ymldb_opcode_str(cb->opcode));
-
+            cb->no_reply = 0;
+            if(cb->flags & YMLDB_FLAG_SUBSCRIBER) {
+                if (cb->opcode & YMLDB_OP_SUBSCRIBE) {
+                    goto skip_document;
+                }
+                else if (cb->opcode & YMLDB_OP_PUBLISH) {
+                    if (cb->opcode & YMLDB_OP_GET)
+                        goto skip_document;
+                    cb->no_reply = 1;
+                }
+            }
+            if(cb->flags & YMLDB_FLAG_PUBLISHER) {
+                if (cb->opcode & YMLDB_OP_PUBLISH) {
+                    goto skip_document;
+                }
+                else if (cb->opcode & YMLDB_OP_SUBSCRIBE) {
+                    if (cb->opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE))
+                        goto skip_document;
+                }
+            }
             _ymldb_outstream_init(cb);
-            if (cb->opcode & YMLDB_OP_PUBLISH);
-            if (cb->opcode & YMLDB_OP_SUBSCRIBE);
-            if (cb->opcode & YMLDB_OP_UNSUBSCRIBE);
-
             if (cb->opcode & YMLDB_OP_MERGE)
                 _ymldb_merge(cb, gYdb, 1, 1);
             if (cb->opcode & YMLDB_OP_DELETE)
@@ -1059,11 +1075,13 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream)
             if (cb->opcode & YMLDB_OP_GET)
                 _ymldb_get(cb, gYdb, 1, 1);
             _ymldb_outstream_flush(cb, 1); // forced flush!
+            cb->last_notify = NULL;
         }
         else
         {
             done = 1;
         }
+    skip_document:
         _yaml_document_free(cb->document);
         cb->document = NULL;
     }
@@ -1121,7 +1139,7 @@ struct ymldb_cb *ymldb_create(char *key, unsigned int flags, int option)
     }
 
     cb->document = NULL;
-    cb->flags = flags &(YMLDB_FLAG_LOCAL | YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER);
+    cb->flags = flags & (YMLDB_FLAG_LOCAL | YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER);
     cb->outstream = NULL;
 
     cb->ydb = _ymldb_node_merge(cb, gYdb, YMLDB_BRANCH, key, NULL);
@@ -1133,15 +1151,15 @@ struct ymldb_cb *ymldb_create(char *key, unsigned int flags, int option)
         return NULL;
     }
     cb->last_notify = NULL;
-
+    cb->no_reply = 0;
     cb->fd_local = 0;
     cb->fd_publisher = 0;
     memset(cb->fd_subscriber, 0x0, sizeof(cb->fd_subscriber));
-    
-    flags = flags &(YMLDB_FLAG_LOCAL | YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER);
-    if(flags & YMLDB_FLAG_PUBLISHER || flags & YMLDB_FLAG_SUBSCRIBER)
+
+    flags = flags & (YMLDB_FLAG_LOCAL | YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER);
+    if (flags & YMLDB_FLAG_PUBLISHER || flags & YMLDB_FLAG_SUBSCRIBER)
         ymldb_conn_init(cb, flags);
-    if(flags & YMLDB_FLAG_LOCAL)
+    if (flags & YMLDB_FLAG_LOCAL)
         ymldb_local_init(cb, option); // option is fd if YMLDB_FLAG_LOCAL.
     return cb;
 }
@@ -1153,6 +1171,9 @@ int ymldb_conn_deinit(struct ymldb_cb *cb)
         _log_error("ymldb:fd: no cb\n");
         return -1;
     }
+    
+    _log_debug("deinit conn\n");
+
     if (cb->fd_publisher)
     {
         close(cb->fd_publisher);
@@ -1222,7 +1243,7 @@ int ymldb_conn_init(struct ymldb_cb *cb, int flags)
             return -1;
         }
     }
-    else if(flags & YMLDB_FLAG_SUBSCRIBER)
+    else if (flags & YMLDB_FLAG_SUBSCRIBER)
     { // SUBSCRIBER
         cb->flags |= YMLDB_FLAG_SUBSCRIBER;
         if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
@@ -1245,6 +1266,9 @@ int ymldb_conn_set(struct ymldb_cb *cb, fd_set *set)
     }
     if (cb->flags & YMLDB_FLAG_CONN)
     {
+        if(cb->flags & YMLDB_FLAG_RECONNECT) {
+            return max;
+        }
         if (cb->fd_publisher)
         {
             FD_SET(cb->fd_publisher, set);
@@ -1269,32 +1293,29 @@ int ymldb_conn_run(struct ymldb_cb *cb, fd_set *set)
 {
     if (!cb || !set)
     {
-        _log_error("ymldb:fd: no cb or set\n");
+        _log_error("no cb or set\n");
         return -1;
     }
 
     if (!(cb->flags & YMLDB_FLAG_CONN))
     {
-        _log_error("ymldb:fd: no required publishing.\n");
+        _log_error("no required communication channel.\n");
         return -1;
     }
 
     // check reconnect required.
     if (cb->flags & YMLDB_FLAG_RECONNECT)
     {
-        return ymldb_conn_init(cb, cb->flags & YMLDB_FLAG_PUBLISHER);
+        _log_debug("reinit connection\n");
+        return ymldb_conn_init(cb, cb->flags);
     }
 
-    _log_debug("%s:%d\n", __FUNCTION__, __LINE__);
     if (cb->fd_publisher)
     {
-        _log_debug("%s:%d\n", __FUNCTION__, __LINE__);
         if (FD_ISSET(cb->fd_publisher, set))
         {
-            _log_debug("%s:%d\n", __FUNCTION__, __LINE__);
             if (cb->flags & YMLDB_FLAG_PUBLISHER)
             {
-                _log_debug("%s:%d\n", __FUNCTION__, __LINE__);
                 int i, fd;
                 fd = accept(cb->fd_publisher, NULL, NULL);
                 if (fd < 0)
@@ -1316,12 +1337,10 @@ int ymldb_conn_run(struct ymldb_cb *cb, fd_set *set)
                 }
                 FD_CLR(cb->fd_publisher, set);
             }
-            else
+            else if(cb->flags & YMLDB_FLAG_SUBSCRIBER)
             { // for fd_subscriber
-                _log_debug("%s:%d\n", __FUNCTION__, __LINE__);
                 int readlen;
                 char readbuf[512];
-                // memset(readbuf, 0, sizeof(readbuf));
                 readlen = read(cb->fd_publisher, readbuf, sizeof(readbuf));
                 if (readlen < 0)
                 {
@@ -1331,8 +1350,9 @@ int ymldb_conn_run(struct ymldb_cb *cb, fd_set *set)
                 readbuf[readlen] = 0;
                 printf("readlen %d readbuf %s", readlen, readbuf);
                 FD_CLR(cb->fd_publisher, set);
-
-                ymldb_run_with_string(cb, readbuf);
+                if(readlen > 0) {
+                    ymldb_run_with_string(cb, readbuf);
+                }
             }
         }
     }
@@ -1342,7 +1362,6 @@ int ymldb_conn_run(struct ymldb_cb *cb, fd_set *set)
         {
             if (FD_ISSET(cb->fd_subscriber[i], set))
             {
-                _log_debug("%s:%d\n", __FUNCTION__, __LINE__);
                 int readlen;
                 char readbuf[512];
                 readlen = read(cb->fd_subscriber[i], readbuf, sizeof(readbuf));
@@ -1362,6 +1381,74 @@ int ymldb_conn_run(struct ymldb_cb *cb, fd_set *set)
     return 0;
 }
 
+static int _ymldb_conn_send(struct ymldb_cb *cb)
+{
+    int res = 0;
+    int sent = 0;
+    int retry = 0;
+    if(cb->no_reply) {
+        _log_debug("no reply for this request.\n");
+        return 0;
+    }
+    if (cb->flags & YMLDB_FLAG_RECONNECT)
+    {
+        _log_error("flags: need to reconnect to '%s'.\n", cb->key);
+        return -1;
+    }
+    if (cb->fd_publisher <= 0)
+    {
+        cb->flags |= YMLDB_FLAG_RECONNECT;
+        _log_error("fd_publisher: no fd_publisher for '%s'\n", cb->key);
+        return -1;
+    }
+    if (cb->flags & YMLDB_FLAG_SUBSCRIBER)
+    {
+    subscriber_rewrite:
+        res = write(cb->fd_publisher, cb->outbuf + sent, ftell(cb->outstream) - sent);
+        if (res < 0)
+        {
+            cb->flags |= YMLDB_FLAG_RECONNECT;
+            _log_error("fd_publisher: fail to send fd_publisher(%d) (%s)\n",
+                       cb->fd_publisher, strerror(errno));
+            return -1;
+        }
+        sent = res + sent;
+        if (sent < ftell(cb->outstream) && retry < 3)
+        {
+            retry++;
+            goto subscriber_rewrite;
+        }
+    }
+    else if (cb->flags & YMLDB_FLAG_PUBLISHER)
+    {
+        for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+        {
+            if (cb->fd_subscriber[i])
+            {
+                sent = 0;
+                retry = 0;
+            publisher_rewrite:
+                res = write(cb->fd_subscriber[i], cb->outbuf + sent, ftell(cb->outstream) - sent);
+                if (res < 0)
+                {
+                    _log_error("fd_subscriber: close fd_subscriber(%d) due to (%s)\n",
+                               cb->fd_subscriber[i], strerror(errno));
+                    close(cb->fd_subscriber[i]);
+                    cb->fd_subscriber[i] = 0;
+                    continue;
+                }
+                sent = res + sent;
+                if (sent < ftell(cb->outstream) && retry < 3)
+                {
+                    retry++;
+                    goto publisher_rewrite;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 int ymldb_local_init(struct ymldb_cb *cb, int fd)
 {
     if (!cb)
@@ -1369,7 +1456,8 @@ int ymldb_local_init(struct ymldb_cb *cb, int fd)
         _log_error("no cb\n");
         return -1;
     }
-    if(fd <= 0) {
+    if (fd <= 0)
+    {
         _log_error("fd_local: failed due to fd <= %d\n", fd);
         return -1;
     }
@@ -1397,16 +1485,19 @@ static int _ymldb_local_send(struct ymldb_cb *cb)
     int res = 0;
     int sent = 0;
     int retry = 0;
+    if (cb->fd_local <= 0)
+        return -1;
 rewrite:
-    if(cb->fd_local <= 0) return -1;
-    res = write(cb->fd_local, cb->outbuf, ftell(cb->outstream));
-    if(res < 0) {
+    res = write(cb->fd_local, cb->outbuf + sent, ftell(cb->outstream) - sent);
+    if (res < 0)
+    {
         _log_error("fd_local: send failed to fd_local(%d) (%s)\n", cb->fd_local, strerror(errno));
         ymldb_local_deinit(cb);
         return -1;
     }
     sent = res + sent;
-    if(sent < ftell(cb->outstream) && retry < 3) {
+    if (sent < ftell(cb->outstream) && retry < 3)
+    {
         retry++;
         goto rewrite;
     }
@@ -1418,7 +1509,7 @@ void ymldb_destroy(struct ymldb_cb *cb)
     if (!cb)
         return;
     if (cb->ydb)
-        _ymldb_node_free( cb->ydb);
+        _ymldb_node_free(cb->ydb);
     if (cb->document)
         _yaml_document_free(cb->document);
     _ymldb_outstream_deinit(cb);
@@ -1434,8 +1525,8 @@ void ymldb_destroy(struct ymldb_cb *cb)
 int ymldb_run_with_string(struct ymldb_cb *cb, char *ymldb_data)
 {
     FILE *instream;
-    _log_debug("ymldb_data=\n");
-    _log_debug("\n'%s'\n", ymldb_data);
+    // _log_debug("ymldb_data=\n");
+    // _log_debug("\n'%s'\n", ymldb_data);
     if (!cb)
     {
         _log_error("no cb\n");
@@ -1559,125 +1650,123 @@ char *ymldb_read(struct ymldb_cb *cb, int num, ...)
     return NULL;
 }
 
-int main(int argc, char *argv[])
-{
-    int help = 0;
-    int infile = 0;
-    int outfile = 0;
-    int k;
-    char *infilename = "";
-    char *outfilename = "";
-    int infd = 0;
-    int outfd = 0;
+// int main(int argc, char *argv[])
+// {
+//     int help = 0;
+//     int infile = 0;
+//     int outfile = 0;
+//     int k;
+//     char *infilename = "";
+//     char *outfilename = "";
+//     int infd = 0;
+//     int outfd = 0;
 
-    /* Analyze command line options. */
-    for (k = 1; k < argc; k++)
-    {
-        // fprintf(stdout, "argv[%d]=%s\n", k, argv[k]);
-        if (strcmp(argv[k], "-h") == 0 || strcmp(argv[k], "--help") == 0)
-        {
-            help = 1;
-        }
-        else if (strcmp(argv[k], "-i") == 0 || strcmp(argv[k], "--infile") == 0)
-        {
-            infile = k;
-        }
-        else if (strcmp(argv[k], "-o") == 0 || strcmp(argv[k], "--outfile") == 0)
-        {
-            outfile = k;
-        }
-        else
-        {
-            if (infile + 1 == k)
-            {
-                infilename = argv[k];
-                fprintf(stderr, "infilename %s\n", infilename);
-            }
-            else if (outfile + 1 == k)
-            {
-                outfilename = argv[k];
-                fprintf(stderr, "outfilename %s\n", outfilename);
-            }
-            else
-            {
-                fprintf(stderr, "Unrecognized option: %s\n"
-                                "Try `%s --help` for more information.\n",
-                        argv[k], argv[0]);
-                return 1;
-            }
-        }
-    }
+//     /* Analyze command line options. */
+//     for (k = 1; k < argc; k++)
+//     {
+//         // fprintf(stdout, "argv[%d]=%s\n", k, argv[k]);
+//         if (strcmp(argv[k], "-h") == 0 || strcmp(argv[k], "--help") == 0)
+//         {
+//             help = 1;
+//         }
+//         else if (strcmp(argv[k], "-i") == 0 || strcmp(argv[k], "--infile") == 0)
+//         {
+//             infile = k;
+//         }
+//         else if (strcmp(argv[k], "-o") == 0 || strcmp(argv[k], "--outfile") == 0)
+//         {
+//             outfile = k;
+//         }
+//         else
+//         {
+//             if (infile + 1 == k)
+//             {
+//                 infilename = argv[k];
+//                 fprintf(stderr, "infilename %s\n", infilename);
+//             }
+//             else if (outfile + 1 == k)
+//             {
+//                 outfilename = argv[k];
+//                 fprintf(stderr, "outfilename %s\n", outfilename);
+//             }
+//             else
+//             {
+//                 fprintf(stderr, "Unrecognized option: %s\n"
+//                                 "Try `%s --help` for more information.\n",
+//                         argv[k], argv[0]);
+//                 return 1;
+//             }
+//         }
+//     }
 
-    /* Display the help string. */
-    if (help)
-    {
-        printf("%s <input\n"
-               "or\n%s -h | --help\nDeconstruct a YAML in\n\nOptions:\n"
-               "-h, --help\t\tdisplay this help and exit\n"
-               "-i, --infile\t\tinput ymldb file to read. (*.yml)\n"
-               "-o, --outfile\t\toutput ymldb file to read. (*.yml)\n",
-               argv[0], argv[0]);
-        return 0;
-    }
+//     /* Display the help string. */
+//     if (help)
+//     {
+//         printf("%s <input\n"
+//                "or\n%s -h | --help\nDeconstruct a YAML in\n\nOptions:\n"
+//                "-h, --help\t\tdisplay this help and exit\n"
+//                "-i, --infile\t\tinput ymldb file to read. (*.yml)\n"
+//                "-o, --outfile\t\toutput ymldb file to read. (*.yml)\n",
+//                argv[0], argv[0]);
+//         return 0;
+//     }
 
-    infd = STDIN_FILENO;
-    if (strlen(infilename) > 0)
-    {
-        infd = open(infilename, O_RDONLY, 0644);
-        if (infd < 0)
-        {
-            fprintf(stderr, "file open error. %s\n", strerror(errno));
-            return 1;
-        }
-    }
+//     infd = STDIN_FILENO;
+//     if (strlen(infilename) > 0)
+//     {
+//         infd = open(infilename, O_RDONLY, 0644);
+//         if (infd < 0)
+//         {
+//             fprintf(stderr, "file open error. %s\n", strerror(errno));
+//             return 1;
+//         }
+//     }
 
-    outfd = STDOUT_FILENO;
-    if (strlen(outfilename) > 0)
-    {
-        outfd = open(outfilename, O_WRONLY | O_APPEND | O_CREAT, 0644);
-        if (outfd < 0)
-        {
-            fprintf(stderr, "outfilename file open error. %s\n", strerror(errno));
-            return 1;
-        }
-    }
+//     outfd = STDOUT_FILENO;
+//     if (strlen(outfilename) > 0)
+//     {
+//         outfd = open(outfilename, O_WRONLY | O_APPEND | O_CREAT, 0644);
+//         if (outfd < 0)
+//         {
+//             fprintf(stderr, "outfilename file open error. %s\n", strerror(errno));
+//             return 1;
+//         }
+//     }
+//     struct ymldb_cb *cb;
+//     cb = ymldb_create("interface", YMLDB_FLAG_LOCAL, outfd);
+//     if (!cb)
+//         return -1;
+//     ymldb_run(cb, infd);
 
-    struct ymldb_cb *cb;
-    cb = ymldb_create("interface", YMLDB_FLAG_LOCAL, outfd);
-    if (!cb)
-        return -1;
+//     // // ymldb_push(cb, YMLDB_OP_MERGE,
+//     // //            "system:\n"
+//     // //            "  product: %s\n"
+//     // //            "  serial-number: %s\n",
+//     // //            "G.FAST-HN5124D",
+//     // //            "HN5124-S100213124");
+//     // // ymldb_write(cb, 3, "system", "product", "abc");
 
-    ymldb_run(cb, infd);
-    
-    // // ymldb_push(cb, YMLDB_OP_MERGE,
-    // //            "system:\n"
-    // //            "  product: %s\n"
-    // //            "  serial-number: %s\n",
-    // //            "G.FAST-HN5124D",
-    // //            "HN5124-S100213124");
-    // // ymldb_write(cb, 3, "system", "product", "abc");
+//     ymldb_dump(stdout, gYdb, 0, 0);
 
-    ymldb_dump(stdout, gYdb, 0, 0);
+//     // char productstr[32];
+//     // char serial_number[32];
+//     // ymldb_pull(cb,
+//     //            "system:\n"
+//     //            "  serial-number: %s\n"
+//     //            "  product: %s\n",
+//     //            productstr,
+//     //            serial_number);
 
-    // char productstr[32];
-    // char serial_number[32];
-    // ymldb_pull(cb,
-    //            "system:\n"
-    //            "  serial-number: %s\n"
-    //            "  product: %s\n",
-    //            productstr,
-    //            serial_number);
+//     ymldb_destroy(cb);
 
-    ymldb_destroy(cb);
+//     // for debug
+//     _log_debug("\n");
+//     _log_debug("  alloc_cnt %d\n", alloc_cnt);
 
-    // for debug
-    _log_debug("\n");
-    _log_debug("  alloc_cnt %d\n", alloc_cnt);
+//     if (infd)
+//         close(infd);
+//     if (outfd)
+//         close(outfd);
 
-    if (infd)
-        close(infd);
-    if (outfd)
-        close(outfd);
-
-    return 0;
-}
+//     return 0;
+// }

@@ -39,6 +39,7 @@ struct ymldb_cb
     FILE *outstream;
     char *outbuf;
     size_t outlen;
+    int no_reply;
     int fd_local; // fd for YMLDB_FLAG_LOCAL
     int fd_publisher; // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
     int fd_subscriber[YMLDB_SUBSCRIBER_MAX]; // fd for YMLDB_FLAG_PUBLISHER
@@ -97,7 +98,6 @@ int ymldb_conn_deinit(struct ymldb_cb *cb);
 int ymldb_conn_init(struct ymldb_cb *cb, int flags);
 int ymldb_conn_set(struct ymldb_cb *cb, fd_set *set);
 int ymldb_conn_run(struct ymldb_cb *cb, fd_set *set);
-int ymldb_conn_send(struct ymldb_cb *cb);
 
 int ymldb_local_init(struct ymldb_cb *cb, int fd);
 int ymldb_local_deinit(struct ymldb_cb *cb);
