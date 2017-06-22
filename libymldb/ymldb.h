@@ -31,10 +31,12 @@ struct ymldb_cb
     struct ymldb *last_notify; // last updated ydb
     yaml_parser_t *parser;
     yaml_document_t *document;
+    unsigned int sequence;
+    unsigned int opcode;
+    unsigned int flags;
     FILE *out;
     int publisher; // fd
     int subscriber[YMLDB_SUBSCRIBER_MAX]; // fd
-    int flags;
 };
 
 #define YMLDB_TAG_OP_GET "!get!"

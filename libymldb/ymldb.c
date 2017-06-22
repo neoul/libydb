@@ -153,7 +153,6 @@ void print_alloc_cnt()
 #define S10 "          "
 static char *gSpace = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
-static int gSequence;
 static struct ymldb *gYdb;
 
 FILE *fopen_from_fd(int fd, char *rw)
@@ -960,7 +959,6 @@ int ymldb_run(struct ymldb_cb *cb, FILE *instream)
     _log_debug("> start\n");
     while (!done)
     {
-        int opcode = 0;
         yaml_node_t *yroot = NULL;
         /* Get the next ymldb document. */
         cb->document = yaml_document_load(cb->parser);
@@ -970,29 +968,30 @@ int ymldb_run(struct ymldb_cb *cb, FILE *instream)
             break;
         }
 
-        opcode = _ymldb_op_extract(cb);
+        cb->opcode = _ymldb_op_extract(cb);
+
         yroot = yaml_document_get_root_node(cb->document);
         if (yroot)
         {
-            gSequence++;
-            _log_debug("%dth OPCODE=(%s)\n", gSequence, _ymldb_dump_opcode(opcode));
+            cb->sequence++;
+            _log_debug("%dth OPCODE=(%s)\n", cb->sequence, _ymldb_dump_opcode(cb->opcode));
 
-            _ymldb_dump_start(cb->out, opcode, gSequence);
-            if (opcode & YMLDB_OP_PUBLISH)
+            _ymldb_dump_start(cb->out, cb->opcode, cb->sequence);
+            if (cb->opcode & YMLDB_OP_PUBLISH)
             {
             }
-            if (opcode & YMLDB_OP_SUBSCRIBE)
+            if (cb->opcode & YMLDB_OP_SUBSCRIBE)
             {
             }
-            if (opcode & YMLDB_OP_UNSUBSCRIBE)
+            if (cb->opcode & YMLDB_OP_UNSUBSCRIBE)
             {
             }
 
-            if (opcode & YMLDB_OP_MERGE)
+            if (cb->opcode & YMLDB_OP_MERGE)
                 _ymldb_merge(cb, gYdb, 1, 1);
-            if (opcode & YMLDB_OP_DELETE)
+            if (cb->opcode & YMLDB_OP_DELETE)
                 _ymldb_delete(cb, gYdb, 1, 1);
-            if (opcode & YMLDB_OP_GET)
+            if (cb->opcode & YMLDB_OP_GET)
                 _ymldb_get(cb, gYdb, 1, 1);
 
             _ymldb_dump_end(cb->out);
@@ -1339,6 +1338,7 @@ int ymldb_push(struct ymldb_cb *cb, int opcode, char *format, ...)
         _log_error("ymldb:push: unable fmemopen stream\n");
         return -1;
     }
+
     // write ymldb data to the streambuf
     _ymldb_dump_start(stream, opcode, 0);
     va_list args;
@@ -1431,228 +1431,150 @@ char *ymldb_read(struct ymldb_cb *cb, int num, ...)
 }
 
 
-// int main(int argc, char *argv[])
-// {
-//     int help = 0;
-//     int infile = 0;
-//     int outfile = 0;
-//     int k;
-//     char *infilename = "";
-//     char *outfilename = "";
-//     FILE *infp = NULL;
-//     FILE *outfp = NULL;
-//     int infd = 0;
-//     int outfd = 0;
+int main(int argc, char *argv[])
+{
+    int help = 0;
+    int infile = 0;
+    int outfile = 0;
+    int k;
+    char *infilename = "";
+    char *outfilename = "";
+    FILE *infp = NULL;
+    FILE *outfp = NULL;
+    int infd = 0;
+    int outfd = 0;
 
-//     /* Analyze command line options. */
-//     for (k = 1; k < argc; k++)
-//     {
-//         // fprintf(stdout, "argv[%d]=%s\n", k, argv[k]);
-//         if (strcmp(argv[k], "-h") == 0 || strcmp(argv[k], "--help") == 0)
-//         {
-//             help = 1;
-//         }
-//         else if (strcmp(argv[k], "-i") == 0 || strcmp(argv[k], "--infile") == 0)
-//         {
-//             infile = k;
-//         }
-//         else if (strcmp(argv[k], "-o") == 0 || strcmp(argv[k], "--outfile") == 0)
-//         {
-//             outfile = k;
-//         }
-//         else
-//         {
-//             if (infile + 1 == k)
-//             {
-//                 infilename = argv[k];
-//                 fprintf(stderr, "infilename %s\n", infilename);
-//             }
-//             else if (outfile + 1 == k)
-//             {
-//                 outfilename = argv[k];
-//                 fprintf(stderr, "outfilename %s\n", outfilename);
-//             }
-//             else
-//             {
-//                 fprintf(stderr, "Unrecognized option: %s\n"
-//                                 "Try `%s --help` for more information.\n",
-//                         argv[k], argv[0]);
-//                 return 1;
-//             }
-//         }
-//     }
+    /* Analyze command line options. */
+    for (k = 1; k < argc; k++)
+    {
+        // fprintf(stdout, "argv[%d]=%s\n", k, argv[k]);
+        if (strcmp(argv[k], "-h") == 0 || strcmp(argv[k], "--help") == 0)
+        {
+            help = 1;
+        }
+        else if (strcmp(argv[k], "-i") == 0 || strcmp(argv[k], "--infile") == 0)
+        {
+            infile = k;
+        }
+        else if (strcmp(argv[k], "-o") == 0 || strcmp(argv[k], "--outfile") == 0)
+        {
+            outfile = k;
+        }
+        else
+        {
+            if (infile + 1 == k)
+            {
+                infilename = argv[k];
+                fprintf(stderr, "infilename %s\n", infilename);
+            }
+            else if (outfile + 1 == k)
+            {
+                outfilename = argv[k];
+                fprintf(stderr, "outfilename %s\n", outfilename);
+            }
+            else
+            {
+                fprintf(stderr, "Unrecognized option: %s\n"
+                                "Try `%s --help` for more information.\n",
+                        argv[k], argv[0]);
+                return 1;
+            }
+        }
+    }
 
-//     /* Display the help string. */
-//     if (help)
-//     {
-//         printf("%s <input\n"
-//                "or\n%s -h | --help\nDeconstruct a YAML in\n\nOptions:\n"
-//                "-h, --help\t\tdisplay this help and exit\n"
-//                "-i, --infile\t\tinput ymldb file to read. (*.yml)\n"
-//                "-o, --outfile\t\toutput ymldb file to read. (*.yml)\n",
-//                argv[0], argv[0]);
-//         return 0;
-//     }
+    /* Display the help string. */
+    if (help)
+    {
+        printf("%s <input\n"
+               "or\n%s -h | --help\nDeconstruct a YAML in\n\nOptions:\n"
+               "-h, --help\t\tdisplay this help and exit\n"
+               "-i, --infile\t\tinput ymldb file to read. (*.yml)\n"
+               "-o, --outfile\t\toutput ymldb file to read. (*.yml)\n",
+               argv[0], argv[0]);
+        return 0;
+    }
 
-//     if (strcmp(infilename, "stdin") == 0)
-//     {
-//         infp = stdin;
-//     }
-//     else if (strlen(infilename) > 0)
-//     {
-//         infd = open(infilename, O_RDONLY, 0644);
-//         if (infd < 0)
-//         {
-//             fprintf(stderr, "file open error. %s\n", strerror(errno));
-//             return 1;
-//         }
+    if (strcmp(infilename, "stdin") == 0)
+    {
+        infp = stdin;
+    }
+    else if (strlen(infilename) > 0)
+    {
+        infd = open(infilename, O_RDONLY, 0644);
+        if (infd < 0)
+        {
+            fprintf(stderr, "file open error. %s\n", strerror(errno));
+            return 1;
+        }
 
-//         infp = fopen_from_fd(infd, "r");
-//         if (!infp)
-//         {
-//             fprintf(stderr, "infilename fdopen error. %s\n", strerror(errno));
-//             return 1;
-//         }
-//     }
+        infp = fopen_from_fd(infd, "r");
+        if (!infp)
+        {
+            fprintf(stderr, "infilename fdopen error. %s\n", strerror(errno));
+            return 1;
+        }
+    }
 
-//     if (strcmp(outfilename, "stdout") == 0)
-//     {
-//         outfp = stdout;
-//     }
-//     else if (strlen(outfilename) > 0)
-//     {
-//         outfd = open(outfilename, O_WRONLY | O_APPEND | O_CREAT, 0644);
-//         if (outfd < 0)
-//         {
-//             fprintf(stderr, "outfilename file open error. %s\n", strerror(errno));
-//             return 1;
-//         }
+    if (strcmp(outfilename, "stdout") == 0)
+    {
+        outfp = stdout;
+    }
+    else if (strlen(outfilename) > 0)
+    {
+        outfd = open(outfilename, O_WRONLY | O_APPEND | O_CREAT, 0644);
+        if (outfd < 0)
+        {
+            fprintf(stderr, "outfilename file open error. %s\n", strerror(errno));
+            return 1;
+        }
 
-//         outfp = fopen_from_fd(outfd, "w");
-//         if (!outfp)
-//         {
-//             fprintf(stderr, "outfile fdopen error. %s\n", strerror(errno));
-//             return 1;
-//         }
-//     }
+        outfp = fopen_from_fd(outfd, "w");
+        if (!outfp)
+        {
+            fprintf(stderr, "outfile fdopen error. %s\n", strerror(errno));
+            return 1;
+        }
+    }
 
-//     cb = ymldb_create("interface", outfp);
-//     if (!cb)
-//         return -1;
+    struct ymldb_cb *cb;
+    cb = ymldb_create("interface", outfp);
+    if (!cb)
+        return -1;
 
-//     ymldb_run(cb, infp);
+    ymldb_run(cb, infp);
 
-//     ymldb_push(cb, YMLDB_OP_MERGE,
-//                "system:\n"
-//                "  product: %s\n"
-//                "  serial-number: %s\n",
-//                "G.FAST-HN5124D",
-//                "HN5124-S100213124");
-//     ymldb_write(cb, 3, "system", "product", "abc");
+    ymldb_push(cb, YMLDB_OP_MERGE,
+               "system:\n"
+               "  product: %s\n"
+               "  serial-number: %s\n",
+               "G.FAST-HN5124D",
+               "HN5124-S100213124");
+    ymldb_write(cb, 3, "system", "product", "abc");
 
-//     ymldb_dump(cb, gYdb, 0, 0);
+    ymldb_dump(cb, gYdb, 0, 0);
 
-//     char productstr[32];
-//     char serial_number[32];
-//     ymldb_pull(cb,
-//                "system:\n"
-//                "  serial-number: %s\n"
-//                "  product: %s\n",
-//                productstr,
-//                serial_number);
+    char productstr[32];
+    char serial_number[32];
+    ymldb_pull(cb,
+               "system:\n"
+               "  serial-number: %s\n"
+               "  product: %s\n",
+               productstr,
+               serial_number);
 
-//     ymldb_destroy(cb);
+    ymldb_destroy(cb);
 
-//     // for debug
-//     _log_debug("\n\n  alloc_cnt %d\n", alloc_cnt);
+    // for debug
+    _log_debug("\n\n  alloc_cnt %d\n", alloc_cnt);
 
-//     if (infp)
-//         fclose(infp);
-//     if (outfp)
-//         fclose(outfp);
-//     if (infd)
-//         close(infd);
-//     if (outfd)
-//         close(outfd);
+    if (infp)
+        fclose(infp);
+    if (outfp)
+        fclose(outfp);
+    if (infd)
+        close(infd);
+    if (outfd)
+        close(outfd);
 
-//     return 0;
-// }
-
-
-// int main(int argc, char *argv[])
-// {
-//     int res;
-//     int done = 0;
-//     int max_fd = 0;
-//     fd_set read_set;
-//     struct timeval tv;
-//     struct ymldb_cb *cb = NULL;
-
-//     cb = ymldb_create("interface", NULL);
-//     if(!cb) {
-//         return -1;
-//     }
-
-//     res = ymldb_fd_init(cb, YMLDB_FLAG_PUBLISHER);
-//     if(res < 0) {
-//         return -1;
-//     }
-
-//     for(int i=0; i<4; i++) {
-//         ymldb_push(cb, YMLDB_OP_MERGE,
-//                "interface:\n"
-//                "  ge%d:\n"
-//                "    speed: %s\n"
-//                "    duplex: %s",
-//                i+1,
-//                "1000",
-//                "full");
-//     }
-
-
-
-//     do {
-//         FD_ZERO(&read_set);
-//         tv.tv_sec = 5;
-//         tv.tv_usec = 0;
-
-//         max_fd = ymldb_fd_set(cb, &read_set);
-//         res = select(max_fd + 1, &read_set, NULL, NULL, &tv);
-//         if(res < 0) {
-//             _log_error("select failed (%s)\n", strerror(errno));
-//             break;
-//         }
-
-//         ymldb_fd_run(cb, &read_set);
-//         _log_debug("timeout test...\n");
-        
-//     } while(!done);
-    
-
-//     // ymldb_run(cb, infp);
-
-//     // ymldb_push(cb, YMLDB_OP_MERGE,
-//     //            "system:\n"
-//     //            "  product: %s\n"
-//     //            "  serial-number: %s\n",
-//     //            "G.FAST-HN5124D",
-//     //            "HN5124-S100213124");
-//     // ymldb_write(cb, 3, "system", "product", "abc");
-
-//     ymldb_dump(cb, gYdb, 0, 0);
-
-//     // char productstr[32];
-//     // char serial_number[32];
-//     // ymldb_pull(cb,
-//     //            "system:\n"
-//     //            "  serial-number: %s\n"
-//     //            "  product: %s\n",
-//     //            productstr,
-//     //            serial_number);
-
-//     // ymldb_destroy(cb);
-
-//     // for debug
-//     _log_debug("\n\n  alloc_cnt %d\n", alloc_cnt);
-//     return 0;
-// }
+    return 0;
+}
