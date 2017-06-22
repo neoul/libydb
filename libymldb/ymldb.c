@@ -1032,6 +1032,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream)
     _log_debug("> start\n");
     while (!done)
     {
+        int in_opcode = 0;
         yaml_node_t *yroot = NULL;
         /* Get the next ymldb document. */
         cb->document = _yaml_document_load(parser);
@@ -1041,7 +1042,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream)
             break;
         }
 
-        cb->opcode = _ymldb_op_extract(cb);
+        in_opcode = _ymldb_op_extract(cb);
         yroot = yaml_document_get_root_node(cb->document);
         if (yroot)
         {
@@ -1049,30 +1050,35 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream)
             _log_debug("%dth OPCODE=(%s)\n", cb->sequence, _ymldb_opcode_str(cb->opcode));
             cb->no_reply = 0;
             if(cb->flags & YMLDB_FLAG_SUBSCRIBER) {
-                if (cb->opcode & YMLDB_OP_SUBSCRIBE) {
+                if (in_opcode & YMLDB_OP_SUBSCRIBE) {
                     goto skip_document;
                 }
-                else if (cb->opcode & YMLDB_OP_PUBLISH) {
-                    if (cb->opcode & YMLDB_OP_GET)
+                else if (in_opcode & YMLDB_OP_PUBLISH) {
+                    if (in_opcode & YMLDB_OP_GET)
                         goto skip_document;
                     cb->no_reply = 1;
                 }
             }
             if(cb->flags & YMLDB_FLAG_PUBLISHER) {
-                if (cb->opcode & YMLDB_OP_PUBLISH) {
+                if (in_opcode & YMLDB_OP_PUBLISH) {
                     goto skip_document;
                 }
-                else if (cb->opcode & YMLDB_OP_SUBSCRIBE) {
-                    if (cb->opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE))
+                else if (in_opcode & YMLDB_OP_SUBSCRIBE) {
+                    if (in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE))
                         goto skip_document;
                 }
             }
+            cb->opcode = 
+                (cb->flags & YMLDB_FLAG_PUBLISHER)?YMLDB_OP_PUBLISH:
+                (cb->flags & YMLDB_FLAG_SUBSCRIBER)?YMLDB_OP_SUBSCRIBE:0;
+            cb->opcode = cb->opcode | (in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE | YMLDB_OP_GET));
+
             _ymldb_outstream_init(cb);
-            if (cb->opcode & YMLDB_OP_MERGE)
+            if (in_opcode & YMLDB_OP_MERGE)
                 _ymldb_merge(cb, gYdb, 1, 1);
-            if (cb->opcode & YMLDB_OP_DELETE)
+            if (in_opcode & YMLDB_OP_DELETE)
                 _ymldb_delete(cb, gYdb, 1, 1);
-            if (cb->opcode & YMLDB_OP_GET)
+            if (in_opcode & YMLDB_OP_GET)
                 _ymldb_get(cb, gYdb, 1, 1);
             _ymldb_outstream_flush(cb, 1); // forced flush!
             cb->last_notify = NULL;
