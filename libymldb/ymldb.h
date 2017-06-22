@@ -23,18 +23,22 @@ struct ymldb
 };
 
 // ymldb control block
+#define YMLDB_STREAM_THRESHOLD 2048
+#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD+512)
+
 #define YMLDB_SUBSCRIBER_MAX 8
 struct ymldb_cb
 {
     char *key;
     struct ymldb *ydb;
     struct ymldb *last_notify; // last updated ydb
-    yaml_parser_t *parser;
     yaml_document_t *document;
     unsigned int sequence;
     unsigned int opcode;
     unsigned int flags;
-    FILE *out;
+    FILE *outstream;
+    char *outbuf;
+    size_t outlen;
     int publisher; // fd
     int subscriber[YMLDB_SUBSCRIBER_MAX]; // fd
 };
@@ -70,11 +74,12 @@ struct ymldb_cb
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
 void print_alloc_cnt();
-void ymldb_dump(struct ymldb_cb *cb, struct ymldb *ydb, int print_level, int no_print_children);
 
-int ymldb_run(struct ymldb_cb *cb, FILE *instream);
-struct ymldb_cb *ymldb_create(char *key, FILE *out);
-struct ymldb_cb *ymldb_create_with_fd(char *key, int outfd);
+void ymldb_dump_start(FILE *stream, int opcode, int sequence);
+void ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no_print_children);
+void ymldb_dump_end(FILE *stream);
+
+struct ymldb_cb *ymldb_create(char *key, unsigned int flags);
 void ymldb_destroy(struct ymldb_cb *cb);
 int ymldb_push(struct ymldb_cb *cb, int opcode, char *format, ...);
 int _ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...);
