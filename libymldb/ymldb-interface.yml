@@ -3,15 +3,16 @@
 ---
 interface:
   ge1:
-    if:operstatus: false
-    if:rx-octet: 10022
-    if:tx-octet: 2222
-    if:ip-addr: [192.168.44.1, 192.168.0.77]
+    mtu: 1500
+    operstatus: false
+    rx-octet: 10022
+    tx-octet: 2222
+    ip-addr: [192.168.44.1, 192.168.0.77]
   ge2:
-    if:operstatus: false
-    if:rx-octet: 10022
-    if:tx-octet: 2222
-    if:abc:
+    operstatus: false
+    rx-octet: 10022
+    tx-octet: 2222
+    mtu:
 ...
 
 #2 empty message
