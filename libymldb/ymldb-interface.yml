@@ -1,0 +1,19 @@
+#1
+%TAG !merge! actusnetworks.com:op:
+---
+interface:
+  ge1:
+    if:operstatus: false
+    if:rx-octet: 10022
+    if:tx-octet: 2222
+    if:ip-addr: [192.168.44.1, 192.168.0.77]
+  ge2:
+    if:operstatus: false
+    if:rx-octet: 10022
+    if:tx-octet: 2222
+    if:abc:
+...
+
+#2 empty message
+---
+...

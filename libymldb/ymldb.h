@@ -1,5 +1,8 @@
 #ifndef __YMLDB__
 #define __YMLDB__
+#include <yaml.h>
+#include <cprops/avl.h>
+#include <cprops/linked_list.h>
 
 typedef enum ymldb_type_e {
     YMLDB_LEAF,
@@ -20,6 +23,7 @@ struct ymldb
 };
 
 // ymldb control block
+#define YMLDB_SUBSCRIBER_MAX 8
 struct ymldb_cb
 {
     char *key;
@@ -29,7 +33,7 @@ struct ymldb_cb
     yaml_document_t *document;
     FILE *out;
     int publisher; // fd
-    int subscribers[8]; // fd
+    int subscriber[YMLDB_SUBSCRIBER_MAX]; // fd
     int flags;
 };
 
@@ -57,10 +61,13 @@ struct ymldb_cb
 #define YMLDB_OP_PUBLISH 0x20
 
 // flags
-#define YMLDB_FLAG_PUBLISHER YMLDB_OP_PUBLISH
-#define YMLDB_FLAG_SUBSCRIBER YMLDB_OP_SUBSCRIBE
+#define YMLDB_FLAG_FD           0x01 // communcation channel enabled
+#define YMLDB_FLAG_PUBLISHER    0x02 // publish ymldb if set, subscribe ymldb if not.
+#define YMLDB_FLAG_RECONNECT    0x04
 
-void _alloc_cnt();
+#define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
+
+void print_alloc_cnt();
 void ymldb_dump(struct ymldb_cb *cb, struct ymldb *ydb, int print_level, int no_print_children);
 
 int ymldb_run(struct ymldb_cb *cb, FILE *instream);
@@ -71,5 +78,25 @@ int ymldb_push(struct ymldb_cb *cb, int opcode, char *format, ...);
 int _ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...);
 #define ymldb_write(CB, NUM, ...) _ymldb_write(CB, YMLDB_OP_MERGE, NUM, __VA_ARGS__)
 #define ymldb_delete(CB, NUM, ...) _ymldb_write(CB, YMLDB_OP_DELETE, NUM, __VA_ARGS__)
+
+
+int ymldb_fd_deinit(struct ymldb_cb *cb);
+int ymldb_fd_init(struct ymldb_cb *cb, int flags);
+int ymldb_fd_set(struct ymldb_cb *cb, fd_set *set);
+int ymldb_fd_run(struct ymldb_cb *cb, fd_set *set);
+
+#define _log_debug(...)                                  \
+    do                                                   \
+    {                                                    \
+        fprintf(stdout, "____%.*s: ", 16, __FUNCTION__); \
+        fprintf(stdout, __VA_ARGS__);                    \
+    } while (0)
+
+#define _log_error(...)                                  \
+    do                                                   \
+    {                                                    \
+        fprintf(stdout, "____%.*s: ", 16, __FUNCTION__); \
+        fprintf(stderr, __VA_ARGS__);                    \
+    } while (0)
 
 #endif
