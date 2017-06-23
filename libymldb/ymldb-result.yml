@@ -181,3 +181,78 @@ interface:
 
 ...
 
+# 1
+%TAG !merge! actusnetworks.com:op:merge
+---
+interface:
+  ge1:
+    mtu: 1500
+    operstatus: false
+    rx-octet: 10022
+    tx-octet: 2222
+    ip-addr:
+      - 192.168.44.1
+      - 192.168.0.77
+  ge2:
+    operstatus: false
+    rx-octet: 10022
+    tx-octet: 2222
+    mtu: 
+
+...
+
+# 2
+---
+
+...
+
+# 1
+%TAG !merge! actusnetworks.com:op:merge
+---
+interface:
+  ge1:
+    mtu: 1500
+    operstatus: false
+    rx-octet: 10022
+    tx-octet: 2222
+    ip-addr:
+      - 192.168.44.1
+      - 192.168.0.77
+  ge2:
+    operstatus: false
+    rx-octet: 10022
+    tx-octet: 2222
+    mtu: 
+
+...
+
+# 2
+---
+
+...
+
+# 1
+%TAG !merge! actusnetworks.com:op:merge
+---
+interface:
+  ge1:
+    mtu: 1500
+    operstatus: false
+    rx-octet: 10022
+    tx-octet: 2222
+    ip-addr:
+      - 192.168.44.1
+      - 192.168.0.77
+  ge2:
+    operstatus: false
+    rx-octet: 10022
+    tx-octet: 2222
+    mtu: 
+
+...
+
+# 2
+---
+
+...
+
