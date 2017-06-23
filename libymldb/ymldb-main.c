@@ -129,8 +129,10 @@ int main(int argc, char *argv[])
     ymldb_pull(cb,
                "system:\n"
                "  serial-number: %s\n"
+               "  abc-ee: %s\n"
                "  code: %d\n",
                productstr,
+               serial_number,
                &code);
 
     ymldb_destroy(cb);

@@ -36,15 +36,19 @@ struct ymldb_cb
     unsigned int sequence;
     unsigned int opcode;
     unsigned int flags;
-    FILE *outstream;
-    char *outbuf;
-    size_t outlen;
-    int no_reply;
+    struct {
+        FILE *stream;
+        char *buf;
+        size_t buflen;
+        int no_reply;
+    } reply;
     // int fd_local; // fd for YMLDB_FLAG_LOCAL
     int fd_publisher; // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
     int fd_subscriber[YMLDB_SUBSCRIBER_MAX]; // fd for YMLDB_FLAG_PUBLISHER
-    // FILE *resstream;
-    int res;
+    struct {
+        FILE *stream;
+        int res;
+    } out;
 };
 
 #define YMLDB_TAG_OP_GET "!get!"
