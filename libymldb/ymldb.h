@@ -92,12 +92,12 @@ int _ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...);
 #define ymldb_delete(CB, NUM, ...) _ymldb_write(CB, YMLDB_OP_DELETE, NUM, __VA_ARGS__)
 
 int ymldb_run(struct ymldb_cb *cb, int fd);
-int ymldb_run_with_string(struct ymldb_cb *cb, char *ymldb_data);
+int ymldb_run_with_string(struct ymldb_cb *cb, char *ymldata, size_t ymldata_len);
 
 int ymldb_conn_deinit(struct ymldb_cb *cb);
 int ymldb_conn_init(struct ymldb_cb *cb, int flags);
 int ymldb_conn_set(struct ymldb_cb *cb, fd_set *set);
-int ymldb_conn_run(struct ymldb_cb *cb, fd_set *set);
+int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set);
 
 int ymldb_local_init(struct ymldb_cb *cb, int fd);
 int ymldb_local_deinit(struct ymldb_cb *cb);
@@ -117,5 +117,4 @@ int ymldb_local_deinit(struct ymldb_cb *cb);
         fprintf(stderr, __VA_ARGS__);                    \
         fprintf(stderr, "\n"); \
     } while (0)
-
 #endif

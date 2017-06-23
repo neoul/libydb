@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
             _log_error("select failed (%s)\n", strerror(errno));
             break;
         }
-        ymldb_conn_run(cb, &read_set);
+        ymldb_conn_recv(cb, &read_set);
         if(cnt > 5) break;
     } while(!done);
     ymldb_dump(stdout, cb->ydb, 0, 0);

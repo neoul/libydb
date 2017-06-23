@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     struct ymldb_cb *cb = NULL;
     signal(SIGPIPE, SIG_IGN);
 
-    cb = ymldb_create("interface", YMLDB_FLAG_PUBLISHER, 0);
+    cb = ymldb_create("interface", YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_LOCAL, 1);
     if(!cb) {
         return -1;
     }
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
             cnt+1000,
             "full");
 
-        ymldb_conn_run(cb, &read_set);
+        ymldb_conn_recv(cb, &read_set);
     } while(!done);
 
     print_alloc_cnt();
