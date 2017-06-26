@@ -371,6 +371,7 @@ void ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no_print_c
 
 void ymldb_dump_start(FILE *stream, int opcode, int sequence)
 {
+    // fseek(stream, 0, SEEK_SET);
     _out(stream, "# %d\n", sequence);
 
     // %TAG !merge! actusnetworks.com:op:
@@ -403,6 +404,7 @@ void ymldb_dump_start(FILE *stream, int opcode, int sequence)
 
 void ymldb_dump_end(FILE *stream)
 {
+    // fflush(stream);
     _out(stream, "\n...\n\n");
 }
 
@@ -474,6 +476,7 @@ flushing:
 
     if(cb->out.stream) {
         fputs(cb->reply.buf, cb->out.stream);
+        fflush(cb->out.stream);
     }
 
     // if (cb->flags & YMLDB_FLAG_LOCAL)
@@ -1270,6 +1273,7 @@ struct ymldb_cb *ymldb_create(char *key, unsigned int flags)
         free(cb);
         return NULL;
     }
+    cb->last_notify = NULL;
 
     flags = flags & (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER);
     if (flags & YMLDB_FLAG_PUBLISHER || flags & YMLDB_FLAG_SUBSCRIBER)
@@ -1668,41 +1672,66 @@ void ymldb_destroy(struct ymldb_cb *cb)
     }
 }
 
+struct ymldb_stream *ymldb_stream_alloc(size_t len, char *rw)
+{
+    struct ymldb_stream *buf;
+    if(len <= 0) {
+        return NULL;
+    }
+    buf = malloc(len+sizeof(FILE *)+sizeof(size_t)+4);
+    if(buf) {
+        buf->stream = fmemopen(buf->buf, len, rw);
+        buf->buflen = len;
+        if(!buf->stream) {
+            free(buf);
+            return NULL;
+        }
+    }
+    return buf;
+}
+
+void ymldb_stream_free(struct ymldb_stream *buf)
+{
+    if(buf) {
+        if(buf->stream)
+            fclose(buf->stream);
+        free(buf);
+    }
+}
 
 int ymldb_push(struct ymldb_cb *cb, int opcode, char *format, ...)
 {
     int res;
-    FILE *stream;
-    char streambuf[512];
+    struct ymldb_stream *input;
     if (!cb || opcode == 0)
     {
         _log_error("no cb or opcode\n");
         return -1;
     }
+
     _log_debug("\n");
-    stream = fmemopen(streambuf, sizeof(streambuf), "w");
-    if (!stream)
-    {
-        _log_error("fail to open fmemopen stream\n");
+    input = ymldb_stream_alloc(512, "w+");
+    if(!input) {
+        _log_error("fail to open ymldb stream\n");
         return -1;
     }
-
     // write ymldb data to the streambuf
-    ymldb_dump_start(stream, opcode, 0);
+    ymldb_dump_start(input->stream, opcode, 0);
     va_list args;
     va_start(args, format);
-    vfprintf(stream, format, args);
+    vfprintf(input->stream, format, args);
     va_end(args);
-    ymldb_dump_end(stream);
-    fclose(stream);
-    // read ymldb data from the streambuf
-    res = _ymldb_run_with_string(cb, streambuf, strlen(streambuf), NULL);
-    _log_debug("%s\n", res<0?"!!! result failed !!!":"!!! result ok !!!");
+    ymldb_dump_end(input->stream);
+    fflush(input->stream);
+    fseek(input->stream, 0, SEEK_SET);
+
+    res = _ymldb_run(cb, input->stream, NULL);
+    _log_debug("return %s\n", res<0?"FAIL":"OK");
+    ymldb_stream_free(input);
     return res;
 }
 
-
-void _ymldb_remove_specifiers(FILE *dest, char *src)
+void ymldb_remove_specifiers(FILE *dest, char *src)
 {
     static char *specifiers_of_fscanf = "iudoxfegacsp";
     int specifier_pos = -1;
@@ -1733,6 +1762,12 @@ void _ymldb_remove_specifiers(FILE *dest, char *src)
             specifier_pos = i;
             continue;
         }
+        else if(src[i] == '-') { // "- ""
+            if(src[i+1] == ' ') { // leaflist ymldb.
+                fputc(' ', dest);
+                continue;
+            }
+        }
         fputc(src[i], dest);
     }
 }
@@ -1744,121 +1779,156 @@ void _ymldb_remove_specifiers(FILE *dest, char *src)
 int ymldb_pull(struct ymldb_cb *cb, char *format, ...)
 {
     int res;
-    int len;
-    FILE *instream;
-    FILE *outstream;
     int opcode = YMLDB_OP_GET;
-    char streambuf[512];
-    char resultbuf[512];
-    if (!cb || opcode == 0)
+    struct ymldb_stream *input;
+    struct ymldb_stream *output;
+    if (!cb)
     {
-        _log_error("no cb or opcode\n");
+        _log_error("no cb\n");
         return -1;
     }
     _log_debug("\n");
-    instream = fmemopen(streambuf, sizeof(streambuf)-1, "w");
-    if (!instream)
-    {
-        _log_error("fail to open fmemopen instream\n");
+    input = ymldb_stream_alloc(512, "w+");
+    if(!input) {
+        _log_error("fail to open ymldb stream\n");
         return -1;
     }
-
-    ymldb_dump_start(instream, opcode, 0);
-    _ymldb_remove_specifiers(instream, format);
-    ymldb_dump_end(instream);
-    len = ftell(instream);
-    fclose(instream);
-    
-    _log_debug("format!!:\n%s\n", streambuf);
-    instream = fmemopen(streambuf, len, "r");
-    if (!instream)
-    {
-        _log_error("fail to open fmemopen instream\n");
+    output = ymldb_stream_alloc(512, "w+");
+    if(!output) {
+        _log_error("fail to open ymldb stream\n");
+        ymldb_stream_free(input);
         return -1;
     }
+    ymldb_dump_start(input->stream, opcode, 0);
+    ymldb_remove_specifiers(input->stream, format);
+    ymldb_dump_end(input->stream);
+    fflush(input->stream);
+    fseek(input->stream, 0, SEEK_SET);
+    res = _ymldb_run(cb, input->stream, output->stream);
+    _log_debug("return %s\n", res<0?"FAIL":"OK");
+    printf("result: %s\n", output->buf);
+    if (res >= 0)
+    { // success
+        // fflush(output->stream);
+        char *doc_body = strstr(output->buf, "---");
+        if(doc_body)
+            doc_body = doc_body + 4;
+        else
+            doc_body = output->buf;
 
-    outstream = fmemopen(resultbuf, sizeof(resultbuf)-1, "w");
-    if (!outstream)
-    {
-        _log_error("fail to open fmemopen outstream\n");
-        return -1;
+        va_list args;
+        va_start(args, format);
+        vsscanf(doc_body, format, args);
+        va_end(args);
     }
-
-    res = _ymldb_run(cb, instream, outstream);
-    if (res < 0)
-    {
-        // do nothing if failed.
-        _log_debug("!!! result failed !!!\n");
-        fclose(instream);
-        fclose(outstream);
-        return -1;
-    }
-    _log_debug("!!! result ok !!!\n");
-    len = ftell(outstream);
-    fclose(instream);
-    fclose(outstream);
-    // fflush(outstream);
-    
-    resultbuf[len] = 0;
-    _log_debug("result!!:\n%s\n", resultbuf);
-
-    char *doc_body = strstr(resultbuf, "---");
-    if(doc_body)
-        doc_body = doc_body + 4;
-    else
-        doc_body = resultbuf;
-
-    va_list args;
-    va_start(args, format);
-    vsscanf(doc_body, format, args);
-    va_end(args);
+    ymldb_stream_free(input);
+    ymldb_stream_free(output);
     return 0;
 }
 
 // write a key and value
-int _ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...)
+int _ymldb_write(struct ymldb_cb *cb, int opcode, ...)
 {
-    int i;
-    FILE *stream;
-    char ymldata[256];
+    int res;
+    int level = 0;
+    struct ymldb_stream *input;
     if (!cb || opcode == 0)
     {
         _log_error("no cb or opcode\n");
         return -1;
     }
 
-    stream = fmemopen(ymldata, sizeof(ymldata), "w");
-    if (!stream)
-    {
-        _log_error("fail to open fmemopen stream\n");
+    _log_debug("\n");
+    input = ymldb_stream_alloc(256, "w+");
+    if(!input) {
+        _log_error("fail to open ymldb stream\n");
         return -1;
     }
-    ymldb_dump_start(stream, opcode, 0);
+
+    ymldb_dump_start(input->stream, opcode, 0);
     va_list args;
-    va_start(args, num);
-    for (i = 0; i < num; i++)
-    {
-        char *token = va_arg(args, char *);
-        if (!token)
+    va_start(args, opcode);
+    char *cur_token;
+    char *next_token;
+    cur_token = va_arg(args, char *);
+    while(cur_token!=NULL) {
+        next_token = va_arg(args, char *);
+        if (!next_token)
         {
-            fprintf(stream, "\n");
+            fprintf(input->stream, "%.*s%s\n", level * 2, gSpace, cur_token);
             break;
         }
-        if (i + 1 < num)
-            fprintf(stream, "%.*s%s:\n", i * 2, gSpace, token);
-        else
-            fprintf(stream, "%.*s%s\n", i * 2, gSpace, token);
-    }
+        else {
+            fprintf(input->stream, "%.*s%s:\n", level * 2, gSpace, cur_token);
+        }
+        level++;
+        cur_token = next_token;
+    };
     va_end(args);
-    ymldb_dump_end(stream);
-    fclose(stream);
-    return _ymldb_run_with_string(cb, ymldata, strlen(ymldata), 0);
+    ymldb_dump_end(input->stream);
+    fflush(input->stream);
+    fseek(input->stream, 0, SEEK_SET);
+    // printf("input->buf %s\n", input->buf);
+    res = _ymldb_run(cb, input->stream, NULL);
+    _log_debug("return %s\n", res<0?"FAIL":"OK");
+    ymldb_stream_free(input);
+    return res;
 }
 
 // read a value by the key.
-char *ymldb_read(struct ymldb_cb *cb, int num, ...)
-{
-    return NULL;
+char *_ymldb_read(struct ymldb_cb *cb, ...)
+{ // directly access to ymldb.
+    struct ymldb *ydb;
+    if (!cb)
+    {
+        _log_error("no cb\n");
+        return NULL;
+    }
+    if(!gYdb) {
+        _log_error("no created ydb.\n");
+        return NULL;
+    }
+    ydb = gYdb;
+    va_list args;
+    va_start(args, cb);
+    char *cur_token;
+    char *next_token;
+    cur_token = va_arg(args, char *);
+    while(cur_token!=NULL) {
+        next_token = va_arg(args, char *);
+        if (next_token)
+        {
+            if(ydb) {
+                if(ydb->type == YMLDB_BRANCH) {
+                    ydb = cp_avltree_get(ydb->children, cur_token);
+                }
+                else { // not exist..
+                    ydb = NULL;
+                    break;
+                }
+            }
+            else {
+                // not exist..
+                break;
+            }
+        }
+        else {
+            if(ydb) {
+                if(ydb->type == YMLDB_BRANCH) {
+                    ydb = cp_avltree_get(ydb->children, cur_token);
+                }
+            }
+        }
+        cur_token = next_token;
+    };
+    va_end(args);
+    if(ydb) {
+        if(ydb->type == YMLDB_BRANCH)
+            return NULL;
+        return ydb->value;
+    }
+    else
+        return NULL;
 }
 
 void ymldb_dump_all(FILE *stream)

@@ -22,10 +22,19 @@ struct ymldb
     int level;
 };
 
-// ymldb control block
-#define YMLDB_STREAM_THRESHOLD 2048
+
+// ymldb stream buffer
+struct ymldb_stream {
+    FILE *stream;
+    size_t buflen;
+    char buf[];
+};
+
+
+#define YMLDB_STREAM_THRESHOLD 1536
 #define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 512)
 
+// ymldb control block
 #define YMLDB_SUBSCRIBER_MAX 8
 struct ymldb_cb
 {
@@ -98,9 +107,15 @@ struct ymldb_cb *ymldb_create(char *key, unsigned int flags);
 void ymldb_destroy(struct ymldb_cb *cb);
 
 int ymldb_push(struct ymldb_cb *cb, int opcode, char *format, ...);
-int _ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...);
-#define ymldb_write(CB, NUM, ...) _ymldb_write(CB, YMLDB_OP_MERGE, NUM, __VA_ARGS__)
-#define ymldb_delete(CB, NUM, ...) _ymldb_write(CB, YMLDB_OP_DELETE, NUM, __VA_ARGS__)
+int _ymldb_write(struct ymldb_cb *cb, int opcode, ...);
+#define ymldb_write(CB, ...) _ymldb_write(CB, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
+#define ymldb_delete(CB, ...) _ymldb_write(CB, YMLDB_OP_DELETE, __VA_ARGS__, NULL)
+
+// only support to query the value using the keys.
+// char *product = ymldb_read(cb, "system", "product");
+char *_ymldb_read(struct ymldb_cb *cb, ...);
+#define ymldb_read(CB, ...) _ymldb_read(CB, __VA_ARGS__, NULL)
+
 int ymldb_pull(struct ymldb_cb *cb, char *format, ...);
 int ymldb_run(struct ymldb_cb *cb, int infd, int outfd);
 
@@ -115,7 +130,6 @@ int ymldb_local_deinit(struct ymldb_cb *cb);
 #define _log_printf(...)               \
     do                                \
     {                                 \
-        fprintf(stdout, "\n");        \
         fprintf(stdout, __VA_ARGS__); \
     } while (0)
 
