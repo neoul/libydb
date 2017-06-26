@@ -24,7 +24,7 @@ struct ymldb
 
 // ymldb control block
 #define YMLDB_STREAM_THRESHOLD 2048
-#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD+512)
+#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 512)
 
 #define YMLDB_SUBSCRIBER_MAX 8
 struct ymldb_cb
@@ -36,16 +36,18 @@ struct ymldb_cb
     unsigned int sequence;
     unsigned int opcode;
     unsigned int flags;
-    struct {
+    struct
+    {
         FILE *stream;
         char *buf;
         size_t buflen;
         int no_reply;
     } reply;
     // int fd_local; // fd for YMLDB_FLAG_LOCAL
-    int fd_publisher; // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
+    int fd_publisher;                        // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
     int fd_subscriber[YMLDB_SUBSCRIBER_MAX]; // fd for YMLDB_FLAG_PUBLISHER
-    struct {
+    struct
+    {
         FILE *stream;
         int res;
     } out;
@@ -69,22 +71,21 @@ struct ymldb_cb
 #define YMLDB_TAG_REMOTE YMLDB_TAG_BASE "remote"
 
 // opcode
-#define YMLDB_OP_GET        0x01
-#define YMLDB_OP_DELETE     0x02
-#define YMLDB_OP_MERGE      0x04
+#define YMLDB_OP_GET 0x01
+#define YMLDB_OP_DELETE 0x02
+#define YMLDB_OP_MERGE 0x04
 #define YMLDB_OP_SUBSCRIBER 0x10
-#define YMLDB_OP_PUBLISHER  0x20
-#define YMLDB_OP_LOCAL      0x40
-#define YMLDB_OP_REMOTE     0x80
+#define YMLDB_OP_PUBLISHER 0x20
+#define YMLDB_OP_LOCAL 0x40
+#define YMLDB_OP_REMOTE 0x80
 
 // flags
-#define YMLDB_FLAG_NONE         0x0
-#define YMLDB_FLAG_PUBLISHER    YMLDB_OP_PUBLISHER // publish ymldb if set, subscribe ymldb if not.
-#define YMLDB_FLAG_SUBSCRIBER   YMLDB_OP_SUBSCRIBER
-#define YMLDB_FLAG_CONN         (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled ()
-#define YMLDB_FLAG_RECONNECT    0x100
+#define YMLDB_FLAG_NONE 0x0
+#define YMLDB_FLAG_PUBLISHER YMLDB_OP_PUBLISHER // publish ymldb if set, subscribe ymldb if not.
+#define YMLDB_FLAG_SUBSCRIBER YMLDB_OP_SUBSCRIBER
+#define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled ()
+#define YMLDB_FLAG_RECONNECT 0x100
 // #define YMLDB_FLAG_LOCAL        0x08
-
 
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
@@ -101,9 +102,7 @@ int _ymldb_write(struct ymldb_cb *cb, int opcode, int num, ...);
 #define ymldb_write(CB, NUM, ...) _ymldb_write(CB, YMLDB_OP_MERGE, NUM, __VA_ARGS__)
 #define ymldb_delete(CB, NUM, ...) _ymldb_write(CB, YMLDB_OP_DELETE, NUM, __VA_ARGS__)
 int ymldb_pull(struct ymldb_cb *cb, char *format, ...);
-
-int ymldb_run(struct ymldb_cb *cb, int fd);
-int ymldb_run_with_string(struct ymldb_cb *cb, char *ymldata, size_t ymldata_len);
+int ymldb_run(struct ymldb_cb *cb, int infd, int outfd);
 
 int ymldb_conn_deinit(struct ymldb_cb *cb);
 int ymldb_conn_init(struct ymldb_cb *cb, int flags);
@@ -113,19 +112,26 @@ int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set);
 int ymldb_local_init(struct ymldb_cb *cb, int fd);
 int ymldb_local_deinit(struct ymldb_cb *cb);
 
-#define _log_debug(...)                                  \
-    do                                                   \
-    {                                                    \
-        fprintf(stdout, "[ymldb:debug] %s: ", __FUNCTION__); \
-        fprintf(stdout, __VA_ARGS__);                    \
+#define _log_printf(...)               \
+    do                                \
+    {                                 \
+        fprintf(stdout, "\n");        \
+        fprintf(stdout, __VA_ARGS__); \
     } while (0)
 
-#define _log_error(...)                                  \
-    do                                                   \
-    {                                                    \
-        fprintf(stderr, "\n[ymldb:error]\n\n"); \
+#define _log_debug(...)                                                   \
+    do                                                                    \
+    {                                                                     \
+        fprintf(stdout, "[ymldb:debug] %s:%d: ", __FUNCTION__, __LINE__); \
+        fprintf(stdout, __VA_ARGS__);                                     \
+    } while (0)
+
+#define _log_error(...)                                             \
+    do                                                              \
+    {                                                               \
+        fprintf(stderr, "\n[ymldb:error]\n\n");                     \
         fprintf(stderr, "  - %s:%d\n  - ", __FUNCTION__, __LINE__); \
-        fprintf(stderr, __VA_ARGS__);                    \
-        fprintf(stderr, "\n"); \
+        fprintf(stderr, __VA_ARGS__);                               \
+        fprintf(stderr, "\n");                                      \
     } while (0)
 #endif

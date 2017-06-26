@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     /* Display the help string. */
     if (help)
     {
-        printf("%s <input\n"
+        _log_printf("%s <input\n"
                "or\n%s -h | --help\nDeconstruct a YAML in\n\nOptions:\n"
                "-h, --help\t\tdisplay this help and exit\n"
                "-i, --infile\t\tinput ymldb file to read. (*.yml)\n"
@@ -97,13 +97,14 @@ int main(int argc, char *argv[])
     cb = ymldb_create("interface", YMLDB_FLAG_NONE);
     if (!cb)
         return -1;
-    ymldb_run(cb, infd);
+    ymldb_run(cb, infd, outfd);
 
-    ymldb_dump_all(stdout);
+    // ymldb_dump_all(stdout);
 
     struct ymldb_cb *cb2;
     cb2 = ymldb_create("system", YMLDB_FLAG_NONE);
 
+    _log_printf("PUSH\n");
     res = ymldb_push(cb2, YMLDB_OP_MERGE,
                      "system:\n"
                      "  product: %s\n"
@@ -113,27 +114,43 @@ int main(int argc, char *argv[])
                      "HN5124-S100213124");
     if (res < 0)
     {
-        printf("ERROR in ymldb_push\n");
-    }
-    res = ymldb_write(cb, 3, "system", "product", "abc");
-    if (res < 0)
-    { // key must be the same
-        printf("ERROR in ymldb_write\n");
+        _log_printf("ERROR in ymldb_push\n");
     }
 
-    ymldb_dump_all(stdout);
+    // res = ymldb_write(cb, 3, "system", "product", "abc");
+    // if (res < 0)
+    // { // key must be the same
+    //     _log_printf("ERROR in ymldb_write\n");
+    // }
 
+    // ymldb_dump_all(stdout);
+    _log_printf("PULL\n");
     char productstr[32] = {0};
     char serial_number[32] = {0};
     int code;
-    ymldb_pull(cb,
+    ymldb_pull(cb2,
                "system:\n"
                "  serial-number: %s\n"
-               "  abc-ee: %s\n"
                "  code: %d\n",
                productstr,
-               serial_number,
                &code);
+    _log_printf("productstr=%s code=%d\n", productstr, code);
+    
+    // ymldb_pull(cb2,
+    //            "system:\n"
+    //            "  serial-number: %s\n"
+    //            "  abc-ee: %s\n"
+    //            "  code: %d\n",
+    //            productstr,
+    //            serial_number,
+    //            &code);
+
+    // ymldb_pull(cb2,
+    //            "system:\n"
+    //            "  serial-number: %s\n"
+    //            "  code: %d\n",
+    //            serial_number,
+    //            &code);
 
     ymldb_destroy(cb);
     ymldb_destroy(cb2);
