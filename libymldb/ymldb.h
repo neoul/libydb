@@ -30,7 +30,6 @@ struct ymldb_stream {
     char buf[];
 };
 
-
 #define YMLDB_STREAM_THRESHOLD 1536
 #define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 512)
 
@@ -52,8 +51,7 @@ struct ymldb_cb
         size_t buflen;
         int no_reply;
     } reply;
-    // int fd_local; // fd for YMLDB_FLAG_LOCAL
-    int fd_publisher;                        // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
+    int fd_publisher; // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
     int fd_subscriber[YMLDB_SUBSCRIBER_MAX]; // fd for YMLDB_FLAG_PUBLISHER
     struct
     {
@@ -67,8 +65,8 @@ struct ymldb_cb
 #define YMLDB_TAG_OP_MERGE "!merge!"
 #define YMLDB_TAG_OP_SUBSCRIBER "!subscriber!"
 #define YMLDB_TAG_OP_PUBLISHER "!publisher!"
-#define YMLDB_TAG_OP_LOCAL "!local!"
-#define YMLDB_TAG_OP_REMOTE "!remote!"
+#define YMLDB_TAG_OP_NOSYNC "!no-sync!"
+#define YMLDB_TAG_OP_SEQ "!seq!"
 
 #define YMLDB_TAG_BASE "ymldb:op:"
 #define YMLDB_TAG_GET YMLDB_TAG_BASE "get"
@@ -76,23 +74,25 @@ struct ymldb_cb
 #define YMLDB_TAG_MERGE YMLDB_TAG_BASE "merge"
 #define YMLDB_TAG_SUBSCRIBER YMLDB_TAG_BASE "subscriber"
 #define YMLDB_TAG_PUBLISHER YMLDB_TAG_BASE "publisher"
-#define YMLDB_TAG_LOCAL YMLDB_TAG_BASE "local"
-#define YMLDB_TAG_REMOTE YMLDB_TAG_BASE "remote"
+#define YMLDB_TAG_NOSYNC YMLDB_TAG_BASE "no-sync"
+#define YMLDB_TAG_SEQ "ymldb:" "seq:"
 
 // opcode
-#define YMLDB_OP_GET 0x01
-#define YMLDB_OP_DELETE 0x02
-#define YMLDB_OP_MERGE 0x04
+#define YMLDB_OP_GET        0x01
+#define YMLDB_OP_DELETE     0x02
+#define YMLDB_OP_MERGE      0x04
+#define YMLDB_OP_SEQ        0x08
 #define YMLDB_OP_SUBSCRIBER 0x10
-#define YMLDB_OP_PUBLISHER 0x20
-#define YMLDB_OP_LOCAL 0x40
-#define YMLDB_OP_REMOTE 0x80
+#define YMLDB_OP_PUBLISHER  0x20
+#define YMLDB_OP_NOSYNC     0x40
+
 
 // flags
-#define YMLDB_FLAG_NONE 0x0
-#define YMLDB_FLAG_PUBLISHER YMLDB_OP_PUBLISHER // publish ymldb if set, subscribe ymldb if not.
-#define YMLDB_FLAG_SUBSCRIBER YMLDB_OP_SUBSCRIBER
-#define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled ()
+#define YMLDB_FLAG_NONE 0x00
+#define YMLDB_FLAG_PUBLISHER 0x01 // publish ymldb if set, subscribe ymldb if not.
+#define YMLDB_FLAG_SUBSCRIBER 0x02
+#define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled
+#define YMLDB_FLAG_NOSYNC 0x04
 #define YMLDB_FLAG_RECONNECT 0x100
 // #define YMLDB_FLAG_LOCAL        0x08
 
@@ -100,14 +100,14 @@ struct ymldb_cb
 
 void ymldb_dump_all(FILE *stream);
 void ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no_print_children);
-void ymldb_dump_start(FILE *stream, int opcode, int sequence);
+void ymldb_dump_start(FILE *stream, unsigned int opcode, unsigned int sequence);
 void ymldb_dump_end(FILE *stream);
 
 struct ymldb_cb *ymldb_create(char *key, unsigned int flags);
 void ymldb_destroy(struct ymldb_cb *cb);
 
-int ymldb_push(struct ymldb_cb *cb, int opcode, char *format, ...);
-int _ymldb_write(struct ymldb_cb *cb, int opcode, ...);
+int ymldb_push(struct ymldb_cb *cb, char *format, ...);
+int _ymldb_write(struct ymldb_cb *cb, unsigned int opcode, ...);
 #define ymldb_write(CB, ...) _ymldb_write(CB, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
 #define ymldb_delete(CB, ...) _ymldb_write(CB, YMLDB_OP_DELETE, __VA_ARGS__, NULL)
 

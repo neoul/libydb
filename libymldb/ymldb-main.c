@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
     cb2 = ymldb_create("system", YMLDB_FLAG_NONE);
 
     _log_printf("PUSH\n");
-    res = ymldb_push(cb2, YMLDB_OP_MERGE,
+    res = ymldb_push(cb2,
                      "system:\n"
                      "  product: %s\n"
                      "  serial-number: %s\n"
@@ -119,6 +119,18 @@ int main(int argc, char *argv[])
     }
 
     ymldb_dump_all(stdout);
+
+    char ip1[64];
+    char ip2[32];
+    ymldb_pull(cb,
+               "interface:\n"
+               "  ge1:\n"
+               "    ip-addr:\n"
+               "      - %s\n"
+               "      - %s\n",
+               ip1, ip2);
+    printf("ip1= %s\n", ip1);
+    printf("ip2= %s\n", ip1);
 
     _log_printf("WRITE\n");
     res = ymldb_write(cb2, "system", "product", "abc");
@@ -161,19 +173,6 @@ int main(int argc, char *argv[])
     data = ymldb_read(cb, "interface", "ge1", "ip-addr");
     _log_printf("read data = %s\n", data);
     
-    char temp[12];
-    char ip1[64];
-    char ip2[32];
-    ymldb_pull(cb,
-               "interface:\n"
-               "  ge1:\n"
-               "    ip-addr:\n"
-               "      - %s\n"
-               "      - %s\n",
-               ip1, ip2);
-    printf("ip1= %s\n", ip1);
-    printf("ip2= %s\n", ip1);
-
     ymldb_destroy(cb);
     ymldb_destroy(cb2);
 
