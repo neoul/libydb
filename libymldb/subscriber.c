@@ -21,17 +21,17 @@ int main(int argc, char *argv[])
     signal(SIGPIPE, SIG_IGN);
 
     int outfd = STDOUT_FILENO;
-    if (strlen("subscriber.result.yml") > 0)
+    if (strlen("outstream-subscriber.yml") > 0)
     {
-        outfd = open("subscriber.result.yml", O_WRONLY | O_APPEND | O_CREAT, 0644);
+        outfd = open("outstream-subscriber.yml", O_WRONLY | O_APPEND | O_CREAT, 0644);
         if (outfd < 0)
         {
-            fprintf(stderr, "subscriber.result.yml file open error. %s\n", strerror(errno));
+            fprintf(stderr, "outstream-subscriber.yml file open error. %s\n", strerror(errno));
             return 1;
         }
     }
 
-    cb = ymldb_create("interface", YMLDB_FLAG_SUBSCRIBER | YMLDB_FLAG_LOCAL, outfd);
+    cb = ymldb_create("interface", YMLDB_FLAG_SUBSCRIBER);
     if(!cb) {
         return -1;
     }
@@ -51,9 +51,8 @@ int main(int argc, char *argv[])
         ymldb_conn_recv(cb, &read_set);
         if(cnt > 5) break;
     } while(!done);
-    ymldb_dump(stdout, cb->ydb, 0, 0);
     ymldb_destroy(cb);
-    print_alloc_cnt();
+    ymldb_dump_all(stdout);
     close(outfd);
     return 0;
 }

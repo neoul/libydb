@@ -22,9 +22,9 @@ struct ymldb
     int level;
 };
 
-
 // ymldb stream buffer
-struct ymldb_stream {
+struct ymldb_stream
+{
     FILE *stream;
     size_t buflen;
     char buf[];
@@ -51,7 +51,7 @@ struct ymldb_cb
         size_t buflen;
         int no_reply;
     } reply;
-    int fd_publisher; // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
+    int fd_publisher;                        // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
     int fd_subscriber[YMLDB_SUBSCRIBER_MAX]; // fd for YMLDB_FLAG_PUBLISHER
     struct
     {
@@ -75,17 +75,17 @@ struct ymldb_cb
 #define YMLDB_TAG_SUBSCRIBER YMLDB_TAG_BASE "subscriber"
 #define YMLDB_TAG_PUBLISHER YMLDB_TAG_BASE "publisher"
 #define YMLDB_TAG_NOSYNC YMLDB_TAG_BASE "no-sync"
-#define YMLDB_TAG_SEQ "ymldb:" "seq:"
+#define YMLDB_TAG_SEQ "ymldb:" \
+                      "seq:"
 
 // opcode
-#define YMLDB_OP_GET        0x01
-#define YMLDB_OP_DELETE     0x02
-#define YMLDB_OP_MERGE      0x04
-#define YMLDB_OP_SEQ        0x08
+#define YMLDB_OP_GET 0x01
+#define YMLDB_OP_DELETE 0x02
+#define YMLDB_OP_MERGE 0x04
+#define YMLDB_OP_SEQ 0x08
 #define YMLDB_OP_SUBSCRIBER 0x10
-#define YMLDB_OP_PUBLISHER  0x20
-#define YMLDB_OP_NOSYNC     0x40
-
+#define YMLDB_OP_PUBLISHER 0x20
+#define YMLDB_OP_NOSYNC 0x40
 
 // flags
 #define YMLDB_FLAG_NONE 0x00
@@ -94,29 +94,37 @@ struct ymldb_cb
 #define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled
 #define YMLDB_FLAG_NOSYNC 0x04
 #define YMLDB_FLAG_RECONNECT 0x100
-// #define YMLDB_FLAG_LOCAL        0x08
 
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
+// print all or partial ymldb to stream.
 void ymldb_dump_all(FILE *stream);
 void ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no_print_children);
 void ymldb_dump_start(FILE *stream, unsigned int opcode, unsigned int sequence);
 void ymldb_dump_end(FILE *stream);
 
+// create or delete ymldb
 struct ymldb_cb *ymldb_create(char *key, unsigned int flags);
 void ymldb_destroy(struct ymldb_cb *cb);
 
-int ymldb_push(struct ymldb_cb *cb, char *format, ...);
-int _ymldb_write(struct ymldb_cb *cb, unsigned int opcode, ...);
-#define ymldb_write(CB, ...) _ymldb_write(CB, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
-#define ymldb_delete(CB, ...) _ymldb_write(CB, YMLDB_OP_DELETE, __VA_ARGS__, NULL)
-
-// only support to query the value using the keys.
-// char *product = ymldb_read(cb, "system", "product");
+// basic functions to update ymldb
+int _ymldb_push(struct ymldb_cb *cb, FILE *outstream, unsigned int opcode, char *format, ...);
+int _ymldb_write(struct ymldb_cb *cb, FILE *outstream, unsigned int opcode, ...);
 char *_ymldb_read(struct ymldb_cb *cb, ...);
-#define ymldb_read(CB, ...) _ymldb_read(CB, __VA_ARGS__, NULL)
 
+// wrapping functions for ymldb api
+int ymldb_push(struct ymldb_cb *cb, char *format, ...);
+#define ymldb_merge(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
+#define ymldb_write(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
+#define ymldb_delete(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_DELETE, __VA_ARGS__, NULL)
+#define ymldb_get(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_GET, __VA_ARGS__, NULL)
+
+// only support to query a value using a key.
+// char *product = ymldb_read(cb, "system", "product");
+#define ymldb_read(CB, ...) _ymldb_read(CB, __VA_ARGS__, NULL)
 int ymldb_pull(struct ymldb_cb *cb, char *format, ...);
+
+// used to update ymldb using file descriptors.
 int ymldb_run(struct ymldb_cb *cb, int infd, int outfd);
 
 int ymldb_conn_deinit(struct ymldb_cb *cb);
@@ -124,10 +132,7 @@ int ymldb_conn_init(struct ymldb_cb *cb, int flags);
 int ymldb_conn_set(struct ymldb_cb *cb, fd_set *set);
 int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set);
 
-int ymldb_local_init(struct ymldb_cb *cb, int fd);
-int ymldb_local_deinit(struct ymldb_cb *cb);
-
-#define _log_printf(...)               \
+#define _log_printf(...)              \
     do                                \
     {                                 \
         fprintf(stdout, __VA_ARGS__); \
@@ -144,7 +149,7 @@ int ymldb_local_deinit(struct ymldb_cb *cb);
     do                                                              \
     {                                                               \
         fprintf(stderr, "\n[ymldb:error]\n\n");                     \
-        fprintf(stderr, "  - %s:%d\n  - ", __FUNCTION__, __LINE__); \
+        fprintf(stderr, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
         fprintf(stderr, __VA_ARGS__);                               \
         fprintf(stderr, "\n");                                      \
     } while (0)

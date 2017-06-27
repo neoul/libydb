@@ -99,82 +99,86 @@ int main(int argc, char *argv[])
     if (!cb)
         return -1;
     ymldb_run(cb, infd, outfd);
+    // _ymldb_write(cb, stdout, YMLDB_OP_GET, cb->key, NULL);
+    _ymldb_write(cb, stdout, YMLDB_OP_GET, cb->key, "ge2", NULL);
+    _ymldb_write(cb, stdout, YMLDB_OP_DELETE, cb->key, "ge2", NULL);
+    // _ymldb_write(cb, stdout, YMLDB_OP_DELETE, cb->key, "ge2", "tx-octet", NULL);
+    // ymldb_dump_all(stdout);
+    // _ymldb_write(cb, stdout, YMLDB_OP_DELETE, cb->key, NULL);
 
+    // struct ymldb_cb *cb2;
+    // cb2 = ymldb_create("system", YMLDB_FLAG_NONE);
+
+    // _log_printf("PUSH\n");
+    // res = ymldb_push(cb2,
+    //                  "system:\n"
+    //                  "  product: %s\n"
+    //                  "  serial-number: %s\n"
+    //                  "  code: 1223\n",
+    //                  "G.FAST-HN5124D",
+    //                  "HN5124-S100213124");
+    // if (res < 0)
+    // {
+    //     _log_printf("ERROR in ymldb_push\n");
+    // }
+
+    // ymldb_dump_all(stdout);
+
+    // char ip1[64];
+    // char ip2[32];
+    // ymldb_pull(cb,
+    //            "interface:\n"
+    //            "  ge1:\n"
+    //            "    ip-addr:\n"
+    //            "      - %s\n"
+    //            "      - %s\n",
+    //            ip1, ip2);
+    // printf("ip1= %s\n", ip1);
+    // printf("ip2= %s\n", ip1);
+
+    // // _log_printf("WRITE\n");
+    // res = ymldb_write(cb2, "system", "product", "abc");
+    // if (res < 0)
+    // { // key must be the same
+    //     _log_printf("ERROR in ymldb_write\n");
+    // }
+
+    // ymldb_dump_all(stdout);
+    // _log_printf("PULL\n");
+    // char serial_number[32];
+    // char productstr[32];
+    // int code;
+    // ymldb_pull(cb2,
+    //            "system:\n"
+    //            "  serial-number: %s\n"
+    //            "  code: %d\n"
+    //            "  product: %s\n",
+    //            serial_number,
+    //            &code,
+    //            productstr);
+    // _log_printf("serial_number=%s\n", serial_number);
+    // _log_printf("code=%d\n", code);
+    // _log_printf("product=%s\n", productstr);
+
+    // _log_printf("READ\n");
     
+    // char *data = ymldb_read(cb2, "system", "code", "123"); // 123 is the value... so, ignored.
+    // _log_printf("read data = %s\n", data);
 
-    struct ymldb_cb *cb2;
-    cb2 = ymldb_create("system", YMLDB_FLAG_NONE);
+    // data = ymldb_read(cb2, "system", "code"); // retrieve the code.
+    // _log_printf("read data = %s\n", data);
 
-    _log_printf("PUSH\n");
-    res = ymldb_push(cb2,
-                     "system:\n"
-                     "  product: %s\n"
-                     "  serial-number: %s\n"
-                     "  code: 1223\n",
-                     "G.FAST-HN5124D",
-                     "HN5124-S100213124");
-    if (res < 0)
-    {
-        _log_printf("ERROR in ymldb_push\n");
-    }
+    // data = ymldb_read(cb2, "system");
+    // _log_printf("read data = %s\n", data);
 
+    // data = ymldb_read(cb2, "system", "unknown");
+    // _log_printf("read data = %s\n", data);
+
+    // data = ymldb_read(cb, "interface", "ge1", "ip-addr");
+    // _log_printf("read data = %s\n", data);
     ymldb_dump_all(stdout);
-
-    char ip1[64];
-    char ip2[32];
-    ymldb_pull(cb,
-               "interface:\n"
-               "  ge1:\n"
-               "    ip-addr:\n"
-               "      - %s\n"
-               "      - %s\n",
-               ip1, ip2);
-    printf("ip1= %s\n", ip1);
-    printf("ip2= %s\n", ip1);
-
-    _log_printf("WRITE\n");
-    res = ymldb_write(cb2, "system", "product", "abc");
-    if (res < 0)
-    { // key must be the same
-        _log_printf("ERROR in ymldb_write\n");
-    }
-
-    ymldb_dump_all(stdout);
-    _log_printf("PULL\n");
-    char serial_number[32];
-    char productstr[32];
-    int code;
-    ymldb_pull(cb2,
-               "system:\n"
-               "  serial-number: %s\n"
-               "  code: %d\n"
-               "  product: %s\n",
-               serial_number,
-               &code,
-               productstr);
-    _log_printf("serial_number=%s\n", serial_number);
-    _log_printf("code=%d\n", code);
-    _log_printf("product=%s\n", productstr);
-
-    _log_printf("READ\n");
-    
-    char *data = ymldb_read(cb2, "system", "code", "123"); // 123 is the value... so, ignored.
-    _log_printf("read data = %s\n", data);
-
-    data = ymldb_read(cb2, "system", "code"); // retrieve the code.
-    _log_printf("read data = %s\n", data);
-
-    data = ymldb_read(cb2, "system");
-    _log_printf("read data = %s\n", data);
-
-    data = ymldb_read(cb2, "system", "unknown");
-    _log_printf("read data = %s\n", data);
-
-    data = ymldb_read(cb, "interface", "ge1", "ip-addr");
-    _log_printf("read data = %s\n", data);
-    
+    // ymldb_destroy(cb2);
     ymldb_destroy(cb);
-    ymldb_destroy(cb2);
 
     ymldb_dump_all(stdout);
 

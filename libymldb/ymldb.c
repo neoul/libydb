@@ -564,68 +564,9 @@ void _ymldb_node_merge_reply(struct ymldb_cb *cb, struct ymldb *ydb)
     return;
 }
 
-void _ymldb_node_delete_reply(struct ymldb_cb *cb, struct ymldb *parent, char *key)
-{
-    int flushed;
-    int print_level = 0;
-    struct ymldb *ydb = NULL;
-    if (!cb || !parent || !key)
-        return;
-    if (parent->type != YMLDB_BRANCH)
-        return;
-    ydb = cp_avltree_get(parent->children, key);
-    if (!ydb)
-    {
-        _log_error("'%s' doesn't exists\n", key);
-        cb->out.res = -1;
-        return; // do nothing if not exist.
-    }
-
-    if (cb->last_notify)
-        print_level = _ymldb_print_level(cb->last_notify, ydb);
-    if (cb->reply.stream)
-        ymldb_dump(cb->reply.stream, ydb, print_level, 1);
-    flushed = _ymldb_reply_flush(cb, 0);
-    if (flushed)
-    {
-        cb->last_notify = NULL;
-        _ymldb_reply_init(cb);
-    }
-    else
-        cb->last_notify = parent; // parent should be saved because of the ydb will be removed.
-    return;
-}
-
 void _ymldb_node_get_reply(struct ymldb_cb *cb, struct ymldb *parent, char *key)
 {
-    int flushed;
-    int print_level = 0;
-    struct ymldb *ydb = NULL;
-    if (!cb || !parent || !key)
-        return;
-    if (parent->type != YMLDB_BRANCH)
-        return;
-    ydb = cp_avltree_get(parent->children, key);
-    if (!ydb)
-    {
-        _log_error("'%s' doesn't exists\n", key);
-        cb->out.res = -1;
-        return; // do nothing if not exist.
-    }
 
-    if (cb->last_notify)
-        print_level = _ymldb_print_level(cb->last_notify, ydb);
-    if (cb->reply.stream)
-        ymldb_dump(cb->reply.stream, ydb, print_level, 0);
-    flushed = _ymldb_reply_flush(cb, 0);
-    if (flushed)
-    {
-        cb->last_notify = NULL;
-        _ymldb_reply_init(cb);
-    }
-    else
-        cb->last_notify = ydb;
-    return;
 }
 
 struct ymldb *_ymldb_node_merge(struct ymldb_cb *cb, struct ymldb *parent,
@@ -738,35 +679,89 @@ free_ydb:
 
 void _ymldb_node_delete(struct ymldb_cb *cb, struct ymldb *parent, char *key)
 {
-    if (parent)
+    int flushed;
+    int print_level = 0;
+    if(!cb || !parent || !key)
+        return;
+
+    struct ymldb *ydb = NULL;
+    if (parent->type != YMLDB_BRANCH)
     {
-        struct ymldb *ydb = NULL;
-        if (parent->type != YMLDB_BRANCH)
-        {
-            _log_error("Unable to delete a node from the leaf.\n");
-            _log_error("- parent ymldb: %s, child ymldb %s\n", parent->key, key);
+        _log_error("\n"
+            "\tUnable to delete a node from value.\n"
+            "\tparent ymldb: %s, child ymldb %s\n", parent->key, key);
+        return;
+    }
+
+    ydb = cp_avltree_get(parent->children, key);
+    if (ydb)
+    { 
+        if(ydb->level <= 1) {
+            _log_error("Unable to delete major ymldb branch.\n");
+            cb->out.res = -1;
             return;
         }
-        _ymldb_node_delete_reply(cb, parent, key);
-        ydb = cp_avltree_delete(parent->children, key);
-        _ymldb_node_free(ydb);
     }
+    else {
+        _log_error("'%s' doesn't exists\n", key);
+        cb->out.res = -1;
+        return;
+    }
+
+    _log_debug("ydb key=%s\n", ydb->key);
+
+    if (cb->last_notify)
+        print_level = _ymldb_print_level(cb->last_notify, ydb);
+    if (cb->reply.stream)
+        ymldb_dump(cb->reply.stream, ydb, print_level, 1);
+    flushed = _ymldb_reply_flush(cb, 0);
+    if (flushed)
+    {
+        cb->last_notify = NULL;
+        _ymldb_reply_init(cb);
+    }
+    else
+        cb->last_notify = parent; // parent should be saved because of the ydb will be removed.
+    ydb = cp_avltree_delete(parent->children, key);
+    _ymldb_node_free(ydb);
     return;
 }
 
 void _ymldb_node_get(struct ymldb_cb *cb, struct ymldb *parent, char *key)
 {
-    if (parent)
+    int flushed;
+    int print_level = 0;
+    struct ymldb *ydb = NULL;
+    if(!cb || !parent || !key)
+        return;
+    
+    if (parent->type != YMLDB_BRANCH)
     {
-        // struct ymldb *ydb = NULL;
-        if (parent->type != YMLDB_BRANCH)
-        {
-            _log_error("Unable to delete a node from the leaf.\n");
-            _log_error("- parent ymldb: %s, child ymldb %s\n", parent->key, key);
-            return;
-        }
-        _ymldb_node_get_reply(cb, parent, key);
+        _log_error("\n"
+            "\tUnable to get a node from value.\n"
+            "\tparent ymldb: %s, child ymldb %s\n", parent->key, key);
+        return;
     }
+    ydb = cp_avltree_get(parent->children, key);
+    if (!ydb)
+    {
+        _log_error("'%s' doesn't exists\n", key);
+        cb->out.res = -1;
+        return;
+    }
+
+    if (cb->last_notify)
+        print_level = _ymldb_print_level(cb->last_notify, ydb);
+    if (cb->reply.stream)
+        ymldb_dump(cb->reply.stream, ydb, print_level, 0);
+    flushed = _ymldb_reply_flush(cb, 0);
+    if (flushed)
+    {
+        cb->last_notify = NULL;
+        _ymldb_reply_init(cb);
+    }
+    else
+        cb->last_notify = ydb;
     return;
 }
 
@@ -905,15 +900,21 @@ int _ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_ind
             yaml_node_t *key_node = yaml_document_get_node(cb->document, pair->key);
             yaml_node_t *value_node = yaml_document_get_node(cb->document, pair->value);
             char *key = (char *)key_node->data.scalar.value;
-
+            char *value = (char *)value_node->data.scalar.value;
+            // _log_debug("key %s\n", key);
             if (value_node->type == YAML_SCALAR_NODE)
             {
-                _ymldb_node_delete(cb, p_ydb, key);
+                if(value[0] > 0) {
+                    struct ymldb *ydb = NULL;
+                    ydb = cp_avltree_get(p_ydb->children, key);
+                    _ymldb_node_delete(cb, ydb, value);
+                }
+                else
+                    _ymldb_node_delete(cb, p_ydb, key);
             }
             else
             { // not leaf
                 struct ymldb *ydb = NULL;
-                // _log_debug("key %s, value -\n", key);
                 ydb = cp_avltree_get(p_ydb->children, key);
                 _ymldb_delete(cb, ydb, pair->value, index);
             }
@@ -921,7 +922,13 @@ int _ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_ind
     }
     break;
     case YAML_SCALAR_NODE:
-        break;
+    { // It is only used for single key inserted..
+         char *key;
+         key = (char *)node->data.scalar.value;
+         _log_debug("scalar key %s, value -\n", key);
+         _ymldb_node_delete(cb, p_ydb, key);
+    }
+    break;
     case YAML_NO_NODE:
     default:
         break;
@@ -976,10 +983,17 @@ int _ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
             yaml_node_t *key_node = yaml_document_get_node(cb->document, pair->key);
             yaml_node_t *value_node = yaml_document_get_node(cb->document, pair->value);
             char *key = (char *)key_node->data.scalar.value;
+            char *value = (char *)value_node->data.scalar.value;
             // _log_debug("key %s\n", key);
             if (value_node->type == YAML_SCALAR_NODE)
             {
-                _ymldb_node_get(cb, p_ydb, key);
+                if(value[0] > 0) {
+                    struct ymldb *ydb = NULL;
+                    ydb = cp_avltree_get(p_ydb->children, key);
+                    _ymldb_node_get(cb, ydb, value);
+                }
+                else
+                    _ymldb_node_get(cb, p_ydb, key);
             }
             else
             { // not leaf
@@ -991,7 +1005,12 @@ int _ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
     }
     break;
     case YAML_SCALAR_NODE:
-        break;
+    { // It is only used for single key inserted..
+         char *key;
+         key = (char *)node->data.scalar.value;
+         _ymldb_node_get(cb, p_ydb, key);
+    }
+    break;
     case YAML_NO_NODE:
     default:
         break;
@@ -1469,6 +1488,7 @@ int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set)
                     if (cb->fd_subscriber[i] <= 0)
                     {
                         cb->fd_subscriber[i] = fd;
+                        ymldb_get(cb, cb->key);
                         break;
                     }
                 }
@@ -1477,6 +1497,7 @@ int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set)
                 {
                     _log_error("subscription over..\n");
                 }
+
             }
             else if (cb->flags & YMLDB_FLAG_SUBSCRIBER)
             { // SUBSCRIBER
@@ -1488,15 +1509,19 @@ int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set)
                     return -1;
                 }
                 inlen = read(cb->fd_publisher, inbuf, YMLDB_STREAM_BUF_SIZE);
-                if (inlen < 0)
+                if (inlen <= 0)
                 {
                     cb->flags |= YMLDB_FLAG_RECONNECT;
-                    _log_error("read failed (%s)\n", strerror(errno));
+                    if(inlen < 0)
+                        _log_error("conn (%d) read failed (%s)\n", cb->fd_publisher,  strerror(errno));
+                    else
+                        _log_error("conn (%d) closed - EOF\n", cb->fd_publisher);
+                    _log_debug("retry to connect to publisher.\n");
                     free(inbuf);
                     return -1;
                 }
                 inbuf[inlen] = 0;
-                _log_debug("inlen=%d inbuf=%s", inlen, inbuf);
+                _log_debug("inlen=%d inbuf=%s\n", inlen, inbuf);
                 FD_CLR(cb->fd_publisher, set);
                 _ymldb_run_with_string(cb, inbuf, inlen, NULL);
                 free(inbuf);
@@ -1517,14 +1542,20 @@ int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set)
                     continue;
                 }
                 inlen = read(cb->fd_subscriber[i], inbuf, YMLDB_STREAM_BUF_SIZE);
-                if (inlen < 0)
+                if (inlen <= 0)
                 {
-                    _log_error("read failed (%s)\n", strerror(errno));
+                    if(inlen < 0)
+                        _log_error("read failed (%s)\n", strerror(errno));
+                    else
+                        _log_error("conn (%d) closed - EOF\n", cb->fd_subscriber[i]);
+                    _log_debug("close the conn (%d).\n", cb->fd_subscriber[i]);
+                    FD_CLR(cb->fd_subscriber[i], set);
                     close(cb->fd_subscriber[i]);
                     cb->fd_subscriber[i] = 0;
                     free(inbuf);
                     continue;
                 }
+
                 inbuf[inlen] = 0;
                 FD_CLR(cb->fd_subscriber[i], set);
                 _ymldb_run_with_string(cb, inbuf, inlen, NULL);
@@ -1608,61 +1639,6 @@ static int _ymldb_conn_send(struct ymldb_cb *cb)
     return 0;
 }
 
-// int ymldb_local_init(struct ymldb_cb *cb, int fd)
-// {
-//     if (!cb)
-//     {
-//         _log_error("no cb\n");
-//         return -1;
-//     }
-//     if (fd <= 0)
-//     {
-//         _log_error("fd_local: failed due to fd <= %d\n", fd);
-//         return -1;
-//     }
-//     cb->fd_local = fd;
-//     cb->flags |= YMLDB_FLAG_LOCAL;
-//     _log_debug("fd_local: init to %d.\n", cb->fd_local);
-//     return 0;
-// }
-
-// int ymldb_local_deinit(struct ymldb_cb *cb)
-// {
-//     if (!cb)
-//     {
-//         _log_error("no cb\n");
-//         return -1;
-//     }
-//     cb->fd_local = 0;
-//     cb->flags = cb->flags & (~YMLDB_FLAG_LOCAL);
-//     _log_debug("fd_local: deinit.\n");
-//     return 0;
-// }
-
-// static int _ymldb_local_send(struct ymldb_cb *cb)
-// {
-//     int res = 0;
-//     int sent = 0;
-//     int retry = 0;
-//     if (cb->fd_local <= 0)
-//         return -1;
-// rewrite:
-//     res = write(cb->fd_local, cb->reply.buf + sent, ftell(cb->reply.stream) - sent);
-//     if (res < 0)
-//     {
-//         _log_error("fd_local: send failed to fd_local(%d) (%s)\n", cb->fd_local, strerror(errno));
-//         ymldb_local_deinit(cb);
-//         return -1;
-//     }
-//     sent = res + sent;
-//     if (sent < ftell(cb->reply.stream) && retry < 3)
-//     {
-//         retry++;
-//         goto rewrite;
-//     }
-//     return 0;
-// }
-
 void ymldb_destroy(struct ymldb_cb *cb)
 {
     if (!cb)
@@ -1726,7 +1702,7 @@ void ymldb_stream_free(struct ymldb_stream *buf)
     }
 }
 
-int ymldb_push2(struct ymldb_cb *cb, unsigned int opcode, char *format, ...)
+int _ymldb_push(struct ymldb_cb *cb, FILE *outstream, unsigned int opcode, char *format, ...)
 {
     int res;
     struct ymldb_stream *input;
@@ -1752,7 +1728,7 @@ int ymldb_push2(struct ymldb_cb *cb, unsigned int opcode, char *format, ...)
     fflush(input->stream);
     fseek(input->stream, 0, SEEK_SET);
 
-    res = _ymldb_run(cb, input->stream, NULL);
+    res = _ymldb_run(cb, input->stream, outstream);
     _log_debug("result: %s\n", res<0?"FAILED":"OK");
     ymldb_stream_free(input);
     return res;
@@ -1887,7 +1863,7 @@ int ymldb_pull(struct ymldb_cb *cb, char *format, ...)
 }
 
 // write a key and value
-int _ymldb_write(struct ymldb_cb *cb, unsigned int opcode, ...)
+int _ymldb_write(struct ymldb_cb *cb, FILE *outstream, unsigned int opcode, ...)
 {
     int res;
     int level = 0;
@@ -1898,7 +1874,7 @@ int _ymldb_write(struct ymldb_cb *cb, unsigned int opcode, ...)
         return -1;
     }
 
-    _log_debug("\n");
+    _log_debug("CB[%s]\n", cb->key);
     input = ymldb_stream_alloc(256, "w+");
     if(!input) {
         _log_error("fail to open ymldb stream\n");
@@ -1918,24 +1894,22 @@ int _ymldb_write(struct ymldb_cb *cb, unsigned int opcode, ...)
             fprintf(input->stream, "%.*s%s\n", level * 2, gSpace, cur_token);
             break;
         }
-        else {
-            fprintf(input->stream, "%.*s%s:\n", level * 2, gSpace, cur_token);
-        }
-        level++;
+        fprintf(input->stream, "%.*s%s:\n", level * 2, gSpace, cur_token);
         cur_token = next_token;
+        level++;
     };
     va_end(args);
     ymldb_dump_end(input->stream);
     fflush(input->stream);
     fseek(input->stream, 0, SEEK_SET);
     // printf("input->buf %s\n", input->buf);
-    res = _ymldb_run(cb, input->stream, NULL);
+    res = _ymldb_run(cb, input->stream, outstream);
     _log_debug("result: %s\n", res<0?"FAILED":"OK");
     ymldb_stream_free(input);
     return res;
 }
 
-// read a value by the key.
+// read a value by a key.
 char *_ymldb_read(struct ymldb_cb *cb, ...)
 { // directly access to ymldb.
     struct ymldb *ydb;

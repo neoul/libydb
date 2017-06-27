@@ -18,12 +18,24 @@ int main(int argc, char *argv[])
     fd_set read_set;
     struct timeval tv;
     struct ymldb_cb *cb = NULL;
+
+    // MUST ignore SIGPIPE.
     signal(SIGPIPE, SIG_IGN);
 
-    cb = ymldb_create("interface", YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_LOCAL, 1);
+    cb = ymldb_create("interface", YMLDB_FLAG_PUBLISHER);
     if(!cb) {
         return -1;
     }
+
+    int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
+    if (infd < 0)
+    {
+        fprintf(stderr, "file open error. %s\n", strerror(errno));
+        return 1;
+    }
+
+    ymldb_run(cb, infd, 0);
+    ymldb_dump_all(stdout);
 
     do {
         cnt++;
@@ -38,19 +50,19 @@ int main(int argc, char *argv[])
             _log_error("select failed (%s)\n", strerror(errno));
             break;
         }
-
-        ymldb_push(cb, YMLDB_OP_MERGE,
-            "interface:\n"
-            "  ge%d:\n"
-            "    speed: %d\n"
-            "    duplex: %s",
-            cnt+1,
-            cnt+1000,
-            "full");
-
         ymldb_conn_recv(cb, &read_set);
-    } while(!done);
 
-    print_alloc_cnt();
+        // ymldb_push(cb, 
+        //     "interface:\n"
+        //     "  ge%d:\n"
+        //     "    speed: %d\n"
+        //     "    duplex: %s",
+        //     cnt+1,
+        //     cnt+1000,
+        //     "full");
+        if(cnt > 20) break;
+    } while(!done);
+    ymldb_destroy(cb);
+    ymldb_dump_all(stdout);
     return 0;
 }
