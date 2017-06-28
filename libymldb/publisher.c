@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     // MUST ignore SIGPIPE.
     signal(SIGPIPE, SIG_IGN);
 
-    cb = ymldb_create("interface", YMLDB_FLAG_PUBLISHER);
+    cb = ymldb_create("interface", YMLDB_FLAG_PUBLISHER|YMLDB_FLAG_NOSYNC);
     if(!cb) {
         return -1;
     }

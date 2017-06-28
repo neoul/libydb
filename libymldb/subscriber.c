@@ -49,19 +49,20 @@ int main(int argc, char *argv[])
             break;
         }
         ymldb_conn_recv(cb, &read_set);
-        printf("TEST SYNC ");
         if(!(cb->flags & YMLDB_FLAG_RECONNECT)) {
             if(cnt == 2)
                 ymldb_sync(cb, "interface", "status");
             else if(cnt == 3)
                 ymldb_sync(cb, "interface", "status", "ip");
-            else if(cnt == 4)
+            else if(cnt == 4) {
                 ymldb_sync(cb, "interface");
+            }
             else if(cnt == 5)
                 ymldb_sync(cb, "interface", "ge1", "ip-addr", "192.168.44.1");
         }
         if(cnt > 5) break;
     } while(!done);
+
     ymldb_dump_all(stdout);
     ymldb_destroy(cb);
     ymldb_dump_all(stdout);

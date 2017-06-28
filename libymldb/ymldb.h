@@ -86,14 +86,14 @@ struct ymldb_cb
 #define YMLDB_OP_PUBLISHER 0x20
 #define YMLDB_OP_SYNC 0x40
 
-#define YMLDB_OP_ACTION (YMLDB_OP_GET|YMLDB_OP_DELETE|YMLDB_OP_MERGE|YMLDB_OP_SYNC)
+#define YMLDB_OP_ACTION (YMLDB_OP_GET | YMLDB_OP_DELETE | YMLDB_OP_MERGE | YMLDB_OP_SYNC)
 
 // flags
 #define YMLDB_FLAG_NONE 0x00
 #define YMLDB_FLAG_PUBLISHER 0x01 // publish ymldb if set, subscribe ymldb if not.
 #define YMLDB_FLAG_SUBSCRIBER 0x02
 #define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled
-#define YMLDB_FLAG_SYNC 0x04
+#define YMLDB_FLAG_NOSYNC 0x04
 #define YMLDB_FLAG_RECONNECT 0x100
 
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
@@ -115,7 +115,7 @@ char *_ymldb_read(struct ymldb_cb *cb, ...);
 
 // wrapping functions for ymldb api
 int ymldb_push(struct ymldb_cb *cb, char *format, ...);
-#define ymldb_merge(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
+
 #define ymldb_write(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
 #define ymldb_delete(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_DELETE, __VA_ARGS__, NULL)
 #define ymldb_get(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_GET, __VA_ARGS__, NULL)
@@ -134,6 +134,7 @@ int ymldb_conn_init(struct ymldb_cb *cb, int flags);
 int ymldb_conn_set(struct ymldb_cb *cb, fd_set *set);
 int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set);
 
+
 #define _log_printf(...)              \
     do                                \
     {                                 \
@@ -147,12 +148,28 @@ int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set);
         fprintf(stdout, __VA_ARGS__);                                     \
     } while (0)
 
-#define _log_error(...)                                             \
-    do                                                              \
-    {                                                               \
-        fprintf(stderr, "\n[ymldb:error]\n\n");                     \
+#define _log_error(...)                                         \
+    do                                                          \
+    {                                                           \
+        fprintf(stderr, "\n[ymldb:error]\n\n");                 \
         fprintf(stderr, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
-        fprintf(stderr, __VA_ARGS__);                               \
-        fprintf(stderr, "\n");                                      \
+        fprintf(stderr, __VA_ARGS__);                           \
+        fprintf(stderr, "\n");                                  \
     } while (0)
+
+#define _log_error_head(...)                                    \
+    do                                                          \
+    {                                                           \
+        fprintf(stderr, "\n[ymldb:error]\n\n");                 \
+        fprintf(stderr, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
+        fprintf(stderr, __VA_ARGS__);                           \
+    } while (0)
+
+#define _log_error_next(...)                           \
+    do                                                 \
+    {                                                  \
+        fprintf(stderr, "\t", __FUNCTION__, __LINE__); \
+        fprintf(stderr, __VA_ARGS__);                  \
+    } while (0)
+
 #endif

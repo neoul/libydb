@@ -1,9 +1,0 @@
-{
-    "git.ignoreLimitWarning": true,
-    "files.associations": {
-        "ymldb.h": "c",
-        "yaml.h": "c",
-        "bn.h": "c",
-        "string.h": "c"
-    }
-}
