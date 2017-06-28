@@ -1018,6 +1018,77 @@ int _ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
     return 0;
 }
 
+
+int _ymldb_relay(struct ymldb_cb *cb, int level, int index, int p_index)
+{
+    yaml_node_t *node = NULL;
+    
+    node = yaml_document_get_node(cb->document, index);
+    if (!node)
+    {
+        return 0;
+    }
+
+    switch (node->type)
+    {
+    case YAML_SEQUENCE_NODE:
+    {
+        yaml_node_item_t *item;
+        // printf("SEQ c=%d p=%d\n", index, p_index);
+        for (item = node->data.sequence.items.start;
+             item < node->data.sequence.items.top; item++)
+        {
+            yaml_node_t *node = yaml_document_get_node(cb->document, *item);
+            char *key = (char *)node->data.scalar.value;
+            if (node->type == YAML_SCALAR_NODE)
+            {
+                _out(cb->reply.stream, "%.*s- %s\n", level * 2, gSpace, key);
+            }
+            else
+            {
+                _ymldb_relay(cb, level, *item, index);
+            }
+        }
+    }
+    break;
+    case YAML_MAPPING_NODE:
+    {
+        yaml_node_pair_t *pair;
+        // printf("MAPPING c=%d p=%d\n", index, p_index);
+        for (pair = node->data.mapping.pairs.start;
+             pair < node->data.mapping.pairs.top; pair++)
+        {
+            yaml_node_t *key_node = yaml_document_get_node(cb->document, pair->key);
+            yaml_node_t *value_node = yaml_document_get_node(cb->document, pair->value);
+            char *key = (char *)key_node->data.scalar.value;
+            char *value = (char *)value_node->data.scalar.value;
+            // _log_debug("key %s\n", key);
+            if (value_node->type == YAML_SCALAR_NODE)
+            {
+                _out(cb->reply.stream, "%.*s%s: %s\n", level * 2, gSpace, key, value);
+            }
+            else
+            { // not leaf
+                _out(cb->reply.stream, "%.*s%s:\n", level * 2, gSpace, key);
+                _ymldb_relay(cb, level+1, pair->value, index);
+            }
+        }
+    }
+    break;
+    case YAML_SCALAR_NODE:
+    { // It is only used for single key inserted..
+         char *key;
+         key = (char *)node->data.scalar.value;
+         _out(cb->reply.stream, "%.*s%s\n", level * 2, gSpace, key);
+    }
+    break;
+    case YAML_NO_NODE:
+    default:
+        break;
+    }
+    return 0;
+}
+
 int _ymldb_op_extract(struct ymldb_cb *cb, unsigned int *sequence)
 {
     // char *op = YMLDB_OP_MERGE;
@@ -1068,20 +1139,20 @@ int _ymldb_op_extract(struct ymldb_cb *cb, unsigned int *sequence)
 
 static int _ymldb_state_machine(struct ymldb_cb *cb, unsigned int in_opcode, unsigned int in_sequence)
 {
-    int ignore = 0;
+    int ignore_or_relay = 0;
     cb->opcode = 0;
     cb->reply.no_reply = 1;
     if (!(in_opcode & YMLDB_OP_ACTION))
     {
         // do nothing if no action.
-        ignore = 1;
+        ignore_or_relay = 1;
     }
     if (cb->flags & YMLDB_FLAG_PUBLISHER) 
     {
         if (in_opcode & YMLDB_OP_SUBSCRIBER)
         {
             if(in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE))
-                ignore = 1;
+                ignore_or_relay = 1;
             else // YMLDB_OP_GET, YMLDB_OP_SYNC
             {
                 cb->opcode = YMLDB_OP_PUBLISHER;
@@ -1090,7 +1161,7 @@ static int _ymldb_state_machine(struct ymldb_cb *cb, unsigned int in_opcode, uns
             }
         }
         else if (in_opcode & YMLDB_OP_PUBLISHER)
-            ignore = 1;
+            ignore_or_relay = 1;
         else {
             cb->opcode = YMLDB_OP_PUBLISHER;
             cb->opcode |= (in_opcode & YMLDB_OP_ACTION);
@@ -1102,11 +1173,11 @@ static int _ymldb_state_machine(struct ymldb_cb *cb, unsigned int in_opcode, uns
     else if (cb->flags & YMLDB_FLAG_SUBSCRIBER)
     {
         if (in_opcode & YMLDB_OP_SUBSCRIBER)
-            ignore = 1;
+            ignore_or_relay = 1;
         else  if (in_opcode & YMLDB_OP_PUBLISHER)
         {
             if(in_opcode & YMLDB_OP_GET)
-                ignore = 1;
+                ignore_or_relay = 1;
             else // YMLDB_OP_MERGE, YMLDB_OP_DELETE, YMLDB_OP_SYNC
             {
                 cb->opcode = YMLDB_OP_SUBSCRIBER;
@@ -1115,28 +1186,30 @@ static int _ymldb_state_machine(struct ymldb_cb *cb, unsigned int in_opcode, uns
         }
         else {
             if(in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE))
-                ignore = 1;
+                ignore_or_relay = 1;
             else // YMLDB_OP_GET, YMLDB_OP_SYNC
             {
                 cb->opcode = YMLDB_OP_SUBSCRIBER;
                 cb->opcode |= (in_opcode & (YMLDB_OP_GET | YMLDB_OP_SYNC));
-                if(in_opcode & YMLDB_OP_SYNC)
+                if(in_opcode & YMLDB_OP_SYNC) {
                     cb->reply.no_reply = 0;
+                    ignore_or_relay = 2;
+                }
             }
         }
     }
     else
     { // ymldb for local user
         if (in_opcode & YMLDB_OP_SUBSCRIBER)
-            ignore = 1;
+            ignore_or_relay = 1;
         else  if (in_opcode & YMLDB_OP_PUBLISHER)
-            ignore = 1;
+            ignore_or_relay = 1;
         else
         {
             cb->opcode |= (in_opcode & YMLDB_OP_ACTION);
             cb->reply.no_reply = 1;
             if(in_opcode & YMLDB_OP_SYNC)
-                ignore = 1;
+                ignore_or_relay = 1;
         }
     }
     cb->opcode |= YMLDB_OP_SEQ;
@@ -1147,7 +1220,7 @@ static int _ymldb_state_machine(struct ymldb_cb *cb, unsigned int in_opcode, uns
         cb->sequence = gSequence;
         gSequence++;
     }
-    return ignore;
+    return ignore_or_relay;
 }
 
 int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
@@ -1195,25 +1268,28 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
         yroot = yaml_document_get_root_node(cb->document);
         if (yroot)
         {
+            int ignore_or_relay;
             _log_debug("IN %uth\n", in_sequence);
             _log_debug("IN %s\n", _ymldb_opcode_str(in_opcode));
-            if (_ymldb_state_machine(cb, in_opcode, in_sequence))
+            ignore_or_relay = _ymldb_state_machine(cb, in_opcode, in_sequence);
+            if (ignore_or_relay == 1)
             {
-                _log_debug("result: recv %uth %s\n", in_sequence, "IGNORED");
+                _log_debug("IN %uth %s\n", in_sequence, "IGNORED");
                 goto skip_document;
             }
             _log_debug("OUT %dth\n", cb->sequence);
             _log_debug("OUT %s\n", _ymldb_opcode_str(cb->opcode));
-
             _ymldb_reply_init(cb);
-            if (in_opcode & YMLDB_OP_MERGE)
+            if (cb->opcode & YMLDB_OP_MERGE)
                 _ymldb_merge(cb, gYdb, 1, 1);
-            if (in_opcode & YMLDB_OP_DELETE)
+            if (cb->opcode & YMLDB_OP_DELETE)
                 _ymldb_delete(cb, gYdb, 1, 1);
-            if (in_opcode & YMLDB_OP_GET)
+            if (cb->opcode & YMLDB_OP_GET)
                 _ymldb_get(cb, gYdb, 1, 1);
-            if (in_opcode & YMLDB_OP_SYNC) {
-                if (in_opcode & YMLDB_OP_PUBLISHER)
+            if (cb->opcode & YMLDB_OP_SYNC) {
+                if(ignore_or_relay == 2)
+                    _ymldb_relay(cb, 0, 1, 1);
+                else if (in_opcode & YMLDB_OP_PUBLISHER)
                     _ymldb_merge(cb, gYdb, 1, 1);
                 else
                     _ymldb_get(cb, gYdb, 1, 1);
@@ -1252,8 +1328,8 @@ int _ymldb_run_with_string(struct ymldb_cb *cb, char *ymldata, size_t ymldata_le
         _log_error("invalid ymldata_len %lu\n", ymldata_len);
         return -1;
     }
-    _log_debug("ymldata_len %lu\n", ymldata_len);
-    _log_debug("ymldata %s\n", ymldata);
+    // _log_debug("ymldata_len %lu\n", ymldata_len);
+    // _log_debug("ymldata %s\n", ymldata);
     instream = fmemopen(ymldata, ymldata_len, "r");
     if (instream)
     {
@@ -1360,8 +1436,7 @@ struct ymldb_cb *ymldb_create(char *key, unsigned int flags)
 
     if (flags & YMLDB_FLAG_PUBLISHER || flags & YMLDB_FLAG_SUBSCRIBER)
         ymldb_conn_init(cb, flags);
-    // if (flags & YMLDB_FLAG_LOCAL)
-    //     ymldb_local_init(cb, option); // option is fd if YMLDB_FLAG_LOCAL.
+    
     cp_avltree_insert(gYcb, cb->key, cb);
     return cb;
 }
@@ -1418,6 +1493,7 @@ int ymldb_conn_init(struct ymldb_cb *cb, int flags)
     if (fd < 0)
     {
         _log_error("socket failed (%s)\n", strerror(errno));
+        cb->flags |= YMLDB_FLAG_RECONNECT;
         return -1;
     }
     snprintf(socketpath, sizeof(socketpath), YMLDB_UNIXSOCK_PATH, cb->key);
@@ -1598,6 +1674,7 @@ int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set)
                 }
 
                 inbuf[inlen] = 0;
+                _log_debug("inlen=%d inbuf=%s\n", inlen, inbuf);
                 FD_CLR(cb->fd_subscriber[i], set);
                 _ymldb_run_with_string(cb, inbuf, inlen, NULL);
                 free(inbuf);
