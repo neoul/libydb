@@ -189,8 +189,8 @@ static char *_ymldb_opcode_str(int opcode)
         strcat(opstr, "subscriber|");
     if (opcode & YMLDB_OP_PUBLISHER)
         strcat(opstr, "publisher|");
-    if (opcode & YMLDB_OP_NOSYNC)
-        strcat(opstr, "local|");
+    if (opcode & YMLDB_OP_SYNC)
+        strcat(opstr, "sync|");
     strcat(opstr, ")");
     return opstr;
 }
@@ -398,9 +398,9 @@ void ymldb_dump_start(FILE *stream, unsigned int opcode, unsigned int sequence)
     {
         _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBER, YMLDB_TAG_SUBSCRIBER);
     }
-    if (opcode & YMLDB_OP_NOSYNC)
+    if (opcode & YMLDB_OP_SYNC)
     {
-        _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_NOSYNC, YMLDB_TAG_NOSYNC);
+        _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SYNC, YMLDB_TAG_SYNC);
     }
     if (opcode & YMLDB_OP_PUBLISHER)
     {
@@ -1053,9 +1053,9 @@ int _ymldb_op_extract(struct ymldb_cb *cb, unsigned int *sequence)
             {
                 opcode = opcode | YMLDB_OP_SUBSCRIBER;
             }
-            else if (strcmp(op, YMLDB_TAG_OP_NOSYNC) == 0)
+            else if (strcmp(op, YMLDB_TAG_OP_SYNC) == 0)
             {
-                opcode = opcode | YMLDB_OP_NOSYNC;
+                opcode = opcode | YMLDB_OP_SYNC;
             }
             else if (strcmp(op, YMLDB_TAG_OP_PUBLISHER) == 0)
             {
@@ -1066,38 +1066,86 @@ int _ymldb_op_extract(struct ymldb_cb *cb, unsigned int *sequence)
     return opcode;
 }
 
-static int _ymldb_op_ignored(struct ymldb_cb *cb, int in_opcode)
+static int _ymldb_state_machine(struct ymldb_cb *cb, unsigned int in_opcode, unsigned int in_sequence)
 {
     int ignore = 0;
-    cb->reply.no_reply = 0;
-    if (!(in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE | YMLDB_OP_GET)))
+    cb->opcode = 0;
+    cb->reply.no_reply = 1;
+    if (!(in_opcode & YMLDB_OP_ACTION))
     {
+        // do nothing if no action.
         ignore = 1;
     }
-    if (in_opcode & YMLDB_OP_PUBLISHER)
+    if (cb->flags & YMLDB_FLAG_PUBLISHER) 
     {
-        if (cb->flags & YMLDB_FLAG_PUBLISHER)
-            ignore = 1;
-        else if (cb->flags & YMLDB_FLAG_SUBSCRIBER)
+        if (in_opcode & YMLDB_OP_SUBSCRIBER)
         {
-            if (in_opcode & YMLDB_OP_GET)
-            {
+            if(in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE))
                 ignore = 1;
+            else // YMLDB_OP_GET, YMLDB_OP_SYNC
+            {
+                cb->opcode = YMLDB_OP_PUBLISHER;
+                cb->opcode |= (in_opcode & (YMLDB_OP_GET | YMLDB_OP_SYNC));
+                cb->reply.no_reply = 0;
             }
-            cb->reply.no_reply = 1;
+        }
+        else if (in_opcode & YMLDB_OP_PUBLISHER)
+            ignore = 1;
+        else {
+            cb->opcode = YMLDB_OP_PUBLISHER;
+            cb->opcode |= (in_opcode & YMLDB_OP_ACTION);
+            cb->reply.no_reply = 0;
+            if(in_opcode & YMLDB_OP_GET)
+                cb->reply.no_reply = 1;
         }
     }
-    else if (in_opcode & YMLDB_OP_SUBSCRIBER)
+    else if (cb->flags & YMLDB_FLAG_SUBSCRIBER)
     {
-        if (cb->flags & YMLDB_FLAG_SUBSCRIBER)
+        if (in_opcode & YMLDB_OP_SUBSCRIBER)
             ignore = 1;
-        else if (cb->flags & YMLDB_FLAG_PUBLISHER)
+        else  if (in_opcode & YMLDB_OP_PUBLISHER)
         {
-            if (in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE))
-            {
+            if(in_opcode & YMLDB_OP_GET)
                 ignore = 1;
+            else // YMLDB_OP_MERGE, YMLDB_OP_DELETE, YMLDB_OP_SYNC
+            {
+                cb->opcode = YMLDB_OP_SUBSCRIBER;
+                cb->opcode |= (in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE | YMLDB_OP_SYNC));
             }
         }
+        else {
+            if(in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE))
+                ignore = 1;
+            else // YMLDB_OP_GET, YMLDB_OP_SYNC
+            {
+                cb->opcode = YMLDB_OP_SUBSCRIBER;
+                cb->opcode |= (in_opcode & (YMLDB_OP_GET | YMLDB_OP_SYNC));
+                if(in_opcode & YMLDB_OP_SYNC)
+                    cb->reply.no_reply = 0;
+            }
+        }
+    }
+    else
+    { // ymldb for local user
+        if (in_opcode & YMLDB_OP_SUBSCRIBER)
+            ignore = 1;
+        else  if (in_opcode & YMLDB_OP_PUBLISHER)
+            ignore = 1;
+        else
+        {
+            cb->opcode |= (in_opcode & YMLDB_OP_ACTION);
+            cb->reply.no_reply = 1;
+            if(in_opcode & YMLDB_OP_SYNC)
+                ignore = 1;
+        }
+    }
+    cb->opcode |= YMLDB_OP_SEQ;
+    if(in_opcode & YMLDB_OP_SEQ) {
+        cb->sequence = in_sequence;
+    }
+    else {
+        cb->sequence = gSequence;
+        gSequence++;
     }
     return ignore;
 }
@@ -1147,28 +1195,15 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
         yroot = yaml_document_get_root_node(cb->document);
         if (yroot)
         {
-            _log_debug("recv no: %uth\n", in_sequence);
-            _log_debug("recv op: %s\n", _ymldb_opcode_str(in_opcode));
-            if (_ymldb_op_ignored(cb, in_opcode))
+            _log_debug("IN %uth\n", in_sequence);
+            _log_debug("IN %s\n", _ymldb_opcode_str(in_opcode));
+            if (_ymldb_state_machine(cb, in_opcode, in_sequence))
             {
                 _log_debug("result: recv %uth %s\n", in_sequence, "IGNORED");
                 goto skip_document;
             }
-
-            cb->opcode = 0;
-            cb->opcode |= (cb->flags & YMLDB_FLAG_PUBLISHER) ? YMLDB_OP_PUBLISHER : 0;
-            cb->opcode |= (cb->flags & YMLDB_FLAG_SUBSCRIBER) ? YMLDB_OP_SUBSCRIBER : 0;
-            cb->opcode |= (in_opcode & (YMLDB_OP_MERGE | YMLDB_OP_DELETE | YMLDB_OP_GET));
-            cb->opcode |= YMLDB_OP_SEQ;
-            if(in_opcode & YMLDB_OP_SEQ) {
-                cb->sequence = in_sequence;
-            }
-            else {
-                cb->sequence = gSequence;
-                gSequence++;
-            }
-            _log_debug("cur no: %dth\n", cb->sequence);
-            _log_debug("cur op: %s\n", _ymldb_opcode_str(cb->opcode));
+            _log_debug("OUT %dth\n", cb->sequence);
+            _log_debug("OUT %s\n", _ymldb_opcode_str(cb->opcode));
 
             _ymldb_reply_init(cb);
             if (in_opcode & YMLDB_OP_MERGE)
@@ -1177,6 +1212,12 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
                 _ymldb_delete(cb, gYdb, 1, 1);
             if (in_opcode & YMLDB_OP_GET)
                 _ymldb_get(cb, gYdb, 1, 1);
+            if (in_opcode & YMLDB_OP_SYNC) {
+                if (in_opcode & YMLDB_OP_PUBLISHER)
+                    _ymldb_merge(cb, gYdb, 1, 1);
+                else
+                    _ymldb_get(cb, gYdb, 1, 1);
+            }
             _ymldb_reply_flush(cb, 1); // forced flush!
             cb->last_notify = NULL;
             _log_debug("result: %s\n", cb->out.res<0?"FAILED":"OK");
@@ -1388,7 +1429,7 @@ int ymldb_conn_init(struct ymldb_cb *cb, int flags)
     if (flags & YMLDB_FLAG_PUBLISHER)
     { // PUBLISHER
         cb->flags |= YMLDB_FLAG_PUBLISHER;
-        cb->flags |= (flags & YMLDB_FLAG_NOSYNC)?YMLDB_FLAG_NOSYNC:0;
+        // cb->flags |= (flags & YMLDB_FLAG_SYNC)?YMLDB_FLAG_SYNC:0;
         if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         {
             _log_error("bind failed (%s).\n", strerror(errno));
@@ -1488,7 +1529,7 @@ int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set)
                     if (cb->fd_subscriber[i] <= 0)
                     {
                         cb->fd_subscriber[i] = fd;
-                        ymldb_get(cb, cb->key);
+                        ymldb_sync(cb, cb->key);
                         break;
                     }
                 }
@@ -1607,10 +1648,10 @@ static int _ymldb_conn_send(struct ymldb_cb *cb)
     }
     else if (cb->flags & YMLDB_FLAG_PUBLISHER)
     {
-        if(cb->flags & YMLDB_FLAG_NOSYNC) {
-            // [FIXME] block to send change notification.
-            return 0;
-        }
+        // if(cb->flags & YMLDB_FLAG_SYNC) {
+        //     // [FIXME] block to send change notification.
+        //     return 0;
+        // }
         for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
         {
             if (cb->fd_subscriber[i])

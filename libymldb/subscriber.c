@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
         ymldb_conn_recv(cb, &read_set);
         if(cnt > 5) break;
     } while(!done);
+    ymldb_dump_all(stdout);
     ymldb_destroy(cb);
     ymldb_dump_all(stdout);
     close(outfd);
