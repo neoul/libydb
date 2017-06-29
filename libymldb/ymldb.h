@@ -107,6 +107,7 @@ void ymldb_dump_end(FILE *stream);
 // create or delete ymldb
 struct ymldb_cb *ymldb_create(char *key, unsigned int flags);
 void ymldb_destroy(struct ymldb_cb *cb);
+struct ymldb_cb *ymldb_cb(char *key);
 
 // basic functions to update ymldb
 int _ymldb_push(struct ymldb_cb *cb, FILE *outstream, unsigned int opcode, char *format, ...);
@@ -118,7 +119,7 @@ int ymldb_push(struct ymldb_cb *cb, char *format, ...);
 
 #define ymldb_write(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
 #define ymldb_delete(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_DELETE, __VA_ARGS__, NULL)
-#define ymldb_get(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_GET, __VA_ARGS__, NULL)
+#define ymldb_get(CB, OUTPUT, ...) _ymldb_write(CB, OUTPUT, YMLDB_OP_GET, __VA_ARGS__, NULL)
 #define ymldb_sync(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_SYNC, __VA_ARGS__, NULL)
 
 // only support to query a value using a key.
