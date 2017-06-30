@@ -23,87 +23,6 @@ void signal_handler_INT(int param)
     done = 1;
 }
 
-
-struct ymldb_cb *ymldb_test1()
-{
-    // write a file for a ymldb stream input.
-    FILE *f = fopen("ymldb-interface.yml", "w");
-    if (!f)
-    {
-        fprintf(stderr, "%s", strerror(errno));
-        return NULL;
-    }
-    fputs(
-        "%TAG !seq! ymldb:seq:11\n"
-        "%TAG !merge! ymldb:op:merge\n"
-        "---\n"
-        "interface:\n"
-        "  ge1:\n"
-        "    mtu: 1500\n"
-        "    operstatus: false\n"
-        "    rx-octet: 10022\n"
-        "    tx-octet: 2222\n"
-        "    ip-addr: [192.168.44.1, 192.168.0.77]\n"
-        "  ge2:\n"
-        "    operstatus: false\n"
-        "    rx-octet: 10022\n"
-        "    tx-octet: 2222\n"
-        "    mtu: 2000\n"
-        "...\n"
-        "#2 empty message\n"
-        "---\n"
-        "...\n",
-        f);
-    fclose(f);
-
-    struct ymldb_cb *cb;
-
-    // create ymldb for interface.
-    cb = ymldb_create("interface", YMLDB_FLAG_PUBLISHER);
-    if (!cb)
-    {
-        fprintf(stderr, "ymldb create failed.\n");
-        return NULL;
-    }
-
-    // read ymldb from a file.
-    int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
-    ymldb_run(cb, infd, 0);
-    close(infd);
-    return cb;
-}
-
-void ymldb_test2()
-{
-    struct ymldb_cb *cb = ymldb_cb("interface");
-
-    // get data from ymldb.
-    char *value = ymldb_read(cb, "interface", "ge1", "operstatus");
-    fprintf(stdout, "ge1 operstatus=%s\n", value);
-
-    // get data from ymldb using ymldb_pull.
-    int mtu = 0;
-    char operstatus_str[32];
-    ymldb_pull(cb,
-               "interface:\n"
-               "  ge2:\n"
-               "    operstatus: %s\n"
-               "    mtu: %d\n",
-               operstatus_str, &mtu);
-    fprintf(stdout, "ge2 mtu=%d\n", mtu);
-    fprintf(stdout, "ge2 operstatus=%s\n", operstatus_str);
-
-    // read ymldb data (yaml format string) to OUTPUT stream.
-    ymldb_get(cb, stdout, "interface", "ge2");
-
-    mtu = 9000;
-    ymldb_push(cb, 
-        "interface:\n"
-        "  ge2:\n"
-        "    mtu: %d", mtu
-        );
-}
-
 int main(int argc, char *argv[])
 {
     int res;
@@ -120,45 +39,64 @@ int main(int argc, char *argv[])
     // add a signal handler to quit this program.
     signal(SIGINT, signal_handler_INT);
 
-    struct ymldb_cb *cb = ymldb_test1();
+    // create ymldb for interface.
+    ymldb_create("interface", YMLDB_FLAG_PUBLISHER);
+    // read ymldb from a file.
+    int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
+    ymldb_run("interface", infd, 0);
+    close(infd);
 
     ymldb_dump_all(stdout);
-    // fprintf(stdout, "Press any key to run.\n");
-    // fgetc(stdin);
 
-    res = mkfifo("ymldb-input", 0644);
-    if(res < 0) {
-        fprintf(stderr, "unable to make a named pipe (%s)\n", strerror(errno));
-    }
+    // unlink("ymldb-io");
+    // mkfifo("ymldb-io", 0644);
 
-    int local_fd = open("ymldb-input", O_RDWR, 0644);
-    ymldb_conn_add(cb, local_fd);
+    // int local_fd = open("ymldb-io", O_WRONLY, 0644);
+    // ymldb_distribution_add("interface", local_fd);
 
     time(&last_time);
-    do {
+    do
+    {
         FD_ZERO(&read_set);
         tv.tv_sec = 3;
         tv.tv_usec = 0;
 
-        max_fd = ymldb_conn_set(cb, &read_set);
+        max_fd = ymldb_distribution_set(&read_set);
         res = select(max_fd + 1, &read_set, NULL, NULL, &tv);
-        if(res < 0) {
+        if (res < 0)
+        {
             fprintf(stderr, "select failed (%s)\n", strerror(errno));
             break;
         }
-        ymldb_conn_recv(cb, &read_set);
+        ymldb_distribution_recv(&read_set);
 
         time(&cur_time);
         double diff = difftime(cur_time, last_time);
-        if(diff > 10.0) {
-            cnt++;
-            last_time = cur_time;
+        if (diff > 10.0)
+        {
+            char ifname[32] = {0};
+            char mtu[32] = {0};
+            sprintf(ifname, "ge%d", cnt/3);
+            sprintf(mtu, "%d", cnt * 100);
+            
             printf("\nno. %d\n", cnt);
-            ymldb_test2();
+            if(cnt%3 == 0)
+                ymldb_push("interface",
+                        "interface:\n"
+                        "  ge%d:\n"
+                        "    mtu: %s",
+                        cnt/3,
+                        mtu);
+            if(cnt%3 == 1)
+                ymldb_write("interface",  ifname, "mtu", mtu);
+            if(cnt%3 == 2)
+                ymldb_delete("interface",  ifname);
+            last_time = cur_time;
+            cnt++;
         }
-    } while(!done);
+    } while (!done);
     ymldb_dump_all(stdout);
-    ymldb_destroy(cb);
+    ymldb_destroy_all();
     ymldb_dump_all(stdout);
     fprintf(stdout, "end.\n");
     return 0;

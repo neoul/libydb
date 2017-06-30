@@ -118,11 +118,11 @@ char *_ymldb_read(char *major_key, ...);
 struct ymldb_cb *_ymldb_cb(char *major_key);
 
 // [YMLDB update facility - from string]
-#define ymldb_read(KEY, ...) _ymldb_read(KEY, ##__VA_ARGS__, NULL)
-#define ymldb_write(KEY, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, KEY, ##__VA_ARGS__, NULL)
-#define ymldb_delete(KEY, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, KEY, ##__VA_ARGS__, NULL)
-#define ymldb_sync(KEY, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, KEY, ##__VA_ARGS__, NULL)
-#define ymldb_get(OUTPUT, KEY, ...) _ymldb_write(OUTPUT, YMLDB_OP_GET, KEY, ##__VA_ARGS__, NULL)
+#define ymldb_read(major_key, ...) _ymldb_read(major_key, ##__VA_ARGS__, NULL)
+#define ymldb_write(major_key, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_delete(major_key, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_sync(major_key, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_get(outstream, major_key, ...) _ymldb_write(outstream, YMLDB_OP_GET, major_key, ##__VA_ARGS__, NULL)
 // write ymldb using YAML document format.
 int ymldb_push(char *major_key, char *format, ...);
 // read ymldb using YAML document format.
