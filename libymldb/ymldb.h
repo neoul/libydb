@@ -61,6 +61,12 @@ struct ymldb_cb
     } out;
 };
 
+struct ymldb_distribution {
+    fd_set *set;
+    int max;
+};
+
+// yaml tag for ymldb operation
 #define YMLDB_TAG_OP_GET "!get!"
 #define YMLDB_TAG_OP_DELETE "!delete!"
 #define YMLDB_TAG_OP_MERGE "!merge!"
@@ -69,6 +75,7 @@ struct ymldb_cb
 #define YMLDB_TAG_OP_SYNC "!sync!"
 #define YMLDB_TAG_OP_SEQ "!seq!"
 
+// yaml prefix for ymldb operation
 #define YMLDB_TAG_BASE "ymldb:op:"
 #define YMLDB_TAG_GET YMLDB_TAG_BASE "get"
 #define YMLDB_TAG_DELETE YMLDB_TAG_BASE "delete"
@@ -86,7 +93,6 @@ struct ymldb_cb
 #define YMLDB_OP_SUBSCRIBER 0x10
 #define YMLDB_OP_PUBLISHER 0x20
 #define YMLDB_OP_SYNC 0x40
-
 #define YMLDB_OP_ACTION (YMLDB_OP_GET | YMLDB_OP_DELETE | YMLDB_OP_MERGE | YMLDB_OP_SYNC)
 
 // flags
@@ -97,54 +103,55 @@ struct ymldb_cb
 #define YMLDB_FLAG_NOSYNC 0x04
 #define YMLDB_FLAG_RECONNECT 0x100
 
+// unix socket pathname
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
-// print all or partial ymldb to stream.
-void ymldb_dump_all(FILE *stream);
-void ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no_print_children);
-void ymldb_dump_start(FILE *stream, unsigned int opcode, unsigned int sequence);
-void ymldb_dump_end(FILE *stream);
-
 // create or delete ymldb
-struct ymldb_cb *ymldb_create(char *key, unsigned int flags);
-void ymldb_destroy(struct ymldb_cb *cb);
-struct ymldb_cb *ymldb_cb(char *key);
+int ymldb_create(char *major_key, unsigned int flags);
+void ymldb_destroy(char *major_key);
+void ymldb_destroy_all();
 
 // basic functions to update ymldb
-int _ymldb_push(struct ymldb_cb *cb, FILE *outstream, unsigned int opcode, char *format, ...);
-int _ymldb_write(struct ymldb_cb *cb, FILE *outstream, unsigned int opcode, ...);
-char *_ymldb_read(struct ymldb_cb *cb, ...);
+int _ymldb_push(FILE *outstream, unsigned int opcode, char *major_key, char *format, ...);
+int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...);
+char *_ymldb_read(char *major_key, ...);
+struct ymldb_cb *_ymldb_cb(char *major_key);
 
-// wrapping functions for ymldb api
-int ymldb_push(struct ymldb_cb *cb, char *format, ...);
+// [YMLDB update facility - from string]
+#define ymldb_read(KEY, ...) _ymldb_read(KEY, ##__VA_ARGS__, NULL)
+#define ymldb_write(KEY, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, KEY, ##__VA_ARGS__, NULL)
+#define ymldb_delete(KEY, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, KEY, ##__VA_ARGS__, NULL)
+#define ymldb_sync(KEY, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, KEY, ##__VA_ARGS__, NULL)
+#define ymldb_get(OUTPUT, KEY, ...) _ymldb_write(OUTPUT, YMLDB_OP_GET, KEY, ##__VA_ARGS__, NULL)
+// write ymldb using YAML document format.
+int ymldb_push(char *major_key, char *format, ...);
+// read ymldb using YAML document format.
+int ymldb_pull(char *major_key, char *format, ...);
 
-#define ymldb_write(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_MERGE, __VA_ARGS__, NULL)
-#define ymldb_delete(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_DELETE, __VA_ARGS__, NULL)
-#define ymldb_get(CB, OUTPUT, ...) _ymldb_write(CB, OUTPUT, YMLDB_OP_GET, __VA_ARGS__, NULL)
-#define ymldb_sync(CB, ...) _ymldb_write(CB, NULL, YMLDB_OP_SYNC, __VA_ARGS__, NULL)
+// [YMLDB update facility - from file]
+// update ymldb using file descriptors.
+int ymldb_run(char *major_key, int infd, int outfd);
+// update ymldb using FILE* standard stream.
+#define ymldb_run_with_stream(major_key, instream, outstream) _ymldb_run(_ymldb_cb(major_key), instream, outstream)
 
-// only support to query a value using a key.
-// char *product = ymldb_read(cb, "system", "product");
-#define ymldb_read(CB, ...) _ymldb_read(CB, __VA_ARGS__, NULL)
-int ymldb_pull(struct ymldb_cb *cb, char *format, ...);
+// [YMLDB distribution facility]
+// enable ymldb distribution.
+int ymldb_distribution_init(char *major_key, int flags);
+// disable ymldb distribution.
+int ymldb_distribution_deinit(char *major_key);
+// add a file descripter as a subscriber. (The EOF from fd will terminate this connection.)
+int ymldb_distribution_add(char *major_key, int subscriber_fd);
+// add a file descripter as a subscriber.
+int ymldb_distribution_delete(char *major_key, int subscriber_fd);
+// set FD_SET of ymldb distribution.
+int ymldb_distribution_set(fd_set *set);
+// check FD_SET and receive the ymldb request and response from the remote.
+int ymldb_distribution_recv(fd_set *set);
 
-// used to update ymldb using file descriptors.
-int ymldb_run(struct ymldb_cb *cb, int infd, int outfd);
+// [YMLDB data retrieval facility]
+// print all ymldb data to the stream.
+void ymldb_dump_all(FILE *outstream);
 
-// disable ymldb connection facility.
-int ymldb_conn_deinit(struct ymldb_cb *cb);
-
-// enable ymldb connection facility.
-int ymldb_conn_init(struct ymldb_cb *cb, int flags);
-
-// set FD_SET of ymldb connection.
-int ymldb_conn_set(struct ymldb_cb *cb, fd_set *set);
-
-// check FD_SET and receive the ymldb connection request and response.
-int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set);
-
-// add or delete a file descripter (subscriber) as a ymldb connection.
-int ymldb_conn_add();
-int ymldb_conn_delete();
-
+// print partical ymldb data.
+#define ymldb_dump(outstream, major_key, ...) _ymldb_write(outstream, YMLDB_OP_GET, major_key, ##__VA_ARGS__, NULL)
 #endif

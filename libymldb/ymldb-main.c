@@ -42,11 +42,9 @@ int ymldb_test()
         f);
     fclose(f);
 
-    struct ymldb_cb *cb;
-
     // create ymldb for interface.
-    cb = ymldb_create("interface", YMLDB_FLAG_NONE);
-    if (!cb)
+    int res = ymldb_create("interface", YMLDB_FLAG_NONE);
+    if (res < 0)
     {
         fprintf(stderr, "ymldb create failed.\n");
         return -1;
@@ -54,17 +52,17 @@ int ymldb_test()
 
     // read ymldb from a file.
     int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
-    ymldb_run(cb, infd, 0);
+    ymldb_run("interface", infd, 0);
     close(infd);
 
     // get data from ymldb.
-    char *value = ymldb_read(cb, "interface", "ge1", "operstatus");
+    char *value = ymldb_read("interface", "ge1", "operstatus");
     fprintf(stdout, "ge1 operstatus=%s\n", value);
 
     // get data from ymldb using ymldb_pull.
     int mtu = 0;
     char operstatus_str[32];
-    ymldb_pull(cb,
+    ymldb_pull("interface",
                "interface:\n"
                "  ge2:\n"
                "    operstatus: %s\n"
@@ -74,10 +72,15 @@ int ymldb_test()
     fprintf(stdout, "ge2 operstatus=%s\n", operstatus_str);
 
     // read ymldb data (yaml format string) to OUTPUT stream.
-    ymldb_get(cb, stdout, "interface", "ge2");
+    ymldb_get(stdout, "interface", "ge2");
 
-    cb = ymldb_create("system", YMLDB_FLAG_NONE);
-    int res = ymldb_push(cb,
+    res = ymldb_create("system", YMLDB_FLAG_NONE);
+    if (res < 0)
+    {
+        fprintf(stderr, "ymldb create failed.\n");
+        return -1;
+    }
+    res = ymldb_push("system",
                          "system:\n"
                          "  product: %s\n"
                          "  serial-number: %s\n"
@@ -89,38 +92,33 @@ int ymldb_test()
         fprintf(stderr, "fail to push data.\n");
     }
 
-    res = ymldb_write(cb, "system", "product", "HA-805");
+    res = ymldb_write("system", "product", "HA-805");
     if (res < 0)
     {
         fprintf(stderr, "fail to write data.\n");
     }
 
-    // change ymldb cb
-    cb = ymldb_cb("interface");
-
     // delete an ymldb.
-    ymldb_delete(cb, "interface", "ge1", "rx-octet");
+    ymldb_delete("interface", "ge1", "rx-octet");
 
     // it would be failed to remove unknown ymldb node.
-    res = ymldb_delete(cb, "interface", "ge3");
+    res = ymldb_delete("interface", "ge3");
     if (res < 0)
     {
         fprintf(stderr, "failed to delete.\n");
     }
 
-    cb = ymldb_cb("system");
-
     // this would return NULL.
-    value = ymldb_read(cb, "system");
+    value = ymldb_read("system");
     fprintf(stdout, "read data = %s\n", value);
 
     // ymldb_read read the value of a leaf!
-    value = ymldb_read(cb, "system", "product");
+    value = ymldb_read("system", "product");
     fprintf(stdout, "read data = %s\n", value);
 
     ymldb_dump_all(stdout);
-    ymldb_destroy(ymldb_cb("interface"));
-    ymldb_destroy(ymldb_cb("system"));
+    ymldb_destroy_all();
+    
     ymldb_dump_all(stdout);
     return 0;
 }
