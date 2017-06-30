@@ -12,6 +12,7 @@
 #include <yaml.h>
 #include <cprops/avl.h>
 #include <cprops/linked_list.h>
+#include <cprops/trie.h>
 #include "ymldb.h"
 
 #define _out(FP, ...) fprintf(FP, __VA_ARGS__)
@@ -26,6 +27,13 @@
     do                                                                    \
     {                                                                     \
         fprintf(stdout, "[ymldb:debug] %s:%d: ", __FUNCTION__, __LINE__); \
+        fprintf(stdout, __VA_ARGS__);                                     \
+    } while (0)
+
+#define _log_info(...)                                                   \
+    do                                                                    \
+    {                                                                     \
+        fprintf(stdout, "[ymldb:info] %s:%d: ", __FUNCTION__, __LINE__); \
         fprintf(stdout, __VA_ARGS__);                                     \
     } while (0)
 
@@ -138,23 +146,105 @@ int _ymldb_log_error_parser(yaml_parser_t *parser)
 }
 
 // for debug - start
+static cp_trie *key_pool = NULL;
 static int alloc_cnt = 0;
+struct ymldb_key {
+    char *key; // ymldb major_key
+    int ref; // reference count;
+};
 void *_malloc(size_t s)
 {
+    if(!key_pool) {
+        key_pool = cp_trie_create(COLLECTION_MODE_NOSYNC);
+        _log_debug("key_pool is created...\n");
+    }
+
     alloc_cnt++;
     return malloc(s);
 }
 
 char *_str_dup(char *src)
 {
+    struct ymldb_key *ykey;
     alloc_cnt++;
-    return strdup(src);
+    if(!key_pool) {
+        key_pool = cp_trie_create(COLLECTION_MODE_NOSYNC);
+        _log_debug("key_pool is created...\n");
+    }
+    ykey = cp_trie_exact_match(key_pool, src);
+    if(ykey)
+    {
+        ykey->ref++;
+    }
+    else 
+    {
+        ykey = malloc(sizeof(struct ymldb_key));
+        if(!ykey)
+            return NULL;
+        ykey->key = strdup(src);
+        if(!ykey->key) {
+            free(ykey);
+            return NULL;
+        }
+        ykey->ref = 1;
+        int res = cp_trie_add(key_pool, ykey->key, ykey);
+        if(res != 0) {
+            free(ykey->key);
+            free(ykey);
+            return NULL;
+        }
+    }
+    _log_debug("key key=%s ref=%d\n", ykey->key, ykey->ref);
+    return ykey->key;
+    // return strdup(src);
 }
 
 void _free(void *p)
 {
     alloc_cnt--;
-    free(p);
+    if(key_pool) {
+        struct ymldb_key *ykey;
+        ykey = cp_trie_exact_match(key_pool, (char *)p);
+        if(ykey) {
+            ykey->ref--;
+            _log_debug("key key=%s ref=%d\n", ykey->key, ykey->ref);
+            if(ykey->ref <= 0) {
+                cp_trie_remove(key_pool, ykey->key, NULL);
+                free(ykey->key);
+                free(ykey);
+            }
+        }
+        else // free malloc()
+            free(p);
+        if(cp_trie_count(key_pool)<= 0)
+        {
+            cp_trie_destroy(key_pool);
+            key_pool = NULL;
+            _log_debug("key_pool is freed...\n");
+        }
+        return;
+    }
+    else // free malloc()
+        free(p);
+    return;
+    // free(p);
+}
+
+char *_strget(char *src)
+{
+    struct ymldb_key *ykey;
+    ykey = cp_trie_exact_match(key_pool, src);
+    return ykey->key;
+}
+
+int _strcmp(char *basekey, char *cmpkey)
+{
+    // for quick string comparison
+    char *key = _strget(cmpkey);
+    if(key) {
+        return (basekey - cmpkey);
+    }
+    return strcmp(basekey, cmpkey);
 }
 
 #define free _free
