@@ -63,12 +63,15 @@ int ymldb_test()
 
     // get data from ymldb using ymldb_pull.
     int mtu = 0;
+    char operstatus_str[32];
     ymldb_pull(cb,
                "interface:\n"
                "  ge2:\n"
+               "    operstatus: %s\n"
                "    mtu: %d\n",
-               &mtu);
+               operstatus_str, &mtu);
     fprintf(stdout, "ge2 mtu=%d\n", mtu);
+    fprintf(stdout, "ge2 operstatus=%s\n", operstatus_str);
 
     // read ymldb data (yaml format string) to OUTPUT stream.
     ymldb_get(cb, stdout, "interface", "ge2");
@@ -109,11 +112,11 @@ int ymldb_test()
 
     // this would return NULL.
     value = ymldb_read(cb, "system");
-    _log_printf("read data = %s\n", value);
+    fprintf(stdout, "read data = %s\n", value);
 
     // ymldb_read read the value of a leaf!
     value = ymldb_read(cb, "system", "product");
-    _log_printf("read data = %s\n", value);
+    fprintf(stdout, "read data = %s\n", value);
 
     ymldb_dump_all(stdout);
     ymldb_destroy(ymldb_cb("interface"));

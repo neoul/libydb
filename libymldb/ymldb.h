@@ -50,6 +50,7 @@ struct ymldb_cb
         char *buf;
         size_t buflen;
         int no_reply;
+        int no_change; // change notification
     } reply;
     int fd_publisher;                        // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
     int fd_subscriber[YMLDB_SUBSCRIBER_MAX]; // fd for YMLDB_FLAG_PUBLISHER
@@ -130,47 +131,20 @@ int ymldb_pull(struct ymldb_cb *cb, char *format, ...);
 // used to update ymldb using file descriptors.
 int ymldb_run(struct ymldb_cb *cb, int infd, int outfd);
 
+// disable ymldb connection facility.
 int ymldb_conn_deinit(struct ymldb_cb *cb);
+
+// enable ymldb connection facility.
 int ymldb_conn_init(struct ymldb_cb *cb, int flags);
+
+// set FD_SET of ymldb connection.
 int ymldb_conn_set(struct ymldb_cb *cb, fd_set *set);
+
+// check FD_SET and receive the ymldb connection request and response.
 int ymldb_conn_recv(struct ymldb_cb *cb, fd_set *set);
 
-
-#define _log_printf(...)              \
-    do                                \
-    {                                 \
-        fprintf(stdout, __VA_ARGS__); \
-    } while (0)
-
-#define _log_debug(...)                                                   \
-    do                                                                    \
-    {                                                                     \
-        fprintf(stdout, "[ymldb:debug] %s:%d: ", __FUNCTION__, __LINE__); \
-        fprintf(stdout, __VA_ARGS__);                                     \
-    } while (0)
-
-#define _log_error(...)                                         \
-    do                                                          \
-    {                                                           \
-        fprintf(stderr, "\n[ymldb:error]\n\n");                 \
-        fprintf(stderr, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
-        fprintf(stderr, __VA_ARGS__);                           \
-        fprintf(stderr, "\n");                                  \
-    } while (0)
-
-#define _log_error_head(...)                                    \
-    do                                                          \
-    {                                                           \
-        fprintf(stderr, "\n[ymldb:error]\n\n");                 \
-        fprintf(stderr, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
-        fprintf(stderr, __VA_ARGS__);                           \
-    } while (0)
-
-#define _log_error_next(...)                           \
-    do                                                 \
-    {                                                  \
-        fprintf(stderr, "\t", __FUNCTION__, __LINE__); \
-        fprintf(stderr, __VA_ARGS__);                  \
-    } while (0)
+// add or delete a file descripter (subscriber) as a ymldb connection.
+int ymldb_conn_add();
+int ymldb_conn_delete();
 
 #endif
