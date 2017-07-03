@@ -8,6 +8,9 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#include <time.h>
+
 #include "ymldb.h"
 
 int ymldb_test()
@@ -42,6 +45,10 @@ int ymldb_test()
         f);
     fclose(f);
 
+    clock_t start, end;
+    double cpu_time_used;
+    start = clock();
+    
     // create ymldb for interface.
     int res = ymldb_create("interface", YMLDB_FLAG_NONE);
     if (res < 0)
@@ -120,6 +127,10 @@ int ymldb_test()
     ymldb_destroy_all();
     
     ymldb_dump_all(stdout);
+
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    fprintf(stdout, "time elapsed: %f\n", cpu_time_used);
     return 0;
 }
 

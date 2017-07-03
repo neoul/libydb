@@ -239,7 +239,7 @@ char *_strget(char *src)
     return NULL;
 }
 
-int _strcmp(char *basekey, char *cmpkey)
+int _keystrcmp(char *basekey, char *cmpkey)
 {
     // for quick string comparison using key_pool...
     return (basekey - cmpkey);
@@ -248,11 +248,15 @@ int _strcmp(char *basekey, char *cmpkey)
 // cp_avltree_get()
 void *_ymldb_tree_lookup(cp_avltree *tree, char *key)
 {
+#if 1
     char *basekey = _strget(key);
     if(basekey) {
         return cp_avltree_get(tree, basekey);
     }
     return NULL;
+#else
+    return cp_avltree_get(tree, key);
+#endif
 }
 
 // cp_avltree_callback()
@@ -264,7 +268,7 @@ int _ymldb_tree_traverse(cp_avltree *tree, cp_callback_fn callback, void *dummy)
 // cp_avltree_destroy_custom()
 void _ymldb_tree_destroy_custom(cp_avltree *tree, cp_destructor_fn key_dtr, cp_destructor_fn val_dtr)
 {
-    cp_avltree_destroy_custom(tree, NULL, val_dtr);
+    cp_avltree_destroy_custom(tree, key_dtr, val_dtr);
 }
 
 // cp_avltree_destroy()
@@ -276,8 +280,8 @@ void _ymldb_tree_destroy(cp_avltree *tree)
 // cp_avltree_create()
 cp_avltree *_ymldb_tree_create()
 {
-    return cp_avltree_create((cp_compare_fn) _strcmp);
-
+    return cp_avltree_create((cp_compare_fn) _keystrcmp);
+    // return cp_avltree_create((cp_compare_fn) strcmp);
 }
 // cp_avltree_insert()
 void *_ymldb_tree_insert(cp_avltree *tree, void *key, void *value)
@@ -288,13 +292,67 @@ void *_ymldb_tree_insert(cp_avltree *tree, void *key, void *value)
 // cp_avltree_delete()
 void *_ymldb_tree_delete(cp_avltree *tree, void *key)
 {
+#if 1
+    void *deleted = cp_avltree_delete(tree, key);
+    if(deleted) {
+        return deleted;
+    }
     char *basekey = _strget(key);
     if(basekey) {
         return cp_avltree_delete(tree, basekey);
     }
     return NULL;
+#else
+    return cp_avltree_delete(tree, key);
+#endif
 }
 
+/* dump trie to stdout - for debugging */
+
+
+struct cp_trie_cb_data {
+    int node_count;
+    int depth_total;
+    int max_level;
+};
+
+void cp_trie_dump_node(cp_trie_node *node, int level, char *prefix, struct cp_trie_cb_data *cdata)
+{
+	int i;
+	mtab_node *map_node;
+
+	cdata->node_count++;
+	cdata->depth_total += level;
+	if (level > cdata->max_level) cdata->max_level = level;
+
+	for (i = 0; i < node->others->size; i++)
+	{
+		map_node = node->others->table[i];
+		while (map_node)
+		{
+			cp_trie_dump_node(map_node->value, level + 1, map_node->attr, cdata);
+			map_node = map_node->next;
+		}
+	}
+
+	for (i = 0; i < level; i++) printf("\t");
+    struct ymldb_key* ykey = node->leaf;
+	_log_debug(" - %s => [%s]\n", prefix, ykey ? (char *) ykey->key  : "");
+}
+			
+void cp_trie_dumpx()
+{
+    cp_trie *grp = key_pool;
+    struct cp_trie_cb_data cdata;
+	cdata.node_count = 0;
+	cdata.depth_total = 0;
+	cdata.max_level = 0;
+	
+	cp_trie_dump_node(grp->root, 0, "", &cdata);
+
+	_log_debug("\n %d nodes, %d deepest, avg. depth is %.2f\n\n", 
+			cdata.node_count, cdata.max_level, (float) cdata.depth_total / cdata.node_count);
+}
 
 #define free _free
 #define malloc _malloc
