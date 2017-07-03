@@ -230,6 +230,7 @@ void _free(void *p)
     // free(p);
 }
 
+#ifdef POINTTER_CMP
 char *_strget(char *src)
 {
     struct ymldb_key *ykey;
@@ -244,11 +245,12 @@ int _keystrcmp(char *basekey, char *cmpkey)
     // for quick string comparison using key_pool...
     return (basekey - cmpkey);
 }
+#endif
 
 // cp_avltree_get()
 void *_ymldb_tree_lookup(cp_avltree *tree, char *key)
 {
-#if 1
+#ifdef POINTTER_CMP
     char *basekey = _strget(key);
     if(basekey) {
         return cp_avltree_get(tree, basekey);
@@ -280,8 +282,11 @@ void _ymldb_tree_destroy(cp_avltree *tree)
 // cp_avltree_create()
 cp_avltree *_ymldb_tree_create()
 {
+#ifdef POINTTER_CMP
     return cp_avltree_create((cp_compare_fn) _keystrcmp);
-    // return cp_avltree_create((cp_compare_fn) strcmp);
+#else
+    return cp_avltree_create((cp_compare_fn) strcmp);
+#endif
 }
 // cp_avltree_insert()
 void *_ymldb_tree_insert(cp_avltree *tree, void *key, void *value)
@@ -292,7 +297,7 @@ void *_ymldb_tree_insert(cp_avltree *tree, void *key, void *value)
 // cp_avltree_delete()
 void *_ymldb_tree_delete(cp_avltree *tree, void *key)
 {
-#if 1
+#ifdef POINTTER_CMP
     void *deleted = cp_avltree_delete(tree, key);
     if(deleted) {
         return deleted;
