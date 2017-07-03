@@ -234,18 +234,67 @@ char *_strget(char *src)
 {
     struct ymldb_key *ykey;
     ykey = cp_trie_exact_match(key_pool, src);
-    return ykey->key;
+    if(ykey)
+        return ykey->key;
+    return NULL;
 }
 
 int _strcmp(char *basekey, char *cmpkey)
 {
-    // for quick string comparison
-    char *key = _strget(cmpkey);
-    if(key) {
-        return (basekey - cmpkey);
-    }
-    return strcmp(basekey, cmpkey);
+    // for quick string comparison using key_pool...
+    return (basekey - cmpkey);
 }
+
+// cp_avltree_get()
+void *_ymldb_tree_lookup(cp_avltree *tree, char *key)
+{
+    char *basekey = _strget(key);
+    if(basekey) {
+        return cp_avltree_get(tree, basekey);
+    }
+    return NULL;
+}
+
+// cp_avltree_callback()
+int _ymldb_tree_traverse(cp_avltree *tree, cp_callback_fn callback, void *dummy)
+{
+    return cp_avltree_callback(tree, callback, dummy);
+}
+
+// cp_avltree_destroy_custom()
+void _ymldb_tree_destroy_custom(cp_avltree *tree, cp_destructor_fn key_dtr, cp_destructor_fn val_dtr)
+{
+    cp_avltree_destroy_custom(tree, NULL, val_dtr);
+}
+
+// cp_avltree_destroy()
+void _ymldb_tree_destroy(cp_avltree *tree)
+{
+    cp_avltree_destroy(tree);
+}
+
+// cp_avltree_create()
+cp_avltree *_ymldb_tree_create()
+{
+    return cp_avltree_create((cp_compare_fn) _strcmp);
+
+}
+// cp_avltree_insert()
+void *_ymldb_tree_insert(cp_avltree *tree, void *key, void *value)
+{
+    return cp_avltree_insert(tree, key, value);
+}
+
+// cp_avltree_delete()
+void *_ymldb_tree_delete(cp_avltree *tree, void *key)
+{
+    char *basekey = _strget(key);
+    if(basekey) {
+        return cp_avltree_delete(tree, basekey);
+    }
+    return NULL;
+}
+
 
 #define free _free
 #define malloc _malloc
@@ -325,7 +374,7 @@ struct ymldb_cb *_ymldb_cb(char *major_key)
 {
     if (major_key && gYcb)
     {
-        struct ymldb_cb *cb = cp_avltree_get(gYcb, major_key);
+        struct ymldb_cb *cb = _ymldb_tree_lookup(gYcb, major_key);
         if (cb)
             return cb;
     }
@@ -494,7 +543,7 @@ static void _ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no
         }
         if (no_print_children)
             return;
-        cp_avltree_callback(ydb->children, _ymldb_node_dump, stream);
+        _ymldb_tree_traverse(ydb->children, _ymldb_node_dump, stream);
     }
     else if (ydb->type == YMLDB_LEAFLIST)
     {
@@ -707,7 +756,7 @@ static void _ymldb_node_free(void *vdata)
     {
         if (ydb->type == YMLDB_BRANCH)
         {
-            cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
+            _ymldb_tree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
         }
         else if (ydb->value)
             free(ydb->value);
@@ -785,14 +834,14 @@ struct ymldb *_ymldb_node_merge(struct ymldb_cb *cb, struct ymldb *parent,
             return NULL;
         }
 
-        ydb = cp_avltree_get(parent->children, key);
+        ydb = _ymldb_tree_lookup(parent->children, key);
         if (ydb)
         {
             // check if the key exists.
             // notify the change if they differ.
             if (ydb->type != type)
             {
-                cp_avltree_delete(parent->children, ydb->key);
+                _ymldb_tree_delete(parent->children, ydb->key);
                 _ymldb_node_free(ydb);
                 goto new_ydb;
             }
@@ -825,7 +874,7 @@ new_ydb:
 
     if (type == YMLDB_BRANCH)
     {
-        ydb->children = cp_avltree_create((cp_compare_fn)strcmp);
+        ydb->children = _ymldb_tree_create();
         if (!ydb->children)
             goto free_ydb;
     }
@@ -846,7 +895,7 @@ new_ydb:
     {
         ydb->parent = parent;
         ydb->level = parent->level + 1;
-        cp_avltree_insert(parent->children, ydb->key, ydb);
+        _ymldb_tree_insert(parent->children, ydb->key, ydb);
     }
     else
     {
@@ -864,7 +913,7 @@ free_ydb:
     {
         if (type != YMLDB_BRANCH && ydb->children)
         {
-            cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
+            _ymldb_tree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
         }
         else
         {
@@ -896,7 +945,7 @@ void _ymldb_node_delete(struct ymldb_cb *cb, struct ymldb *parent, char *key)
         return;
     }
 
-    ydb = cp_avltree_get(parent->children, key);
+    ydb = _ymldb_tree_lookup(parent->children, key);
     if (ydb)
     {
         if (ydb->level <= 1)
@@ -928,7 +977,7 @@ void _ymldb_node_delete(struct ymldb_cb *cb, struct ymldb *parent, char *key)
     }
     else
         cb->last_notify = parent; // parent should be saved because of the ydb will be removed.
-    ydb = cp_avltree_delete(parent->children, key);
+    ydb = _ymldb_tree_delete(parent->children, key);
     _ymldb_node_free(ydb);
     return;
 }
@@ -949,7 +998,7 @@ void _ymldb_node_get(struct ymldb_cb *cb, struct ymldb *parent, char *key)
                    parent->key, key);
         return;
     }
-    ydb = cp_avltree_get(parent->children, key);
+    ydb = _ymldb_tree_lookup(parent->children, key);
     if (!ydb)
     {
         _log_error("'%s' doesn't exists\n", key);
@@ -1038,7 +1087,7 @@ int _ymldb_merge(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_inde
                 struct ymldb *ydb = NULL;
                 _log_debug("key %s\n", key);
                 if (p_ydb->level <= 0)
-                    ydb = cp_avltree_get(p_ydb->children, key);
+                    ydb = _ymldb_tree_lookup(p_ydb->children, key);
                 else
                     ydb = _ymldb_node_merge(cb, p_ydb, YMLDB_BRANCH, key, NULL);
                 _ymldb_merge(cb, ydb, pair->value, index);
@@ -1123,7 +1172,7 @@ int _ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_ind
                 if (value[0] > 0)
                 {
                     struct ymldb *ydb = NULL;
-                    ydb = cp_avltree_get(p_ydb->children, key);
+                    ydb = _ymldb_tree_lookup(p_ydb->children, key);
                     _ymldb_node_delete(cb, ydb, value);
                 }
                 else
@@ -1132,7 +1181,7 @@ int _ymldb_delete(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_ind
             else
             { // not leaf
                 struct ymldb *ydb = NULL;
-                ydb = cp_avltree_get(p_ydb->children, key);
+                ydb = _ymldb_tree_lookup(p_ydb->children, key);
                 _ymldb_delete(cb, ydb, pair->value, index);
             }
         }
@@ -1213,7 +1262,7 @@ int _ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
                 if (value[0] > 0)
                 {
                     struct ymldb *ydb = NULL;
-                    ydb = cp_avltree_get(p_ydb->children, key);
+                    ydb = _ymldb_tree_lookup(p_ydb->children, key);
                     _ymldb_node_get(cb, ydb, value);
                 }
                 else
@@ -1223,7 +1272,7 @@ int _ymldb_get(struct ymldb_cb *cb, struct ymldb *p_ydb, int index, int p_index)
             { // not leaf
                 struct ymldb *ydb = NULL;
                 // if(p_ydb->type == YMLDB_BRANCH) {
-                ydb = cp_avltree_get(p_ydb->children, key);
+                ydb = _ymldb_tree_lookup(p_ydb->children, key);
                 _ymldb_get(cb, ydb, pair->value, index);
                 // }
             }
@@ -1603,7 +1652,7 @@ int ymldb_create(char *major_key, unsigned int flags)
 
     if (!gYcb)
     {
-        gYcb = cp_avltree_create((cp_compare_fn)strcmp);
+        gYcb = _ymldb_tree_create();
         if (!gYcb)
         {
             _log_error("gYcb failed.\n");
@@ -1611,7 +1660,7 @@ int ymldb_create(char *major_key, unsigned int flags)
         }
     }
 
-    if (cp_avltree_get(gYdb->children, major_key))
+    if (_ymldb_tree_lookup(gYdb->children, major_key))
     {
         _log_error("key exsits.\n");
         return -1;
@@ -1660,7 +1709,7 @@ int ymldb_create(char *major_key, unsigned int flags)
     if (flags & YMLDB_FLAG_PUBLISHER || flags & YMLDB_FLAG_SUBSCRIBER)
         _ymldb_distribution_init(cb, flags);
 
-    cp_avltree_insert(gYcb, cb->key, cb);
+    _ymldb_tree_insert(gYcb, cb->key, cb);
     return 0;
 }
 
@@ -1675,7 +1724,7 @@ static void _ymldb_destroy(void *data)
         struct ymldb *ydb = cb->ydb;
         if (ydb->parent)
         {
-            cp_avltree_delete(cb->ydb->parent->children, ydb->key);
+            _ymldb_tree_delete(cb->ydb->parent->children, ydb->key);
         }
         _ymldb_node_free(ydb);
     }
@@ -1706,7 +1755,7 @@ void ymldb_destroy(char *major_key)
     if (cp_avltree_count(gYcb) <= 0)
     {
         _ymldb_node_free(gYdb);
-        cp_avltree_destroy(gYcb);
+        _ymldb_tree_destroy(gYcb);
         _log_debug("all destroyed ...\n");
         gYcb = NULL;
         gYdb = NULL;
@@ -1718,7 +1767,7 @@ void ymldb_destroy_all()
     _log_empty();
     _log_debug("\n");
     if(gYcb) {
-        cp_avltree_destroy_custom(gYcb, NULL, _ymldb_destroy);
+        _ymldb_tree_destroy_custom(gYcb, NULL, _ymldb_destroy);
         _ymldb_node_free(gYdb);
         _log_debug("all destroyed ...\n");
         gYcb = NULL;
@@ -2376,7 +2425,7 @@ char *_ymldb_read(char *major_key, ...)
             {
                 if (ydb->type == YMLDB_BRANCH)
                 {
-                    ydb = cp_avltree_get(ydb->children, cur_token);
+                    ydb = _ymldb_tree_lookup(ydb->children, cur_token);
                 }
                 else
                 { // not exist..
@@ -2396,7 +2445,7 @@ char *_ymldb_read(char *major_key, ...)
             {
                 if (ydb->type == YMLDB_BRANCH)
                 {
-                    ydb = cp_avltree_get(ydb->children, cur_token);
+                    ydb = _ymldb_tree_lookup(ydb->children, cur_token);
                 }
             }
         }
@@ -2458,7 +2507,7 @@ int ymldb_distribution_set(fd_set *set)
         return -1;
     }
     if(gYcb)
-        cp_avltree_callback(gYcb, _ymldb_distribution_set, &yd);
+        _ymldb_tree_traverse(gYcb, _ymldb_distribution_set, &yd);
     return yd.max;
 }
 
@@ -2473,7 +2522,7 @@ int ymldb_distribution_recv(fd_set *set)
         return -1;
     }
     if(gYcb)
-        cp_avltree_callback(gYcb, _ymldb_distribution_recv, &yd);
+        _ymldb_tree_traverse(gYcb, _ymldb_distribution_recv, &yd);
     return 0;
 }
 
