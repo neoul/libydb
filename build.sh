@@ -2,4 +2,5 @@
 
 echo ${1%.*}
 echo $*
-gcc $* -lyaml -lcprops -L/home/neoul/projects/c_study/cprops/.libs -I./ -I../ -g3 -Wall -o ${1%.*}
+#gcc $* -lyaml -lcprops -L/home/neoul/projects/c_study/cprops/.libs -I./ -I../ -g3 -Wall -o ${1%.*}
+gcc $* -lyaml -lcprops -I./ -I../ -g3 -Wall -o ${1%.*}

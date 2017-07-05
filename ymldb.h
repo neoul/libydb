@@ -10,6 +10,16 @@ typedef enum ymldb_type_e {
     YMLDB_BRANCH
 } ymldb_type_t;
 
+typedef int (*ymldb_callback_fn) (void *usr_data, int deleted);
+
+struct ymldb_callback
+{
+    ymldb_callback_fn usr_func;
+    void *usr_data;
+    // char *last_key;
+    int deleted;
+};
+
 struct ymldb
 {
     char *key;
@@ -20,6 +30,7 @@ struct ymldb
     };
     struct ymldb *parent;
     int level;
+    struct ymldb_callback *callback;
 };
 
 // ymldb stream buffer
@@ -59,6 +70,7 @@ struct ymldb_cb
         FILE *stream;
         int res;
     } out;
+    cp_avltree *callbacks;
 };
 
 struct ymldb_distribution {
@@ -147,6 +159,14 @@ int ymldb_distribution_delete(char *major_key, int subscriber_fd);
 int ymldb_distribution_set(fd_set *set);
 // check FD_SET and receive the ymldb request and response from the remote.
 int ymldb_distribution_recv(fd_set *set);
+
+int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
+int _ymldb_callback_unregister(char *major_key, ...);
+
+#define ymldb_callback_register(usr_func, usr_data, major_key, ...) \
+    _ymldb_callback_register(usr_func, usr_data, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_callback_unregister(major_key, ...) \
+    _ymldb_callback_unregister(major_key, ##__VA_ARGS__, NULL)
 
 // [YMLDB data retrieval facility]
 // print all ymldb data to the stream.

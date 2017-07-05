@@ -13,6 +13,12 @@
 
 #include "ymldb.h"
 
+int interface_callback(void *usr_data, int deleted)
+{
+    printf("\n\n%s\n\n", (char *)usr_data);
+    return 0;
+}
+
 int ymldb_test()
 {
     // write a file for a ymldb stream input.
@@ -38,10 +44,15 @@ int ymldb_test()
         "    rx-octet: 10022\n"
         "    tx-octet: 2222\n"
         "    mtu: 2000\n"
+        "    desc: ge2 interface is used for WAN\n"
         "...\n"
-        "#2 empty message\n"
+        "%TAG !seq! ymldb:seq:12\n"
+        "%TAG !merge! ymldb:op:merge\n"
         "---\n"
-        "...\n",
+        "interface:\n"
+        "  ge3:\n"
+        "...\n"
+        ,
         f);
     fclose(f);
 
@@ -57,10 +68,14 @@ int ymldb_test()
         return -1;
     }
 
+    ymldb_callback_register(interface_callback, "abc", "interface", "ge1");
+
     // read ymldb from a file.
     int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
     ymldb_run("interface", infd, 0);
     close(infd);
+
+    ymldb_dump_all(stdout);
 
     // get data from ymldb.
     char *value = ymldb_read("interface", "ge1", "operstatus");
@@ -87,6 +102,7 @@ int ymldb_test()
         fprintf(stderr, "ymldb create failed.\n");
         return -1;
     }
+
     res = ymldb_push("system",
                          "system:\n"
                          "  product: %s\n"
@@ -98,6 +114,7 @@ int ymldb_test()
     {
         fprintf(stderr, "fail to push data.\n");
     }
+    
 
     res = ymldb_write("system", "product", "HA-805");
     if (res < 0)
@@ -105,15 +122,17 @@ int ymldb_test()
         fprintf(stderr, "fail to write data.\n");
     }
 
+    
     // delete an ymldb.
     ymldb_delete("interface", "ge1", "rx-octet");
-
+    
     // it would be failed to remove unknown ymldb node.
     res = ymldb_delete("interface", "ge3");
     if (res < 0)
     {
         fprintf(stderr, "failed to delete.\n");
     }
+    
 
     // this would return NULL.
     value = ymldb_read("system");
@@ -124,7 +143,12 @@ int ymldb_test()
     fprintf(stdout, "read data = %s\n", value);
 
     ymldb_dump_all(stdout);
+    ymldb_callback_unregister("interface", "ge1");
+
+
     ymldb_destroy_all();
+    // ymldb_destroy("interface");
+    // ymldb_destroy("system");
     
     ymldb_dump_all(stdout);
 
