@@ -10,30 +10,28 @@ typedef enum ymldb_type_e {
     YMLDB_BRANCH
 } ymldb_type_t;
 
-typedef int (*ymldb_callback_fn) (void *usr_data, int deleted);
+typedef int (*ymldb_callback_fn)(void *usr_data, int deleted);
 
 struct ymldb_callback
 {
     ymldb_callback_fn usr_func;
     void *usr_data;
-    // char *last_key;
     int deleted;
 };
 
 struct ymldb
 {
     char *key;
+    int level;
     ymldb_type_t type;
     union {
         cp_avltree *children;
         char *value;
     };
     struct ymldb *parent;
-    int level;
     struct ymldb_callback *callback;
 };
 
-// ymldb stream buffer
 struct ymldb_stream
 {
     FILE *stream;
@@ -50,32 +48,42 @@ struct ymldb_cb
 {
     char *key;
     struct ymldb *ydb;
-    struct ymldb *last_notify; // last updated ydb
-    yaml_document_t *document;
-    unsigned int sequence;
-    unsigned int opcode;
     unsigned int flags;
-    struct
-    {
-        FILE *stream;
-        char *buf;
-        size_t buflen;
-        int no_reply;
-        int no_change; // change notification
-    } reply;
-    int fd_publisher;                        // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
-    int fd_subscriber[YMLDB_SUBSCRIBER_MAX]; // fd for YMLDB_FLAG_PUBLISHER
-    struct
-    {
-        FILE *stream;
-        int res;
-    } out;
-    cp_avltree *callbacks;
+    // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
+    int fd_publisher;
+    // fd for YMLDB_FLAG_PUBLISHER
+    int fd_subscriber[YMLDB_SUBSCRIBER_MAX];
 };
 
-struct ymldb_distribution {
+struct ymldb_distribution
+{
     fd_set *set;
     int max;
+};
+
+struct ymldb_params
+{
+    struct ymldb_cb *cb;
+    yaml_parser_t parser;
+    yaml_document_t document;
+    struct
+    {
+        unsigned int opcode;
+        unsigned int sequence;
+        FILE *stream;
+    } in;
+    struct
+    {
+        unsigned int opcode;
+        unsigned int sequence;
+        FILE *stream;
+    } out;
+    int res;
+    int no_reply;
+    int no_change;
+    struct ymldb *last_ydb; // last updated ydb
+    cp_avltree *callbacks;
+    struct ymldb_stream *streambuffer;
 };
 
 // yaml tag for ymldb operation

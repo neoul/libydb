@@ -69,6 +69,7 @@ int ymldb_test()
     }
 
     ymldb_callback_register(interface_callback, "abc", "interface", "ge1");
+    ymldb_dump_all(stdout);
 
     // read ymldb from a file.
     int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
@@ -143,7 +144,7 @@ int ymldb_test()
     fprintf(stdout, "read data = %s\n", value);
 
     ymldb_dump_all(stdout);
-    ymldb_callback_unregister("interface", "ge1");
+    // ymldb_callback_unregister("interface", "ge1");
 
 
     ymldb_destroy_all();
