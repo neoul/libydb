@@ -2629,6 +2629,7 @@ m4trace:configure.ac:14: -1- m4_pattern_allow([^CPPFLAGS$])
 m4trace:configure.ac:14: -1- m4_pattern_allow([^CPP$])
 m4trace:configure.ac:16: -1- m4_pattern_allow([^LN_S$])
 m4trace:configure.ac:17: -1- m4_pattern_allow([^SET_MAKE$])
+m4trace:configure.ac:18: -1- m4_pattern_allow([^RANLIB$])
 m4trace:configure.ac:19: -1- AC_PROG_LIBTOOL
 m4trace:configure.ac:19: -1- _m4_warn([obsolete], [The macro `AC_PROG_LIBTOOL' is obsolete.
 You should run autoupdate.], [/usr/share/aclocal/libtool.m4:99: AC_PROG_LIBTOOL is expanded from...

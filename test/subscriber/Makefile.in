@@ -101,13 +101,16 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_subscriber_OBJECTS = ymldb-subscriber.$(OBJEXT)
+am_subscriber_OBJECTS = subscriber-ymldb-subscriber.$(OBJEXT)
 subscriber_OBJECTS = $(am_subscriber_OBJECTS)
 subscriber_LDADD = $(LDADD)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+subscriber_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(subscriber_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -292,6 +295,10 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 subscriber_SOURCES = ymldb-subscriber.c
+subscriber_CPPFLAGS = -I $(top_srcdir)/ymldb
+subscriber_LDFLAGS = -L$(top_srcdir)/ymldb/.libs \
+                  -lymldb -lcprops -lyaml
+
 all: all-am
 
 .SUFFIXES:
@@ -377,7 +384,7 @@ clean-binPROGRAMS:
 
 subscriber$(EXEEXT): $(subscriber_OBJECTS) $(subscriber_DEPENDENCIES) $(EXTRA_subscriber_DEPENDENCIES) 
 	@rm -f subscriber$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(subscriber_OBJECTS) $(subscriber_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(subscriber_LINK) $(subscriber_OBJECTS) $(subscriber_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -385,7 +392,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ymldb-subscriber.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/subscriber-ymldb-subscriber.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -407,6 +414,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+subscriber-ymldb-subscriber.o: ymldb-subscriber.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(subscriber_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT subscriber-ymldb-subscriber.o -MD -MP -MF $(DEPDIR)/subscriber-ymldb-subscriber.Tpo -c -o subscriber-ymldb-subscriber.o `test -f 'ymldb-subscriber.c' || echo '$(srcdir)/'`ymldb-subscriber.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/subscriber-ymldb-subscriber.Tpo $(DEPDIR)/subscriber-ymldb-subscriber.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ymldb-subscriber.c' object='subscriber-ymldb-subscriber.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(subscriber_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o subscriber-ymldb-subscriber.o `test -f 'ymldb-subscriber.c' || echo '$(srcdir)/'`ymldb-subscriber.c
+
+subscriber-ymldb-subscriber.obj: ymldb-subscriber.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(subscriber_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT subscriber-ymldb-subscriber.obj -MD -MP -MF $(DEPDIR)/subscriber-ymldb-subscriber.Tpo -c -o subscriber-ymldb-subscriber.obj `if test -f 'ymldb-subscriber.c'; then $(CYGPATH_W) 'ymldb-subscriber.c'; else $(CYGPATH_W) '$(srcdir)/ymldb-subscriber.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/subscriber-ymldb-subscriber.Tpo $(DEPDIR)/subscriber-ymldb-subscriber.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ymldb-subscriber.c' object='subscriber-ymldb-subscriber.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(subscriber_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o subscriber-ymldb-subscriber.obj `if test -f 'ymldb-subscriber.c'; then $(CYGPATH_W) 'ymldb-subscriber.c'; else $(CYGPATH_W) '$(srcdir)/ymldb-subscriber.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo

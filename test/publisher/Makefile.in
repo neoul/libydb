@@ -101,13 +101,16 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_publisher_OBJECTS = ymldb-publisher.$(OBJEXT)
+am_publisher_OBJECTS = publisher-ymldb-publisher.$(OBJEXT)
 publisher_OBJECTS = $(am_publisher_OBJECTS)
 publisher_LDADD = $(LDADD)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+publisher_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(publisher_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -292,6 +295,10 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 publisher_SOURCES = ymldb-publisher.c
+publisher_CPPFLAGS = -I $(top_srcdir)/ymldb
+publisher_LDFLAGS = -L$(top_srcdir)/ymldb/.libs \
+                  -lymldb -lcprops -lyaml
+
 all: all-am
 
 .SUFFIXES:
@@ -377,7 +384,7 @@ clean-binPROGRAMS:
 
 publisher$(EXEEXT): $(publisher_OBJECTS) $(publisher_DEPENDENCIES) $(EXTRA_publisher_DEPENDENCIES) 
 	@rm -f publisher$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(publisher_OBJECTS) $(publisher_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(publisher_LINK) $(publisher_OBJECTS) $(publisher_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -385,7 +392,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ymldb-publisher.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/publisher-ymldb-publisher.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -407,6 +414,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+publisher-ymldb-publisher.o: ymldb-publisher.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(publisher_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT publisher-ymldb-publisher.o -MD -MP -MF $(DEPDIR)/publisher-ymldb-publisher.Tpo -c -o publisher-ymldb-publisher.o `test -f 'ymldb-publisher.c' || echo '$(srcdir)/'`ymldb-publisher.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/publisher-ymldb-publisher.Tpo $(DEPDIR)/publisher-ymldb-publisher.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ymldb-publisher.c' object='publisher-ymldb-publisher.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(publisher_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o publisher-ymldb-publisher.o `test -f 'ymldb-publisher.c' || echo '$(srcdir)/'`ymldb-publisher.c
+
+publisher-ymldb-publisher.obj: ymldb-publisher.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(publisher_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT publisher-ymldb-publisher.obj -MD -MP -MF $(DEPDIR)/publisher-ymldb-publisher.Tpo -c -o publisher-ymldb-publisher.obj `if test -f 'ymldb-publisher.c'; then $(CYGPATH_W) 'ymldb-publisher.c'; else $(CYGPATH_W) '$(srcdir)/ymldb-publisher.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/publisher-ymldb-publisher.Tpo $(DEPDIR)/publisher-ymldb-publisher.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ymldb-publisher.c' object='publisher-ymldb-publisher.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(publisher_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o publisher-ymldb-publisher.obj `if test -f 'ymldb-publisher.c'; then $(CYGPATH_W) 'ymldb-publisher.c'; else $(CYGPATH_W) '$(srcdir)/ymldb-publisher.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo

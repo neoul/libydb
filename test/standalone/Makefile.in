@@ -101,13 +101,16 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_standalone_OBJECTS = ymldb-standalone.$(OBJEXT)
+am_standalone_OBJECTS = standalone-ymldb-standalone.$(OBJEXT)
 standalone_OBJECTS = $(am_standalone_OBJECTS)
 standalone_LDADD = $(LDADD)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+standalone_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(standalone_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -292,6 +295,10 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 standalone_SOURCES = ymldb-standalone.c
+standalone_CPPFLAGS = -I $(top_srcdir)/ymldb
+standalone_LDFLAGS = -L$(top_srcdir)/ymldb/.libs \
+                  -lymldb -lcprops -lyaml
+
 all: all-am
 
 .SUFFIXES:
@@ -377,7 +384,7 @@ clean-binPROGRAMS:
 
 standalone$(EXEEXT): $(standalone_OBJECTS) $(standalone_DEPENDENCIES) $(EXTRA_standalone_DEPENDENCIES) 
 	@rm -f standalone$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(standalone_OBJECTS) $(standalone_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(standalone_LINK) $(standalone_OBJECTS) $(standalone_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -385,7 +392,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ymldb-standalone.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/standalone-ymldb-standalone.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -407,6 +414,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+standalone-ymldb-standalone.o: ymldb-standalone.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(standalone_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT standalone-ymldb-standalone.o -MD -MP -MF $(DEPDIR)/standalone-ymldb-standalone.Tpo -c -o standalone-ymldb-standalone.o `test -f 'ymldb-standalone.c' || echo '$(srcdir)/'`ymldb-standalone.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/standalone-ymldb-standalone.Tpo $(DEPDIR)/standalone-ymldb-standalone.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ymldb-standalone.c' object='standalone-ymldb-standalone.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(standalone_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o standalone-ymldb-standalone.o `test -f 'ymldb-standalone.c' || echo '$(srcdir)/'`ymldb-standalone.c
+
+standalone-ymldb-standalone.obj: ymldb-standalone.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(standalone_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT standalone-ymldb-standalone.obj -MD -MP -MF $(DEPDIR)/standalone-ymldb-standalone.Tpo -c -o standalone-ymldb-standalone.obj `if test -f 'ymldb-standalone.c'; then $(CYGPATH_W) 'ymldb-standalone.c'; else $(CYGPATH_W) '$(srcdir)/ymldb-standalone.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/standalone-ymldb-standalone.Tpo $(DEPDIR)/standalone-ymldb-standalone.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ymldb-standalone.c' object='standalone-ymldb-standalone.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(standalone_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o standalone-ymldb-standalone.obj `if test -f 'ymldb-standalone.c'; then $(CYGPATH_W) 'ymldb-standalone.c'; else $(CYGPATH_W) '$(srcdir)/ymldb-standalone.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
