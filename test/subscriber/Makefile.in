@@ -312,9 +312,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign test/subscriber/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu test/subscriber/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign test/subscriber/Makefile
+	  $(AUTOMAKE) --gnu test/subscriber/Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
 	  *config.status*) \
