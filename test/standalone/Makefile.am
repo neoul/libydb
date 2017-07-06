@@ -1,2 +1,3 @@
-lib_LIBRARIES=libymldb.la
-libymldb_a_SOURCES=ymldb.c
+bin_PROGRAMS=standalone
+standalone_SOURCES=ymldb-standalone.c
+

@@ -1,2 +1,2 @@
-lib_LIBRARIES=libymldb.la
-libymldb_a_SOURCES=ymldb.c
+lib_LTLIBRARIES = libymldb.la
+libymldb_la_SOURCES=ymldb.c
