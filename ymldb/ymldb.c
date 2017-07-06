@@ -1689,7 +1689,8 @@ int ymldb_create(char *major_key, unsigned int flags)
 
     cb->flags = 0;
     cb->fd_publisher = -1;
-    for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+    int i;
+    for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
         cb->fd_subscriber[i] = -1;
 
     cb->ydb = _ymldb_node_merge(NULL, gYdb, YMLDB_BRANCH, major_key, NULL);
@@ -1790,7 +1791,8 @@ static int _ymldb_distribution_deinit(struct ymldb_cb *cb)
     }
     if (cb->flags & YMLDB_FLAG_PUBLISHER)
     {
-        for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+        int i;
+        for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
         {
             if (cb->fd_subscriber[i] >= 0)
             {
@@ -1883,7 +1885,8 @@ static int _ymldb_distribution_set(void *n, void *dummy)
         }
         if (cb->flags & YMLDB_FLAG_PUBLISHER)
         {
-            for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+            int i;
+            for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
             {
                 if (cb->fd_subscriber[i] >= 0)
                 {
@@ -1973,8 +1976,9 @@ static int _ymldb_distribution_recv_internal(struct ymldb_cb *cb, fd_set *set)
     }
     if (cb->flags & YMLDB_FLAG_PUBLISHER)
     {
+        int i;
         struct ymldb_stream *input = NULL;
-        for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+        for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
         {
             if (FD_ISSET(cb->fd_subscriber[i], set))
             {
@@ -2118,7 +2122,8 @@ static int _ymldb_distribution_send(struct ymldb_params *params)
     }
     else if (cb->flags & YMLDB_FLAG_PUBLISHER)
     {
-        for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+        int i;
+        for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
         {
             if (cb->fd_subscriber[i] >= 0)
             {
@@ -2225,7 +2230,8 @@ void ymldb_remove_specifiers(FILE *dest, char *src)
 {
     static char *specifiers_of_fscanf = "iudoxfegacsp";
     int specifier_pos = -1;
-    for (int i = 0; src[i] != 0; i++)
+    int i;
+    for (i = 0; src[i] != 0; i++)
     {
         if (specifier_pos > -1)
         {
@@ -2542,7 +2548,8 @@ int ymldb_distribution_add(char *major_key, int subscriber_fd)
         _log_error("unable to add a subscriber fd within RECONN.\n");
         return -1;
     }
-    for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+    int i;
+    for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
     {
         if (cb->fd_subscriber[i] < 0)
         {
@@ -2585,7 +2592,8 @@ int ymldb_distribution_delete(char *major_key, int subscriber_fd)
         _log_error("invalid fd.\n");
         return 0;
     }
-    for (int i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+    int i;
+    for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
     {
         if (cb->fd_subscriber[i] == subscriber_fd)
         {
