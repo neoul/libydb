@@ -331,6 +331,7 @@ void key_pool_dump()
 
 #define free _free
 #define malloc _malloc
+#undef strdup
 #define strdup _strdup
 
 #define S10 "          "
@@ -2352,7 +2353,7 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
         _log_error("opcode\n");
         return -1;
     }
-    _log_debug("cb[%s]\n", cb->key);
+    _log_debug("major_key %s\n", cb->key);
     _log_debug("opcode %s\n", _ymldb_opcode_str(opcode));
     input = ymldb_stream_alloc(256, "w+");
     if (!input)
