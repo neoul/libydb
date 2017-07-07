@@ -32,12 +32,20 @@ struct ymldb
     struct ymldb_callback *callback;
 };
 
+// #define OPEN_MEMSTREAM_ENABED
 struct ymldb_stream
 {
     FILE *stream;
     size_t buflen;
+    size_t len;
+    int is_write;
+#ifdef OPEN_MEMSTREAM_ENABED
+    char *buf;
+#else
     char buf[];
+#endif
 };
+
 
 #define YMLDB_STREAM_THRESHOLD 1536
 #define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 512)
@@ -125,6 +133,14 @@ struct ymldb_params
 
 // unix socket pathname
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
+
+
+// stream buffer API for ymldb
+struct ymldb_stream *ymldb_stream_alloc(size_t len);
+void ymldb_stream_close(struct ymldb_stream *buf);
+FILE *ymldb_stream_open(struct ymldb_stream *buf, char *rw);
+void ymldb_stream_free(struct ymldb_stream *buf);
+struct ymldb_stream *ymldb_stream_alloc_and_open(size_t len, char *rw);
 
 // create or delete ymldb
 int ymldb_create(char *major_key, unsigned int flags);

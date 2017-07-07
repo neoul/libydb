@@ -84,7 +84,7 @@ int ymldb_test()
 
     // get data from ymldb using ymldb_pull.
     int mtu = 0;
-    char operstatus_str[32];
+    char operstatus_str[32] = {0};
     ymldb_pull("interface",
                "interface:\n"
                "  ge2:\n"
@@ -161,5 +161,5 @@ int ymldb_test()
 
 int main(int argc, char *argv[])
 {
-    ymldb_test();
+    return ymldb_test();
 }
