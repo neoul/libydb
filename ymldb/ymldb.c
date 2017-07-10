@@ -85,7 +85,7 @@ int _ymldb_log_error_parser(yaml_parser_t *parser)
         }
         else
         {
-            _log_error("reader error: %s at %lu\n", parser->problem,
+            _log_error("reader error: %s at %zu\n", parser->problem,
                        parser->problem_offset);
         }
         break;
@@ -94,17 +94,17 @@ int _ymldb_log_error_parser(yaml_parser_t *parser)
         if (parser->context)
         {
             _log_error_head();
-            _log_error_body("scanner error: %s at line %lu, column %lu\n",
+            _log_error_body("scanner error: %s at line %zu, column %zu\n",
                             parser->context,
                             parser->context_mark.line + 1, parser->context_mark.column + 1);
-            _log_error_body("%s at line %lu, column %lu\n",
+            _log_error_body("%s at line %zu, column %zu\n",
                             parser->problem, parser->problem_mark.line + 1,
                             parser->problem_mark.column + 1);
             _log_error_tail();
         }
         else
         {
-            _log_error("scanner error: %s at line %lu, column %lu\n",
+            _log_error("scanner error: %s at line %zu, column %zu\n",
                        parser->problem, parser->problem_mark.line + 1,
                        parser->problem_mark.column + 1);
         }
@@ -114,17 +114,17 @@ int _ymldb_log_error_parser(yaml_parser_t *parser)
         if (parser->context)
         {
             _log_error_head();
-            _log_error_body("parser error: %s at line %lu, column %lu\n",
+            _log_error_body("parser error: %s at line %zu, column %zu\n",
                             parser->context,
                             parser->context_mark.line + 1, parser->context_mark.column + 1);
-            _log_error_body("%s at line %lu, column %lu\n",
+            _log_error_body("%s at line %zu, column %zu\n",
                             parser->problem, parser->problem_mark.line + 1,
                             parser->problem_mark.column + 1);
             _log_error_tail();
         }
         else
         {
-            _log_error("parser error: %s at line %lu, column %lu\n",
+            _log_error("parser error: %s at line %zu, column %zu\n",
                        parser->problem, parser->problem_mark.line + 1,
                        parser->problem_mark.column + 1);
         }
@@ -134,17 +134,17 @@ int _ymldb_log_error_parser(yaml_parser_t *parser)
         if (parser->context)
         {
             _log_error_head();
-            _log_error_body("composer error: %s at line %lu, column %lu\n",
+            _log_error_body("composer error: %s at line %zu, column %zu\n",
                             parser->context,
                             parser->context_mark.line + 1, parser->context_mark.column + 1);
-            _log_error_body("%s at line %lu, column %lu\n",
+            _log_error_body("%s at line %zu, column %zu\n",
                             parser->problem, parser->problem_mark.line + 1,
                             parser->problem_mark.column + 1);
             _log_error_tail();
         }
         else
         {
-            _log_error("composer error: %s at line %lu, column %lu\n",
+            _log_error("composer error: %s at line %zu, column %zu\n",
                        parser->problem, parser->problem_mark.line + 1,
                        parser->problem_mark.column + 1);
         }
@@ -1984,7 +1984,7 @@ static int _ymldb_distribution_recv_internal(struct ymldb_cb *cb, fd_set *set)
                     return -1;
                 }
                 input->buf[input->len] = 0;
-                _log_debug("len=%lu buf=\n%s\n", input->len, input->buf);
+                _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
                 ymldb_stream_open(input, "r");
                 _ymldb_run(cb, input->stream, NULL);
                 ymldb_stream_free(input);
@@ -1997,6 +1997,7 @@ static int _ymldb_distribution_recv_internal(struct ymldb_cb *cb, fd_set *set)
         struct ymldb_stream *input = NULL;
         for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
         {
+            if (cb->fd_subscriber[i] < 0) continue;
             if (FD_ISSET(cb->fd_subscriber[i], set))
             {
                 FD_CLR(cb->fd_subscriber[i], set);
@@ -2023,7 +2024,7 @@ static int _ymldb_distribution_recv_internal(struct ymldb_cb *cb, fd_set *set)
                     continue;
                 }
                 input->buf[input->len] = 0;
-                _log_debug("len=%lu buf=\n%s\n", input->len, input->buf);
+                _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
                 ymldb_stream_open(input, "r");
                 _ymldb_run(cb, input->stream, NULL);
                 ymldb_stream_close(input);
@@ -2205,7 +2206,7 @@ int _ymldb_push(FILE *outstream, unsigned int opcode, char *major_key, char *for
         ymldb_stream_free(input);
         return -1;
     }
-    _log_debug("input->len=%lu buf=\n%s\n", input->len, input->buf);
+    _log_debug("input->len=%zd buf=\n%s\n", input->len, input->buf);
     res = _ymldb_run(cb, input->stream, outstream);
     _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
     ymldb_stream_free(input);
@@ -2245,7 +2246,7 @@ int ymldb_push(char *major_key, char *format, ...)
         ymldb_stream_free(input);
         return -1;
     }
-    _log_debug("input->len=%lu buf=\n%s\n", input->len, input->buf);
+    _log_debug("input->len=%zd buf=\n%s\n", input->len, input->buf);
     res = _ymldb_run(cb, input->stream, NULL);
     _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
     ymldb_stream_free(input);
@@ -2342,10 +2343,10 @@ int ymldb_pull(char *major_key, char *format, ...)
         goto failed;
     }
     
-    _log_debug("input->len=%lu buf=\n%s\n", input->len, input->buf);
+    _log_debug("input->len=%zd buf=\n%s\n", input->len, input->buf);
     res = _ymldb_run(cb, input->stream, output->stream);
     _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
-    _log_debug("output->len=%lu buf=\n%s\n", output->len, output->buf);
+    _log_debug("output->len=%zd buf=\n%s\n", output->len, output->buf);
     if (res >= 0)
     { // success
         // fflush(output->stream);
@@ -2422,7 +2423,7 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
         ymldb_stream_free(input);
         return -1;
     }
-    _log_debug("len=%lu buf=\n%s\n", input->len, input->buf);
+    _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
     res = _ymldb_run(cb, input->stream, outstream);
     _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
     ymldb_stream_free(input);

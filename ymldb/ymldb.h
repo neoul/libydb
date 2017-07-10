@@ -36,8 +36,8 @@ struct ymldb
 struct ymldb_stream
 {
     FILE *stream;
-    size_t buflen;
-    size_t len;
+    ssize_t buflen;
+    ssize_t len;
     int is_write;
 #ifdef OPEN_MEMSTREAM_ENABED
     char *buf;
