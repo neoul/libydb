@@ -1,0 +1,13 @@
+
+Try is if you meet an error in the library build.
+
+$ automake
+configure.ac: error: no proper invocation of AM_INIT_AUTOMAKE was found.
+configure.ac: You should verify that configure.ac invokes AM_INIT_AUTOMAKE,
+configure.ac: that aclocal.m4 is present in the top-level directory,
+configure.ac: and that aclocal.m4 was recently regenerated (using aclocal)
+
+
+$ autoreconf
+
+
