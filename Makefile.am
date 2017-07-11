@@ -1,2 +1,2 @@
-SUBDIRS=ymldb test/standalone test/publisher test/subscriber
+SUBDIRS=ymldb test/ymldb_test test/ymldb_publisher test/ymldb_subscriber
 

@@ -13,7 +13,97 @@
 #include <cprops/avl.h>
 #include <cprops/linked_list.h>
 #include <cprops/trie.h>
+
 #include "ymldb.h"
+
+typedef enum ymldb_type_e {
+    YMLDB_LEAF,
+    YMLDB_LEAFLIST,
+    YMLDB_BRANCH
+} ymldb_type_t;
+
+struct ymldb_callback
+{
+    ymldb_callback_fn usr_func;
+    void *usr_data;
+    int deleted;
+};
+
+struct ymldb
+{
+    char *key;
+    int level;
+    ymldb_type_t type;
+    union {
+        cp_avltree *children;
+        char *value;
+    };
+    struct ymldb *parent;
+    struct ymldb_callback *callback;
+};
+
+// #define OPEN_MEMSTREAM_ENABED
+struct ymldb_stream
+{
+    FILE *stream;
+    ssize_t buflen;
+    ssize_t len;
+    int is_write;
+#ifdef OPEN_MEMSTREAM_ENABED
+    char *buf;
+#else
+    char buf[];
+#endif
+};
+
+
+#define YMLDB_STREAM_THRESHOLD 1536
+#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 512)
+
+// ymldb control block
+#define YMLDB_SUBSCRIBER_MAX 8
+struct ymldb_cb
+{
+    char *key;
+    struct ymldb *ydb;
+    unsigned int flags;
+    // fd for YMLDB_FLAG_PUBLISHER and YMLDB_FLAG_SUBSCRIBER
+    int fd_publisher;
+    // fd for YMLDB_FLAG_PUBLISHER
+    int fd_subscriber[YMLDB_SUBSCRIBER_MAX];
+};
+
+struct ymldb_distribution
+{
+    fd_set *set;
+    int max;
+};
+
+struct ymldb_params
+{
+    struct ymldb_cb *cb;
+    yaml_parser_t parser;
+    yaml_document_t document;
+    struct
+    {
+        unsigned int opcode;
+        unsigned int sequence;
+        FILE *stream;
+    } in;
+    struct
+    {
+        unsigned int opcode;
+        unsigned int sequence;
+        FILE *stream;
+    } out;
+    int res;
+    int no_reply;
+    int no_change;
+    struct ymldb *last_ydb; // last updated ydb
+    cp_avltree *callbacks;
+    struct ymldb_stream *streambuffer;
+};
+
 
 #define _ENHANCED_
 
@@ -157,6 +247,12 @@ int _ymldb_log_error_parser(yaml_parser_t *parser)
     }
     return 0;
 }
+
+struct ymldb_stream *ymldb_stream_alloc(size_t len);
+void ymldb_stream_close(struct ymldb_stream *buf);
+FILE *ymldb_stream_open(struct ymldb_stream *buf, char *rw);
+void ymldb_stream_free(struct ymldb_stream *buf);
+struct ymldb_stream *ymldb_stream_alloc_and_open(size_t len, char *rw);
 
 static void _ymldb_params_free(struct ymldb_params *params);
 static struct ymldb_params *_ymldb_params_alloc(struct ymldb_cb *cb, FILE *instream, FILE *outstream);
