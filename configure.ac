@@ -34,5 +34,6 @@ AC_CONFIG_FILES([Makefile
                  test/ymldb_test/Makefile
                  test/ymldb_publisher/Makefile
                  test/ymldb_subscriber/Makefile
+				 tools/monitor/Makefile
                  ymldb/Makefile])
 AC_OUTPUT
