@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     ymldb_create("interface", YMLDB_FLAG_PUBLISHER);
     // read ymldb from a file.
     int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
-    ymldb_run("interface", infd, 0);
+    ymldb_run_with_fd("interface", infd, 0);
     close(infd);
 
     ymldb_dump_all(stdout);

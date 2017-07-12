@@ -22,11 +22,7 @@ void signal_handler_INT(int param)
 
 int main(int argc, char *argv[])
 {
-    int res;
-    int cnt = 0;
-    int max_fd = 0;
-    fd_set read_set;
-    struct timeval tv;
+    int k;
 
     // MUST ignore SIGPIPE.
     signal(SIGPIPE, SIG_IGN);
@@ -34,10 +30,24 @@ int main(int argc, char *argv[])
     // add a signal handler to quit this program.
     signal(SIGINT, signal_handler_INT);
 
-    // create ymldb for interface.
-    ymldb_create("interface", YMLDB_FLAG_NONE);
-    ymldb_distribution_init("interface", YMLDB_FLAG_SUBSCRIBER);
-    ymldb_dump_all(stdout);
+    /* Analyze command line options. */
+    for (k = 1; k < argc; k ++)
+    {
+        if (strcmp(argv[k], "-h") == 0
+                || strcmp(argv[k], "--help") == 0) {
+            printf("%s key1 key2 ...\n"
+                    "-h, --help\t\tdisplay this help and exit\n"
+                    "key\t\tYMLDB key to monitor\n",
+                    argv[0]);
+            return 0;
+        }
+        ymldb_create(argv[k], YMLDB_FLAG_SUBSCRIBER);
+    }
+    int res;
+    int cnt = 0;
+    int max_fd = 0;
+    fd_set read_set;
+    struct timeval tv;
 
     do
     {
@@ -52,9 +62,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "select failed (%s)\n", strerror(errno));
             break;
         }
-        ymldb_distribution_recv(&read_set);
-        printf("\nno. %d\n", cnt);
-        ymldb_dump(stdout, "interface");
+        ymldb_distribution_recv_and_dump(stdout, &read_set);
     } while (!done);
     ymldb_dump_all(stdout);
     ymldb_destroy_all();

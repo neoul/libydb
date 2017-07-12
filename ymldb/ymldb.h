@@ -64,7 +64,8 @@ int ymldb_pull(char *major_key, char *format, ...);
 
 // [YMLDB update facility - from file]
 // update ymldb using file descriptors.
-int ymldb_run(char *major_key, int infd, int outfd);
+int ymldb_run_with_fd(char *major_key, int infd, int outfd);
+int ymldb_run(char *major_key, FILE *instream, FILE *outstream);
 
 // [YMLDB distribution facility]
 // enable ymldb distribution.
@@ -79,6 +80,7 @@ int ymldb_distribution_delete(char *major_key, int subscriber_fd);
 int ymldb_distribution_set(fd_set *set);
 // check FD_SET and receive the ymldb request and response from the remote.
 int ymldb_distribution_recv(fd_set *set);
+int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set);
 
 typedef int (*ymldb_callback_fn)(void *usr_data, int deleted);
 int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
