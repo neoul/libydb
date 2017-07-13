@@ -42,8 +42,8 @@
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
 
-#define YMLDB_STREAM_THRESHOLD 200
-#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 512)
+#define YMLDB_STREAM_THRESHOLD 2048
+#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 256)
 
 // create or delete ymldb
 int ymldb_create(char *major_key, unsigned int flags);
@@ -85,6 +85,7 @@ int ymldb_distribution_set(fd_set *set);
 // check FD_SET and receive the ymldb request and response from the remote.
 int ymldb_distribution_recv(fd_set *set);
 int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set);
+int ymldb_distribution_recv_fd(int *cur_fd, int *new_fd);
 
 int ymldb_distribution_get_publisher_fd(char *major_key, int *fd);
 int ymldb_distribution_get_subscriber_fds(char *major_key, int **fds, int* fds_count);

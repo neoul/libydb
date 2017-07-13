@@ -107,71 +107,108 @@ struct ymldb_params
 #define YMLDB_LOG_INFO 2
 #define YMLDB_LOG_ERR 1
 #define YMLDB_LOG_NONE 0
-static int g_ymldb_log = YMLDB_LOG_LOG; // YMLDB_LOG_ERR;
+static int g_ymldb_log = YMLDB_LOG_LOG;          // YMLDB_LOG_ERR;
+static char *g_ymldb_logfile = "/tmp/ymldb.log"; // NULL;
 
-#define _out(FP, ...) fprintf(FP, __VA_ARGS__)
-
-#define _log_empty()                     \
-    do                                   \
-    {                                    \
-        if (g_ymldb_log < YMLDB_LOG_LOG) \
-            break;                       \
-        fprintf(stdout, "\n\n>>>\n");    \
+#define _log_write(FP, ...)           \
+    do                                \
+    {                                 \
+        if (FP)                       \
+            fprintf(FP, __VA_ARGS__); \
     } while (0)
 
-#define _log_debug(...)                                                   \
-    do                                                                    \
-    {                                                                     \
-        if (g_ymldb_log < YMLDB_LOG_LOG)                                  \
-            break;                                                        \
-        fprintf(stdout, "[ymldb:debug] %s:%d: ", __FUNCTION__, __LINE__); \
-        fprintf(stdout, __VA_ARGS__);                                     \
+static FILE *_log_open(FILE *stream)
+{
+    if (g_ymldb_logfile)
+    {
+        FILE *_log_stream = fopen(g_ymldb_logfile, "a+");
+        if (_log_stream)
+            stream = _log_stream;
+    }
+    return stream;
+}
+
+static void _log_close(FILE *stream)
+{
+    if (stream != stdout && stream != stderr)
+        fclose(stream);
+}
+
+#define _log_entrance()                                     \
+    do                                                      \
+    {                                                       \
+        if (g_ymldb_log < YMLDB_LOG_LOG)                    \
+            break;                                          \
+        FILE *_log_stream = _log_open(stdout);              \
+        _log_write(_log_stream, "\n\n%s >>>\n", __FUNCTION__); \
+        _log_close(_log_stream);                            \
     } while (0)
 
-#define _log_info(...)                                                   \
-    do                                                                   \
-    {                                                                    \
-        if (g_ymldb_log < YMLDB_LOG_INFO)                                \
-            break;                                                       \
-        fprintf(stdout, "[ymldb:info] %s:%d: ", __FUNCTION__, __LINE__); \
-        fprintf(stdout, __VA_ARGS__);                                    \
+#define _log_debug(...)                                                        \
+    do                                                                         \
+    {                                                                          \
+        if (g_ymldb_log < YMLDB_LOG_LOG)                                       \
+            break;                                                             \
+        FILE *_log_stream = _log_open(stdout);                                 \
+        _log_write(_log_stream, "[ymldb:debug] %s:%d: ", __FUNCTION__, __LINE__); \
+        _log_write(_log_stream, __VA_ARGS__);                                     \
+        _log_close(_log_stream);                                               \
     } while (0)
 
-#define _log_error(...)                                         \
-    do                                                          \
-    {                                                           \
-        if (g_ymldb_log < YMLDB_LOG_ERR)                      \
-            break;                                              \
-        fprintf(stderr, "\n  [ymldb:error]\n\n");               \
-        fprintf(stderr, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
-        fprintf(stderr, __VA_ARGS__);                           \
-        fprintf(stderr, "\n");                                  \
+#define _log_info(...)                                                        \
+    do                                                                        \
+    {                                                                         \
+        if (g_ymldb_log < YMLDB_LOG_INFO)                                     \
+            break;                                                            \
+        FILE *_log_stream = _log_open(stdout);                                \
+        _log_write(_log_stream, "[ymldb:info] %s:%d: ", __FUNCTION__, __LINE__); \
+        _log_write(_log_stream, __VA_ARGS__);                                    \
+        _log_close(_log_stream);                                              \
     } while (0)
 
-#define _log_error_head()                                     \
-    do                                                        \
-    {                                                         \
-        if (g_ymldb_log < YMLDB_LOG_ERR)                    \
-            break;                                            \
-        fprintf(stderr, "\n  [ymldb:error]\n\n");             \
-        fprintf(stderr, "\t%s:%d\n", __FUNCTION__, __LINE__); \
+#define _log_error(...)                                              \
+    do                                                               \
+    {                                                                \
+        if (g_ymldb_log < YMLDB_LOG_ERR)                             \
+            break;                                                   \
+        FILE *_log_stream = _log_open(stderr);                       \
+        _log_write(_log_stream, "\n  [ymldb:error]\n\n");               \
+        _log_write(_log_stream, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
+        _log_write(_log_stream, __VA_ARGS__);                           \
+        _log_write(_log_stream, "\n");                                  \
+        _log_close(_log_stream);                                     \
     } while (0)
 
-#define _log_error_body(...)               \
-    do                                     \
-    {                                      \
-        if (g_ymldb_log < YMLDB_LOG_ERR) \
-            break;                         \
-        fprintf(stderr, "\t");             \
-        fprintf(stderr, __VA_ARGS__);      \
+#define _log_error_head()                                          \
+    do                                                             \
+    {                                                              \
+        if (g_ymldb_log < YMLDB_LOG_ERR)                           \
+            break;                                                 \
+        FILE *_log_stream = _log_open(stderr);                     \
+        _log_write(_log_stream, "\n  [ymldb:error]\n\n");             \
+        _log_write(_log_stream, "\t%s:%d\n", __FUNCTION__, __LINE__); \
+        _log_close(_log_stream);                                   \
     } while (0)
 
-#define _log_error_tail()                  \
-    do                                     \
-    {                                      \
-        if (g_ymldb_log < YMLDB_LOG_ERR) \
-            break;                         \
-        fprintf(stderr, "\n");             \
+#define _log_error_body(...)                   \
+    do                                         \
+    {                                          \
+        if (g_ymldb_log < YMLDB_LOG_ERR)       \
+            break;                             \
+        FILE *_log_stream = _log_open(stderr); \
+        _log_write(_log_stream, "\t");            \
+        _log_write(_log_stream, __VA_ARGS__);     \
+        _log_close(_log_stream);               \
+    } while (0)
+
+#define _log_error_tail()                      \
+    do                                         \
+    {                                          \
+        if (g_ymldb_log < YMLDB_LOG_ERR)       \
+            break;                             \
+        FILE *_log_stream = _log_open(stderr); \
+        _log_write(_log_stream, "\n");            \
+        _log_close(_log_stream);               \
     } while (0)
 
 int _ymldb_log_error_parser(yaml_parser_t *parser)
@@ -286,6 +323,7 @@ static void _ymldb_callback_run(struct ymldb_params *params);
 static cp_trie *g_key_pool = NULL;
 static int g_alloc_count = 0;
 static char g_empty_str[4] = {0, 0, 0, 0};
+
 struct ymldb_key
 {
     char *key; // ymldb key
@@ -447,13 +485,13 @@ void key_pool_dump()
 #define strdup _strdup
 
 #define S10 "          "
-static char *gSpace = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
+static char *g_space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
-static struct ymldb *gYdb = NULL;
-static cp_avltree *gYcb = NULL;
-static cp_avltree *gYfd = NULL;
+static struct ymldb *g_ydb = NULL;
+static cp_avltree *g_ycb = NULL;
+static cp_avltree *g_fds = NULL;
 
-static unsigned int gSequence = 1;
+static unsigned int g_sequence = 1;
 
 static FILE *_ymldb_fopen_from_fd(int fd, char *rw)
 {
@@ -529,9 +567,9 @@ static char *_ymldb_opcode_str(int opcode)
 
 struct ymldb_cb *_ymldb_cb(char *major_key)
 {
-    if (major_key && gYcb)
+    if (major_key && g_ycb)
     {
-        struct ymldb_cb *cb = cp_avltree_get(gYcb, major_key);
+        struct ymldb_cb *cb = cp_avltree_get(g_ycb, major_key);
         if (cb)
             return cb;
     }
@@ -602,16 +640,16 @@ static void _ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no
             switch (ancestor->type)
             {
             case YMLDB_BRANCH:
-                // _log_debug("%.*s%s:\n", (ancestor->level - 1) * 2, gSpace, ancestor->key);
-                _out(stream, "%.*s%s:\n", (ancestor->level - 1) * 2, gSpace, ancestor->key);
+                // _log_debug("%.*s%s:\n", (ancestor->level - 1) * 2, g_space, ancestor->key);
+                fprintf(stream, "%.*s%s:\n", (ancestor->level - 1) * 2, g_space, ancestor->key);
                 break;
             case YMLDB_LEAFLIST:
-                // _log_debug("%.*s- %s\n", (ancestor->level - 1) * 2, gSpace, ancestor->key);
-                _out(stream, "%.*s- %s\n", (ancestor->level - 1) * 2, gSpace, ancestor->key);
+                // _log_debug("%.*s- %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key);
+                fprintf(stream, "%.*s- %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key);
                 break;
             case YMLDB_LEAF:
-                // _log_debug("%.*s%s: %s\n", (ancestor->level - 1) * 2, gSpace, ancestor->key, ancestor->value);
-                _out(stream, "%.*s%s: %s\n", (ancestor->level - 1) * 2, gSpace, ancestor->key, ancestor->value);
+                // _log_debug("%.*s%s: %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key, ancestor->value);
+                fprintf(stream, "%.*s%s: %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key, ancestor->value);
                 break;
             }
         }
@@ -622,8 +660,8 @@ static void _ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no
     {
         if (ydb->level != 0)
         { // not print out for top node
-            // _log_debug("%.*s%s:\n", (ydb->level - 1) * 2, gSpace, ydb->key);
-            _out(stream, "%.*s%s:\n", (ydb->level - 1) * 2, gSpace, ydb->key);
+            // _log_debug("%.*s%s:\n", (ydb->level - 1) * 2, g_space, ydb->key);
+            fprintf(stream, "%.*s%s:\n", (ydb->level - 1) * 2, g_space, ydb->key);
         }
         if (no_print_children)
             return;
@@ -631,13 +669,13 @@ static void _ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no
     }
     else if (ydb->type == YMLDB_LEAFLIST)
     {
-        // _log_debug("%.*s- %s\n", (ydb->level - 1) * 2, gSpace, ydb->key);
-        _out(stream, "%.*s- %s\n", (ydb->level - 1) * 2, gSpace, _ymldb_str_dump(ydb->key));
+        // _log_debug("%.*s- %s\n", (ydb->level - 1) * 2, g_space, ydb->key);
+        fprintf(stream, "%.*s- %s\n", (ydb->level - 1) * 2, g_space, _ymldb_str_dump(ydb->key));
     }
     else
     {
-        // _log_debug("%.*s%s: %s\n", (ydb->level - 1) * 2, gSpace, ydb->key, ydb->value);
-        _out(stream, "%.*s%s: %s\n", (ydb->level - 1) * 2, gSpace, ydb->key, _ymldb_str_dump(ydb->value));
+        // _log_debug("%.*s%s: %s\n", (ydb->level - 1) * 2, g_space, ydb->key, ydb->value);
+        fprintf(stream, "%.*s%s: %s\n", (ydb->level - 1) * 2, g_space, ydb->key, _ymldb_str_dump(ydb->value));
     }
     return;
 }
@@ -645,45 +683,45 @@ static void _ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no
 void _ymldb_dump_start(FILE *stream, unsigned int opcode, unsigned int sequence)
 {
     // fseek(stream, 0, SEEK_SET);
-    _out(stream, "# %u\n", sequence);
+    fprintf(stream, "# %u\n", sequence);
 
     // %TAG !merge! actusnetworks.com:op:
     if (opcode & YMLDB_OP_SEQ)
     {
-        _out(stream, "%s %s %s%u\n", "%TAG", YMLDB_TAG_OP_SEQ, YMLDB_TAG_SEQ, sequence);
+        fprintf(stream, "%s %s %s%u\n", "%TAG", YMLDB_TAG_OP_SEQ, YMLDB_TAG_SEQ, sequence);
     }
     if (opcode & YMLDB_OP_MERGE)
     {
-        _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
+        fprintf(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
     }
     else if (opcode & YMLDB_OP_DELETE)
     {
-        _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
+        fprintf(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
     }
     else if (opcode & YMLDB_OP_GET)
     {
-        _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
+        fprintf(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
     }
     else if (opcode & YMLDB_OP_SYNC)
     {
-        _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SYNC, YMLDB_TAG_SYNC);
+        fprintf(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SYNC, YMLDB_TAG_SYNC);
     }
 
     if (opcode & YMLDB_OP_SUBSCRIBER)
     {
-        _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBER, YMLDB_TAG_SUBSCRIBER);
+        fprintf(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBER, YMLDB_TAG_SUBSCRIBER);
     }
     else if (opcode & YMLDB_OP_PUBLISHER)
     {
-        _out(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_PUBLISHER, YMLDB_TAG_PUBLISHER);
+        fprintf(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_PUBLISHER, YMLDB_TAG_PUBLISHER);
     }
-    _out(stream, "---\n");
+    fprintf(stream, "---\n");
 }
 
 void _ymldb_dump_end(FILE *stream)
 {
     // fflush(stream);
-    _out(stream, "\n...\n\n");
+    fprintf(stream, "\n...\n\n");
 }
 
 // support readonly or writeonly.
@@ -715,6 +753,7 @@ void ymldb_stream_close(struct ymldb_stream *buf)
             if (buf->is_write)
             {
                 buf->len = ftell(buf->stream);
+                fflush(buf->stream);
                 buf->buf[buf->len] = 0;
             }
             fclose(buf->stream);
@@ -1331,7 +1370,7 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
             char *key = (char *)node->data.scalar.value;
             if (node->type == YAML_SCALAR_NODE)
             {
-                _out(stream, "%.*s- %s\n", level * 2, gSpace, key);
+                fprintf(stream, "%.*s- %s\n", level * 2, g_space, key);
             }
             else
             {
@@ -1354,11 +1393,11 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
             // _log_debug("key %s\n", key);
             if (value_node->type == YAML_SCALAR_NODE)
             {
-                _out(stream, "%.*s%s: %s\n", level * 2, gSpace, key, value);
+                fprintf(stream, "%.*s%s: %s\n", level * 2, g_space, key, value);
             }
             else
             { // not leaf
-                _out(stream, "%.*s%s:\n", level * 2, gSpace, key);
+                fprintf(stream, "%.*s%s:\n", level * 2, g_space, key);
                 _ymldb_internal_relay(params, level + 1, pair->value, index);
             }
         }
@@ -1368,7 +1407,7 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
     { // It is only used for single key inserted..
         char *key;
         key = (char *)node->data.scalar.value;
-        _out(stream, "%.*s%s\n", level * 2, gSpace, key);
+        fprintf(stream, "%.*s%s\n", level * 2, g_space, key);
     }
     break;
     case YAML_NO_NODE:
@@ -1520,8 +1559,8 @@ static int _ymldb_state_machine(struct ymldb_params *params)
     }
     else
     {
-        out_sequence = gSequence;
-        gSequence++;
+        out_sequence = g_sequence;
+        g_sequence++;
     }
     params->out.opcode = out_opcode;
     params->out.sequence = out_sequence;
@@ -1642,9 +1681,9 @@ flushing:
     _ymldb_dump_end(streambuffer->stream);
     // write the stream to streambuffer->buf.
     fflush(streambuffer->stream);
-    streambuffer->buf[ftell(streambuffer->stream)] = 0; // end of string.
-    _log_debug("\n###### START\n%s", streambuffer->buf);
-    _log_debug("\n###### END\n");
+    streambuffer->len = ftell(streambuffer->stream);
+    streambuffer->buf[streambuffer->len] = 0; // end of string.
+    _log_debug("\n###### START\n%s\n\n", streambuffer->buf);
 
     if (params->out.stream)
     {
@@ -1711,19 +1750,19 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
 
             _ymldb_params_streambuffer_init(params);
             if (params->out.opcode & YMLDB_OP_MERGE)
-                _ymldb_internal_merge(params, gYdb, 1, 1);
+                _ymldb_internal_merge(params, g_ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_DELETE)
-                _ymldb_internal_delete(params, gYdb, 1, 1);
+                _ymldb_internal_delete(params, g_ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_GET)
-                _ymldb_internal_get(params, gYdb, 1, 1);
+                _ymldb_internal_get(params, g_ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_SYNC)
             {
                 if (ignore_or_relay == 2)
                     _ymldb_internal_relay(params, 0, 1, 1);
                 else if (params->in.opcode & YMLDB_OP_PUBLISHER)
-                    _ymldb_internal_merge(params, gYdb, 1, 1);
+                    _ymldb_internal_merge(params, g_ydb, 1, 1);
                 else
-                    _ymldb_internal_get(params, gYdb, 1, 1);
+                    _ymldb_internal_get(params, g_ydb, 1, 1);
             }
             _ymldb_params_streambuffer_flush(params, 1); // forced flush!
             _log_debug("result: %s\n", params->res < 0 ? "failed" : "ok");
@@ -1744,7 +1783,7 @@ int ymldb_run(char *major_key, FILE *instream, FILE *outstream)
 {
     int res;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -1766,7 +1805,7 @@ int ymldb_run_with_fd(char *major_key, int infd, int outfd)
     FILE *instream;
     FILE *outstream;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -1791,17 +1830,10 @@ int ymldb_run_with_fd(char *major_key, int infd, int outfd)
     return res;
 }
 
-static int _ymldb_yfd_cmp(void *v1, void *v2)
-{
-     // struct ymldb_cb *cb1;
-     // struct ymldb_cb *cb2;
-    return v1 - v2;
-}
-
 int ymldb_create(char *major_key, unsigned int flags)
 {
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!major_key)
     {
         _log_error("no major key\n");
@@ -1809,37 +1841,27 @@ int ymldb_create(char *major_key, unsigned int flags)
     }
     _log_debug("\n");
     // init top
-    if (!gYdb)
+    if (!g_ydb)
     {
-        gYdb = _ymldb_node_merge(NULL, NULL, YMLDB_BRANCH, "top", NULL);
-        if (!gYdb)
+        g_ydb = _ymldb_node_merge(NULL, NULL, YMLDB_BRANCH, "top", NULL);
+        if (!g_ydb)
         {
-            _log_error("gYdb failed.\n");
+            _log_error("g_ydb failed.\n");
             return -1;
         }
     }
 
-    if (!gYcb)
+    if (!g_ycb)
     {
-        gYcb = cp_avltree_create((cp_compare_fn)strcmp);
-        if (!gYcb)
+        g_ycb = cp_avltree_create((cp_compare_fn)strcmp);
+        if (!g_ycb)
         {
-            _log_error("gYcb failed.\n");
+            _log_error("g_ycb failed.\n");
             return -1;
         }
     }
 
-    if(!gYfd)
-    {
-        gYfd = cp_avltree_create((cp_compare_fn)_ymldb_yfd_cmp);
-        if (!gYfd)
-        {
-            _log_error("gYfd failed.\n");
-            return -1;
-        }
-    }
-
-    if (cp_avltree_get(gYdb->children, major_key))
+    if (cp_avltree_get(g_ydb->children, major_key))
     {
         _log_error("key exsits.\n");
         return -1;
@@ -1866,7 +1888,7 @@ int ymldb_create(char *major_key, unsigned int flags)
     for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
         cb->fd_subscriber[i] = -1;
 
-    cb->ydb = _ymldb_node_merge(NULL, gYdb, YMLDB_BRANCH, major_key, NULL);
+    cb->ydb = _ymldb_node_merge(NULL, g_ydb, YMLDB_BRANCH, major_key, NULL);
     if (!cb->ydb)
     {
         _log_error("init failed.\n");
@@ -1883,7 +1905,7 @@ int ymldb_create(char *major_key, unsigned int flags)
     if (flags & YMLDB_FLAG_PUBLISHER || flags & YMLDB_FLAG_SUBSCRIBER)
         _ymldb_distribution_init(cb, flags);
 
-    cp_avltree_insert(gYcb, cb->key, cb);
+    cp_avltree_insert(g_ycb, cb->key, cb);
     return 0;
 }
 
@@ -1903,6 +1925,7 @@ static void _ymldb_destroy(void *data)
         _ymldb_node_free(ydb);
     }
     _ymldb_distribution_deinit(cb);
+
     _log_debug("\n");
     if (cb->key)
         free(cb->key);
@@ -1913,7 +1936,7 @@ static void _ymldb_destroy(void *data)
 void ymldb_destroy(char *major_key)
 {
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -1921,29 +1944,29 @@ void ymldb_destroy(char *major_key)
     }
     _log_debug("major_key %s\n", major_key);
 
-    cp_avltree_delete(gYcb, cb->key);
+    cp_avltree_delete(g_ycb, cb->key);
     _ymldb_destroy(cb);
-    if (cp_avltree_count(gYcb) <= 0)
+    if (cp_avltree_count(g_ycb) <= 0)
     {
-        _ymldb_node_free(gYdb);
-        cp_avltree_destroy(gYcb);
+        _ymldb_node_free(g_ydb);
+        cp_avltree_destroy(g_ycb);
         _log_debug("all destroyed ...\n");
-        gYcb = NULL;
-        gYdb = NULL;
+        g_ycb = NULL;
+        g_ydb = NULL;
     }
 }
 
 void ymldb_destroy_all()
 {
-    _log_empty();
+    _log_entrance();
     _log_debug("\n");
-    if (gYcb)
+    if (g_ycb)
     {
-        cp_avltree_destroy_custom(gYcb, NULL, _ymldb_destroy);
-        _ymldb_node_free(gYdb);
+        cp_avltree_destroy_custom(g_ycb, NULL, _ymldb_destroy);
+        _ymldb_node_free(g_ydb);
         _log_debug("all destroyed ...\n");
-        gYcb = NULL;
-        gYdb = NULL;
+        g_ycb = NULL;
+        g_ydb = NULL;
     }
 }
 
@@ -1959,6 +1982,7 @@ static int _ymldb_distribution_deinit(struct ymldb_cb *cb)
 
     if (cb->fd_publisher >= 0)
     {
+        cp_avltree_delete(g_fds, &cb->fd_publisher);
         close(cb->fd_publisher);
         cb->fd_publisher = -1;
     }
@@ -1969,6 +1993,7 @@ static int _ymldb_distribution_deinit(struct ymldb_cb *cb)
         {
             if (cb->fd_subscriber[i] >= 0)
             {
+                cp_avltree_delete(g_fds, &cb->fd_subscriber[i]);
                 close(cb->fd_subscriber[i]);
                 cb->fd_subscriber[i] = -1;
             }
@@ -1978,7 +2003,24 @@ static int _ymldb_distribution_deinit(struct ymldb_cb *cb)
     cb->flags = cb->flags & (~YMLDB_FLAG_PUBLISHER);
     cb->flags = cb->flags & (~YMLDB_FLAG_SUBSCRIBER);
     cb->flags = cb->flags & (~YMLDB_FLAG_RECONNECT);
+    if (g_fds)
+    {
+        if (cp_avltree_count(g_fds) <= 0)
+        {
+            cp_avltree_destroy(g_fds);
+            g_fds = NULL;
+        }
+    }
     return 0;
+}
+
+static int _ymldb_yfd_cmp(void *v1, void *v2)
+{
+    // struct ymldb_cb *cb1;
+    // struct ymldb_cb *cb2;
+    int *i1 = v1;
+    int *i2 = v2;
+    return *i1 - *i2;
 }
 
 static int _ymldb_distribution_init(struct ymldb_cb *cb, int flags)
@@ -1990,6 +2032,15 @@ static int _ymldb_distribution_init(struct ymldb_cb *cb, int flags)
     if (cb->flags & YMLDB_FLAG_CONN)
     {
         _ymldb_distribution_deinit(cb);
+    }
+    if (!g_fds)
+    {
+        g_fds = cp_avltree_create((cp_compare_fn)_ymldb_yfd_cmp);
+        if (!g_fds)
+        {
+            _log_error("g_fds failed.\n");
+            return -1;
+        }
     }
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
@@ -2032,6 +2083,7 @@ static int _ymldb_distribution_init(struct ymldb_cb *cb, int flags)
             return -1;
         }
     }
+    cp_avltree_insert(g_fds, &cb->fd_publisher, cb);
     return fd;
 }
 
@@ -2106,6 +2158,7 @@ static int _ymldb_distribution_recv_internal(struct ymldb_cb *cb, FILE *outstrea
                     if (cb->fd_subscriber[i] < 0)
                     {
                         cb->fd_subscriber[i] = fd;
+                        cp_avltree_insert(g_fds, &cb->fd_subscriber[i], cb);
                         _log_debug("subscriber (fd %d) added..\n", fd);
                         if (!(cb->flags & YMLDB_FLAG_NOSYNC))
                             ymldb_sync(cb->key);
@@ -2176,6 +2229,7 @@ static int _ymldb_distribution_recv_internal(struct ymldb_cb *cb, FILE *outstrea
                     else
                         _log_error("subscriber (fd %d) closed (EOF)\n", cb->fd_subscriber[i]);
                     _log_debug("close the conn (%d).\n", cb->fd_subscriber[i]);
+                    cp_avltree_delete(g_fds, &cb->fd_subscriber[i]);
                     close(cb->fd_subscriber[i]);
                     cb->fd_subscriber[i] = -1;
                     continue;
@@ -2188,6 +2242,138 @@ static int _ymldb_distribution_recv_internal(struct ymldb_cb *cb, FILE *outstrea
             }
         }
         ymldb_stream_free(input);
+    }
+    return 0;
+}
+
+// cur_fd: current fd
+// new_fd: assign new_fd if new ymldb client
+// return value<0 and *cur_fd<0 if failed. *cur_fd is not used any more.
+// return value<0 and *cur_fd>0 if failed. But, this *cur_fd is still available.
+// return value>0 and *cur_fd>0 if success.
+static int _ymldb_distribution_recv_fd(struct ymldb_cb *cb, FILE *outstream, int *cur_fd, int *new_fd)
+{
+    int fd = *cur_fd;
+    _log_entrance();
+    if (!(cb->flags & YMLDB_FLAG_CONN))
+    {
+        _log_error("not a subscriber or publisher\n");
+        return -1;
+    }
+    if (cb->flags & YMLDB_FLAG_RECONNECT)
+    {
+        fd = _ymldb_distribution_init(cb, cb->flags);
+        *cur_fd = fd;
+        return fd;
+    }
+    if (fd == cb->fd_publisher)
+    {
+        if (cb->flags & YMLDB_FLAG_PUBLISHER)
+        { // PUBLISHER
+            int i, fd_subscriber;
+            fd_subscriber = accept(cb->fd_publisher, NULL, NULL);
+            if (fd_subscriber < 0)
+            {
+                _log_error("accept failed (%s)\n", strerror(errno));
+                return -1;
+            }
+            for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+            {
+                if (cb->fd_subscriber[i] < 0)
+                {
+                    cb->fd_subscriber[i] = fd_subscriber;
+                    cp_avltree_insert(g_fds, &cb->fd_subscriber[i], cb);
+                    _log_debug("subscriber (fd %d) added..\n", fd_subscriber);
+                    *new_fd = fd_subscriber;
+                    if (!(cb->flags & YMLDB_FLAG_NOSYNC))
+                        ymldb_sync(cb->key);
+                    break;
+                }
+            }
+            if (i >= YMLDB_SUBSCRIBER_MAX)
+            {
+                _log_error("subscription over..\n");
+                return -1;
+            }
+        }
+        else if (cb->flags & YMLDB_FLAG_SUBSCRIBER)
+        { // SUBSCRIBER
+            struct ymldb_stream *input;
+            input = ymldb_stream_alloc(YMLDB_STREAM_BUF_SIZE);
+            if (!input)
+            {
+                _log_error("fail to open ymldb stream\n");
+                return -1;
+            }
+            input->len = read(fd, input->buf, YMLDB_STREAM_BUF_SIZE);
+            if (input->len <= 0)
+            {
+                cb->flags |= YMLDB_FLAG_RECONNECT;
+                if (input->len < 0)
+                    _log_error("fd %d read failed (%s)\n", fd, strerror(errno));
+                else
+                    _log_error("fd %d closed (EOF)\n", fd);
+                _log_debug("retry to connect to publisher.\n");
+                ymldb_stream_free(input);
+                *cur_fd = -1;
+                return -1;
+            }
+            input->buf[input->len] = 0;
+            _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
+            ymldb_stream_open(input, "r");
+            _ymldb_run(cb, input->stream, outstream);
+            ymldb_stream_free(input);
+        }
+    }
+    else
+    {
+        if (cb->flags & YMLDB_FLAG_PUBLISHER)
+        {
+            struct ymldb_stream *input;
+            input = ymldb_stream_alloc(YMLDB_STREAM_BUF_SIZE);
+            if (!input)
+            {
+                _log_error("fail to open ymldb stream\n");
+                return -1;
+            }
+            input->len = read(fd, input->buf, YMLDB_STREAM_BUF_SIZE);
+            if (input->len <= 0)
+            {
+                int i;
+                if (input->len < 0)
+                    _log_error("subscriber (fd %d) read failed (%s)\n", fd, strerror(errno));
+                else
+                    _log_error("subscriber (fd %d) closed (EOF)\n", fd);
+
+                for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+                {
+                    if (cb->fd_subscriber[i] < 0)
+                        continue;
+                    if (cb->fd_subscriber[i] == fd)
+                    {
+                        _log_debug("close the conn (%d).\n", cb->fd_subscriber[i]);
+                        cp_avltree_delete(g_fds, &cb->fd_subscriber[i]);
+                        close(cb->fd_subscriber[i]);
+                        cb->fd_subscriber[i] = -1;
+                        break;
+                    }
+                }
+                ymldb_stream_free(input);
+                *cur_fd = -1;
+                return -1;
+            }
+            input->buf[input->len] = 0;
+            _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
+            ymldb_stream_open(input, "r");
+            _ymldb_run(cb, input->stream, outstream);
+            ymldb_stream_free(input);
+        }
+        else
+        {
+            _log_error("unknown fd (%d)", fd);
+            *cur_fd = -1;
+            return -1;
+        }
     }
     return 0;
 }
@@ -2280,7 +2466,7 @@ static int _ymldb_distribution_send(struct ymldb_params *params)
     if (cb->flags & YMLDB_FLAG_SUBSCRIBER)
     {
     subscriber_rewrite:
-        res = write(cb->fd_publisher, streambuffer->buf + sent, ftell(streambuffer->stream) - sent);
+        res = write(cb->fd_publisher, streambuffer->buf + sent, streambuffer->len - sent);
         if (res < 0)
         {
             cb->flags |= YMLDB_FLAG_RECONNECT;
@@ -2289,9 +2475,10 @@ static int _ymldb_distribution_send(struct ymldb_params *params)
             return -1;
         }
         sent = res + sent;
-        if (sent < ftell(streambuffer->stream) && retry < 3)
+        if (sent < streambuffer->len && retry < 3)
         {
             retry++;
+            _log_debug("retry++\n");
             goto subscriber_rewrite;
         }
     }
@@ -2305,7 +2492,7 @@ static int _ymldb_distribution_send(struct ymldb_params *params)
                 sent = 0;
                 retry = 0;
             publisher_rewrite:
-                res = write(cb->fd_subscriber[i], streambuffer->buf + sent, ftell(streambuffer->stream) - sent);
+                res = write(cb->fd_subscriber[i], streambuffer->buf + sent, streambuffer->len - sent);
                 if (res < 0)
                 {
                     _log_error("fd %d send failed (%s)\n",
@@ -2315,9 +2502,10 @@ static int _ymldb_distribution_send(struct ymldb_params *params)
                     continue;
                 }
                 sent = res + sent;
-                if (sent < ftell(streambuffer->stream) && retry < 3)
+                if (sent < streambuffer->len && retry < 3)
                 {
                     retry++;
+                    _log_debug("retry++\n");
                     goto publisher_rewrite;
                 }
             }
@@ -2329,13 +2517,14 @@ static int _ymldb_distribution_send(struct ymldb_params *params)
 int ymldb_distribution_get_publisher_fd(char *major_key, int *fd)
 {
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
         return -1;
     }
-    if(!fd) {
+    if (!fd)
+    {
         _log_error("no *fd configured.\n");
         return -1;
     }
@@ -2343,16 +2532,17 @@ int ymldb_distribution_get_publisher_fd(char *major_key, int *fd)
     return 0;
 }
 
-int ymldb_distribution_get_subscriber_fds(char *major_key, int **fds, int* fds_count)
+int ymldb_distribution_get_subscriber_fds(char *major_key, int **fds, int *fds_count)
 {
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
         return -1;
     }
-    if(!fds || !fds_count) {
+    if (!fds || !fds_count)
+    {
         _log_error("no **fds or *fds_count configured.\n");
         return -1;
     }
@@ -2362,13 +2552,12 @@ int ymldb_distribution_get_subscriber_fds(char *major_key, int **fds, int* fds_c
     return 0;
 }
 
-
 int _ymldb_push(FILE *outstream, unsigned int opcode, char *major_key, char *format, ...)
 {
     int res;
     struct ymldb_stream *input;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2414,7 +2603,7 @@ int ymldb_push(char *major_key, char *format, ...)
     struct ymldb_stream *input;
     unsigned int opcode = YMLDB_OP_MERGE;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2509,7 +2698,7 @@ int ymldb_pull(char *major_key, char *format, ...)
     struct ymldb_stream *input = NULL;
     struct ymldb_stream *output = NULL;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2570,7 +2759,7 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     int level = 0;
     struct ymldb_stream *input;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2591,7 +2780,7 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     }
 
     _ymldb_dump_start(input->stream, opcode, 0);
-    fprintf(input->stream, "%.*s%s:\n", level * 2, gSpace, major_key);
+    fprintf(input->stream, "%.*s%s:\n", level * 2, g_space, major_key);
     level++;
 
     va_list args;
@@ -2604,10 +2793,10 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
         next_token = va_arg(args, char *);
         if (!next_token)
         {
-            fprintf(input->stream, "%.*s%s\n", level * 2, gSpace, cur_token);
+            fprintf(input->stream, "%.*s%s\n", level * 2, g_space, cur_token);
             break;
         }
-        fprintf(input->stream, "%.*s%s:\n", level * 2, gSpace, cur_token);
+        fprintf(input->stream, "%.*s%s:\n", level * 2, g_space, cur_token);
         cur_token = next_token;
         level++;
     };
@@ -2640,7 +2829,7 @@ char *_ymldb_read(char *major_key, ...)
 { // directly access to ymldb.
     struct ymldb *ydb;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2705,14 +2894,14 @@ void ymldb_dump_all(FILE *outstream)
     if (!outstream)
         return;
     fprintf(outstream, "\n [Current ymldb tree]\n\n");
-    _ymldb_dump(outstream, gYdb, 0, 0);
+    _ymldb_dump(outstream, g_ydb, 0, 0);
     fprintf(outstream, "\n  @@ g_alloc_count %d @@\n\n", g_alloc_count);
 }
 
 int ymldb_distribution_deinit(char *major_key)
 {
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2724,7 +2913,7 @@ int ymldb_distribution_deinit(char *major_key)
 int ymldb_distribution_init(char *major_key, int flags)
 {
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2738,14 +2927,14 @@ int ymldb_distribution_set(fd_set *set)
     struct ymldb_distribution yd;
     yd.set = set;
     yd.max = 0;
-    _log_empty();
+    _log_entrance();
     if (!set)
     {
         _log_error("no fd_set\n");
         return -1;
     }
-    if (gYcb)
-        cp_avltree_callback(gYcb, _ymldb_distribution_set, &yd);
+    if (g_ycb)
+        cp_avltree_callback(g_ycb, _ymldb_distribution_set, &yd);
     return yd.max;
 }
 
@@ -2755,14 +2944,14 @@ int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set)
     yd.set = set;
     yd.max = 0;
     yd.stream = outstream;
-    _log_empty();
+    _log_entrance();
     if (!set)
     {
         _log_error("no fd_set\n");
         return -1;
     }
-    if (gYcb)
-        cp_avltree_callback(gYcb, _ymldb_distribution_recv, &yd);
+    if (g_ycb)
+        cp_avltree_callback(g_ycb, _ymldb_distribution_recv, &yd);
     return 0;
 }
 
@@ -2771,10 +2960,30 @@ int ymldb_distribution_recv(fd_set *set)
     return ymldb_distribution_recv_and_dump(NULL, set);
 }
 
+int ymldb_distribution_recv_fd(int *cur_fd, int *new_fd)
+{
+    struct ymldb_cb *cb;
+    _log_entrance();
+    if (!cur_fd)
+    {
+        _log_error("no cur_fd\n");
+        return -1;
+    }
+
+    cb = cp_avltree_get(g_fds, cur_fd);
+    if (cb)
+    {
+        return _ymldb_distribution_recv_fd(cb, NULL, cur_fd, new_fd);
+    }
+    _log_error("unknown fd (%d) \n", *cur_fd);
+    *cur_fd = -1;
+    return -1;
+}
+
 int ymldb_distribution_add(char *major_key, int subscriber_fd)
 {
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2813,7 +3022,7 @@ int ymldb_distribution_add(char *major_key, int subscriber_fd)
 int ymldb_distribution_delete(char *major_key, int subscriber_fd)
 {
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2852,7 +3061,7 @@ int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *m
     struct ymldb *ydb;
     struct ymldb *p_ydb;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
@@ -2920,7 +3129,7 @@ int _ymldb_callback_unregister(char *major_key, ...)
 {
     struct ymldb *ydb;
     struct ymldb_cb *cb;
-    _log_empty();
+    _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
         _log_error("no ymldb key found.\n");
