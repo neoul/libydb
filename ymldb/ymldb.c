@@ -2308,6 +2308,43 @@ static int _ymldb_distribution_send(struct ymldb_params *params)
     return 0;
 }
 
+int ymldb_distribution_get_publisher_fd(char *major_key, int *fd)
+{
+    struct ymldb_cb *cb;
+    _log_empty();
+    if (!(cb = _ymldb_cb(major_key)))
+    {
+        _log_error("no ymldb key found.\n");
+        return -1;
+    }
+    if(!fd) {
+        _log_error("no *fd configured.\n");
+        return -1;
+    }
+    *fd = cb->fd_publisher;
+    return 0;
+}
+
+int ymldb_distribution_get_subscriber_fds(char *major_key, int **fds, int* fds_count)
+{
+    struct ymldb_cb *cb;
+    _log_empty();
+    if (!(cb = _ymldb_cb(major_key)))
+    {
+        _log_error("no ymldb key found.\n");
+        return -1;
+    }
+    if(!fds || !fds_count) {
+        _log_error("no **fds or *fds_count configured.\n");
+        return -1;
+    }
+
+    *fds = cb->fd_subscriber;
+    *fds_count = YMLDB_SUBSCRIBER_MAX;
+    return 0;
+}
+
+
 int _ymldb_push(FILE *outstream, unsigned int opcode, char *major_key, char *format, ...)
 {
     int res;

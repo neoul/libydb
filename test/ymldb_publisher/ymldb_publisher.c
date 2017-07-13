@@ -68,6 +68,18 @@ int main(int argc, char *argv[])
             fprintf(stderr, "select failed (%s)\n", strerror(errno));
             break;
         }
+        int fd_publisher = 0;
+        int *fd_subscriber = NULL;
+        int fd_subscriber_count = 0;
+        ymldb_distribution_get_publisher_fd("interface", &fd_publisher);
+        ymldb_distribution_get_subscriber_fds("interface", &fd_subscriber, &fd_subscriber_count);
+        // printf("publisher_fd %d\n", fd_publisher);
+        // int i;
+        // for(i = 0; i < fd_subscriber_count; i++) {
+        //     printf("subscriber_fd[%d] %d\n", i, fd_subscriber[i]);
+        // }
+        
+
         ymldb_distribution_recv(&read_set);
 
         time(&cur_time);

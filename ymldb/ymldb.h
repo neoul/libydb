@@ -82,6 +82,9 @@ int ymldb_distribution_set(fd_set *set);
 int ymldb_distribution_recv(fd_set *set);
 int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set);
 
+int ymldb_distribution_get_publisher_fd(char *major_key, int *fd);
+int ymldb_distribution_get_subscriber_fds(char *major_key, int **fds, int* fds_count);
+
 typedef int (*ymldb_callback_fn)(void *usr_data, int deleted);
 int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
 int _ymldb_callback_unregister(char *major_key, ...);
