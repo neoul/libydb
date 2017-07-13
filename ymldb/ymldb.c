@@ -1655,7 +1655,8 @@ flushing:
 
     if (params->cb->flags & YMLDB_FLAG_CONN)
         _ymldb_distribution_send(params);
-    rewind(streambuffer->stream);
+
+    fseek(streambuffer->stream, 0, SEEK_SET);
     return 1;
 }
 
