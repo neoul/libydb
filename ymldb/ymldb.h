@@ -41,6 +41,10 @@
 // unix socket pathname
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
+
+#define YMLDB_STREAM_THRESHOLD 200
+#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 512)
+
 // create or delete ymldb
 int ymldb_create(char *major_key, unsigned int flags);
 void ymldb_destroy(char *major_key);

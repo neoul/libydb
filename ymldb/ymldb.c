@@ -56,9 +56,6 @@ struct ymldb_stream
 #endif
 };
 
-#define YMLDB_STREAM_THRESHOLD 1536
-#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 512)
-
 // ymldb control block
 #define YMLDB_SUBSCRIBER_MAX 8
 struct ymldb_cb
@@ -110,7 +107,7 @@ struct ymldb_params
 #define YMLDB_LOG_INFO 2
 #define YMLDB_LOG_ERR 1
 #define YMLDB_LOG_NONE 0
-static int g_ymldb_log = YMLDB_LOG_ERR;
+static int g_ymldb_log = YMLDB_LOG_LOG; // YMLDB_LOG_ERR;
 
 #define _out(FP, ...) fprintf(FP, __VA_ARGS__)
 
@@ -454,6 +451,8 @@ static char *gSpace = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
 static struct ymldb *gYdb = NULL;
 static cp_avltree *gYcb = NULL;
+static cp_avltree *gYfd = NULL;
+
 static unsigned int gSequence = 1;
 
 static FILE *_ymldb_fopen_from_fd(int fd, char *rw)
@@ -1657,6 +1656,7 @@ flushing:
         _ymldb_distribution_send(params);
 
     fseek(streambuffer->stream, 0, SEEK_SET);
+    _log_debug("ftell()=%d\n", (int)ftell(streambuffer->stream));
     return 1;
 }
 
@@ -1791,6 +1791,13 @@ int ymldb_run_with_fd(char *major_key, int infd, int outfd)
     return res;
 }
 
+static int _ymldb_yfd_cmp(void *v1, void *v2)
+{
+     // struct ymldb_cb *cb1;
+     // struct ymldb_cb *cb2;
+    return v1 - v2;
+}
+
 int ymldb_create(char *major_key, unsigned int flags)
 {
     struct ymldb_cb *cb;
@@ -1818,6 +1825,16 @@ int ymldb_create(char *major_key, unsigned int flags)
         if (!gYcb)
         {
             _log_error("gYcb failed.\n");
+            return -1;
+        }
+    }
+
+    if(!gYfd)
+    {
+        gYfd = cp_avltree_create((cp_compare_fn)_ymldb_yfd_cmp);
+        if (!gYfd)
+        {
+            _log_error("gYfd failed.\n");
             return -1;
         }
     }
