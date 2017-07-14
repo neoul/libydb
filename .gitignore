@@ -15,3 +15,12 @@ config.log
 config.status
 libtool
 stamp-h1
+config.h.in~
+test/publisher/Makefile.in
+test/publisher/ymldb-publisher
+test/subscriber/Makefile.in
+test/subscriber/ymldb-subscriber
+test/test/Makefile.in
+test/test/ymldb-test
+tools/monitor/Makefile.in
+ymldb/Makefile.in

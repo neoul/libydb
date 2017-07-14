@@ -694,7 +694,6 @@ static void _ymldb_dump(FILE *stream, struct ymldb *ydb, int print_level, int no
 
 void _ymldb_dump_start(FILE *stream, unsigned int opcode, unsigned int sequence)
 {
-    // fseek(stream, 0, SEEK_SET);
     fprintf(stream, "# %u\n", sequence);
 
     // %TAG !merge! actusnetworks.com:op:
@@ -732,7 +731,6 @@ void _ymldb_dump_start(FILE *stream, unsigned int opcode, unsigned int sequence)
 
 void _ymldb_dump_end(FILE *stream)
 {
-    // fflush(stream);
     fprintf(stream, "\n...\n\n");
 }
 
@@ -789,6 +787,7 @@ FILE *ymldb_stream_open(struct ymldb_stream *buf, char *rw)
         { // w, w+
             buf->stream = fmemopen(buf->buf, buf->buflen, rw);
             buf->is_write = 1;
+			setbuf (buf->stream, NULL);
         }
         if (!buf->stream)
             return NULL;
@@ -1638,7 +1637,7 @@ static struct ymldb_params *_ymldb_params_alloc(struct ymldb_cb *cb, FILE *instr
     params->out.opcode = 0;
     params->in.sequence = 0;
     params->out.sequence = 0;
-    params->streambuffer = ymldb_stream_alloc_and_open(YMLDB_STREAM_BUF_SIZE, "w+");
+    params->streambuffer = ymldb_stream_alloc_and_open(YMLDB_STREAM_BUF_SIZE, "w");
     if (!params->streambuffer)
     {
         _log_error("streambuffer alloc failed.\n");
@@ -1692,11 +1691,14 @@ static int _ymldb_params_streambuffer_flush(struct ymldb_params *params, int for
 flushing:
     _ymldb_dump_end(streambuffer->stream);
     // write the stream to streambuffer->buf.
+#if 0
     fflush(streambuffer->stream);
     streambuffer->len = ftell(streambuffer->stream);
     streambuffer->buf[streambuffer->len] = 0; // end of string.
-    _log_debug("\n###### START\n%s\n\n", streambuffer->buf);
-
+    _log_debug("\n------------------\n%s\n\n", streambuffer->buf);
+#else
+	ymldb_stream_close(streambuffer);
+#endif
     if (params->out.stream)
     {
         fputs(streambuffer->buf, params->out.stream);
@@ -1706,8 +1708,12 @@ flushing:
     if (params->cb->flags & YMLDB_FLAG_CONN)
         _ymldb_distribution_send(params);
 
+#if 0
     fseek(streambuffer->stream, 0, SEEK_SET);
     _log_debug("ftell()=%d\n", (int)ftell(streambuffer->stream));
+#else
+	ymldb_stream_open(streambuffer, "w");
+#endif
     return 1;
 }
 
@@ -2747,7 +2753,6 @@ int ymldb_pull(char *major_key, char *format, ...)
     _log_debug("output->len=%zd buf=\n%s\n", output->len, output->buf);
     if (res >= 0)
     { // success
-        // fflush(output->stream);
         char *doc_body = strstr(output->buf, "---");
         if (doc_body)
             doc_body = doc_body + 4;
