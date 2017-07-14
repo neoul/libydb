@@ -16141,7 +16141,7 @@ fi
 done
 
 
-ac_config_files="$ac_config_files Makefile test/ymldb_test/Makefile test/ymldb_publisher/Makefile test/ymldb_subscriber/Makefile tools/monitor/Makefile ymldb/Makefile"
+ac_config_files="$ac_config_files Makefile test/test/Makefile test/publisher/Makefile test/subscriber/Makefile tools/monitor/Makefile ymldb/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -17257,9 +17257,9 @@ do
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
-    "test/ymldb_test/Makefile") CONFIG_FILES="$CONFIG_FILES test/ymldb_test/Makefile" ;;
-    "test/ymldb_publisher/Makefile") CONFIG_FILES="$CONFIG_FILES test/ymldb_publisher/Makefile" ;;
-    "test/ymldb_subscriber/Makefile") CONFIG_FILES="$CONFIG_FILES test/ymldb_subscriber/Makefile" ;;
+    "test/test/Makefile") CONFIG_FILES="$CONFIG_FILES test/test/Makefile" ;;
+    "test/publisher/Makefile") CONFIG_FILES="$CONFIG_FILES test/publisher/Makefile" ;;
+    "test/subscriber/Makefile") CONFIG_FILES="$CONFIG_FILES test/subscriber/Makefile" ;;
     "tools/monitor/Makefile") CONFIG_FILES="$CONFIG_FILES tools/monitor/Makefile" ;;
     "ymldb/Makefile") CONFIG_FILES="$CONFIG_FILES ymldb/Makefile" ;;
 

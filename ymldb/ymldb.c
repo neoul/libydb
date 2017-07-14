@@ -103,12 +103,8 @@ struct ymldb_params
 
 #define _ENHANCED_
 
-#define YMLDB_LOG_LOG 3
-#define YMLDB_LOG_INFO 2
-#define YMLDB_LOG_ERR 1
-#define YMLDB_LOG_NONE 0
-static int g_ymldb_log = YMLDB_LOG_LOG;          // YMLDB_LOG_ERR;
-static char *g_ymldb_logfile = "/tmp/ymldb.log"; // NULL;
+static int g_ymldb_log = YMLDB_LOG_ERR;
+static char *g_ymldb_logfile = NULL;
 
 #define _log_write(FP, ...)           \
     do                                \
@@ -121,7 +117,7 @@ static FILE *_log_open(FILE *stream)
 {
     if (g_ymldb_logfile)
     {
-        FILE *_log_stream = fopen(g_ymldb_logfile, "a+");
+        FILE *_log_stream = fopen(g_ymldb_logfile, "a");
         if (_log_stream)
             stream = _log_stream;
     }
@@ -130,6 +126,8 @@ static FILE *_log_open(FILE *stream)
 
 static void _log_close(FILE *stream)
 {
+	if (!stream)
+		return;
     if (stream != stdout && stream != stderr)
         fclose(stream);
 }
@@ -300,6 +298,20 @@ int _ymldb_log_error_parser(yaml_parser_t *parser)
     }
     return 0;
 }
+
+int ymldb_log_set(int log_level, char *log_file)
+{
+	static char _log_file[32];
+	g_ymldb_log = log_level;
+	if(log_file) {
+		strcpy(_log_file, log_file);
+		g_ymldb_logfile = _log_file;
+	}
+	else {
+		g_ymldb_logfile = NULL;
+	}
+}
+
 
 struct ymldb_stream *ymldb_stream_alloc(size_t len);
 void ymldb_stream_close(struct ymldb_stream *buf);
@@ -768,7 +780,7 @@ FILE *ymldb_stream_open(struct ymldb_stream *buf, char *rw)
     if (buf)
     {
         ymldb_stream_close(buf);
-        if (strcmp(rw, "r") == 0)
+        if (strncmp(rw, "r", 1) == 0)
         {
             buf->stream = fmemopen(buf->buf, buf->len, rw);
             buf->is_write = 0;
@@ -2569,7 +2581,7 @@ int _ymldb_push(FILE *outstream, unsigned int opcode, char *major_key, char *for
         return -1;
     }
     _log_debug("\n");
-    input = ymldb_stream_alloc_and_open(512, "w");
+    input = ymldb_stream_alloc_and_open(1024, "w");
     if (!input)
     {
         _log_error("fail to alloc ymldb stream\n");
@@ -2610,7 +2622,7 @@ int ymldb_push(char *major_key, char *format, ...)
         return -1;
     }
     _log_debug("\n");
-    input = ymldb_stream_alloc_and_open(512, "w");
+    input = ymldb_stream_alloc_and_open(1024, "w");
     if (!input)
     {
         _log_error("fail to open ymldb stream\n");
@@ -2705,13 +2717,13 @@ int ymldb_pull(char *major_key, char *format, ...)
         return -1;
     }
     _log_debug("\n");
-    input = ymldb_stream_alloc_and_open(512, "w");
+    input = ymldb_stream_alloc_and_open(1024, "w");
     if (!input)
     {
         _log_error("fail to open ymldb stream\n");
         goto failed;
     }
-    output = ymldb_stream_alloc_and_open(512, "w");
+    output = ymldb_stream_alloc_and_open(1024, "w");
     if (!output)
     {
         _log_error("fail to open ymldb stream\n");

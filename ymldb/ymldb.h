@@ -1,6 +1,12 @@
 #ifndef __YMLDB__
 #define __YMLDB__
 
+#define YMLDB_LOG_LOG 3
+#define YMLDB_LOG_INFO 2
+#define YMLDB_LOG_ERR 1
+#define YMLDB_LOG_NONE 0
+int ymldb_log_set(int log_level, char *log_file);
+
 // yaml tag for ymldb operation
 #define YMLDB_TAG_OP_GET "!get!"
 #define YMLDB_TAG_OP_DELETE "!delete!"

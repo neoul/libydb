@@ -31,9 +31,9 @@ AC_FUNC_MALLOC
 AC_CHECK_FUNCS([memset mkfifo select socket strchr strdup strerror strstr])
 
 AC_CONFIG_FILES([Makefile
-                 test/ymldb_test/Makefile
-                 test/ymldb_publisher/Makefile
-                 test/ymldb_subscriber/Makefile
+                 test/test/Makefile
+                 test/publisher/Makefile
+                 test/subscriber/Makefile
 				 tools/monitor/Makefile
                  ymldb/Makefile])
 AC_OUTPUT
