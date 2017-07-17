@@ -132,7 +132,6 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "CMD failed (%d)\n", res);
                 }
             }
-
         }
         ymldb_distribution_recv(&read_set);
     } while (!done);

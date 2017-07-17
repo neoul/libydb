@@ -2262,15 +2262,19 @@ read_message:
         else
         {
             int i;
+            _log_debug("\n");
             cp_avltree_delete(g_fds, &fd);
             for( i = 0; i <YMLDB_SUBSCRIBER_MAX; i++) {
                 if(cb->fd_subscriber[i] == fd) {
+                    _log_debug("\n");
                     cb->fd_subscriber[i] = -1;
                     close(fd);
                 }
             }
         }
+        _log_debug("\n");
         _ymldb_stream_free(input);
+        _log_debug("\n");
         return -1;
     }
     input->buf[input->len] = 0;
@@ -2291,9 +2295,10 @@ read_message:
             goto read_message;
         }
         else {
+            _log_debug("oversize message");
             // oversize message will be dropped.
             _ymldb_stream_free(input);
-            return -1;
+            return 0;
         }
     }
     else {
@@ -2302,6 +2307,7 @@ read_message:
         _ymldb_run(cb, input->stream, outstream);
         _ymldb_stream_free(input);
     }
+    return 0;
 }
 
 static int _distribution_recv_internal(struct ymldb_cb *cb, FILE *outstream, fd_set *set)
@@ -2914,8 +2920,14 @@ int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd)
     }
 
     cb = cp_avltree_get(g_fds, cur_fd);
-    if (cb)
-        return _distribution_recv(cb, outstream, *cur_fd);
+    if (cb) {
+        int res = _distribution_recv(cb, outstream, *cur_fd);
+        if(res < 0) {
+            *cur_fd = -1;
+        }
+        _log_debug("\n");
+        return res;
+    }
 
     _log_error("unknown fd (%d) \n", *cur_fd);
     *cur_fd = -1;
