@@ -39,6 +39,8 @@ int main(int argc, char *argv[])
     // add a signal handler to quit this program.
     signal(SIGINT, signal_handler_INT);
 
+    ymldb_log_set(YMLDB_LOG_LOG, NULL);
+
     // create ymldb for interface.
     ymldb_create("interface", YMLDB_FLAG_PUBLISHER);
     // read ymldb from a file.

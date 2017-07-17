@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     signal(SIGINT, signal_handler_INT);
 	
 	// set ymldb log
-	ymldb_log_set(YMLDB_LOG_ERR, NULL);
+	ymldb_log_set(YMLDB_LOG_LOG, NULL);
 
     /* Analyze command line options. */
     for (k = 1; k < argc; k ++)
