@@ -49,7 +49,7 @@ int ymldb_log_set(int log_level, char *log_file);
 
 
 #define YMLDB_STREAM_THRESHOLD 2048
-#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 256)
+#define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 128)
 
 // create or delete ymldb
 int ymldb_create(char *major_key, unsigned int flags);
@@ -58,14 +58,22 @@ void ymldb_destroy_all();
 
 // basic functions to update ymldb
 int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...);
+int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys[]);
 char *_ymldb_read(char *major_key, ...);
 
 // [YMLDB update facility - from string]
-#define ymldb_read(major_key, ...) _ymldb_read(major_key, ##__VA_ARGS__, NULL)
 #define ymldb_write(major_key, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, major_key, ##__VA_ARGS__, NULL)
 #define ymldb_delete(major_key, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, major_key, ##__VA_ARGS__, NULL)
 #define ymldb_sync(major_key, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, major_key, ##__VA_ARGS__, NULL)
 #define ymldb_get(outstream, major_key, ...) _ymldb_write(outstream, YMLDB_OP_GET, major_key, ##__VA_ARGS__, NULL)
+
+#define ymldb_write2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_MERGE, KEYS_NUM, KEYS)
+#define ymldb_delete2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_DELETE, KEYS_NUM, KEYS)
+#define ymldb_sync2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_SYNC, KEYS_NUM, KEYS)
+#define ymldb_get2(outstream, KEYS_NUM, KEYS) _ymldb_write2(outstream, YMLDB_OP_GET, KEYS_NUM, KEYS)
+
+#define ymldb_read(major_key, ...) _ymldb_read(major_key, ##__VA_ARGS__, NULL)
+
 // write ymldb using YAML document format.
 int ymldb_push(char *major_key, char *format, ...);
 // read ymldb using YAML document format.
@@ -90,10 +98,12 @@ int ymldb_distribution_set(fd_set *set);
 // check FD_SET and receive the ymldb request and response from the remote.
 int ymldb_distribution_recv(fd_set *set);
 int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set);
-int ymldb_distribution_recv_fd(int *cur_fd, int *new_fd);
 
-int ymldb_distribution_get_publisher_fd(char *major_key, int *fd);
-int ymldb_distribution_get_subscriber_fds(char *major_key, int **fds, int* fds_count);
+// return new_fd (>0) if this cur_fd is server.
+// return 0 if the reception is ok.
+// return -1 if the reception is failed.
+int ymldb_distribution_recv_fd(int *cur_fd);
+int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd);
 
 typedef int (*ymldb_callback_fn)(void *usr_data, int deleted);
 int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
