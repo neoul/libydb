@@ -57,7 +57,6 @@ void ymldb_destroy(char *major_key);
 void ymldb_destroy_all();
 
 // basic functions to update ymldb
-int _ymldb_push(FILE *outstream, unsigned int opcode, char *major_key, char *format, ...);
 int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...);
 char *_ymldb_read(char *major_key, ...);
 

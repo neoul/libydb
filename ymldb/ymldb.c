@@ -2607,51 +2607,6 @@ int ymldb_distribution_get_subscriber_fds(char *major_key, int **fds, int *fds_c
     return 0;
 }
 
-int _ymldb_push(FILE *outstream, unsigned int opcode, char *major_key, char *format, ...)
-{
-    int res;
-    struct ymldb_stream *input;
-    struct ymldb_cb *cb;
-    _log_entrance();
-    if (!(cb = _ymldb_cb(major_key)))
-    {
-        _log_error("no ymldb key found.\n");
-        return -1;
-    }
-    if (opcode == 0)
-    {
-        _log_error("opcode\n");
-        return -1;
-    }
-    _log_debug("\n");
-    input = ymldb_stream_alloc_and_open(1024, "w");
-    if (!input)
-    {
-        _log_error("fail to alloc ymldb stream\n");
-        return -1;
-    }
-    // write ymldb data to the streambuf
-    _ymldb_fprintf_head(input->stream, opcode, 0);
-    va_list args;
-    va_start(args, format);
-    vfprintf(input->stream, format, args);
-    va_end(args);
-    _ymldb_fprintf_tail(input->stream);
-
-    ymldb_stream_open(input, "r");
-    if (!input->stream)
-    {
-        _log_error("fail to open ymldb stream");
-        ymldb_stream_free(input);
-        return -1;
-    }
-    _log_debug("input->len=%zd buf=\n%s\n", input->len, input->buf);
-    res = _ymldb_run(cb, input->stream, outstream);
-    _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
-    ymldb_stream_free(input);
-    return res;
-}
-
 int ymldb_push(char *major_key, char *format, ...)
 {
     int res;
