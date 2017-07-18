@@ -310,6 +310,7 @@ int ymldb_log_set(int log_level, char *log_file)
 	else {
 		g_ymldb_logfile = NULL;
 	}
+    return g_ymldb_log;
 }
 
 
@@ -985,7 +986,6 @@ free_ydb:
 
 void _ymldb_node_delete(struct ymldb_params *params, struct ymldb *parent, char *key)
 {
-    int flushed;
     int print_level = 0;
     if (!params || !parent || !key)
         return;
@@ -1030,7 +1030,6 @@ void _ymldb_node_delete(struct ymldb_params *params, struct ymldb *parent, char 
 
 void _ymldb_node_get(struct ymldb_params *params, struct ymldb *parent, char *key)
 {
-    int flushed;
     int print_level = 0;
     struct ymldb *ydb = NULL;
     if (!params || !parent || !key)
@@ -1667,7 +1666,7 @@ static int _ymldb_param_streambuffer_each_of_node(void *n, void *dummy)
 static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb *ydb, int print_level, int no_print_children)
 {
     int flushed = 0;
-    FILE *stream = params->streambuffer->stream;
+    FILE *stream;
     cp_list *ancestors;
     if (!ydb)
         return;
@@ -1676,9 +1675,10 @@ static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb 
         _params_streambuffer_init(params);
         _log_debug("print_level %d\n", print_level);
         _log_debug("cur ydb->key %s ydb->level %d\n", ydb->key, ydb->level);
-        no_print_children = 0;
+        // no_print_children = 0;
         print_level = 0;
     }
+    stream = params->streambuffer->stream;
 
     if (print_level < ydb->level)
     { // print parents
@@ -2193,7 +2193,6 @@ static int _strfind_backward(char *src, ssize_t slen, char *searchstr)
     int searchstrlen = strlen(searchstr);
     int i = slen;
     int j = searchstrlen - 1;
-    int matched = 0;
     if(searchstrlen <= 0 || slen <= 0)
         return -1; 
     for(; i >= 0; i--)

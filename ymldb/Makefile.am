@@ -1,4 +1,5 @@
 lib_LTLIBRARIES = libymldb.la
 libymldb_la_SOURCES=ymldb.c
 include_HEADERS = ymldb.h
-dist_pkgdata_DATA=../ymldb-input.yml
+dist_pkgdata_DATA = ../ymldb-input.yml
+libymldb_CFLAGS = -g3 -Wall

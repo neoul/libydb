@@ -23,7 +23,6 @@ void signal_handler_INT(int param)
 int main(int argc, char *argv[])
 {
     int res;
-    int cnt = 0;
     int max_fd = 0;
     fd_set read_set;
     struct timeval tv;

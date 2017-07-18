@@ -30,8 +30,6 @@ int main(int argc, char *argv[])
     int max_fd = 0;
     fd_set read_set;
     struct timeval tv;
-    time_t cur_time;
-    time_t last_time;
 
     if(argc != 3 && argc != 4) {
         fprintf(stdout, "\n");
@@ -68,8 +66,6 @@ int main(int argc, char *argv[])
 
     // int local_fd = open("ymldb-io", O_WRONLY, 0644);
     // ymldb_distribution_add("interface", local_fd);
-
-    time(&last_time);
     do
     {
         fprintf(stdout, "\n");
