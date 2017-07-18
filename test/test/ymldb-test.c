@@ -59,6 +59,8 @@ int ymldb_test()
     clock_t start, end;
     double cpu_time_used;
     start = clock();
+
+    // ymldb_log_set(YMLDB_LOG_LOG, NULL);
     
     // create ymldb for interface.
     int res = ymldb_create("interface", YMLDB_FLAG_NONE);
@@ -80,7 +82,10 @@ int ymldb_test()
 
     // get data from ymldb.
     char *value = ymldb_read("interface", "ge1", "operstatus");
-    fprintf(stdout, "ge1 operstatus=%s\n", value);
+    fprintf(stdout, "ymldb_read(ge1 operstatus=%s)\n", value);
+    char *keys[10] = {"interface", "ge1", "mtu" };
+    value = ymldb_read2(3, keys);
+    fprintf(stdout, "ymldb_read2(ge1 operstatus=%s)\n", value);
 
     // get data from ymldb using ymldb_pull.
     int mtu = 0;

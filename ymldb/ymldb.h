@@ -47,7 +47,6 @@ int ymldb_log_set(int log_level, char *log_file);
 // unix socket pathname
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
-
 #define YMLDB_STREAM_THRESHOLD 2048
 #define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 128)
 
@@ -60,19 +59,20 @@ void ymldb_destroy_all();
 int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...);
 int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys[]);
 char *_ymldb_read(char *major_key, ...);
+char *_ymldb_read2(int keys_num, char *keys[]);
 
 // [YMLDB update facility - from string]
-#define ymldb_write(major_key, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, major_key, ##__VA_ARGS__, NULL)
-#define ymldb_delete(major_key, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, major_key, ##__VA_ARGS__, NULL)
-#define ymldb_sync(major_key, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, major_key, ##__VA_ARGS__, NULL)
-#define ymldb_get(outstream, major_key, ...) _ymldb_write(outstream, YMLDB_OP_GET, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_write(MAJOR_KEY, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_delete(MAJOR_KEY, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_sync(MAJOR_KEY, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_get(outstream, MAJOR_KEY, ...) _ymldb_write(outstream, YMLDB_OP_GET, MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_read(MAJOR_KEY, ...) _ymldb_read(MAJOR_KEY, ##__VA_ARGS__, NULL)
 
 #define ymldb_write2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_MERGE, KEYS_NUM, KEYS)
 #define ymldb_delete2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_DELETE, KEYS_NUM, KEYS)
 #define ymldb_sync2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_SYNC, KEYS_NUM, KEYS)
 #define ymldb_get2(outstream, KEYS_NUM, KEYS) _ymldb_write2(outstream, YMLDB_OP_GET, KEYS_NUM, KEYS)
-
-#define ymldb_read(major_key, ...) _ymldb_read(major_key, ##__VA_ARGS__, NULL)
+#define ymldb_read2(KEYS_NUM, KEYS) _ymldb_read2(KEYS_NUM, KEYS)
 
 // write ymldb using YAML document format.
 int ymldb_push(char *major_key, char *format, ...);
@@ -109,15 +109,15 @@ typedef int (*ymldb_callback_fn)(void *usr_data, int deleted);
 int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
 int _ymldb_callback_unregister(char *major_key, ...);
 
-#define ymldb_callback_register(usr_func, usr_data, major_key, ...) \
-    _ymldb_callback_register(usr_func, usr_data, major_key, ##__VA_ARGS__, NULL)
-#define ymldb_callback_unregister(major_key, ...) \
-    _ymldb_callback_unregister(major_key, ##__VA_ARGS__, NULL)
+#define ymldb_callback_register(usr_func, usr_data, MAJOR_KEY, ...) \
+    _ymldb_callback_register(usr_func, usr_data, MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_callback_unregister(MAJOR_KEY, ...) \
+    _ymldb_callback_unregister(MAJOR_KEY, ##__VA_ARGS__, NULL)
 
 // [YMLDB data retrieval facility]
 // print all ymldb data to the stream.
 void ymldb_dump_all(FILE *outstream);
 
 // print partical ymldb data.
-#define ymldb_dump(outstream, major_key, ...) _ymldb_write(outstream, YMLDB_OP_GET, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_dump(outstream, MAJOR_KEY, ...) _ymldb_write(outstream, YMLDB_OP_GET, MAJOR_KEY, ##__VA_ARGS__, NULL)
 #endif
