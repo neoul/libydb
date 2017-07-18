@@ -755,7 +755,7 @@ void _ymldb_stream_close(struct ymldb_stream *buf)
             if (buf->is_write)
             {
                 buf->len = ftell(buf->stream);
-                fflush(buf->stream);
+                // fflush(buf->stream);
                 buf->buf[buf->len] = 0;
             }
             fclose(buf->stream);
@@ -1674,6 +1674,9 @@ static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb 
     flushed = _params_streambuffer_flush(params, 0);
     if (flushed) {
         _params_streambuffer_init(params);
+        _log_debug("print_level %d\n", print_level);
+        _log_debug("cur ydb->key %s ydb->level %d\n", ydb->key, ydb->level);
+        no_print_children = 0;
         print_level = 0;
     }
 
@@ -1697,6 +1700,9 @@ static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb 
                 break;
             case YMLDB_LEAF:
                 fprintf(stream, "%.*s%s: %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key, ancestor->value);
+                break;
+            default:
+                _log_error("unknown type?!??? %d\n", ancestor->type);
                 break;
             }
         }
@@ -1750,7 +1756,6 @@ flushing:
 
     if (params->cb->flags & YMLDB_FLAG_CONN)
         _distribution_send(params);
-
     return 1;
 }
 
@@ -1791,7 +1796,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
         if (yroot)
         {
             int ignore_or_relay;
-            _log_debug("out %dth\n", params->out.sequence);
+            _log_debug("in %dth\n", params->in.sequence);
             _log_debug("in %s\n", _opcode_str(params->in.opcode));
             ignore_or_relay = _ymldb_state_machine(params);
             if (ignore_or_relay == 1)
