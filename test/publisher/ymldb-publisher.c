@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     ymldb_run_with_fd(argv[1], infd, 0);
     close(infd);
 
-    ymldb_dump_all(stdout);
+    ymldb_dump_all(stdout, NULL);
 
     // unlink("ymldb-io");
     // mkfifo("ymldb-io", 0644);
@@ -131,9 +131,9 @@ int main(int argc, char *argv[])
         }
         ymldb_distribution_recv(&read_set);
     } while (!done);
-    ymldb_dump_all(stdout);
+    ymldb_dump_all(stdout, NULL);
     ymldb_destroy_all();
-    ymldb_dump_all(stdout);
+    ymldb_dump_all(stdout, NULL);
     fprintf(stdout, "end.\n");
     return 0;
 }

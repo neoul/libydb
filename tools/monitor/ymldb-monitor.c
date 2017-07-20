@@ -73,9 +73,9 @@ int main(int argc, char *argv[])
 		}
 		ymldb_distribution_recv_and_dump(stdout, &read_set);
     } while (!done);
-    ymldb_dump_all(stdout);
+    ymldb_dump_all(stdout, NULL);
     ymldb_destroy_all();
-    ymldb_dump_all(stdout);
+    ymldb_dump_all(stdout, NULL);
     fprintf(stdout, "end.\n");
     return 0;
 }

@@ -92,10 +92,10 @@ int ymldb_test()
     double cpu_time_used;
     start = clock();
 
-    // ymldb_log_set(YMLDB_LOG_LOG, NULL);
+    ymldb_log_set(YMLDB_LOG_LOG, NULL);
     
     // create ymldb for interface.
-    int res = ymldb_create("interface", YMLDB_FLAG_NONE);
+    int res = ymldb_create("interfaces", YMLDB_FLAG_NONE);
     if (res < 0)
     {
         fprintf(stderr, "ymldb create failed.\n");
@@ -104,28 +104,30 @@ int ymldb_test()
 
     // ymldb_callback_register(ymldb_usr_callback, "abc", "interface", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
     
-    ymldb_callback_register(ymldb_usr_callback, "my-data", "interface");
+    ymldb_callback_register(ymldb_usr_callback, "my-data", "interfaces", "interface");
 
-    ymldb_dump_all(stdout);
+    ymldb_dump_all(stdout, NULL);
 
     // read ymldb from a file.
     int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
-    ymldb_run_with_fd("interface", infd, 0);
+    ymldb_run_with_fd("interfaces", infd, 0);
     close(infd);
 
-    ymldb_dump_all(stdout);
+    ymldb_dump_all(stdout, NULL);
 
     // get data from ymldb.
-    char *value = ymldb_read("interface", "ge1", "operstatus");
+    char *value = ymldb_read("interfaces", "interface", "ge1", "operstatus");
     fprintf(stdout, "ymldb_read(ge1 operstatus=%s)\n", value);
-    char *keys[10] = {"interface", "ge1", "mtu" };
-    value = ymldb_read2(3, keys);
+    
+    char *keys[10] = {"interfaces", "interface", "ge1", "mtu" };
+    value = ymldb_read2(4, keys);
+
     fprintf(stdout, "ymldb_read2(ge1 operstatus=%s)\n", value);
 
     // get data from ymldb using ymldb_pull.
     int mtu = 0;
     char operstatus_str[32] = {0};
-    ymldb_pull("interface",
+    ymldb_pull("interfaces",
                "interface:\n"
                "  ge2:\n"
                "    operstatus: %s\n"
@@ -135,7 +137,7 @@ int ymldb_test()
     fprintf(stdout, "ge2 operstatus=%s\n", operstatus_str);
 
     // read ymldb data (yaml format string) to OUTPUT stream.
-    ymldb_get(stdout, "interface", "ge2");
+    ymldb_get(stdout, "interfaces", "interface", "ge2");
 
     res = ymldb_create("system", YMLDB_FLAG_NONE);
     if (res < 0)
@@ -145,10 +147,9 @@ int ymldb_test()
     }
 
     res = ymldb_push("system",
-                         "system:\n"
-                         "  product: %s\n"
-                         "  serial-number: %s\n"
-                         "  code: 1223\n",
+                         "product: %s\n"
+                         "serial-number: %s\n"
+                         "code: 1223\n",
                          "G.FAST-HN5124D",
                          "HN5124-S100213124");
     if (res < 0)
@@ -162,13 +163,12 @@ int ymldb_test()
     {
         fprintf(stderr, "fail to write data.\n");
     }
-
     
     // delete an ymldb.
-    ymldb_delete("interface", "ge1", "rx-octet");
+    ymldb_delete("interfaces", "interface", "ge1", "rx-octet");
     
     // it would be failed to remove unknown ymldb node.
-    res = ymldb_delete("interface", "ge3");
+    res = ymldb_delete("interfaces", "interface", "ge3");
     if (res < 0)
     {
         fprintf(stderr, "failed to delete.\n");
@@ -183,15 +183,16 @@ int ymldb_test()
     value = ymldb_read("system", "product");
     fprintf(stdout, "read data = %s\n", value);
 
-    ymldb_dump_all(stdout);
-    // ymldb_callback_unregister("interface", "ge1");
+    ymldb_dump_all(stdout, NULL);
+    ymldb_get(stdout, "interfaces");
+    ymldb_callback_unregister("interfaces", "interface");
 
 
     ymldb_destroy_all();
     // ymldb_destroy("interface");
     // ymldb_destroy("system");
     
-    ymldb_dump_all(stdout);
+    ymldb_dump_all(stdout, NULL);
 
     end = clock();
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;

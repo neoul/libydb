@@ -1088,12 +1088,17 @@ void _ymldb_node_get(struct ymldb_params *params, struct ymldb *parent, char *ke
                    parent->key, key);
         return;
     }
-    ydb = cp_avltree_get(parent->children, key);
-    if (!ydb)
-    {
-        _log_error("'%s' doesn't exists\n", key);
-        params->res--;
-        return;
+    if(key[0] > 0) {
+        ydb = cp_avltree_get(parent->children, key);
+        if (!ydb)
+        {
+            _log_error("'%s' doesn't exists\n", key);
+            params->res--;
+            return;
+        }
+    }
+    else {
+        ydb = parent;
     }
 
     print_level = _ymldb_print_level(params->last_ydb, ydb);
@@ -1737,18 +1742,18 @@ static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb 
         cp_list_iterator_init(&iter, ancestors, COLLECTION_LOCK_NONE);
         while ((ancestor = cp_list_iterator_next(&iter)))
         {
-            if (ancestor->level == 0)
+            if (ancestor->level <= 1)
                 continue;
             switch (ancestor->type)
             {
             case YMLDB_BRANCH:
-                fprintf(stream, "%.*s%s:\n", (ancestor->level - 1) * 2, g_space, ancestor->key);
+                fprintf(stream, "%.*s%s:\n", (ancestor->level - 2) * 2, g_space, ancestor->key);
                 break;
             case YMLDB_LEAFLIST:
-                fprintf(stream, "%.*s- %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key);
+                fprintf(stream, "%.*s- %s\n", (ancestor->level - 2) * 2, g_space, ancestor->key);
                 break;
             case YMLDB_LEAF:
-                fprintf(stream, "%.*s%s: %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key, ancestor->value);
+                fprintf(stream, "%.*s%s: %s\n", (ancestor->level - 2) * 2, g_space, ancestor->key, ancestor->value);
                 break;
             default:
                 _log_error("unknown type?!??? %d\n", ancestor->type);
@@ -1760,9 +1765,9 @@ static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb 
 
     if (ydb->type == YMLDB_BRANCH)
     {
-        if (ydb->level != 0)
+        if (ydb->level > 1) // 0 and 1 is major_key.
         { // not print out for top node
-            fprintf(stream, "%.*s%s:\n", (ydb->level - 1) * 2, g_space, ydb->key);
+            fprintf(stream, "%.*s%s:\n", (ydb->level - 2) * 2, g_space, ydb->key);
         }
         if (no_print_children)
             goto end;
@@ -1770,11 +1775,11 @@ static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb 
     }
     else if (ydb->type == YMLDB_LEAFLIST)
     {
-        fprintf(stream, "%.*s- %s\n", (ydb->level - 1) * 2, g_space, _str_dump(ydb->key));
+        fprintf(stream, "%.*s- %s\n", (ydb->level - 2) * 2, g_space, _str_dump(ydb->key));
     }
     else
     {
-        fprintf(stream, "%.*s%s: %s\n", (ydb->level - 1) * 2, g_space, ydb->key, _str_dump(ydb->value));
+        fprintf(stream, "%.*s%s: %s\n", (ydb->level - 2) * 2, g_space, ydb->key, _str_dump(ydb->value));
     }
 end:
     params->last_ydb = ydb;
@@ -1855,19 +1860,19 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
 
             _params_streambuffer_init(params);
             if (params->out.opcode & YMLDB_OP_MERGE)
-                _ymldb_internal_merge(params, g_ydb, 1, 1);
+                _ymldb_internal_merge(params, cb->ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_DELETE)
-                _ymldb_internal_delete(params, g_ydb, 1, 1);
+                _ymldb_internal_delete(params, cb->ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_GET)
-                _ymldb_internal_get(params, g_ydb, 1, 1);
+                _ymldb_internal_get(params, cb->ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_SYNC)
             {
                 if (ignore_or_relay == 2)
                     _ymldb_internal_relay(params, 0, 1, 1);
                 else if (params->in.opcode & YMLDB_OP_PUBLISHER)
-                    _ymldb_internal_merge(params, g_ydb, 1, 1);
+                    _ymldb_internal_merge(params, cb->ydb, 1, 1);
                 else
-                    _ymldb_internal_get(params, g_ydb, 1, 1);
+                    _ymldb_internal_get(params, cb->ydb, 1, 1);
             }
             _params_streambuffer_flush(params, 1); // forced flush!
             _log_debug("result: %s\n", params->res < 0 ? "failed" : "ok");
@@ -2726,8 +2731,8 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     }
 
     _ymldb_fprintf_head(input->stream, opcode, 0);
-    fprintf(input->stream, "%.*s%s:\n", level * 2, g_space, major_key);
-    level++;
+    // fprintf(input->stream, "%.*s%s:\n", level * 2, g_space, major_key);
+    // level++;
 
     va_list args;
     va_start(args, major_key);
@@ -2804,9 +2809,9 @@ int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys
     }
 
     _ymldb_fprintf_head(input->stream, opcode, 0);
-    for (level = 0; level < keys_num; level++)
+    for (level = 1; level < keys_num; level++)
     {
-        fprintf(input->stream, "%.*s%s%s\n", level * 2, g_space,
+        fprintf(input->stream, "%.*s%s%s\n", (level - 1) * 2, g_space,
                 keys[level], (level + 1 == keys_num) ? "" : ":");
     }
     _ymldb_fprintf_tail(input->stream);
@@ -2944,13 +2949,25 @@ char *_ymldb_read2(int keys_num, char *keys[])
         return NULL;
 }
 
-void ymldb_dump_all(FILE *outstream)
+void ymldb_dump_all(FILE *outstream, char *major_key)
 {
     if (!outstream)
         return;
-    fprintf(outstream, "\n [Current ymldb tree]\n\n");
-    _ymldb_fprintf_node(outstream, g_ydb, 0, 0);
-    fprintf(outstream, "\n  @@ g_alloc_count %d @@\n\n", g_alloc_count);
+    if(major_key) {
+        struct ymldb_cb *cb;
+        if (!(cb = _ymldb_cb(major_key)))
+        {
+            return;
+        }
+        fprintf(outstream, "\n [Current ymldb tree]\n\n");
+        _ymldb_fprintf_node(outstream, cb->ydb, 0, 0);
+        fprintf(outstream, "\n  @@ g_alloc_count %d @@\n\n", g_alloc_count);
+    }
+    else { // print all..
+        fprintf(outstream, "\n [Current ymldb tree]\n\n");
+        _ymldb_fprintf_node(outstream, g_ydb, 0, 0);
+        fprintf(outstream, "\n  @@ g_alloc_count %d @@\n\n", g_alloc_count);
+    }
 }
 
 int ymldb_distribution_deinit(char *major_key)

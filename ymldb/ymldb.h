@@ -131,9 +131,7 @@ const char *ymldb_iterator_get_key(struct ymldb_iterator *iter);
 
 
 // [YMLDB data retrieval facility]
-// print all ymldb data to the stream.
-void ymldb_dump_all(FILE *outstream);
+// print all ymldb to the stream if NULL.
+void ymldb_dump_all(FILE *outstream, char *major_key);
 
-// print partical ymldb data.
-#define ymldb_dump(outstream, MAJOR_KEY, ...) _ymldb_write(outstream, YMLDB_OP_GET, MAJOR_KEY, ##__VA_ARGS__, NULL)
 #endif
