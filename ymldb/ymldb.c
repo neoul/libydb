@@ -102,8 +102,6 @@ struct ymldb_params
     struct ymldb_stream *streambuffer;
 };
 
-#define _ENHANCED_
-
 static int g_ymldb_log = YMLDB_LOG_ERR;
 static char *g_ymldb_logfile = NULL;
 
@@ -345,6 +343,8 @@ static int _distribution_send(struct ymldb_params *params);
 static void _callback_deleted(struct ymldb *ydb);
 static void _callback_setup(struct ymldb *ydb);
 static void _callback_run();
+static int _ymldb_iterator_init(struct ymldb_iterator *iter, struct ymldb *ydb);
+static void _ymldb_iterator_deinit(struct ymldb_iterator *iter);
 
 static cp_trie *g_key_pool = NULL;
 static int g_alloc_count = 0;
@@ -505,10 +505,11 @@ void key_pool_dump()
            cdata.node_count, cdata.max_level, (float)cdata.depth_total / cdata.node_count);
 }
 
-#define free _free
-#define malloc _malloc
-#undef strdup
-#define strdup _strdup
+// #define _ENHANCED_
+// #define free _free
+// #define malloc _malloc
+// #undef strdup
+// #define strdup _strdup
 
 #define S10 "          "
 static char *g_space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
@@ -1878,8 +1879,8 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     }
     _log_debug("<<<\n");
     res = params->res;
-    _callback_run();
     _params_free(params);
+    _callback_run();
     return res;
 }
 
@@ -1890,7 +1891,7 @@ int ymldb_run(char *major_key, FILE *instream, FILE *outstream)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     if (!instream)
@@ -1912,7 +1913,7 @@ int ymldb_run_with_fd(char *major_key, int infd, int outfd)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     if (infd < 0)
@@ -2043,7 +2044,7 @@ void ymldb_destroy(char *major_key)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return;
     }
     _log_debug("major_key %s\n", major_key);
@@ -2058,6 +2059,7 @@ void ymldb_destroy(char *major_key)
         g_ycb = NULL;
         g_ydb = NULL;
     }
+    _callback_run();
 }
 
 void ymldb_destroy_all()
@@ -2072,6 +2074,7 @@ void ymldb_destroy_all()
         g_ycb = NULL;
         g_ydb = NULL;
     }
+    _callback_run();
 }
 
 static int _distribution_deinit(struct ymldb_cb *cb)
@@ -2550,7 +2553,7 @@ int ymldb_push(char *major_key, char *format, ...)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     _log_debug("\n");
@@ -2645,7 +2648,7 @@ int ymldb_pull(char *major_key, char *format, ...)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     _log_debug("\n");
@@ -2705,7 +2708,7 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     if (opcode == 0)
@@ -2782,7 +2785,7 @@ int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys
     }
     if (!(cb = _ymldb_cb(keys[0])))
     {
-        _log_error("no ymldb key (%s) found.\n", keys[0]);
+        _log_error("no ymldb or key (%s) found.\n", keys[0]);
         return -1;
     }
     if (opcode == 0)
@@ -2837,7 +2840,7 @@ char *_ymldb_read(char *major_key, ...)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return NULL;
     }
     ydb = cb->ydb;
@@ -2908,7 +2911,7 @@ char *_ymldb_read2(int keys_num, char *keys[])
     }
     if (!(cb = _ymldb_cb(keys[0])))
     {
-        _log_error("no ymldb key (%s) found.\n", keys[0]);
+        _log_error("no ymldb or key (%s) found.\n", keys[0]);
         return NULL;
     }
     ydb = cb->ydb;
@@ -2956,7 +2959,7 @@ int ymldb_distribution_deinit(char *major_key)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     return _distribution_deinit(cb);
@@ -2968,7 +2971,7 @@ int ymldb_distribution_init(char *major_key, int flags)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     return _distribution_init(cb, flags);
@@ -3050,7 +3053,7 @@ int ymldb_distribution_add(char *major_key, int subscriber_fd)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     if (!(cb->flags & YMLDB_FLAG_PUBLISHER))
@@ -3089,7 +3092,7 @@ int ymldb_distribution_delete(char *major_key, int subscriber_fd)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     if (!(cb->flags & YMLDB_FLAG_PUBLISHER))
@@ -3149,12 +3152,11 @@ int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *m
     int max = 0;
     char *key[YMLDB_CALLBACK_MAX + 1];
     struct ymldb *ydb;
-    struct ymldb *p_ydb;
     struct ymldb_cb *cb;
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     if (!usr_func)
@@ -3184,10 +3186,11 @@ int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *m
     va_end(args);
 
     max = i;
-    p_ydb = cb->ydb;
-    _log_debug("key %s\n", p_ydb->key);
+    ydb = cb->ydb;
+    _log_debug("key %s\n", ydb->key);
     for (i = 1; i < max; i++)
     {
+        struct ymldb *p_ydb = ydb;
         if (p_ydb->type != YMLDB_BRANCH)
         {
             _log_error("usr_func is unable to be registered to ymldb leaf.!\n");
@@ -3203,7 +3206,6 @@ int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *m
                 return -1;
             }
         }
-        p_ydb = ydb;
     }
 
     if (ydb)
@@ -3235,7 +3237,7 @@ int _ymldb_callback_unregister(char *major_key, ...)
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
-        _log_error("no ymldb key found.\n");
+        _log_error("no ymldb or key found.\n");
         return -1;
     }
     ydb = cb->ydb;
@@ -3314,12 +3316,11 @@ static void _callback_set(struct ymldb *ydb, int del)
             // add the callback to the callback pool
             if (g_callbacks)
             {
-                struct ymldb_callback *callback = cp_avltree_get(g_callbacks, ydb->callback);
+                struct ymldb_callback *callback = 
+                    cp_avltree_get(g_callbacks, ydb->callback);
                 if (callback)
                 {
                     callback->deleted = del;
-                    callback->usr_data = ydb->callback->usr_data;
-                    callback->usr_func = ydb->callback->usr_func;
                     _log_debug("callback %p updated\n", callback);
                 }
                 else
@@ -3327,6 +3328,7 @@ static void _callback_set(struct ymldb *ydb, int del)
                     callback = _callback_copy(ydb->callback);
                     if (callback)
                     {
+                        callback->deleted = del;
                         cp_avltree_insert(g_callbacks, callback, callback);
                         _log_debug("callback %p added\n", callback);
                     }
@@ -3354,10 +3356,13 @@ static void _callback_setup(struct ymldb *ydb)
 
 static int _callback_run_each(void *n, void *dummy)
 {
+    int res;
     cp_avlnode *node = n;
     struct ymldb_callback *callback = node->key;
-    _log_debug("callback %p - start%s\n", callback, (callback->deleted) ? " (deleted)" : " ");
-    int res = callback->usr_func(callback->usr_data, callback->deleted);
+    _log_debug("callback %p - start%s\n", callback, (callback->deleted) ? " (deleted)" : "");
+    struct ymldb_iterator iter;
+    _ymldb_iterator_init(&iter, (callback->deleted)?NULL:callback->ydb);
+    res = callback->usr_func(callback->usr_data, &iter, callback->deleted);
     _log_debug("callback %p - done\n", callback);
     return res;
 }
@@ -3370,4 +3375,137 @@ static void _callback_run()
     cp_avltree_callback(g_callbacks, _callback_run_each, NULL);
     cp_avltree_destroy_custom(g_callbacks, NULL, (cp_destructor_fn)_callback_free);
     g_callbacks = NULL;
+}
+
+static int _ymldb_iterator_init(struct ymldb_iterator *iter, struct ymldb *ydb)
+{
+    if(!iter)
+        return -1;
+    memset(iter, 0, sizeof(struct ymldb_iterator));
+    iter->ydb = (void *)ydb;
+    iter->cur = (void *)ydb;
+    return 0;
+}
+
+static void _ymldb_iterator_deinit(struct ymldb_iterator *iter)
+{
+    if(!iter)
+        return;
+    memset(iter, 0, sizeof(struct ymldb_iterator));
+}
+
+int ymldb_iterator_reset(struct ymldb_iterator *iter)
+{
+    if(!iter) return -1;
+    iter->cur = iter->ydb;
+    return 0;
+}
+
+int ymldb_iterator_copy(struct ymldb_iterator *dest, struct ymldb_iterator *src)
+{
+    if(!src || !dest) return -1;
+    memset(dest, 0, sizeof(struct ymldb_iterator));
+    dest->ydb = src->ydb;
+    dest->cur = src->cur;
+    return 0;
+}
+
+
+const char *ymldb_iterator_down(struct ymldb_iterator *iter)
+{
+    struct ymldb *cur = NULL;
+    struct ymldb *child = NULL;
+    if(!iter) return NULL;
+    cur = (struct ymldb *) iter->cur;
+    if(!cur)
+        return NULL;
+    if(cur->type == YMLDB_BRANCH) {
+        child = cp_avltree_find(cur->children, "", CP_OP_GE);
+        if(child) {
+            cur = child;
+            iter->cur = (void *) cur;
+            return cur->key;
+        }
+        return NULL;
+    }
+    return NULL;
+}
+
+const char *ymldb_iterator_up(struct ymldb_iterator *iter)
+{
+    struct ymldb *cur = NULL;
+    if(!iter) return NULL;
+    cur = (struct ymldb *) iter->cur;
+    if(!cur)
+        return NULL;
+    if(cur->parent) {
+        cur = cur->parent;
+        iter->cur = (void *) cur;
+        return cur->key;
+    }
+    return NULL;
+}
+
+const char *ymldb_iterator_next(struct ymldb_iterator *iter)
+{
+    struct ymldb *next = NULL;
+    struct ymldb *cur = NULL;
+    if(!iter) return NULL;
+    cur = (struct ymldb *) iter->cur;
+    if(!cur)
+        return NULL;
+    if(cur->parent) {
+        next = cp_avltree_find(cur->parent->children, cur->key, CP_OP_GT);
+        if(next) {
+            cur = next;
+            iter->cur = (void *) cur;
+            return cur->key;
+        }
+        return NULL;
+    }
+    return NULL;
+}
+
+const char *ymldb_iterator_prev(struct ymldb_iterator *iter)
+{
+    struct ymldb *prev = NULL;
+    struct ymldb *cur = NULL;
+    if(!iter) return NULL;
+    cur = (struct ymldb *) iter->cur;
+    if(!cur)
+        return NULL;
+    if(cur->parent) {
+        prev = cp_avltree_find(cur->parent->children, cur->key, CP_OP_LT);
+        if(prev) {
+            cur = prev;
+            iter->cur = (void *) cur;
+            return cur->key;
+        }
+        return NULL;
+    }
+    return NULL;
+}
+
+const char *ymldb_iterator_get_value(struct ymldb_iterator *iter)
+{
+    struct ymldb *cur = NULL;
+    if(!iter) return NULL;
+    cur = (struct ymldb *) iter->cur;
+    if(!cur)
+        return NULL;
+    if(cur->type == YMLDB_LEAF)
+        return cur->value;
+    else if(cur->type == YMLDB_LEAFLIST)
+        return cur->key;
+    return NULL;
+}
+
+const char *ymldb_iterator_get_key(struct ymldb_iterator *iter)
+{
+    struct ymldb *cur = NULL;
+    if(!iter) return NULL;
+    cur = (struct ymldb *) iter->cur;
+    if(!cur)
+        return NULL;
+    return cur->key;
 }

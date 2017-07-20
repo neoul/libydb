@@ -13,9 +13,41 @@
 
 #include "ymldb.h"
 
-int interface_callback(void *usr_data, int deleted)
+int ymldb_usr_callback(void *usr_data, struct ymldb_iterator *iter, int deleted)
 {
-    printf("\n\n%s\n\n", (char *)usr_data);
+    const char *key = ymldb_iterator_get_key(iter);
+    const char *value = ymldb_iterator_get_value(iter);
+    printf("======================================\n");
+    printf("\n");
+    printf(" %s(%s)\n", __FUNCTION__, (char *)usr_data);
+    printf("\n");
+    printf(" - current key: %s, value %s\n", key?key:"", value?value:"");
+
+    // go to subtree.
+    key = ymldb_iterator_down(iter);
+    if(key) {
+        do {
+            // print all sub nodes
+            key = ymldb_iterator_get_key(iter);
+            value = ymldb_iterator_get_value(iter);
+            printf("  - current key: %s, value: %s\n", key?key:"", value?value:"");
+            struct ymldb_iterator sub_iter;
+            ymldb_iterator_copy(&sub_iter, iter);
+            key = ymldb_iterator_down(&sub_iter);
+            if(key) {
+                do {
+                    key = ymldb_iterator_get_key(&sub_iter);
+                    value = ymldb_iterator_get_value(&sub_iter);
+                    printf("   - current key: %s, value: %s\n", key?key:"", value?value:"");
+                } while((key = ymldb_iterator_next(&sub_iter)));
+            }
+        } while((key = ymldb_iterator_next(iter)));
+    }
+    
+    printf("\n");
+    printf("======================================\n");
+    if(deleted)
+        ymldb_callback_register(ymldb_usr_callback, "my-data", "interface");
     return 0;
 }
 
@@ -60,7 +92,7 @@ int ymldb_test()
     double cpu_time_used;
     start = clock();
 
-    ymldb_log_set(YMLDB_LOG_LOG, NULL);
+    // ymldb_log_set(YMLDB_LOG_LOG, NULL);
     
     // create ymldb for interface.
     int res = ymldb_create("interface", YMLDB_FLAG_NONE);
@@ -70,8 +102,10 @@ int ymldb_test()
         return -1;
     }
 
-    // ymldb_callback_register(interface_callback, "abc", "interface", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
-    ymldb_callback_register(interface_callback, "abc", "interface", "ge3");
+    // ymldb_callback_register(ymldb_usr_callback, "abc", "interface", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
+    
+    ymldb_callback_register(ymldb_usr_callback, "my-data", "interface");
+
     ymldb_dump_all(stdout);
 
     // read ymldb from a file.

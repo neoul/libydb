@@ -105,14 +105,30 @@ int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set);
 int ymldb_distribution_recv_fd(int *cur_fd);
 int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd);
 
-typedef int (*ymldb_callback_fn)(void *usr_data, int deleted);
+struct ymldb_iterator
+{
+    void *ydb;
+    void *cur;
+};
+
+typedef int (*ymldb_callback_fn)(void *usr_data, struct ymldb_iterator *iter, int callback_deleted);
 int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
 int _ymldb_callback_unregister(char *major_key, ...);
 
 #define ymldb_callback_register(usr_func, usr_data, MAJOR_KEY, ...) \
-    _ymldb_callback_register(usr_func, usr_data, MAJOR_KEY, ##__VA_ARGS__, NULL)
+    _ymldb_callback_register((usr_func), (usr_data), (MAJOR_KEY), ##__VA_ARGS__, NULL)
 #define ymldb_callback_unregister(MAJOR_KEY, ...) \
     _ymldb_callback_unregister(MAJOR_KEY, ##__VA_ARGS__, NULL)
+
+int ymldb_iterator_reset(struct ymldb_iterator *iter);
+int ymldb_iterator_copy(struct ymldb_iterator *dest, struct ymldb_iterator *src);
+const char *ymldb_iterator_down(struct ymldb_iterator *iter);
+const char *ymldb_iterator_up(struct ymldb_iterator *iter);
+const char *ymldb_iterator_next(struct ymldb_iterator *iter);
+const char *ymldb_iterator_prev(struct ymldb_iterator *iter);
+const char *ymldb_iterator_get_value(struct ymldb_iterator *iter);
+const char *ymldb_iterator_get_key(struct ymldb_iterator *iter);
+
 
 // [YMLDB data retrieval facility]
 // print all ymldb data to the stream.
