@@ -60,7 +60,7 @@ int ymldb_test()
     double cpu_time_used;
     start = clock();
 
-    // ymldb_log_set(YMLDB_LOG_LOG, NULL);
+    ymldb_log_set(YMLDB_LOG_LOG, NULL);
     
     // create ymldb for interface.
     int res = ymldb_create("interface", YMLDB_FLAG_NONE);
@@ -70,7 +70,8 @@ int ymldb_test()
         return -1;
     }
 
-    ymldb_callback_register(interface_callback, "abc", "interface", "ge1");
+    // ymldb_callback_register(interface_callback, "abc", "interface", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
+    ymldb_callback_register(interface_callback, "abc", "interface", "ge3");
     ymldb_dump_all(stdout);
 
     // read ymldb from a file.

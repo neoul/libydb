@@ -22,10 +22,12 @@ typedef enum ymldb_type_e {
     YMLDB_BRANCH
 } ymldb_type_t;
 
+#define YMLDB_CALLBACK_MAX 12
 struct ymldb_callback
 {
     ymldb_callback_fn usr_func;
     void *usr_data;
+    struct ymldb *ydb;
     int deleted;
 };
 
@@ -97,7 +99,6 @@ struct ymldb_params
     int no_reply;
     int no_change;
     struct ymldb *last_ydb; // last updated ydb
-    cp_avltree *callbacks;
     struct ymldb_stream *streambuffer;
 };
 
@@ -106,12 +107,7 @@ struct ymldb_params
 static int g_ymldb_log = YMLDB_LOG_ERR;
 static char *g_ymldb_logfile = NULL;
 
-#define _log_write(FP, ...)           \
-    do                                \
-    {                                 \
-        if (FP)                       \
-            fprintf(FP, __VA_ARGS__); \
-    } while (0)
+#define _log_write(FP, ...) fprintf(FP, __VA_ARGS__);
 
 static FILE *_log_open(FILE *stream)
 {
@@ -138,6 +134,8 @@ static void _log_close(FILE *stream)
         if (g_ymldb_log < YMLDB_LOG_LOG)                       \
             break;                                             \
         FILE *_log_stream = _log_open(stdout);                 \
+        if (!_log_stream)                                      \
+            break;                                             \
         _log_write(_log_stream, "\n\n%s >>>\n", __FUNCTION__); \
         _log_close(_log_stream);                               \
     } while (0)
@@ -148,6 +146,8 @@ static void _log_close(FILE *stream)
         if (g_ymldb_log < YMLDB_LOG_LOG)                                          \
             break;                                                                \
         FILE *_log_stream = _log_open(stdout);                                    \
+        if (!_log_stream)                                                         \
+            break;                                                                \
         _log_write(_log_stream, "[ymldb:debug] %s:%d: ", __FUNCTION__, __LINE__); \
         _log_write(_log_stream, __VA_ARGS__);                                     \
         _log_close(_log_stream);                                                  \
@@ -159,6 +159,8 @@ static void _log_close(FILE *stream)
         if (g_ymldb_log < YMLDB_LOG_INFO)                                        \
             break;                                                               \
         FILE *_log_stream = _log_open(stdout);                                   \
+        if (!_log_stream)                                                        \
+            break;                                                               \
         _log_write(_log_stream, "[ymldb:info] %s:%d: ", __FUNCTION__, __LINE__); \
         _log_write(_log_stream, __VA_ARGS__);                                    \
         _log_close(_log_stream);                                                 \
@@ -170,6 +172,8 @@ static void _log_close(FILE *stream)
         if (g_ymldb_log < YMLDB_LOG_ERR)                                \
             break;                                                      \
         FILE *_log_stream = _log_open(stderr);                          \
+        if (!_log_stream)                                               \
+            break;                                                      \
         _log_write(_log_stream, "\n  [ymldb:error]\n\n");               \
         _log_write(_log_stream, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
         _log_write(_log_stream, __VA_ARGS__);                           \
@@ -183,6 +187,8 @@ static void _log_close(FILE *stream)
         if (g_ymldb_log < YMLDB_LOG_ERR)                              \
             break;                                                    \
         FILE *_log_stream = _log_open(stderr);                        \
+        if (!_log_stream)                                             \
+            break;                                                    \
         _log_write(_log_stream, "\n  [ymldb:error]\n\n");             \
         _log_write(_log_stream, "\t%s:%d\n", __FUNCTION__, __LINE__); \
         _log_close(_log_stream);                                      \
@@ -194,6 +200,8 @@ static void _log_close(FILE *stream)
         if (g_ymldb_log < YMLDB_LOG_ERR)       \
             break;                             \
         FILE *_log_stream = _log_open(stderr); \
+        if (!_log_stream)                      \
+            break;                             \
         _log_write(_log_stream, "\t");         \
         _log_write(_log_stream, __VA_ARGS__);  \
         _log_close(_log_stream);               \
@@ -205,6 +213,8 @@ static void _log_close(FILE *stream)
         if (g_ymldb_log < YMLDB_LOG_ERR)       \
             break;                             \
         FILE *_log_stream = _log_open(stderr); \
+        if (!_log_stream)                      \
+            break;                             \
         _log_write(_log_stream, "\n");         \
         _log_close(_log_stream);               \
     } while (0)
@@ -331,9 +341,10 @@ static int _params_streambuffer_flush(struct ymldb_params *params, int forced);
 static int _distribution_deinit(struct ymldb_cb *cb);
 static int _distribution_init(struct ymldb_cb *cb, int flags);
 static int _distribution_send(struct ymldb_params *params);
-static int _callback_cmp(void *v1, void *v2);
-static void _callback_set(struct ymldb_params *params, struct ymldb *ydb, int deleted);
-static void _callback_run(struct ymldb_params *params);
+
+static void _callback_deleted(struct ymldb *ydb);
+static void _callback_setup(struct ymldb *ydb);
+static void _callback_run();
 
 static cp_trie *g_key_pool = NULL;
 static int g_alloc_count = 0;
@@ -505,6 +516,7 @@ static char *g_space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 static struct ymldb *g_ydb = NULL;
 static cp_avltree *g_ycb = NULL;
 static cp_avltree *g_fds = NULL;
+static cp_avltree *g_callbacks = NULL;
 
 static unsigned int g_sequence = 1;
 
@@ -557,9 +569,22 @@ static char *_str_dump(const char *src)
     return str;
 }
 
+static char *_ydb_type(ymldb_type_t type)
+{
+    if (type == YMLDB_BRANCH)
+        return "branch";
+    else if (type == YMLDB_LEAF)
+        return "leaf";
+    else if (type == YMLDB_LEAFLIST)
+        return "leaflist";
+    else
+        return "unknown";
+}
+
 static char *_opcode_str(int opcode)
 {
-    static char opstr[128];
+    static char opstr[64] = {0};
+    // memset(opstr, 0, sizeof(opstr));
     opstr[0] = 0;
     strcat(opstr, "(");
     if (opcode & YMLDB_OP_SEQ)
@@ -830,7 +855,7 @@ static void _ymldb_node_free(void *vdata)
         else if (ydb->value)
             free(ydb->value);
         if (ydb->callback)
-            free(ydb->callback);
+            _callback_deleted(ydb);
         free(ydb->key);
         free(ydb);
     }
@@ -874,13 +899,14 @@ void _ymldb_node_merge_reply(struct ymldb_params *params, struct ymldb *ydb)
     params->no_change = 0;
     print_level = _ymldb_print_level(params->last_ydb, ydb);
     _params_streambuffer_dump(params, ydb, print_level, 0);
-    _callback_set(params, ydb, 0);
+    _callback_setup(ydb);
     return;
 }
 
 struct ymldb *_ymldb_node_merge(struct ymldb_params *params, struct ymldb *parent,
                                 ymldb_type_t type, char *key, char *value)
 {
+    struct ymldb_callback *callback = NULL;
     struct ymldb *ydb = NULL;
     char *ykey = NULL;
     if (parent)
@@ -900,6 +926,13 @@ struct ymldb *_ymldb_node_merge(struct ymldb_params *params, struct ymldb *paren
             // notify the change if they differ.
             if (ydb->type != type)
             {
+                _log_debug("different type (%s %s-->%s)\n",
+                           ydb->key, _ydb_type(ydb->type), _ydb_type(type));
+                if (ydb->callback)
+                {
+                    callback = ydb->callback;
+                    ydb->callback = NULL;
+                }
                 cp_avltree_delete(parent->children, ydb->key);
                 _ymldb_node_free(ydb);
                 goto new_ydb;
@@ -930,7 +963,11 @@ new_ydb:
 
     ydb->key = ykey;
     ydb->type = type;
-    ydb->callback = NULL;
+    ydb->callback = callback;
+    if (callback)
+    {
+        callback->ydb = ydb;
+    }
 
     if (type == YMLDB_BRANCH)
     {
@@ -980,7 +1017,10 @@ free_ydb:
             if (ydb->value)
                 free(ydb->value);
         }
+        if (callback)
+            _callback_deleted(ydb);
     }
+
     if (ykey)
         free(ykey);
     if (ydb)
@@ -1026,7 +1066,7 @@ void _ymldb_node_delete(struct ymldb_params *params, struct ymldb *parent, char 
     _params_streambuffer_dump(params, ydb, print_level, 1);
     // parent should be saved because of the ydb will be removed.
     params->last_ydb = parent;
-    _callback_set(params, ydb, 1);
+    _callback_setup(ydb);
     ydb = cp_avltree_delete(parent->children, key);
     _ymldb_node_free(ydb);
     return;
@@ -1455,7 +1495,7 @@ int _params_opcode_extract(struct ymldb_params *params)
     return opcode;
 }
 
-static int _ymldb_state_machine(struct ymldb_params *params)
+static int _ymldb_sm(struct ymldb_params *params)
 {
     int no_reply = 1;
     int no_change = 1;
@@ -1465,6 +1505,8 @@ static int _ymldb_state_machine(struct ymldb_params *params)
     unsigned int in_opcode = params->in.opcode;
     unsigned int in_sequence = params->in.sequence;
     unsigned int flags = params->cb->flags;
+    _log_debug("in %uth\n", in_opcode);
+    _log_debug("in %s\n", _opcode_str(in_opcode));
 
     if (!(in_opcode & YMLDB_OP_ACTION))
     {
@@ -1555,6 +1597,12 @@ static int _ymldb_state_machine(struct ymldb_params *params)
     params->out.sequence = out_sequence;
     params->no_reply = no_reply;
     params->no_change = no_change;
+
+    _log_debug("out %uth\n", out_sequence);
+    _log_debug("out %s\n", _opcode_str(out_opcode));
+    _log_debug("%s\n", no_reply ? "no_reply" : "reply");
+    _log_debug("%s\n", (ignore_or_relay == 1) ? "ignore" : (ignore_or_relay == 2) ? "reply" : "-");
+
     return ignore_or_relay;
 }
 
@@ -1580,10 +1628,6 @@ static void _params_free(struct ymldb_params *params)
     if (streambuffer)
     {
         _ymldb_stream_free(streambuffer);
-    }
-    if (params->callbacks)
-    {
-        cp_avltree_destroy(params->callbacks);
     }
     free(params);
     return;
@@ -1622,7 +1666,6 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
         _log_error("streambuffer alloc failed.\n");
         goto failed;
     }
-    params->callbacks = NULL;
     params->res = 0;
     params->cb = cb;
     return params;
@@ -1751,7 +1794,7 @@ flushing:
     _ymldb_fprintf_tail(streambuffer->stream);
     // write the stream to streambuffer->buf.
     _ymldb_stream_close(streambuffer);
-    _log_debug("@@@@@@@@@ %zd %s\n\n", streambuffer->len, streambuffer->buf);
+    _log_debug("@@ %zd %s\n\n", streambuffer->len, streambuffer->buf);
 
     if (params->out.stream)
     {
@@ -1801,17 +1844,13 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
         if (yroot)
         {
             int ignore_or_relay;
-            _log_debug("in %dth\n", params->in.sequence);
-            _log_debug("in %s\n", _opcode_str(params->in.opcode));
-            ignore_or_relay = _ymldb_state_machine(params);
+            ignore_or_relay = _ymldb_sm(params);
             if (ignore_or_relay == 1)
             {
                 _log_debug("in %uth %s\n", params->in.sequence, "ignored ...");
                 params->res--;
                 continue;
             }
-            _log_debug("out %dth\n", params->out.sequence);
-            _log_debug("out %s\n", _opcode_str(params->out.opcode));
 
             _params_streambuffer_init(params);
             if (params->out.opcode & YMLDB_OP_MERGE)
@@ -1839,7 +1878,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     }
     _log_debug("<<<\n");
     res = params->res;
-    _callback_run(params);
+    _callback_run();
     _params_free(params);
     return res;
 }
@@ -3081,8 +3120,34 @@ int ymldb_distribution_delete(char *major_key, int subscriber_fd)
     return 0;
 }
 
+static struct ymldb_callback *_callback_alloc(ymldb_callback_fn usr_func, void *usr_data, struct ymldb *ydb)
+{
+    struct ymldb_callback *callback;
+    callback = malloc(sizeof(struct ymldb_callback));
+    if (!callback)
+        return NULL;
+    memset(callback, 0, sizeof(struct ymldb_callback));
+    callback->ydb = ydb;
+    callback->usr_data = usr_data;
+    callback->usr_func = usr_func;
+    callback->deleted = 0;
+    return callback;
+}
+
+static void _callback_free(struct ymldb_callback *callback)
+{
+    _log_debug("callback %p free\n", callback);
+    if (callback)
+    {
+        free(callback);
+    }
+}
+
 int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...)
 {
+    int i = 0;
+    int max = 0;
+    char *key[YMLDB_CALLBACK_MAX + 1];
     struct ymldb *ydb;
     struct ymldb *p_ydb;
     struct ymldb_cb *cb;
@@ -3097,34 +3162,50 @@ int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *m
         _log_error("no usr_func\n");
         return -1;
     }
-    p_ydb = cb->ydb;
-    _log_debug("key %s\n", p_ydb->key);
+
     char *cur_token;
     va_list args;
     va_start(args, major_key);
+    key[i++] = major_key;
     cur_token = va_arg(args, char *);
     while (cur_token != NULL)
     {
         _log_debug("key %s\n", cur_token);
+        if (i < YMLDB_CALLBACK_MAX)
+            key[i++] = cur_token;
+        else
+        {
+            _log_error("The callback key depth is over. (support key depth up to 12.)\n");
+            return -1;
+        }
+        cur_token = va_arg(args, char *);
+    }
+    key[i] = NULL;
+    va_end(args);
+
+    max = i;
+    p_ydb = cb->ydb;
+    _log_debug("key %s\n", p_ydb->key);
+    for (i = 1; i < max; i++)
+    {
         if (p_ydb->type != YMLDB_BRANCH)
         {
             _log_error("usr_func is unable to be registered to ymldb leaf.!\n");
             return -1;
         }
-        ydb = cp_avltree_get(p_ydb->children, cur_token);
+        ydb = cp_avltree_get(p_ydb->children, key[i]);
         if (!ydb)
         {
-            ydb = _ymldb_node_merge(NULL, p_ydb, YMLDB_BRANCH, cur_token, NULL);
+            ydb = _ymldb_node_merge(NULL, p_ydb, YMLDB_BRANCH, key[i], NULL);
             if (!ydb)
             {
                 _log_error("fail to register usr_func!\n");
                 return -1;
             }
         }
-        cur_token = va_arg(args, char *);
         p_ydb = ydb;
     }
-    va_end(args);
+
     if (ydb)
     {
         if (ydb->type != YMLDB_BRANCH)
@@ -3134,14 +3215,11 @@ int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *m
         }
         if (ydb->callback)
         {
-            free(ydb->callback);
+            _callback_free(ydb->callback);
         }
-        ydb->callback = malloc(sizeof(struct ymldb_callback));
+        ydb->callback = _callback_alloc(usr_func, usr_data, ydb);
         if (ydb->callback)
         {
-            ydb->callback->usr_data = usr_data;
-            ydb->callback->usr_func = usr_func;
-            ydb->callback->deleted = 0;
             _log_debug("callback %p registered...\n", ydb->callback);
             return 0;
         }
@@ -3160,7 +3238,6 @@ int _ymldb_callback_unregister(char *major_key, ...)
         _log_error("no ymldb key found.\n");
         return -1;
     }
-    _log_debug("\n  @@ g_alloc_count %d @@\n\n", g_alloc_count);
     ydb = cb->ydb;
     _log_debug("key %s\n", ydb->key);
     char *cur_token;
@@ -3188,7 +3265,7 @@ int _ymldb_callback_unregister(char *major_key, ...)
     {
         if (ydb->callback)
         {
-            free(ydb->callback);
+            _callback_free(ydb->callback);
         }
         ydb->callback = NULL;
         return 0;
@@ -3201,64 +3278,96 @@ static int _callback_cmp(void *v1, void *v2)
 {
     struct ymldb_callback *c1 = v1;
     struct ymldb_callback *c2 = v2;
-    if (c1->usr_func == c2->usr_func)
+
+    if (c1->ydb == c2->ydb)
     {
-        return c1->usr_data - c2->usr_data;
+        if (c1->usr_func == c2->usr_func)
+            return c1->usr_data - c2->usr_data;
+        return c1->usr_func - c2->usr_func;
     }
-    return c1->usr_func - c2->usr_func;
+    return c1->ydb - c2->ydb; // location comparison.
 }
 
-void *_ymldb_callback_dup(void *src)
+static void *_callback_copy(struct ymldb_callback *c_src)
 {
-    struct ymldb_callback *c_src = src;
-    struct ymldb_callback *c_dest = malloc(sizeof(struct ymldb_callback));
-    if (c_dest)
+    struct ymldb_callback *dest =
+        _callback_alloc(c_src->usr_func, c_src->usr_data, c_src->ydb);
+    if (dest)
     {
-        c_dest->usr_data = c_src->usr_data;
-        c_dest->usr_func = c_src->usr_func;
-        c_dest->deleted = c_src->deleted;
+        dest->deleted = c_src->deleted;
     }
-    return c_dest;
+    return dest;
 }
 
-static void _callback_set(struct ymldb_params *params, struct ymldb *ydb, int deleted)
+static void _callback_set(struct ymldb *ydb, int del)
 {
     do
     {
+        // _log_debug("ydb-key=%s\n", ydb->key);
         if (ydb->callback)
         {
-            if (!params->callbacks)
+            // create callback pool
+            if (!g_callbacks)
             {
-                params->callbacks = cp_avltree_create_by_option(
-                    COLLECTION_MODE_NOSYNC | COLLECTION_MODE_COPY | COLLECTION_MODE_DEEP,
-                    _callback_cmp, _ymldb_callback_dup, free, _ymldb_callback_dup, free);
+                g_callbacks = cp_avltree_create((cp_compare_fn)_callback_cmp);
             }
-            if (params->callbacks)
+            // add the callback to the callback pool
+            if (g_callbacks)
             {
-                _log_debug("cb %p added\n", ydb->callback);
-                ydb->callback->deleted = deleted;
-                cp_avltree_insert(params->callbacks, ydb->callback, ydb->callback);
+                struct ymldb_callback *callback = cp_avltree_get(g_callbacks, ydb->callback);
+                if (callback)
+                {
+                    callback->deleted = del;
+                    callback->usr_data = ydb->callback->usr_data;
+                    callback->usr_func = ydb->callback->usr_func;
+                    _log_debug("callback %p updated\n", callback);
+                }
+                else
+                {
+                    callback = _callback_copy(ydb->callback);
+                    if (callback)
+                    {
+                        cp_avltree_insert(g_callbacks, callback, callback);
+                        _log_debug("callback %p added\n", callback);
+                    }
+                }
             }
             break;
         }
         ydb = ydb->parent;
+        if (del)
+            break;
     } while (ydb);
 }
 
-static int _ymldb_callback_entry(void *n, void *dummy)
+static void _callback_deleted(struct ymldb *ydb)
+{
+    _log_debug("\n");
+    _callback_set(ydb, 1);
+    _callback_free(ydb->callback);
+}
+
+static void _callback_setup(struct ymldb *ydb)
+{
+    _callback_set(ydb, 0);
+}
+
+static int _callback_run_each(void *n, void *dummy)
 {
     cp_avlnode *node = n;
     struct ymldb_callback *callback = node->key;
-    _log_debug("cb %p run\n", callback);
-    return callback->usr_func(callback->usr_data, callback->deleted);
+    _log_debug("callback %p - start%s\n", callback, (callback->deleted) ? " (deleted)" : " ");
+    int res = callback->usr_func(callback->usr_data, callback->deleted);
+    _log_debug("callback %p - done\n", callback);
+    return res;
 }
 
-static void _callback_run(struct ymldb_params *params)
+static void _callback_run()
 {
-    if (!params->callbacks)
+    if (!g_callbacks)
         return;
-    _log_debug("cb exec phase! (count=%d)\n", cp_avltree_count(params->callbacks));
-    cp_avltree_callback(params->callbacks, _ymldb_callback_entry, NULL);
-    cp_avltree_destroy(params->callbacks);
-    params->callbacks = NULL;
+    _log_debug("cb exec phase! (count=%d)\n", cp_avltree_count(g_callbacks));
+    cp_avltree_callback(g_callbacks, _callback_run_each, NULL);
+    cp_avltree_destroy_custom(g_callbacks, NULL, (cp_destructor_fn)_callback_free);
+    g_callbacks = NULL;
 }

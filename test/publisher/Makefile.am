@@ -3,4 +3,4 @@ ymldb_publisher_SOURCES=ymldb-publisher.c
 ymldb_publisher_CPPFLAGS = -I $(top_srcdir)/ymldb
 ymldb_publisher_LDFLAGS = -L$(top_srcdir)/ymldb/.libs \
                   -lymldb -lcprops -lyaml
-ymldb_publisher_CFLAGS = -g3 -Wall
+ymldb_publisher_CFLAGS = -g3 -W
