@@ -13,42 +13,65 @@
 
 #include "ymldb.h"
 
-int ymldb_usr_callback(void *usr_data, struct ymldb_iterator *iter, int deleted)
-{
-    const char *key = ymldb_iterator_get_key(iter);
-    const char *value = ymldb_iterator_get_value(iter);
-    printf("======================================\n");
-    printf("\n");
-    printf(" %s(%s)\n", __FUNCTION__, (char *)usr_data);
-    printf("\n");
-    printf(" - current key: %s, value %s\n", key?key:"", value?value:"");
+// int ymldb_usr_callback(void *usr_data, struct ymldb_iterator *iter, int deleted)
+// {
+//     const char *key = ymldb_iterator_get_key(iter);
+//     const char *value = ymldb_iterator_get_value(iter);
+//     printf("======================================\n");
+//     printf("\n");
+//     printf(" %s(%s)\n", __FUNCTION__, (char *)usr_data);
+//     printf("\n");
+//     printf(" - current key: %s, value %s\n", key?key:"", value?value:"");
 
-    // go to subtree.
-    key = ymldb_iterator_down(iter);
-    if(key) {
-        do {
-            // print all sub nodes
-            key = ymldb_iterator_get_key(iter);
-            value = ymldb_iterator_get_value(iter);
-            printf("  - current key: %s, value: %s\n", key?key:"", value?value:"");
-            struct ymldb_iterator sub_iter;
-            ymldb_iterator_copy(&sub_iter, iter);
-            key = ymldb_iterator_down(&sub_iter);
-            if(key) {
-                do {
-                    key = ymldb_iterator_get_key(&sub_iter);
-                    value = ymldb_iterator_get_value(&sub_iter);
-                    printf("   - current key: %s, value: %s\n", key?key:"", value?value:"");
-                } while((key = ymldb_iterator_next(&sub_iter)));
-            }
-        } while((key = ymldb_iterator_next(iter)));
-    }
+//     // go to subtree.
+//     key = ymldb_iterator_down(iter);
+//     if(key) {
+//         do {
+//             // print all sub nodes
+//             key = ymldb_iterator_get_key(iter);
+//             value = ymldb_iterator_get_value(iter);
+//             printf("  - current key: %s, value: %s\n", key?key:"", value?value:"");
+//             struct ymldb_iterator sub_iter;
+//             ymldb_iterator_copy(&sub_iter, iter);
+//             key = ymldb_iterator_down(&sub_iter);
+//             if(key) {
+//                 do {
+//                     key = ymldb_iterator_get_key(&sub_iter);
+//                     value = ymldb_iterator_get_value(&sub_iter);
+//                     printf("   - current key: %s, value: %s\n", key?key:"", value?value:"");
+//                 } while((key = ymldb_iterator_next(&sub_iter)));
+//             }
+//         } while((key = ymldb_iterator_next(iter)));
+//     }
     
+//     printf("\n");
+//     printf("======================================\n");
+//     if(deleted)
+//         ymldb_callback_register(ymldb_usr_callback, "my-data", "interface");
+//     return 0;
+// }
+
+void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *callback_data)
+{
+    int i;
     printf("\n");
-    printf("======================================\n");
-    if(deleted)
-        ymldb_callback_register(ymldb_usr_callback, "my-data", "interface");
-    return 0;
+    if(callback_data->deleted)
+        printf(" [callback for %s]\n", callback_data->deleted?"deleted":"");
+    if(callback_data->unregistered)
+        printf(" [callback for %s]\n", callback_data->unregistered?"unregistered":"");
+    if(!callback_data->unregistered && !callback_data->deleted)
+        printf(" [callback for merged]\n");
+    printf("\t-");
+    for(i=0; i<callback_data->keys_num; i++) {
+        printf(" %s", callback_data->keys[i]);
+    }
+    if(callback_data->value) {
+        printf(" = %s", callback_data->value);
+    }
+    printf("\n");
+    printf("\t- %s(%s)\n\n", __FUNCTION__, (char *) usr_data);
+    // if(callback_data->unregistered)
+    //     ymldb_callback_register(ymldb_usr_callback, "my-data", "interfaces", "interface");
 }
 
 int ymldb_test()
@@ -112,6 +135,19 @@ int ymldb_test()
     int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
     ymldb_run_with_fd("interfaces", infd, 0);
     close(infd);
+
+    // use ymldb iterator
+    const char *key;
+    struct   ymldb_iterator *iter = ymldb_iterator_alloc("interfaces", "interface", "ge1", "mtu");
+    key = ymldb_iterator_up(iter);
+    do
+    {
+        printf("key=%s\n", key);
+    } while((key = ymldb_iterator_next(iter)) != NULL);
+
+    ymldb_iterator_free(iter);
+    iter = NULL;
+
 
     ymldb_dump_all(stdout, NULL);
 
