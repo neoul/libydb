@@ -2213,12 +2213,12 @@ static int _distribution_set(void *n, void *dummy)
     {
         if (cb->flags & YMLDB_FLAG_RECONNECT)
         {
-            _log_debug("RECONN\n");
+            _log_debug("RECONN for major_key %s\n", cb->key);
             return 0;
         }
         if (cb->fd_publisher >= 0)
         {
-            _log_debug("cb %s fd_publisher %d\n", cb->key, cb->fd_publisher);
+            //_log_debug("cb %s fd_publisher %d\n", cb->key, cb->fd_publisher);
             FD_SET(cb->fd_publisher, set);
             max = cb->fd_publisher > max ? cb->fd_publisher : max;
         }
@@ -2229,14 +2229,14 @@ static int _distribution_set(void *n, void *dummy)
             {
                 if (cb->fd_subscriber[i] >= 0)
                 {
-                    _log_debug("cb %s fd_subscriber[%d] %d\n", cb->key, i, cb->fd_subscriber[i]);
+                    //_log_debug("cb %s fd_subscriber[%d] %d\n", cb->key, i, cb->fd_subscriber[i]);
                     FD_SET(cb->fd_subscriber[i], set);
                     max = cb->fd_subscriber[i] > max ? cb->fd_subscriber[i] : max;
                 }
             }
         }
     }
-    _log_debug("max fd %d\n", max);
+    //_log_debug("max fd %d\n", max);
     yd->max = max;
     return 0;
 }

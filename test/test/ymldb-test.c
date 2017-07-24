@@ -126,8 +126,8 @@ int ymldb_test()
     }
 
     // ymldb_callback_register(ymldb_usr_callback, "abc", "interface", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
-    
-    ymldb_callback_register(ymldb_usr_callback, "my-data", "interfaces", "interface");
+    // ymldb_callback_register(ymldb_usr_callback, "my-data", "interfaces", "interface");
+    ymldb_callback_register(ymldb_usr_callback, "my-data", "interfaces");
 
     ymldb_dump_all(stdout, NULL);
 
@@ -221,7 +221,7 @@ int ymldb_test()
 
     ymldb_dump_all(stdout, NULL);
     ymldb_get(stdout, "interfaces");
-    ymldb_callback_unregister("interfaces", "interface");
+    // ymldb_callback_unregister("interfaces", "interface");
 
 
     ymldb_destroy_all();
