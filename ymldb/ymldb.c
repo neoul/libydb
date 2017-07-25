@@ -344,8 +344,6 @@ static void _callback_unreigistered(struct ymldb *ydb);
 static void _callback_setup(struct ymldb *ydb, int deleted);
 static void _callback_exec_for_pending();
 static void _callback_exec(struct ymldb *ydb, int deleted, int unregistered);
-static int _ymldb_iterator_init(struct ymldb_iterator *iter, struct ymldb *ydb);
-static void _ymldb_iterator_deinit(struct ymldb_iterator *iter);
 
 static cp_trie *g_key_pool = NULL;
 static int g_alloc_count = 0;
@@ -3424,26 +3422,8 @@ static void _callback_setup(struct ymldb *ydb, int deleted)
     _callback_exec(ydb, deleted, 0);
 }
 
-static int _ymldb_iterator_init(struct ymldb_iterator *iter, struct ymldb *ydb)
+struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *major_key, ...)
 {
-    if(!iter)
-        return -1;
-    memset(iter, 0, sizeof(struct ymldb_iterator));
-    iter->ydb = (void *)ydb;
-    iter->cur = (void *)ydb;
-    return 0;
-}
-
-static void _ymldb_iterator_deinit(struct ymldb_iterator *iter)
-{
-    if(!iter)
-        return;
-    memset(iter, 0, sizeof(struct ymldb_iterator));
-}
-
-struct ymldb_iterator * _ymldb_iterator_alloc(char *major_key, ...)
-{
-    struct ymldb_iterator *iter = NULL;
     struct ymldb *ydb;
     struct ymldb_cb *cb;
     _log_entrance();
@@ -3453,6 +3433,13 @@ struct ymldb_iterator * _ymldb_iterator_alloc(char *major_key, ...)
         return NULL;
     }
     ydb = cb->ydb;
+    if(!iter)
+        iter = malloc(sizeof(struct ymldb_iterator));
+    if(!iter)
+    {
+        _log_error("ymldb_iterator alloc failed.\n");
+        return NULL;
+    }
     _log_debug("key %s\n", ydb->key);
     char *cur_token;
     va_list args;
@@ -3481,10 +3468,16 @@ struct ymldb_iterator * _ymldb_iterator_alloc(char *major_key, ...)
         return NULL;
     }
     
-    iter = malloc(sizeof(struct ymldb_iterator));
     iter->ydb = (void *) ydb;
     iter->cur = (void *) ydb;
     return iter;
+}
+
+void ymldb_iterator_deinit(struct ymldb_iterator *iter)
+{
+    if(!iter)
+        return;
+    memset(iter, 0, sizeof(struct ymldb_iterator));
 }
 
 void ymldb_iterator_free(struct ymldb_iterator *iter)
@@ -3518,6 +3511,47 @@ struct ymldb_iterator *ymldb_iterator_copy(struct ymldb_iterator *src)
     return dest;
 }
 
+const char *ymldb_iterator_lookup_down(struct ymldb_iterator *iter, char *key)
+{
+    struct ymldb *cur = NULL;
+    struct ymldb *child = NULL;
+    if(!iter) return NULL;
+    if(!key)
+        key = "";
+    cur = (struct ymldb *) iter->cur;
+    if(!cur)
+        return NULL;
+    if(cur->type == YMLDB_BRANCH) {
+        child = cp_avltree_get(cur->children, (void *)key);
+        if(child) {
+            cur = child;
+            iter->cur = (void *) cur;
+            return cur->key;
+        }
+        return NULL;
+    }
+    return NULL;
+}
+
+const char *ymldb_iterator_lookup(struct ymldb_iterator *iter, char *key)
+{
+    struct ymldb *next = NULL;
+    struct ymldb *cur = NULL;
+    if(!iter) return NULL;
+    cur = (struct ymldb *) iter->cur;
+    if(!cur)
+        return NULL;
+    if(cur->parent) {
+        next = cp_avltree_get(cur->parent->children, (void *)key);
+        if(next) {
+            cur = next;
+            iter->cur = (void *) cur;
+            return cur->key;
+        }
+        return NULL;
+    }
+    return NULL;
+}
 
 const char *ymldb_iterator_down(struct ymldb_iterator *iter)
 {

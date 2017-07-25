@@ -138,12 +138,16 @@ int ymldb_test()
 
     // use ymldb iterator
     const char *key;
-    struct   ymldb_iterator *iter = ymldb_iterator_alloc("interfaces", "interface", "ge1", "mtu");
+    struct ymldb_iterator *iter = ymldb_iterator_alloc("interfaces", "interface", "ge1", "mtu");
     key = ymldb_iterator_up(iter);
     do
     {
         printf("key=%s\n", key);
     } while((key = ymldb_iterator_next(iter)) != NULL);
+
+    key = ymldb_iterator_lookup(iter, "ge2");
+    printf("ymldb_iterator_lookup key=%s\n", key);
+
 
     ymldb_iterator_free(iter);
     iter = NULL;

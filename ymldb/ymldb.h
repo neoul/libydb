@@ -131,16 +131,38 @@ struct ymldb_iterator
     void *cur;
 };
 
-struct ymldb_iterator * _ymldb_iterator_alloc(char *major_key, ...);
-#define ymldb_iterator_alloc(MAJOR_KEY, ...) _ymldb_iterator_alloc(MAJOR_KEY, ##__VA_ARGS__, NULL)
+// internal function for ymldb iterator creation.
+struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *major_key, ...);
+// alloc new ymldb iterator
+#define ymldb_iterator_alloc(MAJOR_KEY, ...) _ymldb_iterator_init(NULL, MAJOR_KEY, ##__VA_ARGS__, NULL)
+// initilize the ymldb iterator without alloc.
+#define ymldb_iterator_init(ITER, MAJOR_KEY, ...) _ymldb_iterator_init(ITER, MAJOR_KEY, ##__VA_ARGS__, NULL)
+// not free the ymldb iterator
+void ymldb_iterator_deinit(struct ymldb_iterator *iter);
+// free the ymldb iterator
 void ymldb_iterator_free(struct ymldb_iterator *iter);
+// back to the started iterator
 int ymldb_iterator_reset(struct ymldb_iterator *iter);
+// copy the src iterator (must be freed.)
 struct ymldb_iterator *ymldb_iterator_copy(struct ymldb_iterator *src);
+
+// lookup a child node using the key, return NULL if not exist.
+const char *ymldb_iterator_lookup_down(struct ymldb_iterator *iter, char *key);
+// lookup a sibling node using the key, return NULL if not exist.
+const char *ymldb_iterator_lookup(struct ymldb_iterator *iter, char *key);
+
+// go to the first child node, return NULL if not exist.
 const char *ymldb_iterator_down(struct ymldb_iterator *iter);
+// go to the parent node, return NULL if not exist.
 const char *ymldb_iterator_up(struct ymldb_iterator *iter);
+// go to the next node (the nearest sibling), return NULL if not exist.
 const char *ymldb_iterator_next(struct ymldb_iterator *iter);
+// go to the previous node (the nearest sibling), return NULL if not exist.
 const char *ymldb_iterator_prev(struct ymldb_iterator *iter);
+
+// get the value of the ymldb iterator.
 const char *ymldb_iterator_get_value(struct ymldb_iterator *iter);
+// get the key of the ymldb iterator.
 const char *ymldb_iterator_get_key(struct ymldb_iterator *iter);
 
 
