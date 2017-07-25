@@ -145,8 +145,8 @@ int ymldb_test()
         printf("key=%s\n", key);
     } while((key = ymldb_iterator_next(iter)) != NULL);
 
-    key = ymldb_iterator_lookup(iter, "ge2");
-    printf("ymldb_iterator_lookup key=%s\n", key);
+    key = ymldb_iterator_lookup_next(iter, "ge2");
+    printf("ymldb_iterator_lookup_next key=%s\n", key);
 
 
     ymldb_iterator_free(iter);

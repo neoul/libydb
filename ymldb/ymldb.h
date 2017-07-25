@@ -125,6 +125,9 @@ int _ymldb_callback_unregister(char *major_key, ...);
     _ymldb_callback_unregister(MAJOR_KEY, ##__VA_ARGS__, NULL)
 
 
+// [YMLDB traverse facility]
+// This facility is used to traverse each node of the YMLDB tree.
+
 struct ymldb_iterator
 {
     void *ydb;
@@ -133,23 +136,25 @@ struct ymldb_iterator
 
 // internal function for ymldb iterator creation.
 struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *major_key, ...);
-// alloc new ymldb iterator
+// allocate new ymldb iterator
 #define ymldb_iterator_alloc(MAJOR_KEY, ...) _ymldb_iterator_init(NULL, MAJOR_KEY, ##__VA_ARGS__, NULL)
-// initilize the ymldb iterator without alloc.
+// initilize the ymldb iterator without allocation.
 #define ymldb_iterator_init(ITER, MAJOR_KEY, ...) _ymldb_iterator_init(ITER, MAJOR_KEY, ##__VA_ARGS__, NULL)
-// not free the ymldb iterator
+// remove the ymldb iterator data without free.
 void ymldb_iterator_deinit(struct ymldb_iterator *iter);
-// free the ymldb iterator
+// free the ymldb iterator.
 void ymldb_iterator_free(struct ymldb_iterator *iter);
-// back to the started iterator
+// back to the base node (started iterator).
 int ymldb_iterator_reset(struct ymldb_iterator *iter);
+// change the base node (started iterator) to the current node.
+int ymldb_iterator_rebase(struct ymldb_iterator *iter);
 // copy the src iterator (must be freed.)
 struct ymldb_iterator *ymldb_iterator_copy(struct ymldb_iterator *src);
 
-// lookup a child node using the key, return NULL if not exist.
+// lookup a child node using the key and then move to that node.
 const char *ymldb_iterator_lookup_down(struct ymldb_iterator *iter, char *key);
-// lookup a sibling node using the key, return NULL if not exist.
-const char *ymldb_iterator_lookup(struct ymldb_iterator *iter, char *key);
+// lookup a sibling node using the key and then move to that node.
+const char *ymldb_iterator_lookup_next(struct ymldb_iterator *iter, char *key);
 
 // go to the first child node, return NULL if not exist.
 const char *ymldb_iterator_down(struct ymldb_iterator *iter);

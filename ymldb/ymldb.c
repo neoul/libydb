@@ -3494,6 +3494,13 @@ int ymldb_iterator_reset(struct ymldb_iterator *iter)
     return 0;
 }
 
+int ymldb_iterator_rebase(struct ymldb_iterator *iter)
+{
+    if(!iter) return -1;
+    iter->ydb = iter->cur;
+    return 0;
+}
+
 struct ymldb_iterator *ymldb_iterator_copy(struct ymldb_iterator *src)
 {
     struct ymldb_iterator *dest = NULL;
@@ -3533,7 +3540,7 @@ const char *ymldb_iterator_lookup_down(struct ymldb_iterator *iter, char *key)
     return NULL;
 }
 
-const char *ymldb_iterator_lookup(struct ymldb_iterator *iter, char *key)
+const char *ymldb_iterator_lookup_next(struct ymldb_iterator *iter, char *key)
 {
     struct ymldb *next = NULL;
     struct ymldb *cur = NULL;
