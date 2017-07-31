@@ -13,19 +13,28 @@
 
 #include "ymldb.h"
 
+void usr_func(void *p, int keys_num, char *keys[])
+{
+
+}
+
 void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
 {
     int i;
     printf("\n");
     if(cdata->deleted || cdata->unregistered)
-        printf(" [ callback for %s %s]\n", 
-            cdata->deleted?"del":"",
-            cdata->unregistered?"unreg":"");
+        printf(" [callback for%s%s]\n", 
+            cdata->deleted?" del":"",
+            cdata->unregistered?" unreg":"");
 
     if(!cdata->unregistered && !cdata->deleted)
-        printf(" [ callback for merge]\n");
+        printf(" [callback for merge]\n");
+    
+    usr_func(usr_data, cdata->keys_num - cdata->keys_level, &(cdata->keys[cdata->keys_level]));
 
-    printf("\t-");
+    printf("\t- %s(%s)\n", __FUNCTION__, (char *) usr_data);
+    
+    printf("\t- KEYS(1):");
     for(i=0; i<cdata->keys_num; i++) {
         printf(" %s", cdata->keys[i]);
     }
@@ -33,8 +42,22 @@ void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
         printf(" = %s", cdata->value);
     }
     printf("\n");
-    printf("\t- %s(%s)\n", __FUNCTION__, (char *) usr_data);
+
+    printf("\t- KEYS(2):");
+    for(i=cdata->keys_level; i< cdata->keys_num; i++) {
+        printf(" %s", cdata->keys[i]);
+    }
+    if(cdata->value) {
+        printf(" = %s", cdata->value);
+    }
+    printf("\n");
+
     printf("\t- keys_num=%d, keys_level=%d\n\n",cdata->keys_num, cdata->keys_level);
+
+    if(!cdata->unregistered && !cdata->deleted) {
+        if(!cdata->value)
+            ymldb_callback_register2(ymldb_usr_callback, "SUB", cdata->keys_num, cdata->keys );
+    }
 }
 
 int ymldb_test()
@@ -89,8 +112,8 @@ int ymldb_test()
     }
 
     ymldb_callback_register(ymldb_usr_callback, "interfaces-cb", "interfaces");
-    ymldb_callback_register(ymldb_usr_callback, "interface-cb", "interfaces", "interface");
-    ymldb_callback_register(ymldb_usr_callback, "ge1-cb", "interfaces", "interface", "ge1");
+    // ymldb_callback_register(ymldb_usr_callback, "interface-cb", "interfaces", "interface");
+    // ymldb_callback_register(ymldb_usr_callback, "ge1-cb", "interfaces", "interface", "ge1");
 
     ymldb_dump_all(stdout, NULL);
 

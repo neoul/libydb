@@ -62,16 +62,16 @@ char *_ymldb_read(char *major_key, ...);
 char *_ymldb_read2(int keys_num, char *keys[]);
 
 // [YMLDB update facility - from string]
-#define ymldb_write(MAJOR_KEY, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, MAJOR_KEY, ##__VA_ARGS__, NULL)
-#define ymldb_delete(MAJOR_KEY, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, MAJOR_KEY, ##__VA_ARGS__, NULL)
-#define ymldb_sync(MAJOR_KEY, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, MAJOR_KEY, ##__VA_ARGS__, NULL)
-#define ymldb_get(outstream, MAJOR_KEY, ...) _ymldb_write(outstream, YMLDB_OP_GET, MAJOR_KEY, ##__VA_ARGS__, NULL)
-#define ymldb_read(MAJOR_KEY, ...) _ymldb_read(MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_write(major_key, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_delete(major_key, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_sync(major_key, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_get(OUTSTREAM, major_key, ...) _ymldb_write(OUTSTREAM, YMLDB_OP_GET, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_read(major_key, ...) _ymldb_read(major_key, ##__VA_ARGS__, NULL)
 
 #define ymldb_write2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_MERGE, KEYS_NUM, KEYS)
 #define ymldb_delete2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_DELETE, KEYS_NUM, KEYS)
 #define ymldb_sync2(KEYS_NUM, KEYS) _ymldb_write2(NULL, YMLDB_OP_SYNC, KEYS_NUM, KEYS)
-#define ymldb_get2(outstream, KEYS_NUM, KEYS) _ymldb_write2(outstream, YMLDB_OP_GET, KEYS_NUM, KEYS)
+#define ymldb_get2(OUTSTREAM, KEYS_NUM, KEYS) _ymldb_write2(OUTSTREAM, YMLDB_OP_GET, KEYS_NUM, KEYS)
 #define ymldb_read2(KEYS_NUM, KEYS) _ymldb_read2(KEYS_NUM, KEYS)
 
 // write ymldb using YAML document format.
@@ -119,12 +119,18 @@ typedef void (*ymldb_callback_fn)(void *usr_data, struct ymldb_callback_data *ca
 
 int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
 int _ymldb_callback_unregister(char *major_key, ...);
+int _ymldb_callback_register2(ymldb_callback_fn usr_func, void *usr_data, int keys_num, char *keys[]);
+int _ymldb_callback_unregister2(int keys_num, char *keys[]);
 
-#define ymldb_callback_register(usr_func, usr_data, MAJOR_KEY, ...) \
-    _ymldb_callback_register((usr_func), (usr_data), (MAJOR_KEY), ##__VA_ARGS__, NULL)
-#define ymldb_callback_unregister(MAJOR_KEY, ...) \
-    _ymldb_callback_unregister(MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_callback_register(usr_func, usr_data, major_key, ...) \
+    _ymldb_callback_register((usr_func), (usr_data), (major_key), ##__VA_ARGS__, NULL)
+#define ymldb_callback_unregister(major_key, ...) \
+    _ymldb_callback_unregister(major_key, ##__VA_ARGS__, NULL)
 
+#define ymldb_callback_register2(usr_func, usr_data, keys_num, keys) \
+    _ymldb_callback_register2((usr_func), (usr_data), (keys_num), (keys))
+#define ymldb_callback_unregister2(keys_num, keys) \
+    _ymldb_callback_unregister2((keys_num), (keys))
 
 // [YMLDB traverse facility]
 // This facility is used to traverse each node of the YMLDB tree.
@@ -138,9 +144,9 @@ struct ymldb_iterator
 // internal function for ymldb iterator creation.
 struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *major_key, ...);
 // allocate new ymldb iterator
-#define ymldb_iterator_alloc(MAJOR_KEY, ...) _ymldb_iterator_init(NULL, MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_iterator_alloc(major_key, ...) _ymldb_iterator_init(NULL, major_key, ##__VA_ARGS__, NULL)
 // initilize the ymldb iterator without allocation.
-#define ymldb_iterator_init(ITER, MAJOR_KEY, ...) _ymldb_iterator_init(ITER, MAJOR_KEY, ##__VA_ARGS__, NULL)
+#define ymldb_iterator_init(iter, major_key, ...) _ymldb_iterator_init(iter, major_key, ##__VA_ARGS__, NULL)
 // remove the ymldb iterator data without free.
 void ymldb_iterator_deinit(struct ymldb_iterator *iter);
 // free the ymldb iterator.
@@ -170,7 +176,6 @@ const char *ymldb_iterator_prev(struct ymldb_iterator *iter);
 const char *ymldb_iterator_get_value(struct ymldb_iterator *iter);
 // get the key of the ymldb iterator.
 const char *ymldb_iterator_get_key(struct ymldb_iterator *iter);
-
 
 // [YMLDB data retrieval facility]
 // print all ymldb to the stream if NULL.

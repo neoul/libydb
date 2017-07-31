@@ -2958,18 +2958,12 @@ char *_ymldb_read2(int keys_num, char *keys[])
         if (ydb)
         {
             if (ydb->type == YMLDB_BRANCH)
-            {
                 ydb = cp_avltree_get(ydb->children, keys[i]);
-            }
             else
-            {
                 return NULL;
-            }
         }
         else
-        {
             return NULL;
-        }
     }
     if (ydb)
     {
@@ -3335,6 +3329,115 @@ int _ymldb_callback_unregister(char *major_key, ...)
         {
             _callback_free(ydb->callback);
         }
+        ydb->callback = NULL;
+        return 0;
+    }
+    _log_error("unreachable here.\n");
+    return -1;
+}
+
+int _ymldb_callback_register2(ymldb_callback_fn usr_func, void *usr_data, int keys_num, char *keys[])
+{
+    int i;
+    struct ymldb *ydb;
+    struct ymldb_cb *cb;
+    _log_entrance();
+    if (keys_num <= 0 || keys == NULL)
+    {
+        _log_error("no key\n");
+        return -1;
+    }
+    if (!(cb = _ymldb_cb(keys[0])))
+    {
+        _log_error("no ymldb or key (%s) found.\n", keys[0]);
+        return -1;
+    }
+    ydb = cb->ydb;
+    _log_debug("key %s\n", ydb->key);
+
+    for (i = 1; i < keys_num; i++)
+    {
+        struct ymldb *p_ydb = ydb;
+        if (p_ydb->type != YMLDB_BRANCH)
+        {
+            _log_error("usr_func is unable to be registered to ymldb leaf.!\n");
+            return -1;
+        }
+        ydb = cp_avltree_get(p_ydb->children, keys[i]);
+        if (!ydb)
+        {
+            ydb = _ymldb_node_merge(NULL, p_ydb, YMLDB_BRANCH, keys[i], NULL);
+            if (!ydb)
+            {
+                _log_error("fail to register usr_func!\n");
+                return -1;
+            }
+        }
+        _log_debug("key %s\n", ydb->key);
+    }
+
+    if (ydb)
+    {
+        if (ydb->type != YMLDB_BRANCH)
+        {
+            _log_error("usr_func can be registered to ymldb branch.!\n");
+            return -1;
+        }
+        if (ydb->callback)
+        {
+            _callback_free(ydb->callback);
+        }
+        ydb->callback = _callback_alloc(usr_func, usr_data, ydb);
+        if (ydb->callback)
+        {
+            _log_debug("callback %p registered...\n", ydb->callback);
+            return 0;
+        }
+    }
+    _log_error("fail to register usr_func..\n");
+    return -1;
+}
+
+
+int _ymldb_callback_unregister2(int keys_num, char *keys[])
+{
+    int i;
+    struct ymldb *ydb;
+    struct ymldb_cb *cb;
+    _log_entrance();
+    if (keys_num <= 0 || keys == NULL)
+    {
+        _log_error("no key\n");
+        return -1;
+    }
+    if (!(cb = _ymldb_cb(keys[0])))
+    {
+        _log_error("no ymldb or key (%s) found.\n", keys[0]);
+        return -1;
+    }
+    ydb = cb->ydb;
+    _log_debug("key %s\n", ydb->key);
+
+    for (i = 1; i < keys_num; i++)
+    {
+        if (ydb->type != YMLDB_BRANCH)
+        {
+            _log_error("invalid ydb '%s'.\n", ydb->key);
+            return -1;
+        }
+        ydb = cp_avltree_get(ydb->children, keys[i]);
+        if (!ydb)
+        {
+            _log_error("invalid key '%s'.\n", keys[i]);
+            return -1;
+        }
+        _log_debug("key %s\n", ydb->key);
+    }
+
+    if (ydb)
+    {
+        if (ydb->callback)
+            _callback_free(ydb->callback);
         ydb->callback = NULL;
         return 0;
     }
