@@ -13,65 +13,28 @@
 
 #include "ymldb.h"
 
-// int ymldb_usr_callback(void *usr_data, struct ymldb_iterator *iter, int deleted)
-// {
-//     const char *key = ymldb_iterator_get_key(iter);
-//     const char *value = ymldb_iterator_get_value(iter);
-//     printf("======================================\n");
-//     printf("\n");
-//     printf(" %s(%s)\n", __FUNCTION__, (char *)usr_data);
-//     printf("\n");
-//     printf(" - current key: %s, value %s\n", key?key:"", value?value:"");
-
-//     // go to subtree.
-//     key = ymldb_iterator_down(iter);
-//     if(key) {
-//         do {
-//             // print all sub nodes
-//             key = ymldb_iterator_get_key(iter);
-//             value = ymldb_iterator_get_value(iter);
-//             printf("  - current key: %s, value: %s\n", key?key:"", value?value:"");
-//             struct ymldb_iterator sub_iter;
-//             ymldb_iterator_copy(&sub_iter, iter);
-//             key = ymldb_iterator_down(&sub_iter);
-//             if(key) {
-//                 do {
-//                     key = ymldb_iterator_get_key(&sub_iter);
-//                     value = ymldb_iterator_get_value(&sub_iter);
-//                     printf("   - current key: %s, value: %s\n", key?key:"", value?value:"");
-//                 } while((key = ymldb_iterator_next(&sub_iter)));
-//             }
-//         } while((key = ymldb_iterator_next(iter)));
-//     }
-    
-//     printf("\n");
-//     printf("======================================\n");
-//     if(deleted)
-//         ymldb_callback_register(ymldb_usr_callback, "my-data", "interface");
-//     return 0;
-// }
-
-void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *callback_data)
+void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
 {
     int i;
     printf("\n");
-    if(callback_data->deleted)
-        printf(" [callback for %s]\n", callback_data->deleted?"deleted":"");
-    if(callback_data->unregistered)
-        printf(" [callback for %s]\n", callback_data->unregistered?"unregistered":"");
-    if(!callback_data->unregistered && !callback_data->deleted)
-        printf(" [callback for merged]\n");
+    if(cdata->deleted || cdata->unregistered)
+        printf(" [ callback for %s %s]\n", 
+            cdata->deleted?"del":"",
+            cdata->unregistered?"unreg":"");
+
+    if(!cdata->unregistered && !cdata->deleted)
+        printf(" [ callback for merge]\n");
+
     printf("\t-");
-    for(i=0; i<callback_data->keys_num; i++) {
-        printf(" %s", callback_data->keys[i]);
+    for(i=0; i<cdata->keys_num; i++) {
+        printf(" %s", cdata->keys[i]);
     }
-    if(callback_data->value) {
-        printf(" = %s", callback_data->value);
+    if(cdata->value) {
+        printf(" = %s", cdata->value);
     }
     printf("\n");
-    printf("\t- %s(%s)\n\n", __FUNCTION__, (char *) usr_data);
-    // if(callback_data->unregistered)
-    //     ymldb_callback_register(ymldb_usr_callback, "my-data", "interfaces", "interface");
+    printf("\t- %s(%s)\n", __FUNCTION__, (char *) usr_data);
+    printf("\t- keys_num=%d, keys_level=%d\n\n",cdata->keys_num, cdata->keys_level);
 }
 
 int ymldb_test()
@@ -125,9 +88,9 @@ int ymldb_test()
         return -1;
     }
 
-    // ymldb_callback_register(ymldb_usr_callback, "abc", "interface", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
-    // ymldb_callback_register(ymldb_usr_callback, "my-data", "interfaces", "interface");
-    ymldb_callback_register(ymldb_usr_callback, "my-data", "interfaces");
+    ymldb_callback_register(ymldb_usr_callback, "interfaces-cb", "interfaces");
+    ymldb_callback_register(ymldb_usr_callback, "interface-cb", "interfaces", "interface");
+    ymldb_callback_register(ymldb_usr_callback, "ge1-cb", "interfaces", "interface", "ge1");
 
     ymldb_dump_all(stdout, NULL);
 
@@ -208,7 +171,7 @@ int ymldb_test()
     ymldb_delete("interfaces", "interface", "ge1", "rx-octet");
     
     // it would be failed to remove unknown ymldb node.
-    res = ymldb_delete("interfaces", "interface", "ge3");
+    res = ymldb_delete("interfaces", "interface", "ge1");
     if (res < 0)
     {
         fprintf(stderr, "failed to delete.\n");

@@ -110,6 +110,7 @@ struct ymldb_callback_data
 {
     char *keys[YMLDB_CALLBACK_MAX];
     int keys_num;
+    int keys_level;
     char *value;
     int deleted;
     int unregistered;

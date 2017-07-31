@@ -29,6 +29,7 @@ struct ymldb_callback
     void *usr_data;
     struct ymldb *ydb;
     struct ymldb_callback_data *meta_data;
+    int deleted;
 };
 
 struct ymldb
@@ -332,15 +333,15 @@ struct ymldb_stream *_ymldb_stream_alloc_and_open(size_t len, char *rw);
 static void _params_free(struct ymldb_params *params);
 static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, FILE *outstream);
 static int _params_document_load(struct ymldb_params *params);
-static int _params_streambuffer_init(struct ymldb_params *params);
-static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb *ydb, int print_level, int no_print_children);
-static int _params_streambuffer_flush(struct ymldb_params *params, int forced);
+static int _params_buf_init(struct ymldb_params *params);
+static void _params_buf_dump(struct ymldb_params *params, struct ymldb *ydb, int print_level, int no_print_children);
+static int _params_buf_flush(struct ymldb_params *params, int forced);
 
 static int _distribution_deinit(struct ymldb_cb *cb);
 static int _distribution_init(struct ymldb_cb *cb, int flags);
 static int _distribution_send(struct ymldb_params *params);
 
-static void _callback_unreigistered(struct ymldb *ydb);
+static void _callback_unreigistered(struct ymldb *ydb, int del);
 static void _callback_setup(struct ymldb *ydb, int deleted);
 static void _callback_exec_for_pending();
 static void _callback_exec(struct ymldb *ydb, int deleted, int unregistered);
@@ -855,7 +856,7 @@ static void _ymldb_node_free(void *vdata)
         else if (ydb->value)
             free(ydb->value);
         if (ydb->callback)
-            _callback_unreigistered(ydb);
+            _callback_unreigistered(ydb, ydb->callback->deleted);
         free(ydb->key);
         free(ydb);
     }
@@ -898,7 +899,7 @@ void _ymldb_node_merge_reply(struct ymldb_params *params, struct ymldb *ydb)
         return;
     params->no_change = 0;
     print_level = _ymldb_print_level(params->last_ydb, ydb);
-    _params_streambuffer_dump(params, ydb, print_level, 0);
+    _params_buf_dump(params, ydb, print_level, 0);
     _callback_setup(ydb, 0);
     return;
 }
@@ -967,6 +968,7 @@ new_ydb:
     if (callback)
     {
         callback->ydb = ydb;
+        callback->deleted = 0;
     }
 
     if (type == YMLDB_BRANCH)
@@ -1018,7 +1020,7 @@ free_ydb:
                 free(ydb->value);
         }
         if (callback)
-            _callback_unreigistered(ydb);
+            _callback_unreigistered(ydb, callback->deleted);
     }
 
     if (ykey)
@@ -1063,7 +1065,7 @@ void _ymldb_node_delete(struct ymldb_params *params, struct ymldb *parent, char 
 
     params->no_change = 0;
     print_level = _ymldb_print_level(params->last_ydb, ydb);
-    _params_streambuffer_dump(params, ydb, print_level, 1);
+    _params_buf_dump(params, ydb, print_level, 1);
     // parent should be saved because of the ydb will be removed.
     params->last_ydb = parent;
     _callback_setup(ydb, 1);
@@ -1101,7 +1103,7 @@ void _ymldb_node_get(struct ymldb_params *params, struct ymldb *parent, char *ke
     }
 
     print_level = _ymldb_print_level(params->last_ydb, ydb);
-    _params_streambuffer_dump(params, ydb, print_level, 0);
+    _params_buf_dump(params, ydb, print_level, 0);
     return;
 }
 
@@ -1140,6 +1142,7 @@ int _ymldb_internal_merge(struct ymldb_params *params, struct ymldb *p_ydb, int 
         {
             yaml_node_t *node = yaml_document_get_node(&params->document, *item);
             char *key = (char *)node->data.scalar.value;
+            _log_debug("## %s\n", key);
             if (node->type == YAML_SCALAR_NODE)
             {
                 _ymldb_node_merge(params, p_ydb, YMLDB_LEAFLIST, key, NULL);
@@ -1165,13 +1168,23 @@ int _ymldb_internal_merge(struct ymldb_params *params, struct ymldb *p_ydb, int 
 
             if (value_node->type == YAML_SCALAR_NODE)
             {
-                // _log_debug("## key %s value %s\n", key, value);
-                _ymldb_node_merge(params, p_ydb, YMLDB_LEAF, key, value);
+                
+                if (value[0] > 0)
+                {
+                    // if not empty string
+                    _log_debug("## %s, %s\n", key, value);
+                    _ymldb_node_merge(params, p_ydb, YMLDB_LEAF, key, value);
+                }
+                else {
+                    // An empty string is created as a branch node
+                    _log_debug("## %s\n", key);
+                    _ymldb_node_merge(params, p_ydb, YMLDB_BRANCH, key, NULL);
+                }
             }
             else
             { // not leaf
                 struct ymldb *ydb = NULL;
-                // _log_debug("key %s\n", key);
+                _log_debug("## %s\n", key);
                 if (p_ydb->level <= 0)
                     ydb = cp_avltree_get(p_ydb->children, key);
                 else
@@ -1231,6 +1244,7 @@ int _ymldb_internal_delete(struct ymldb_params *params, struct ymldb *p_ydb, int
         {
             yaml_node_t *node = yaml_document_get_node(&params->document, *item);
             char *key = (char *)node->data.scalar.value;
+            _log_debug("## %s\n", key);
             if (node->type == YAML_SCALAR_NODE)
             {
                 _ymldb_node_delete(params, p_ydb, key);
@@ -1253,21 +1267,27 @@ int _ymldb_internal_delete(struct ymldb_params *params, struct ymldb *p_ydb, int
             yaml_node_t *value_node = yaml_document_get_node(&params->document, pair->value);
             char *key = (char *)key_node->data.scalar.value;
             char *value = (char *)value_node->data.scalar.value;
-            _log_debug("key %s\n", key);
+            // _log_debug("key %s\n", key);
             if (value_node->type == YAML_SCALAR_NODE)
             {
                 if (value[0] > 0)
                 {
                     struct ymldb *ydb = NULL;
+                    _log_debug("## %s, %s\n", key, value);
                     ydb = cp_avltree_get(p_ydb->children, key);
                     _ymldb_node_delete(params, ydb, value);
                 }
                 else
+                {
+                    _log_debug("## %s\n", key);
                     _ymldb_node_delete(params, p_ydb, key);
+                }
+                    
             }
             else
             { // not leaf
                 struct ymldb *ydb = NULL;
+                _log_debug("## %s\n", key);
                 ydb = cp_avltree_get(p_ydb->children, key);
                 _ymldb_internal_delete(params, ydb, pair->value, index);
             }
@@ -1278,7 +1298,7 @@ int _ymldb_internal_delete(struct ymldb_params *params, struct ymldb *p_ydb, int
     { // It is only used for single key inserted..
         char *key;
         key = (char *)node->data.scalar.value;
-        _log_debug("scalar key %s, value -\n", key);
+        _log_debug("## %s\n", key);
         _ymldb_node_delete(params, p_ydb, key);
     }
     break;
@@ -1322,6 +1342,7 @@ int _ymldb_internal_get(struct ymldb_params *params, struct ymldb *p_ydb, int in
         {
             yaml_node_t *node = yaml_document_get_node(&params->document, *item);
             char *key = (char *)node->data.scalar.value;
+            _log_debug("## %s\n", key);
             if (node->type == YAML_SCALAR_NODE)
             {
                 _ymldb_node_get(params, p_ydb, key);
@@ -1344,25 +1365,27 @@ int _ymldb_internal_get(struct ymldb_params *params, struct ymldb *p_ydb, int in
             yaml_node_t *value_node = yaml_document_get_node(&params->document, pair->value);
             char *key = (char *)key_node->data.scalar.value;
             char *value = (char *)value_node->data.scalar.value;
-            _log_debug("key %s\n", key);
             if (value_node->type == YAML_SCALAR_NODE)
             {
                 if (value[0] > 0)
                 {
                     struct ymldb *ydb = NULL;
+                    _log_debug("## %s, %s\n", key, value);
                     ydb = cp_avltree_get(p_ydb->children, key);
                     _ymldb_node_get(params, ydb, value);
                 }
                 else
+                {
+                    _log_debug("## %s\n", key);
                     _ymldb_node_get(params, p_ydb, key);
+                }
             }
             else
             { // not leaf
                 struct ymldb *ydb = NULL;
-                // if(p_ydb->type == YMLDB_BRANCH) {
+                _log_debug("## %s\n", key);
                 ydb = cp_avltree_get(p_ydb->children, key);
                 _ymldb_internal_get(params, ydb, pair->value, index);
-                // }
             }
         }
     }
@@ -1371,6 +1394,7 @@ int _ymldb_internal_get(struct ymldb_params *params, struct ymldb *p_ydb, int in
     { // It is only used for single key inserted..
         char *key;
         key = (char *)node->data.scalar.value;
+        _log_debug("## %s\n", key);
         _ymldb_node_get(params, p_ydb, key);
     }
     break;
@@ -1402,6 +1426,7 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
         {
             yaml_node_t *node = yaml_document_get_node(&params->document, *item);
             char *key = (char *)node->data.scalar.value;
+            _log_debug("## %s\n", key);
             if (node->type == YAML_SCALAR_NODE)
             {
                 fprintf(stream, "%.*s- %s\n", level * 2, g_space, key);
@@ -1424,7 +1449,7 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
             yaml_node_t *value_node = yaml_document_get_node(&params->document, pair->value);
             char *key = (char *)key_node->data.scalar.value;
             char *value = (char *)value_node->data.scalar.value;
-            // _log_debug("key %s\n", key);
+            _log_debug("## %s, %s\n", key, value);
             if (value_node->type == YAML_SCALAR_NODE)
             {
                 fprintf(stream, "%.*s%s: %s\n", level * 2, g_space, key, value);
@@ -1441,6 +1466,7 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
     { // It is only used for single key inserted..
         char *key;
         key = (char *)node->data.scalar.value;
+        _log_debug("## %s\n", key);
         fprintf(stream, "%.*s%s\n", level * 2, g_space, key);
     }
     break;
@@ -1605,7 +1631,7 @@ static int _ymldb_sm(struct ymldb_params *params)
 
     _log_debug("out %uth\n", out_sequence);
     _log_debug("out %s\n", _opcode_str(out_opcode));
-    _log_debug("%s\n", no_reply ? "no_reply" : "reply");
+    // _log_debug("%s\n", no_reply ? "no_reply" : "reply");
     _log_debug("%s\n", (ignore_or_relay == 1) ? "ignore" : (ignore_or_relay == 2) ? "reply" : "-");
 
     return ignore_or_relay;
@@ -1698,7 +1724,7 @@ failed:
     return -1;
 }
 
-static int _params_streambuffer_init(struct ymldb_params *params)
+static int _params_buf_init(struct ymldb_params *params)
 {
     params->last_ydb = NULL;
     _ymldb_stream_open(params->streambuffer, "w");
@@ -1711,21 +1737,21 @@ static int _ymldb_param_streambuffer_each_of_node(void *n, void *dummy)
     cp_avlnode *node = n;
     struct ymldb *ydb = node->value;
     struct ymldb_params *params = dummy;
-    _params_streambuffer_dump(params, ydb, ydb->level, 0); // not print parents
+    _params_buf_dump(params, ydb, ydb->level, 0); // not print parents
     return 0;
 }
 
-static void _params_streambuffer_dump(struct ymldb_params *params, struct ymldb *ydb, int print_level, int no_print_children)
+static void _params_buf_dump(struct ymldb_params *params, struct ymldb *ydb, int print_level, int no_print_children)
 {
     int flushed = 0;
     FILE *stream;
     cp_list *ancestors;
     if (!ydb)
         return;
-    flushed = _params_streambuffer_flush(params, 0);
+    flushed = _params_buf_flush(params, 0);
     if (flushed)
     {
-        _params_streambuffer_init(params);
+        _params_buf_init(params);
         _log_debug("print_level %d\n", print_level);
         _log_debug("cur ydb->key %s ydb->level %d\n", ydb->key, ydb->level);
         // no_print_children = 0;
@@ -1786,7 +1812,7 @@ end:
 }
 
 // Return 1 if reply.stream is flushed, otherwise 0.
-static int _params_streambuffer_flush(struct ymldb_params *params, int forced)
+static int _params_buf_flush(struct ymldb_params *params, int forced)
 {
     struct ymldb_stream *streambuffer = params->streambuffer;
     if (forced)
@@ -1799,6 +1825,8 @@ flushing:
     _ymldb_fprintf_tail(streambuffer->stream);
     // write the stream to streambuffer->buf.
     _ymldb_stream_close(streambuffer);
+    _log_debug("@@ no_reply %s\n", params->no_reply?"on":"off");
+    _log_debug("@@ no_change %s\n", params->no_change?"on":"off");
     _log_debug("@@ %zd %s\n\n", streambuffer->len, streambuffer->buf);
 
     if (params->out.stream)
@@ -1857,7 +1885,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
                 continue;
             }
 
-            _params_streambuffer_init(params);
+            _params_buf_init(params);
             if (params->out.opcode & YMLDB_OP_MERGE)
                 _ymldb_internal_merge(params, cb->ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_DELETE)
@@ -1873,7 +1901,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
                 else
                     _ymldb_internal_get(params, cb->ydb, 1, 1);
             }
-            _params_streambuffer_flush(params, 1); // forced flush!
+            _params_buf_flush(params, 1); // forced flush!
             _log_debug("result: %s\n", params->res < 0 ? "failed" : "ok");
         }
         else
@@ -2473,6 +2501,7 @@ static int _distribution_send(struct ymldb_params *params)
     int retry = 0;
     struct ymldb_cb *cb = params->cb;
     struct ymldb_stream *streambuffer = params->streambuffer;
+    _log_debug("no_change=%d\n", params->no_change);
     if (params->no_reply)
     {
         _log_debug("no reply\n");
@@ -3145,11 +3174,12 @@ static struct ymldb_callback *_callback_alloc(ymldb_callback_fn usr_func, void *
     callback = malloc(sizeof(struct ymldb_callback));
     if (!callback)
         return NULL;
-    memset(callback, 0, sizeof(struct ymldb_callback));
+    // memset(callback, 0, sizeof(struct ymldb_callback));
     callback->ydb = ydb;
     callback->usr_data = usr_data;
     callback->usr_func = usr_func;
     callback->meta_data = NULL;
+    callback->deleted = 0;
     return callback;
 }
 
@@ -3334,9 +3364,12 @@ static void _callback_pending(struct ymldb *ydb, int deleted, int unregistered)
          // ignore unexpected level.
         if(ydb->level <= 0 || ydb->level >= YMLDB_CALLBACK_MAX)
             break;
-        if (ydb->callback && !callback)
-            callback = ydb->callback;
         cd->keys[ydb->level - 1] = strdup(ydb->key); //copy!
+        if (ydb->callback && !callback)
+        {
+            callback = ydb->callback;
+            cd->keys_level = ydb->level;
+        }
         ydb = ydb->parent;
     } while (ydb);
 
@@ -3349,8 +3382,10 @@ static void _callback_pending(struct ymldb *ydb, int deleted, int unregistered)
         new_callback = _callback_alloc(callback->usr_func, callback->usr_data, callback->ydb);
         if(new_callback && g_callbacks)
         {
+            if(callback->deleted)
+                cd->deleted = 0;
             new_callback->meta_data = cd;
-            cp_list_insert(g_callbacks, new_callback);
+            cp_list_append(g_callbacks, new_callback);
             return;
         }
         _callback_free(new_callback);
@@ -3363,6 +3398,7 @@ static void _callback_pending(struct ymldb *ydb, int deleted, int unregistered)
 static void _callback_exec(struct ymldb *ydb, int deleted, int unregistered)
 {
     int i;
+    struct ymldb *origin = ydb;
     struct ymldb_callback_data cdata;
     struct ymldb_callback *callback = NULL;
     if(ydb->level >= YMLDB_CALLBACK_MAX) 
@@ -3380,14 +3416,22 @@ static void _callback_exec(struct ymldb *ydb, int deleted, int unregistered)
     {
         if(ydb->level <= 0 || ydb->level >= YMLDB_CALLBACK_MAX)
             break;
-        if (ydb->callback && !callback)
-            callback = ydb->callback;
+        
         cdata.keys[ydb->level - 1] = ydb->key;
+        if (ydb->callback && !callback)
+        {
+            callback = ydb->callback;
+            cdata.keys_level = ydb->level;
+        }
         ydb = ydb->parent;
     } while (ydb);
     if(callback) 
     {
         callback->usr_func(callback->usr_data, &cdata);
+        // callback for deleting itself.
+        if(deleted)
+            if(origin == callback->ydb)
+                callback->deleted = 1;
     }
 }
 
@@ -3406,11 +3450,11 @@ static void _callback_exec_for_pending()
     g_callbacks = NULL;
 }
 
-static void _callback_unreigistered(struct ymldb *ydb)
+static void _callback_unreigistered(struct ymldb *ydb, int del)
 {
     _log_debug("%s\n", ydb->key);
     // append the unregistering callback to execute the end of processing.
-    _callback_pending(ydb, 1, 1);
+    _callback_pending(ydb, del, 1);
     // _callback_exec(ydb, 1, 1);
     // free current callback.
     _callback_free(ydb->callback);
@@ -3418,7 +3462,7 @@ static void _callback_unreigistered(struct ymldb *ydb)
 
 static void _callback_setup(struct ymldb *ydb, int deleted)
 {
-    _log_debug("%s\n", ydb->key);
+    // _log_debug("%s\n", ydb->key);
     _callback_exec(ydb, deleted, 0);
 }
 
