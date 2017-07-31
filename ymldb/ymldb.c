@@ -341,10 +341,12 @@ static int _distribution_deinit(struct ymldb_cb *cb);
 static int _distribution_init(struct ymldb_cb *cb, int flags);
 static int _distribution_send(struct ymldb_params *params);
 
-static void _callback_unreigistered(struct ymldb *ydb, int del);
-static void _callback_setup(struct ymldb *ydb, int deleted);
-static void _callback_exec_for_pending();
-static void _callback_exec(struct ymldb *ydb, int deleted, int unregistered);
+static struct ymldb_callback *_callback_alloc(ymldb_callback_fn usr_func, void *usr_data, struct ymldb *ydb);
+static void _callback_data_free(struct ymldb_callback_data *cd);
+static void _callback_free(struct ymldb_callback *callback);
+static void _callback_unreg(struct ymldb *ydb, int del);
+static void _callback_run(struct ymldb *ydb, int deleted);
+static void _callback_run_pending();
 
 static cp_trie *g_key_pool = NULL;
 static int g_alloc_count = 0;
@@ -856,7 +858,10 @@ static void _ymldb_node_free(void *vdata)
         else if (ydb->value)
             free(ydb->value);
         if (ydb->callback)
-            _callback_unreigistered(ydb, ydb->callback->deleted);
+        {
+            int deleted = ydb->callback->deleted?0:1;
+            _callback_unreg(ydb, deleted);
+        }
         free(ydb->key);
         free(ydb);
     }
@@ -900,7 +905,7 @@ void _ymldb_node_merge_reply(struct ymldb_params *params, struct ymldb *ydb)
     params->no_change = 0;
     print_level = _ymldb_print_level(params->last_ydb, ydb);
     _params_buf_dump(params, ydb, print_level, 0);
-    _callback_setup(ydb, 0);
+    _callback_run(ydb, 0);
     return;
 }
 
@@ -966,10 +971,7 @@ new_ydb:
     ydb->type = type;
     ydb->callback = callback;
     if (callback)
-    {
         callback->ydb = ydb;
-        callback->deleted = 0;
-    }
 
     if (type == YMLDB_BRANCH)
     {
@@ -1019,8 +1021,10 @@ free_ydb:
             if (ydb->value)
                 free(ydb->value);
         }
-        if (callback)
-            _callback_unreigistered(ydb, callback->deleted);
+        if (callback) {
+            // _callback_unreg(ydb, callback->deleted);
+            _callback_free(callback);
+        }
     }
 
     if (ykey)
@@ -1068,7 +1072,7 @@ void _ymldb_node_delete(struct ymldb_params *params, struct ymldb *parent, char 
     _params_buf_dump(params, ydb, print_level, 1);
     // parent should be saved because of the ydb will be removed.
     params->last_ydb = parent;
-    _callback_setup(ydb, 1);
+    _callback_run(ydb, 1);
     ydb = cp_avltree_delete(parent->children, key);
     _ymldb_node_free(ydb);
     return;
@@ -1912,7 +1916,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     _log_debug("<<<\n");
     res = params->res;
     _params_free(params);
-    _callback_exec_for_pending();
+    _callback_run_pending();
     return res;
 }
 
@@ -2091,7 +2095,7 @@ void ymldb_destroy(char *major_key)
         g_ycb = NULL;
         g_ydb = NULL;
     }
-    _callback_exec_for_pending();
+    _callback_run_pending();
 }
 
 void ymldb_destroy_all()
@@ -2106,7 +2110,7 @@ void ymldb_destroy_all()
         g_ycb = NULL;
         g_ydb = NULL;
     }
-    _callback_exec_for_pending();
+    _callback_run_pending();
 }
 
 static int _distribution_deinit(struct ymldb_cb *cb)
@@ -3180,6 +3184,7 @@ static struct ymldb_callback *_callback_alloc(ymldb_callback_fn usr_func, void *
     callback->usr_func = usr_func;
     callback->meta_data = NULL;
     callback->deleted = 0;
+    _log_debug("callback %p alloc\n", callback);
     return callback;
 }
 
@@ -3382,8 +3387,6 @@ static void _callback_pending(struct ymldb *ydb, int deleted, int unregistered)
         new_callback = _callback_alloc(callback->usr_func, callback->usr_data, callback->ydb);
         if(new_callback && g_callbacks)
         {
-            if(callback->deleted)
-                cd->deleted = 0;
             new_callback->meta_data = cd;
             cp_list_append(g_callbacks, new_callback);
             return;
@@ -3395,7 +3398,7 @@ static void _callback_pending(struct ymldb *ydb, int deleted, int unregistered)
     return;
 }
 
-static void _callback_exec(struct ymldb *ydb, int deleted, int unregistered)
+static void _callback_run(struct ymldb *ydb, int deleted)
 {
     int i;
     struct ymldb *origin = ydb;
@@ -3410,7 +3413,7 @@ static void _callback_exec(struct ymldb *ydb, int deleted, int unregistered)
     for(i = 0; i < YMLDB_CALLBACK_MAX; i++)
         cdata.keys[i] = NULL;
     cdata.deleted = deleted;
-    cdata.unregistered = unregistered;
+    cdata.unregistered = 0;
     cdata.value = (ydb->type != YMLDB_BRANCH)?ydb->value:NULL;
     do
     {
@@ -3430,12 +3433,14 @@ static void _callback_exec(struct ymldb *ydb, int deleted, int unregistered)
         callback->usr_func(callback->usr_data, &cdata);
         // callback for deleting itself.
         if(deleted)
+        {
             if(origin == callback->ydb)
                 callback->deleted = 1;
+        }
     }
 }
 
-static void _callback_exec_for_pending()
+static void _callback_run_pending()
 {
     struct ymldb_callback *callback = NULL;
     if (!g_callbacks)
@@ -3450,20 +3455,13 @@ static void _callback_exec_for_pending()
     g_callbacks = NULL;
 }
 
-static void _callback_unreigistered(struct ymldb *ydb, int del)
+static void _callback_unreg(struct ymldb *ydb, int del)
 {
     _log_debug("%s\n", ydb->key);
     // append the unregistering callback to execute the end of processing.
     _callback_pending(ydb, del, 1);
-    // _callback_exec(ydb, 1, 1);
     // free current callback.
     _callback_free(ydb->callback);
-}
-
-static void _callback_setup(struct ymldb *ydb, int deleted)
-{
-    // _log_debug("%s\n", ydb->key);
-    _callback_exec(ydb, deleted, 0);
 }
 
 struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *major_key, ...)
