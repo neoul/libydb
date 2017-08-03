@@ -854,14 +854,18 @@ static void _ymldb_node_free(void *vdata)
         if (ydb->type == YMLDB_BRANCH)
         {
             cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
+            ydb->children = NULL;
         }
-        else if (ydb->value)
-            free(ydb->value);
+        
+        _callback_run(ydb, 1);
         if (ydb->callback)
         {
             int deleted = ydb->callback->deleted?0:1;
             _callback_unreg(ydb, deleted);
         }
+        if (ydb->type != YMLDB_BRANCH)
+            if (ydb->value)
+                free(ydb->value);
         free(ydb->key);
         free(ydb);
     }
@@ -1012,6 +1016,10 @@ free_ydb:
     _log_error("mem alloc failed for ymldb node.\n");
     if (ydb)
     {
+        if (callback) {
+            // _callback_unreg(ydb, callback->deleted);
+            _callback_free(callback);
+        }
         if (type != YMLDB_BRANCH && ydb->children)
         {
             cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
@@ -1020,10 +1028,6 @@ free_ydb:
         {
             if (ydb->value)
                 free(ydb->value);
-        }
-        if (callback) {
-            // _callback_unreg(ydb, callback->deleted);
-            _callback_free(callback);
         }
     }
 
@@ -1072,7 +1076,7 @@ void _ymldb_node_delete(struct ymldb_params *params, struct ymldb *parent, char 
     _params_buf_dump(params, ydb, print_level, 1);
     // parent should be saved because of the ydb will be removed.
     params->last_ydb = parent;
-    _callback_run(ydb, 1);
+    // _callback_run(ydb, 1);
     ydb = cp_avltree_delete(parent->children, key);
     _ymldb_node_free(ydb);
     return;
@@ -2060,9 +2064,7 @@ static void _ymldb_destroy(void *data)
     {
         struct ymldb *ydb = cb->ydb;
         if (ydb->parent)
-        {
             cp_avltree_delete(cb->ydb->parent->children, ydb->key);
-        }
         _ymldb_node_free(ydb);
     }
     _distribution_deinit(cb);
@@ -3192,6 +3194,8 @@ static void _callback_data_free(struct ymldb_callback_data *cd)
             if(cd->keys[i])
                 free(cd->keys[i]);
         }
+        if(cd->value)
+            free(cd->value);
         free(cd);
     }
 }
@@ -3237,7 +3241,7 @@ int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *m
             key[i++] = cur_token;
         else
         {
-            _log_error("The callback key depth is over. (support key depth up to 12.)\n");
+            _log_error("The callback key depth is over. (support key depth up to %d.)\n", YMLDB_CALLBACK_MAX);
             return -1;
         }
         cur_token = va_arg(args, char *);
@@ -3270,11 +3274,11 @@ int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *m
 
     if (ydb)
     {
-        if (ydb->type != YMLDB_BRANCH)
-        {
-            _log_error("usr_func can be registered to ymldb branch.!\n");
-            return -1;
-        }
+        // if (ydb->type != YMLDB_BRANCH)
+        // {
+        //     _log_error("usr_func can be registered to ymldb branch.!\n");
+        //     return -1;
+        // }
         if (ydb->callback)
         {
             _callback_free(ydb->callback);
@@ -3378,11 +3382,11 @@ int _ymldb_callback_register2(ymldb_callback_fn usr_func, void *usr_data, int ke
 
     if (ydb)
     {
-        if (ydb->type != YMLDB_BRANCH)
-        {
-            _log_error("usr_func can be registered to ymldb branch.!\n");
-            return -1;
-        }
+        // if (ydb->type != YMLDB_BRANCH)
+        // {
+        //     _log_error("usr_func can be registered to ymldb branch.!\n");
+        //     return -1;
+        // }
         if (ydb->callback)
         {
             _callback_free(ydb->callback);
@@ -3465,8 +3469,8 @@ static void _callback_pending(struct ymldb *ydb, int deleted, int unregistered)
         cd->keys[i] = NULL;
     cd->deleted = deleted;
     cd->unregistered = unregistered;
-    cd->value = (ydb->type != YMLDB_BRANCH)?ydb->value:NULL;
-    
+    cd->value = (ydb->type != YMLDB_BRANCH)?(strdup(ydb->value)):NULL; //copy!
+    _log_debug("cd->value = %s\n", cd->value);
     do
     {
          // ignore unexpected level.

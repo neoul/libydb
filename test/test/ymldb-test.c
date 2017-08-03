@@ -32,7 +32,7 @@ void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
     
     usr_func(usr_data, cdata->keys_num - cdata->keys_level, &(cdata->keys[cdata->keys_level]));
 
-    printf("\t- %s(%s)\n", __FUNCTION__, (char *) usr_data);
+    printf("\t- %s(%s)\n", __FUNCTION__, (char *) (usr_data?usr_data:""));
     
     printf("\t- KEYS(1):");
     for(i=0; i<cdata->keys_num; i++) {
@@ -55,7 +55,7 @@ void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
     printf("\t- keys_num=%d, keys_level=%d\n\n",cdata->keys_num, cdata->keys_level);
 
     if(!cdata->unregistered && !cdata->deleted) {
-        if(!cdata->value)
+        // if(!cdata->value)
             ymldb_callback_register2(ymldb_usr_callback, "SUB", cdata->keys_num, cdata->keys );
     }
 }

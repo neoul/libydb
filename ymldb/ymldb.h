@@ -105,7 +105,7 @@ int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set);
 int ymldb_distribution_recv_fd(int *cur_fd);
 int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd);
 
-#define YMLDB_CALLBACK_MAX 24
+#define YMLDB_CALLBACK_MAX 16
 struct ymldb_callback_data
 {
     char *keys[YMLDB_CALLBACK_MAX];
