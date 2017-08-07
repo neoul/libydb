@@ -916,7 +916,7 @@ void _ymldb_node_merge_reply(struct ymldb_params *params, struct ymldb *ydb)
 struct ymldb *_ymldb_node_merge(struct ymldb_params *params, struct ymldb *parent,
                                 ymldb_type_t type, char *key, char *value)
 {
-    struct ymldb_callback *callback = NULL;
+    // struct ymldb_callback *callback = NULL;
     struct ymldb *ydb = NULL;
     char *ykey = NULL;
     if (parent)
@@ -938,17 +938,41 @@ struct ymldb *_ymldb_node_merge(struct ymldb_params *params, struct ymldb *paren
             {
                 _log_debug("different type (%s %s-->%s)\n",
                            ydb->key, _ydb_type(ydb->type), _ydb_type(type));
-                if (ydb->callback)
+                if (ydb->type == YMLDB_BRANCH && ydb->children)
+                    cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
+                else if(ydb->value)
+                    free(ydb->value);
+                
+                ydb->type = type;
+                if(ydb->type == YMLDB_BRANCH)
                 {
-                    callback = ydb->callback;
-                    ydb->callback = NULL;
+                    ydb->children = cp_avltree_create((cp_compare_fn)strcmp);
+                    if (!ydb->children)
+                        goto free_ydb;
                 }
-                cp_avltree_delete(parent->children, ydb->key);
-                _ymldb_node_free(ydb);
-                goto new_ydb;
+                else if (type == YMLDB_LEAFLIST)
+                {
+                    ydb->value = strdup(key);
+                    if (!ydb->value)
+                        goto free_ydb;
+                }
+                else
+                {
+                    ydb->value = strdup(value);
+                    if (!ydb->value)
+                        goto free_ydb;
+                }
+                _ymldb_node_merge_reply(params, ydb);
+                // if (ydb->callback)
+                // {
+                //     callback = ydb->callback;
+                //     ydb->callback = NULL;
+                // }
+                // cp_avltree_delete(parent->children, ydb->key);
+                // _ymldb_node_free(ydb);
+                // goto new_ydb;
             }
-
-            if (ydb->type == YMLDB_LEAF)
+            else if (ydb->type == YMLDB_LEAF)
             {
                 if (strcmp(ydb->value, value) != 0)
                 {
@@ -973,9 +997,10 @@ new_ydb:
 
     ydb->key = ykey;
     ydb->type = type;
-    ydb->callback = callback;
-    if (callback)
-        callback->ydb = ydb;
+
+    // ydb->callback = callback;
+    // if (callback)
+    //     callback->ydb = ydb;
 
     if (type == YMLDB_BRANCH)
     {
@@ -1016,11 +1041,10 @@ free_ydb:
     _log_error("mem alloc failed for ymldb node.\n");
     if (ydb)
     {
-        if (callback) {
-            // _callback_unreg(ydb, callback->deleted);
-            _callback_free(callback);
-        }
-        if (type != YMLDB_BRANCH && ydb->children)
+        // if (callback) {
+        //     _callback_free(callback);
+        // }
+        if (type == YMLDB_BRANCH && ydb->children)
         {
             cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
         }
