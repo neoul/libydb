@@ -2264,7 +2264,7 @@ static int _distribution_set(void *n, void *dummy)
     struct ymldb_distribution *yd = dummy;
     int max = yd->max;
     fd_set *set = yd->set;
-    _log_debug("\n");
+    // _log_debug("\n");
     if (cb->flags & YMLDB_FLAG_CONN)
     {
         if (cb->flags & YMLDB_FLAG_RECONNECT)
