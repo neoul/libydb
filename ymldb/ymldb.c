@@ -2270,7 +2270,7 @@ static int _distribution_set(void *n, void *dummy)
         if (cb->flags & YMLDB_FLAG_RECONNECT)
         {
             _log_debug("RECONN for major_key %s\n", cb->key);
-            return 0;
+            return _distribution_init(cb, cb->flags);
         }
         if (cb->fd_publisher >= 0)
         {
