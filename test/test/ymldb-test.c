@@ -111,7 +111,7 @@ int ymldb_test()
         return -1;
     }
 
-    ymldb_callback_register(ymldb_usr_callback, "interfaces-cb", "interfaces");
+    // ymldb_callback_register(ymldb_usr_callback, "interfaces-cb", "interfaces");
     // ymldb_callback_register(ymldb_usr_callback, "interface-cb", "interfaces", "interface");
     // ymldb_callback_register(ymldb_usr_callback, "ge1-cb", "interfaces", "interface", "ge1");
 
@@ -161,6 +161,8 @@ int ymldb_test()
                operstatus_str, &mtu);
     fprintf(stdout, "ge2 mtu=%d\n", mtu);
     fprintf(stdout, "ge2 operstatus=%s\n", operstatus_str);
+
+    ymldb_write("interfaces", "ge2");
 
     // read ymldb data (yaml format string) to OUTPUT stream.
     ymldb_get(stdout, "interfaces", "interface", "ge2");

@@ -89,12 +89,13 @@ int main(int argc, char *argv[])
         }
         if(FD_ISSET(STDIN_FILENO, &read_set))
         {
-            int cnt = 0;
+            int cnt = 1;
             char *cmd;
             char *pch;
             char buf[128];
             char *keys[10];
             pch = fgets(buf, sizeof(buf), stdin);
+            keys[0] = argv[1];
             cmd = strtok (buf," \n\t");
             if(cmd) {
                 while (cnt < 10)
@@ -110,7 +111,7 @@ int main(int argc, char *argv[])
                 if(strncmp(cmd, "sync", 4) == 0)
                 {
                     fprintf(stdout, "SYNC!\n");
-                    res = ymldb_sync(argv[1]);
+                    res = ymldb_sync2(cnt, keys);
                 }
                 else if(strncmp(cmd, "get", 3) == 0)
                 {

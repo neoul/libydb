@@ -1926,8 +1926,12 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
                 _ymldb_internal_get(params, cb->ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_SYNC)
             {
-                if (ignore_or_relay == 2)
+                if (ignore_or_relay == 2) {
+                    // delete local ydb and request sync.
+                    _ymldb_internal_delete(params, cb->ydb, 1, 1);
+                    params->res = 0; // reset failures.
                     _ymldb_internal_relay(params, 0, 1, 1);
+                }
                 else if (params->in.opcode & YMLDB_OP_PUBLISHER)
                     _ymldb_internal_merge(params, cb->ydb, 1, 1);
                 else
