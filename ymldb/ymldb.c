@@ -2831,7 +2831,13 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     {
         if ((opcode & YMLDB_OP_SYNC) && cb->flags & YMLDB_FLAG_SUBSCRIBER)
         {
+            struct timeval before, after;
+            gettimeofday (&before, NULL);
             res = _sync_wait(cb, outstream, 1, 0);
+            gettimeofday (&after, NULL);
+            double diff = (after.tv_sec - before.tv_sec) * 1000000.0;
+            diff = diff + after.tv_usec - before.tv_usec;
+            _log_debug("sync_wait %0.3fus %d\n", diff, (int)diff);
         }
     }
     return res;
@@ -2893,7 +2899,13 @@ int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys
     {
         if ((opcode & YMLDB_OP_SYNC) && cb->flags & YMLDB_FLAG_SUBSCRIBER)
         {
+            struct timeval before, after;
+            gettimeofday (&before, NULL);
             res = _sync_wait(cb, outstream, 1, 0);
+            gettimeofday (&after, NULL);
+            double diff = (after.tv_sec - before.tv_sec) * 1000000.0;
+            diff = diff + after.tv_usec - before.tv_usec;
+            _log_debug("sync_wait %0.3fus %d\n", diff, (int)diff);
         }
     }
     return res;
