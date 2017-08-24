@@ -24,7 +24,10 @@ int ymldb_log_set(int log_level, char *log_file);
 #define YMLDB_TAG_SUBSCRIBER YMLDB_TAG_BASE "subscriber"
 #define YMLDB_TAG_PUBLISHER YMLDB_TAG_BASE "publisher"
 #define YMLDB_TAG_SYNC YMLDB_TAG_BASE "sync"
-#define YMLDB_TAG_SEQ "ymldb:seq:"
+
+#define YMLDB_TAG_SEQ_BASE "ymldb:seq:"
+#define YMLDB_TAG_SEQ "ymldb:seq:e:" // the last message of this sequence
+#define YMLDB_TAG_SEQ_CON "ymldb:seq:c:" // the consecutive messages exists
 
 // opcode
 #define YMLDB_OP_GET 0x01
@@ -35,6 +38,7 @@ int ymldb_log_set(int log_level, char *log_file);
 #define YMLDB_OP_PUBLISHER 0x20
 #define YMLDB_OP_SYNC 0x40
 #define YMLDB_OP_ACTION (YMLDB_OP_GET | YMLDB_OP_DELETE | YMLDB_OP_MERGE | YMLDB_OP_SYNC)
+#define YMLDB_OP_SEQ_CON 0x80
 
 // flags
 #define YMLDB_FLAG_NONE 0x00
@@ -43,6 +47,7 @@ int ymldb_log_set(int log_level, char *log_file);
 #define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled
 #define YMLDB_FLAG_NOSYNC 0x04
 #define YMLDB_FLAG_RECONNECT 0x100
+#define YMLDB_FLAG_INSYNC 0x200
 
 // unix socket pathname
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"

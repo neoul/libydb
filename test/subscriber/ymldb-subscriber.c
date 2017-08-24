@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     // create ymldb for interface.
     ymldb_create(argv[1], YMLDB_FLAG_NONE);
     ymldb_distribution_init(argv[1], YMLDB_FLAG_SUBSCRIBER);
-    ymldb_distribution_add(argv[1], STDOUT_FILENO);
+    // ymldb_distribution_add(argv[1], STDOUT_FILENO);
 
     do
     {

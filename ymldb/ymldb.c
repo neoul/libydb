@@ -720,7 +720,10 @@ void _ymldb_fprintf_head(FILE *stream, unsigned int opcode, unsigned int sequenc
     // %TAG !merge! actusnetworks.com:op:
     if (opcode & YMLDB_OP_SEQ)
     {
-        fprintf(stream, "%s %s %s%u\n", "%TAG", YMLDB_TAG_OP_SEQ, YMLDB_TAG_SEQ, sequence);
+        if(opcode & YMLDB_OP_SEQ_CON)
+            fprintf(stream, "%s %s %s%u\n", "%TAG", YMLDB_TAG_OP_SEQ, YMLDB_TAG_SEQ_CON, sequence);
+        else
+            fprintf(stream, "%s %s %s%u\n", "%TAG", YMLDB_TAG_OP_SEQ, YMLDB_TAG_SEQ, sequence);
     }
     if (opcode & YMLDB_OP_MERGE)
     {
@@ -1512,7 +1515,7 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
 int _params_opcode_extract(struct ymldb_params *params)
 {
     unsigned int opcode = 0;
-    unsigned int sequence;
+    unsigned int sequence = 0;
     yaml_document_t *document = &params->document;
     if (document->tag_directives.start != document->tag_directives.end)
     {
@@ -1524,8 +1527,13 @@ int _params_opcode_extract(struct ymldb_params *params)
             op = (char *)tag->handle;
             if (strcmp(op, YMLDB_TAG_OP_SEQ) == 0)
             {
+                char seq_type = 0;
                 opcode = opcode | YMLDB_OP_SEQ;
-                sscanf((char *)tag->prefix, YMLDB_TAG_SEQ "%u", &sequence);
+                sscanf((char *)tag->prefix, YMLDB_TAG_SEQ_BASE "%c:%u", 
+                    &seq_type, &sequence);
+                _log_debug("seq_type=%c\n", seq_type);
+                if(seq_type == 'c')
+                    opcode = opcode | YMLDB_OP_SEQ_CON;
             }
             else if (strcmp(op, YMLDB_TAG_OP_MERGE) == 0)
             {
@@ -1647,6 +1655,8 @@ static int _ymldb_sm(struct ymldb_params *params)
         }
     }
     out_opcode |= YMLDB_OP_SEQ;
+    if(in_opcode & YMLDB_OP_SEQ_CON)
+        out_opcode |= YMLDB_OP_SEQ_CON;
     if (in_opcode & YMLDB_OP_SEQ)
     {
         out_sequence = in_sequence;
@@ -1859,6 +1869,17 @@ flushing:
     _ymldb_stream_close(streambuffer);
     _log_debug("@@ no_reply %s\n", params->no_reply?"on":"off");
     _log_debug("@@ no_change %s\n", params->no_change?"on":"off");
+    
+    if(!forced)
+    {
+        if(params->out.opcode & YMLDB_OP_SEQ)
+        {
+            char *seq_tag = strstr(streambuffer->buf, YMLDB_TAG_SEQ_BASE);
+            if(seq_tag)
+                strncpy(seq_tag, YMLDB_TAG_SEQ_CON, strlen(YMLDB_TAG_SEQ_CON));
+        }
+    }
+
     _log_debug("@@ %zd %s\n\n", streambuffer->len, streambuffer->buf);
 
     if (params->out.stream)
@@ -1910,6 +1931,11 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
         {
             int ignore_or_relay;
             ignore_or_relay = _ymldb_sm(params);
+            // sync wait - done
+            if(cb->flags & YMLDB_FLAG_INSYNC)
+                if(!(params->in.opcode & YMLDB_OP_SEQ_CON))
+                    cb->flags = cb->flags & (~YMLDB_FLAG_INSYNC);
+
             if (ignore_or_relay == 1)
             {
                 _log_debug("in %uth %s\n", params->in.sequence, "ignored ...");
@@ -1927,7 +1953,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
             else if (params->out.opcode & YMLDB_OP_SYNC)
             {
                 if (ignore_or_relay == 2) {
-                    // delete local ydb and request sync.
+                    // delete local ydb before request sync.
                     _ymldb_internal_delete(params, cb->ydb, 1, 1);
                     params->res = 0; // reset failures.
                     _ymldb_internal_relay(params, 0, 1, 1);
@@ -2483,8 +2509,9 @@ static int _distribution_recv_each_of_cb(void *n, void *dummy)
 }
 
 // available for subscriber
-static int _sync_wait(struct ymldb_cb *cb, FILE *outstream, int sec, int usec)
+static int _sync_wait(struct ymldb_cb *cb, FILE *outstream)
 {
+    int res = 0;
     if (!cb)
     {
         _log_error("no cb or set\n");
@@ -2498,17 +2525,23 @@ static int _sync_wait(struct ymldb_cb *cb, FILE *outstream, int sec, int usec)
     _log_debug("\n");
     if (cb->flags & YMLDB_FLAG_RECONNECT)
     {
-        int res = _distribution_init(cb, cb->flags);
+        res = _distribution_init(cb, cb->flags);
         if (res < 0)
             return res;
     }
     if (cb->fd_publisher >= 0)
     {
-        int res;
+        int is_insync;
+        int retry = 0;
         fd_set set;
+        double diff = 0;
         struct timeval tv;
-        tv.tv_sec = sec;
-        tv.tv_usec = usec;
+        struct timeval before, after;
+
+        tv.tv_sec = 0;
+        tv.tv_usec = 333333; // 0.333333 sec;
+        gettimeofday (&before, NULL);
+_recv:
         FD_ZERO(&set);
         FD_SET(cb->fd_publisher, &set);
         res = select(cb->fd_publisher + 1, &set, NULL, NULL, &tv);
@@ -2520,12 +2553,37 @@ static int _sync_wait(struct ymldb_cb *cb, FILE *outstream, int sec, int usec)
         }
         if (res == 0)
         {
+            if(retry < 3)
+            {
+                retry++;
+                goto _recv;
+            }
             _log_error("fd %d timeout\n", cb->fd_publisher);
             return -1;
         }
-        _distribution_recv_internal(cb, outstream, &set);
+        cb->flags |= YMLDB_FLAG_INSYNC;
+        res = _distribution_recv_internal(cb, outstream, &set);
+        is_insync = cb->flags & YMLDB_FLAG_INSYNC;
+        cb->flags &= (~YMLDB_FLAG_INSYNC);
+        if(res < 0)
+            return res;
+        gettimeofday (&after, NULL);
+        diff = (after.tv_sec - before.tv_sec) * 1000000.0;
+        diff = diff + after.tv_usec - before.tv_usec;
+        _log_debug("sync-wait %0.3fus\n", diff);
+        
+        if(is_insync) {
+            if(diff < 1.0)
+            {
+                _log_debug("sync-wait again\n");
+                goto _recv;
+            }
+            _log_error("sync-wait failed.\n");
+            return -1;
+        }
     }
-    return 0;
+    _log_debug("sync-wait done\n");
+    return res;
 }
 
 static int _distribution_send(struct ymldb_params *params)
@@ -2831,13 +2889,7 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     {
         if ((opcode & YMLDB_OP_SYNC) && cb->flags & YMLDB_FLAG_SUBSCRIBER)
         {
-            struct timeval before, after;
-            gettimeofday (&before, NULL);
-            res = _sync_wait(cb, outstream, 1, 0);
-            gettimeofday (&after, NULL);
-            double diff = (after.tv_sec - before.tv_sec) * 1000000.0;
-            diff = diff + after.tv_usec - before.tv_usec;
-            _log_debug("sync_wait %0.3fus %d\n", diff, (int)diff);
+            res = _sync_wait(cb, outstream);
         }
     }
     return res;
@@ -2899,13 +2951,7 @@ int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys
     {
         if ((opcode & YMLDB_OP_SYNC) && cb->flags & YMLDB_FLAG_SUBSCRIBER)
         {
-            struct timeval before, after;
-            gettimeofday (&before, NULL);
-            res = _sync_wait(cb, outstream, 1, 0);
-            gettimeofday (&after, NULL);
-            double diff = (after.tv_sec - before.tv_sec) * 1000000.0;
-            diff = diff + after.tv_usec - before.tv_usec;
-            _log_debug("sync_wait %0.3fus %d\n", diff, (int)diff);
+            res = _sync_wait(cb, outstream);
         }
     }
     return res;

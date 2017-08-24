@@ -23,6 +23,29 @@ void signal_handler_INT(int param)
     done = 1;
 }
 
+void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
+{
+    fprintf(stdout, "ymldb publisher callback\n");
+    int i;
+    printf("\t- KEYS(1):");
+    for(i=0; i<cdata->keys_num; i++) {
+        printf(" %s", cdata->keys[i]);
+    }
+    if(cdata->value) {
+        printf(" = %s", cdata->value);
+    }
+    printf("\n");
+
+    printf("\t- KEYS(2):");
+    for(i=cdata->keys_level; i< cdata->keys_num; i++) {
+        printf(" %s", cdata->keys[i]);
+    }
+    if(cdata->value) {
+        printf(" = %s", cdata->value);
+    }
+    printf("\n");
+}
+
 int main(int argc, char *argv[])
 {
     int res;
@@ -55,6 +78,8 @@ int main(int argc, char *argv[])
     // create ymldb for interface.
     ymldb_create(argv[1], (YMLDB_FLAG_PUBLISHER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_NOSYNC)));
     // read ymldb from a file.
+    // ymldb_callback_register(ymldb_usr_callback, NULL, argv[1]);
+
     int infd = open(argv[2], O_RDONLY, 0644);
     ymldb_run_with_fd(argv[1], infd, 0);
     close(infd);
