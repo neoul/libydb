@@ -24,3 +24,4 @@ test/test/Makefile.in
 test/test/ymldb-test
 tools/monitor/Makefile.in
 ymldb/Makefile.in
+autom4te.cache
