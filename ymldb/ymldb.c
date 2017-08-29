@@ -988,7 +988,7 @@ struct ymldb *_ymldb_node_merge(struct ymldb_params *params, struct ymldb *paren
         }
     }
 
-new_ydb:
+// new_ydb:
     ydb = malloc(sizeof(struct ymldb));
     if (!ydb)
         goto free_ydb;
@@ -1606,7 +1606,7 @@ static int _ymldb_sm(struct ymldb_params *params)
             no_reply = 0;
             if (in_opcode & YMLDB_OP_GET)
                 no_reply = 1;
-            if (flags & YMLDB_FLAG_NOSYNC)
+            if (flags & YMLDB_FLAG_ASYNC)
                 no_reply = 1;
         }
     }
@@ -2099,8 +2099,8 @@ int ymldb_create(char *major_key, unsigned int flags)
 
     _log_debug("major_key %s flags %x\n", major_key, flags);
 
-    if (flags & YMLDB_FLAG_NOSYNC)
-        cb->flags |= YMLDB_FLAG_NOSYNC;
+    if (flags & YMLDB_FLAG_ASYNC)
+        cb->flags |= YMLDB_FLAG_ASYNC;
     if (flags & YMLDB_FLAG_PUBLISHER || flags & YMLDB_FLAG_SUBSCRIBER)
         _distribution_init(cb, flags);
 
@@ -2257,8 +2257,8 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
     if (flags & YMLDB_FLAG_PUBLISHER)
     { // PUBLISHER
         cb->flags |= YMLDB_FLAG_PUBLISHER;
-        if (flags & YMLDB_FLAG_NOSYNC)
-            cb->flags |= YMLDB_FLAG_NOSYNC;
+        if (flags & YMLDB_FLAG_ASYNC)
+            cb->flags |= YMLDB_FLAG_ASYNC;
         if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         {
             _log_error("bind failed (%s).\n", strerror(errno));
@@ -2372,7 +2372,7 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
                     cb->fd_subscriber[i] = fd;
                     cp_avltree_insert(g_fds, &cb->fd_subscriber[i], cb);
                     _log_debug("subscriber (fd %d) added..\n", fd);
-                    if (!(cb->flags & YMLDB_FLAG_NOSYNC))
+                    if (!(cb->flags & YMLDB_FLAG_ASYNC))
                         ymldb_sync(cb->key);
                     break;
                 }
@@ -3204,7 +3204,7 @@ int ymldb_distribution_add(char *major_key, int subscriber_fd)
         {
             cb->fd_subscriber[i] = subscriber_fd;
             _log_debug("subscriber (fd %d) added..\n", subscriber_fd);
-            if (!(cb->flags & YMLDB_FLAG_NOSYNC))
+            if (!(cb->flags & YMLDB_FLAG_ASYNC))
                 ymldb_sync(cb->key);
             break;
         }

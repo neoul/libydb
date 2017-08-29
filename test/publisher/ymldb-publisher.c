@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     ymldb_log_set(YMLDB_LOG_LOG, "/tmp/ymldb-publisher.log");
 
     // create ymldb for interface.
-    ymldb_create(argv[1], (YMLDB_FLAG_PUBLISHER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_NOSYNC)));
+    ymldb_create(argv[1], (YMLDB_FLAG_PUBLISHER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_ASYNC)));
     // read ymldb from a file.
     // ymldb_callback_register(ymldb_usr_callback, NULL, argv[1]);
 

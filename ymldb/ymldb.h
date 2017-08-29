@@ -45,7 +45,7 @@ int ymldb_log_set(int log_level, char *log_file);
 #define YMLDB_FLAG_PUBLISHER 0x01 // publish ymldb if set, subscribe ymldb if not.
 #define YMLDB_FLAG_SUBSCRIBER 0x02
 #define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled
-#define YMLDB_FLAG_NOSYNC 0x04
+#define YMLDB_FLAG_ASYNC 0x04
 #define YMLDB_FLAG_RECONNECT 0x100
 #define YMLDB_FLAG_INSYNC 0x200
 

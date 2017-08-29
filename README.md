@@ -39,7 +39,7 @@ Try is if you meet an error in the library build.
 ```
 $ sudo apt-get install autoconf libtool
 $ autoreconf -i -f
-$ ./configure
+$ ./configure or $ ./configure CFLAGS="-g -Wall"
 $ make
 $ make install
 ```
