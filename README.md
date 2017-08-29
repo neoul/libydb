@@ -37,6 +37,7 @@ http://pyyaml.org/download/libyaml/yaml-0.1.7.tar.gz
 Try is if you meet an error in the library build.
 
 ```
+$ sudo apt-get install autoconf libtool
 $ autoreconf -i -f
 $ ./configure
 $ make
