@@ -136,30 +136,4 @@ interface:
     enabled: up
     link-up-down-trap-enable: disabled
     type: ethernetCsmacd
-  ge28:
-    description: 
-    enabled: up
-    link-up-down-trap-enable: disabled
-    type: ethernetCsmacd
-  ge29:
-    description: 
-    enabled: up
-    link-up-down-trap-enable: disabled
-    type: ethernetCsmacd
-  ge30:
-    description: 
-    enabled: up
-    link-up-down-trap-enable: disabled
-    type: ethernetCsmacd
-  ge31:
-    description: 
-    enabled: up
-    link-up-down-trap-enable: disabled
-    type: ethernetCsmacd
-  ge32:
-    description: 
-    enabled: up
-    link-up-down-trap-enable: disabled
-    type: ethernetCsmacd
-
 ...

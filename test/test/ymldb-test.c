@@ -18,7 +18,7 @@ void usr_func(void *p, int keys_num, char *keys[])
 
 }
 
-void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
+void ymldb_notify_callback(void *usr_data, struct ymldb_callback_data *cdata)
 {
     int i;
     printf("\n");
@@ -56,7 +56,7 @@ void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
 
     if(!cdata->unregistered && !cdata->deleted) {
         // if(!cdata->value)
-            ymldb_callback_register2(ymldb_usr_callback, "SUB", cdata->keys_num, cdata->keys );
+            ymldb_notify_callback_register2(ymldb_notify_callback, "SUB", cdata->keys_num, cdata->keys );
     }
 }
 
@@ -111,9 +111,9 @@ int ymldb_test()
         return -1;
     }
 
-    // ymldb_callback_register(ymldb_usr_callback, "interfaces-cb", "interfaces");
-    // ymldb_callback_register(ymldb_usr_callback, "interface-cb", "interfaces", "interface");
-    // ymldb_callback_register(ymldb_usr_callback, "ge1-cb", "interfaces", "interface", "ge1");
+    // ymldb_notify_callback_register(ymldb_notify_callback, "interfaces-cb", "interfaces");
+    ymldb_notify_callback_register(ymldb_notify_callback, "interface-cb", "interfaces", "interface");
+    // ymldb_notify_callback_register(ymldb_notify_callback, "ge1-cb", "interfaces", "interface", "ge1");
 
     ymldb_dump_all(stdout, NULL);
 

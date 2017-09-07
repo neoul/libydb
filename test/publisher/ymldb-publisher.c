@@ -23,10 +23,15 @@ void signal_handler_INT(int param)
     done = 1;
 }
 
-void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
+void ymldb_update_callback(void *usr_data, struct ymldb_callback_data *cdata)
 {
-    fprintf(stdout, "ymldb publisher callback\n");
     int i;
+    static int index = 0;
+    static int mtu[] = {256, 512, 1024, 1518};
+    static int rx_octet[] = {1000, 2000, 3000, 4000};
+    static int tx_octet[] = {5000, 6000, 7000, 8000};
+
+    printf("\n");
     printf("\t- KEYS(1):");
     for(i=0; i<cdata->keys_num; i++) {
         printf(" %s", cdata->keys[i]);
@@ -44,6 +49,21 @@ void ymldb_usr_callback(void *usr_data, struct ymldb_callback_data *cdata)
         printf(" = %s", cdata->value);
     }
     printf("\n");
+
+    printf("\t- keys_num=%d, keys_level=%d\n\n",cdata->keys_num, cdata->keys_level);
+
+    ymldb_push("interfaces",
+        "interface:\n"
+        "  ge3:\n"
+        "    rx-octet: %d\n"
+        "    tx-octet: %d\n"
+        "    mtu: %d\n"
+        ,
+        rx_octet[index],
+        tx_octet[index],
+        mtu[index]
+    );
+    index = (index + 1)%4;
 }
 
 int main(int argc, char *argv[])
@@ -77,9 +97,13 @@ int main(int argc, char *argv[])
 
     // create ymldb for interface.
     ymldb_create(argv[1], (YMLDB_FLAG_PUBLISHER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_ASYNC)));
-    // read ymldb from a file.
-    // ymldb_callback_register(ymldb_usr_callback, NULL, argv[1]);
+    
+    if(strcmp(argv[1], "interfaces") == 0)
+    {
+        ymldb_update_callback_register(ymldb_update_callback, "USR-DATA", argv[1], "interface", "ge3");
+    }
 
+    // read ymldb from a file.
     int infd = open(argv[2], O_RDONLY, 0644);
     ymldb_run_with_fd(argv[1], infd, 0);
     close(infd);

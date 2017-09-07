@@ -110,6 +110,10 @@ int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set);
 int ymldb_distribution_recv_fd(int *cur_fd);
 int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd);
 
+// YMLDB callback type
+#define YMLDB_UPDATE_CALLBACK 0x01
+#define YMLDB_NOTIFY_CALLBACK 0x00
+
 #define YMLDB_CALLBACK_MAX 16
 struct ymldb_callback_data
 {
@@ -117,23 +121,33 @@ struct ymldb_callback_data
     int keys_num;
     int keys_level;
     char *value;
-    int deleted;
-    int unregistered;
+    int resv:28;
+    int deleted:1;
+    int unregistered:1;
+    int type:2;
 };
 typedef void (*ymldb_callback_fn)(void *usr_data, struct ymldb_callback_data *callback_data);
 
-int _ymldb_callback_register(ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
+int _ymldb_callback_register(int type, ymldb_callback_fn usr_func, void *usr_data, char *major_key, ...);
 int _ymldb_callback_unregister(char *major_key, ...);
-int _ymldb_callback_register2(ymldb_callback_fn usr_func, void *usr_data, int keys_num, char *keys[]);
+int _ymldb_callback_register2(int type, ymldb_callback_fn usr_func, void *usr_data, int keys_num, char *keys[]);
 int _ymldb_callback_unregister2(int keys_num, char *keys[]);
 
-#define ymldb_callback_register(usr_func, usr_data, major_key, ...) \
-    _ymldb_callback_register((usr_func), (usr_data), (major_key), ##__VA_ARGS__, NULL)
+#define ymldb_callback_register(type, usr_func, usr_data, major_key, ...) \
+    _ymldb_callback_register((type), (usr_func), (usr_data), (major_key), ##__VA_ARGS__, NULL)
+#define ymldb_update_callback_register(usr_func, usr_data, major_key, ...) \
+    _ymldb_callback_register(YMLDB_UPDATE_CALLBACK, (usr_func), (usr_data), (major_key), ##__VA_ARGS__, NULL)
+#define ymldb_notify_callback_register(usr_func, usr_data, major_key, ...) \
+    _ymldb_callback_register(YMLDB_NOTIFY_CALLBACK, (usr_func), (usr_data), (major_key), ##__VA_ARGS__, NULL)
 #define ymldb_callback_unregister(major_key, ...) \
     _ymldb_callback_unregister(major_key, ##__VA_ARGS__, NULL)
 
-#define ymldb_callback_register2(usr_func, usr_data, keys_num, keys) \
-    _ymldb_callback_register2((usr_func), (usr_data), (keys_num), (keys))
+#define ymldb_callback_register2(type, usr_func, usr_data, keys_num, keys) \
+    _ymldb_callback_register2((type), (usr_func), (usr_data), (keys_num), (keys))
+#define ymldb_update_callback_register2(usr_func, usr_data, keys_num, keys) \
+    _ymldb_callback_register2((YMLDB_UPDATE_CALLBACK), (usr_func), (usr_data), (keys_num), (keys))
+#define ymldb_notify_callback_register2(usr_func, usr_data, keys_num, keys) \
+    _ymldb_callback_register2((YMLDB_NOTIFY_CALLBACK), (usr_func), (usr_data), (keys_num), (keys))
 #define ymldb_callback_unregister2(keys_num, keys) \
     _ymldb_callback_unregister2((keys_num), (keys))
 
