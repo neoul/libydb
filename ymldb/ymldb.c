@@ -67,6 +67,7 @@ struct ymldb_cb
     int fd_publisher;
     // fd for YMLDB_FLAG_PUBLISHER
     int fd_subscriber[YMLDB_SUBSCRIBER_MAX];
+    int inprogress_cnt;
 };
 
 struct ymldb_distribution
@@ -1650,11 +1651,25 @@ static int _ymldb_sm(struct ymldb_params *params)
             else // YMLDB_OP_GET, YMLDB_OP_SYNC
             {
                 out_opcode = YMLDB_OP_SUBSCRIBER;
-                out_opcode |= (in_opcode & (YMLDB_OP_GET | YMLDB_OP_SYNC));
+                // out_opcode |= (in_opcode & (YMLDB_OP_GET | YMLDB_OP_SYNC));
                 if (in_opcode & YMLDB_OP_SYNC)
                 {
+                    out_opcode = YMLDB_OP_SYNC;
                     no_reply = 0;
-                    ignore_or_relay = 2;
+                    ignore_or_relay = 3; // delete local ydb and sync relay
+                }
+                else // YMLDB_OP_GET
+                {
+                    if (flags & YMLDB_FLAG_ASYNC)
+                    {
+                        out_opcode = YMLDB_OP_SYNC;
+                        no_reply = 0;
+                        ignore_or_relay = 2; // sync relay
+                    }
+                    else
+                    {
+                        out_opcode = YMLDB_OP_GET;
+                    }
                 }
             }
         }
@@ -1907,6 +1922,14 @@ flushing:
 
     _log_debug("@@ %zd %s\n\n", streambuffer->len, streambuffer->buf);
 
+    _log_debug("@@ inprogress_cnt %d\n", params->cb->inprogress_cnt);
+    if(params->cb->inprogress_cnt > 1)
+    {
+        // sub operation output is disabled..
+        _log_debug("@@ ignored output.\n");
+        return 1;
+    }
+
     if (params->out.stream)
     {
         fputs(streambuffer->buf, params->out.stream);
@@ -1946,6 +1969,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     {
         return -1;
     }
+    cb->inprogress_cnt++;
     _log_debug("major_key %s\n", cb->key);
     _log_debug(">>>\n");
     while (!done)
@@ -1985,11 +2009,13 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
                 _ymldb_internal_get(params, cb->ydb, 1, 1);
             else if (params->out.opcode & YMLDB_OP_SYNC)
             {
-                if (ignore_or_relay == 2) {
+                if (ignore_or_relay >= 2) {
                     // delete local ydb before request sync.
-                    _ymldb_internal_delete(params, cb->ydb, 1, 1);
-                    params->res = 0; // reset failures.
-                    _params_buf_reset(params); // reset output buffer
+                    if(ignore_or_relay > 2) {
+                        _ymldb_internal_delete(params, cb->ydb, 1, 1);
+                        params->res = 0; // reset failures.
+                        _params_buf_reset(params); // reset output buffer
+                    }
                     _ymldb_internal_relay(params, 0, 1, 1);
                 }
                 else if (params->in.opcode & YMLDB_OP_PUBLISHER)
@@ -2009,6 +2035,7 @@ int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     res = params->res;
     _params_free(params);
     _notify_callback_run_pending();
+    cb->inprogress_cnt--;
     return res;
 }
 
@@ -2288,11 +2315,11 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
     strncpy(addr.sun_path, socketpath, sizeof(addr.sun_path) - 1);
     addr.sun_path[0] = 0;
     cb->fd_publisher = fd;
+    if (flags & YMLDB_FLAG_ASYNC)
+        cb->flags |= YMLDB_FLAG_ASYNC;
     if (flags & YMLDB_FLAG_PUBLISHER)
     { // PUBLISHER
         cb->flags |= YMLDB_FLAG_PUBLISHER;
-        if (flags & YMLDB_FLAG_ASYNC)
-            cb->flags |= YMLDB_FLAG_ASYNC;
         if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         {
             _log_error("bind failed (%s).\n", strerror(errno));
@@ -2627,7 +2654,7 @@ static int _distribution_send(struct ymldb_params *params)
     int retry = 0;
     struct ymldb_cb *cb = params->cb;
     struct ymldb_stream *streambuffer = params->streambuffer;
-    _log_debug("no_change=%d\n", params->no_change);
+    _log_debug("no_change=%s\n", params->no_change?"on":"off");
     if (params->no_reply)
     {
         _log_debug("no reply\n");
@@ -2921,7 +2948,14 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     _ymldb_stream_free(input);
     if (res >= 0)
     {
+        int sync = 0;
         if ((opcode & YMLDB_OP_SYNC) && cb->flags & YMLDB_FLAG_SUBSCRIBER)
+            sync = 1;
+        if ((opcode & YMLDB_OP_GET) && (cb->flags & YMLDB_FLAG_SUBSCRIBER)
+            && (cb->flags & YMLDB_FLAG_ASYNC))
+            sync = 1;
+        
+        if(sync)
         {
             res = _sync_wait(cb, outstream);
         }
@@ -2983,7 +3017,14 @@ int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys
     _ymldb_stream_free(input);
     if (res >= 0)
     {
+        int sync = 0;
         if ((opcode & YMLDB_OP_SYNC) && cb->flags & YMLDB_FLAG_SUBSCRIBER)
+            sync = 1;
+        if ((opcode & YMLDB_OP_GET) && (cb->flags & YMLDB_FLAG_SUBSCRIBER)
+            && (cb->flags & YMLDB_FLAG_ASYNC))
+            sync = 1;
+        
+        if(sync)
         {
             res = _sync_wait(cb, outstream);
         }

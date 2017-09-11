@@ -13,11 +13,6 @@
 
 #include "ymldb.h"
 
-void usr_func(void *p, int keys_num, char *keys[])
-{
-
-}
-
 void ymldb_notify_callback(void *usr_data, struct ymldb_callback_data *cdata)
 {
     int i;
@@ -30,8 +25,6 @@ void ymldb_notify_callback(void *usr_data, struct ymldb_callback_data *cdata)
     if(!cdata->unregistered && !cdata->deleted)
         printf(" [callback for merge]\n");
     
-    usr_func(usr_data, cdata->keys_num - cdata->keys_level, &(cdata->keys[cdata->keys_level]));
-
     printf("\t- %s(%s)\n", __FUNCTION__, (char *) (usr_data?usr_data:""));
     
     printf("\t- KEYS(1):");

@@ -77,13 +77,13 @@ int main(int argc, char *argv[])
     if(argc != 3 && argc != 4) {
         fprintf(stdout, "\n");
         fprintf(stdout, "%s [major_key] [ymldb_file.yml]\n", argv[0]);
-        fprintf(stdout, "%s [major_key] [ymldb_file.yml] no-sync\n", argv[0]);
+        fprintf(stdout, "%s [major_key] [ymldb_file.yml] async\n", argv[0]);
         fprintf(stdout, "\n");
         return 0;
     }
-    if(argc == 4 && strncmp(argv[3], "no-sync", 7) == 0)
+    if(argc == 4 && strncmp(argv[3], "async", 5) == 0)
     {
-        printf("no-sync mode\n");
+        printf("async mode\n");
         sync = 0;
     }
 

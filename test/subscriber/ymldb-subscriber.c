@@ -20,16 +20,58 @@ void signal_handler_INT(int param)
     done = 1;
 }
 
+void ymldb_notify_callback(void *usr_data, struct ymldb_callback_data *cdata)
+{
+    int i;
+    printf("\n");
+    if(cdata->deleted || cdata->unregistered)
+        printf(" [callback for%s%s]\n", 
+            cdata->deleted?" del":"",
+            cdata->unregistered?" unreg":"");
+
+    if(!cdata->unregistered && !cdata->deleted)
+        printf(" [callback for merge]\n");
+    
+    printf("\t- %s(%s)\n", __FUNCTION__, (char *) (usr_data?usr_data:""));
+    
+    printf("\t- KEYS(1):");
+    for(i=0; i<cdata->keys_num; i++) {
+        printf(" %s", cdata->keys[i]);
+    }
+    if(cdata->value) {
+        printf(" = %s", cdata->value);
+    }
+    printf("\n");
+
+    printf("\t- KEYS(2):");
+    for(i=cdata->keys_level; i< cdata->keys_num; i++) {
+        printf(" %s", cdata->keys[i]);
+    }
+    if(cdata->value) {
+        printf(" = %s", cdata->value);
+    }
+    printf("\n");
+
+    printf("\t- keys_num=%d, keys_level=%d\n\n",cdata->keys_num, cdata->keys_level);
+}
+
 int main(int argc, char *argv[])
 {
     int res;
+    int sync = 1;
     int max_fd = 0;
     fd_set read_set;
     struct timeval tv;
 
-    if(argc != 2) {
+    if(argc != 2 && argc != 3) {
         fprintf(stdout, "%s [major_key]\n", argv[0]);
+        fprintf(stdout, "%s [major_key] async\n", argv[0]);
         return 0;
+    }
+    if(argc == 3 && strncmp(argv[2], "async", 5) == 0)
+    {
+        printf("async mode\n");
+        sync = 0;
     }
 
     // MUST ignore SIGPIPE.
@@ -42,8 +84,10 @@ int main(int argc, char *argv[])
 
     // create ymldb for interface.
     ymldb_create(argv[1], YMLDB_FLAG_NONE);
-    ymldb_distribution_init(argv[1], YMLDB_FLAG_SUBSCRIBER);
+    ymldb_distribution_init(argv[1], (YMLDB_FLAG_SUBSCRIBER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_ASYNC)));
     // ymldb_distribution_add(argv[1], STDOUT_FILENO);
+
+    ymldb_notify_callback_register(ymldb_notify_callback, "interface-cb", "interfaces", "interface");
 
     do
     {
