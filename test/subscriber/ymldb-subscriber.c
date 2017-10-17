@@ -80,14 +80,23 @@ int main(int argc, char *argv[])
     // add a signal handler to quit this program.
     signal(SIGINT, signal_handler_INT);
 
-    ymldb_log_set(YMLDB_LOG_LOG, "/tmp/ymldb-subscriber.log");
+    // set ymldb log
+	{
+		char logfile[64];
+		pid_t pid = getpid();
+		sprintf(logfile, "/tmp/ymldb-subscriber-%d.log", pid);
+		ymldb_log_set(YMLDB_LOG_LOG, logfile);
+		// ymldb_log_set(YMLDB_LOG_LOG, NULL); //stdout
+	}
 
     // create ymldb for interface.
     ymldb_create(argv[1], YMLDB_FLAG_NONE);
     ymldb_distribution_init(argv[1], (YMLDB_FLAG_SUBSCRIBER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_ASYNC)));
     // ymldb_distribution_add(argv[1], STDOUT_FILENO);
 
-    ymldb_notify_callback_register(ymldb_notify_callback, "interface-cb", "interfaces", "interface");
+    if(strcmp(argv[1], "interfaces") == 0)
+        ymldb_notify_callback_register(ymldb_notify_callback, 
+            "interface-cb", "interfaces", "interface");
 
     do
     {

@@ -22,6 +22,7 @@ test/subscriber/Makefile.in
 test/subscriber/ymldb-subscriber
 test/test/Makefile.in
 test/test/ymldb-test
+test/test/ymldb-update-callback-example
 tools/monitor/Makefile.in
 ymldb/Makefile.in
 autom4te.cache

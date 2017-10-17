@@ -14,6 +14,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+// basename()
+#include <libgen.h>
+
+// getpid()
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "ymldb.h"
 
 int done = 0;
@@ -74,10 +81,11 @@ int main(int argc, char *argv[])
     fd_set read_set;
     struct timeval tv;
 
-    if(argc != 3 && argc != 4) {
+    if(argc != 3 && argc != 4 && argc != 2) {
         fprintf(stdout, "\n");
-        fprintf(stdout, "%s [major_key] [ymldb_file.yml]\n", argv[0]);
-        fprintf(stdout, "%s [major_key] [ymldb_file.yml] async\n", argv[0]);
+        fprintf(stdout, "%s [major_key]\n", basename(argv[0]));
+        fprintf(stdout, "%s [major_key] [ymldb_file.yml]\n", basename(argv[0]));
+        fprintf(stdout, "%s [major_key] [ymldb_file.yml] async\n", basename(argv[0]));
         fprintf(stdout, "\n");
         return 0;
     }
@@ -93,7 +101,14 @@ int main(int argc, char *argv[])
     // add a signal handler to quit this program.
     signal(SIGINT, signal_handler_INT);
 
-    ymldb_log_set(YMLDB_LOG_LOG, "/tmp/ymldb-publisher.log");
+	// set ymldb log
+	{
+		char logfile[64];
+		pid_t pid = getpid();
+		sprintf(logfile, "/tmp/ymldb-publisher-%d.log", pid);
+		//ymldb_log_set(YMLDB_LOG_LOG, logfile);
+		ymldb_log_set(YMLDB_LOG_LOG, NULL); //stdout
+	}
 
     // create ymldb for interface.
     ymldb_create(argv[1], (YMLDB_FLAG_PUBLISHER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_ASYNC)));
@@ -104,9 +119,12 @@ int main(int argc, char *argv[])
     }
 
     // read ymldb from a file.
-    int infd = open(argv[2], O_RDONLY, 0644);
-    ymldb_run_with_fd(argv[1], infd, 0);
-    close(infd);
+	if(argc >= 3)
+	{
+		int infd = open(argv[2], O_RDONLY, 0644);
+		ymldb_run_with_fd(argv[1], infd, 0);
+		close(infd);
+	}
 
     ymldb_dump_all(stdout, NULL);
 

@@ -120,6 +120,7 @@ int ymldb_test()
     ymldb_get(stdout, "interfaces", "interface", "ge3");
     ymldb_get(stdout, "interfaces", "interface", "ge3", "mtu");
 
+    ymldb_callback_unregister("interfaces", "interface", "ge3");
     ymldb_destroy_all();
     // ymldb_destroy("interface");
     // ymldb_destroy("system");
