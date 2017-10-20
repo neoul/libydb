@@ -9,6 +9,10 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+// getpid()
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <yaml.h>
 #include <cprops/avl.h>
 #include <cprops/linked_list.h>
@@ -107,7 +111,7 @@ struct ymldb_params
 
 static int g_ymldb_log = YMLDB_LOG_ERR;
 static char *g_ymldb_logfile = NULL;
-
+static int pid = 0;
 #define _log_write(FP, ...) fprintf(FP, __VA_ARGS__);
 
 static FILE *_log_open(FILE *stream)
@@ -117,6 +121,9 @@ static FILE *_log_open(FILE *stream)
         FILE *_log_stream = fopen(g_ymldb_logfile, "a");
         if (_log_stream)
             stream = _log_stream;
+    }
+    if(!pid) {
+        pid = getpid();
     }
     return stream;
 }
@@ -137,7 +144,7 @@ static void _log_close(FILE *stream)
         FILE *_log_stream = _log_open(stdout);                 \
         if (!_log_stream)                                      \
             break;                                             \
-        _log_write(_log_stream, "\n\n%s >>>\n", __FUNCTION__); \
+        _log_write(_log_stream, "\n________________________________\nP%d:%s >>>\n", pid, __FUNCTION__); \
         _log_close(_log_stream);                               \
     } while (0)
 
@@ -149,7 +156,7 @@ static void _log_close(FILE *stream)
         FILE *_log_stream = _log_open(stdout);                                    \
         if (!_log_stream)                                                         \
             break;                                                                \
-        _log_write(_log_stream, "[ymldb:debug] %s:%d: ", __FUNCTION__, __LINE__); \
+        _log_write(_log_stream, "[ymldb:debug] P%d:%s:%d: ", pid, __FUNCTION__, __LINE__); \
         _log_write(_log_stream, __VA_ARGS__);                                     \
         _log_close(_log_stream);                                                  \
     } while (0)
@@ -162,7 +169,7 @@ static void _log_close(FILE *stream)
         FILE *_log_stream = _log_open(stdout);                                   \
         if (!_log_stream)                                                        \
             break;                                                               \
-        _log_write(_log_stream, "[ymldb:info] %s:%d: ", __FUNCTION__, __LINE__); \
+        _log_write(_log_stream, "[ymldb:info] P%d:%s:%d: ", pid, __FUNCTION__, __LINE__); \
         _log_write(_log_stream, __VA_ARGS__);                                    \
         _log_close(_log_stream);                                                 \
     } while (0)
@@ -176,7 +183,7 @@ static void _log_close(FILE *stream)
         if (!_log_stream)                                               \
             break;                                                      \
         _log_write(_log_stream, "\n  [ymldb:error]\n\n");               \
-        _log_write(_log_stream, "\t%s:%d\n\t", __FUNCTION__, __LINE__); \
+        _log_write(_log_stream, "\tP%d:%s:%d\n\t", pid, __FUNCTION__, __LINE__); \
         _log_write(_log_stream, __VA_ARGS__);                           \
         _log_write(_log_stream, "\n");                                  \
         _log_close(_log_stream);                                        \
@@ -191,7 +198,7 @@ static void _log_close(FILE *stream)
         if (!_log_stream)                                             \
             break;                                                    \
         _log_write(_log_stream, "\n  [ymldb:error]\n\n");             \
-        _log_write(_log_stream, "\t%s:%d\n", __FUNCTION__, __LINE__); \
+        _log_write(_log_stream, "\tP%d:%s:%d\n", pid, __FUNCTION__, __LINE__); \
         _log_close(_log_stream);                                      \
     } while (0)
 

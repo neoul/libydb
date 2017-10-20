@@ -75,24 +75,53 @@ void ymldb_update_callback(void *usr_data, struct ymldb_callback_data *cdata)
 
 int main(int argc, char *argv[])
 {
-    int res;
-    int sync = 1;
-    int max_fd = 0;
-    fd_set read_set;
-    struct timeval tv;
-
-    if(argc != 3 && argc != 4 && argc != 2) {
+    if(argc < 2) {
         fprintf(stdout, "\n");
-        fprintf(stdout, "%s [major_key]\n", basename(argv[0]));
-        fprintf(stdout, "%s [major_key] [ymldb_file.yml]\n", basename(argv[0]));
-        fprintf(stdout, "%s [major_key] [ymldb_file.yml] async\n", basename(argv[0]));
+        fprintf(stdout, "%s MAJOR_KEY OPTIONS\n", basename(argv[0]));
+        fprintf(stdout, "   -f %-12s: %-24s\n", "YMLDB_FILE", "e.g. -f ymldb_input.yml");
+        fprintf(stdout, "   -a %-12s: %-24s\n", " ", "async mode");
+        fprintf(stdout, "   -v %-12s: %-24s\n", "LOG_FILE", "verbose (e.g. -v ymldb-pubisher.log or -v)");
         fprintf(stdout, "\n");
         return 0;
     }
-    if(argc == 4 && strncmp(argv[3], "async", 5) == 0)
+    
+    int i;
+    int sync = 1;
+    int verbose = 0;
+    int log_level = 0;
+    char *major_key = argv[1];
+    char *ymldb_file = NULL;
+    char *log_file = NULL;
+    for(i = 2; i < argc; i++)
     {
-        printf("async mode\n");
-        sync = 0;
+        if(strcmp(argv[i], "-f") == 0) {
+            if(i+1 < argc && (strncmp(argv[i+1], "-", 1) != 0)) {
+                ymldb_file = argv[i+1];
+                i++;
+                fprintf(stdout, "input file is %s.\n", ymldb_file);
+            }
+            else {
+                fprintf(stdout, "no ymldb_file specified.\n");
+                return 1;
+            }
+            
+        }
+        else if(strcmp(argv[i], "-a") == 0) {
+            fprintf(stdout, "%s mode enabled\n", sync?"sync":"async");
+            sync = 0;
+        }
+        else if(strcmp(argv[i], "-v") == 0) {
+            verbose = 1;
+            if(i+1 < argc && (strncmp(argv[i+1], "-", 1) != 0)) {
+                log_file = argv[i+1];
+                i++;
+            }
+            else {
+                log_file = NULL;
+            }
+            fprintf(stdout, "%s mode enabled\n", verbose?"verbose":"normal");
+            fprintf(stdout, "log file is %s.\n", log_file?log_file:"null");
+        }
     }
 
     // MUST ignore SIGPIPE.
@@ -101,45 +130,38 @@ int main(int argc, char *argv[])
     // add a signal handler to quit this program.
     signal(SIGINT, signal_handler_INT);
 
-	// set ymldb log
+    // set ymldb log
+    if(verbose)
 	{
-		char logfile[64];
-		pid_t pid = getpid();
-		sprintf(logfile, "/tmp/ymldb-publisher-%d.log", pid);
-		//ymldb_log_set(YMLDB_LOG_LOG, logfile);
-		ymldb_log_set(YMLDB_LOG_LOG, NULL); //stdout
+		ymldb_log_set(YMLDB_LOG_LOG, log_file);
 	}
 
     // create ymldb for interface.
-    ymldb_create(argv[1], (YMLDB_FLAG_PUBLISHER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_ASYNC)));
-    
-    if(strcmp(argv[1], "interfaces") == 0)
-    {
-        ymldb_update_callback_register(ymldb_update_callback, "USR-DATA", argv[1], "interface", "ge3");
-    }
+    ymldb_create(major_key, (YMLDB_FLAG_PUBLISHER | ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_ASYNC)));
+    if(strcmp(major_key, "interfaces") == 0)
+        ymldb_update_callback_register(ymldb_update_callback, "USR-DATA", major_key, "interface");
 
     // read ymldb from a file.
-	if(argc >= 3)
+	if(ymldb_file)
 	{
-		int infd = open(argv[2], O_RDONLY, 0644);
-		ymldb_run_with_fd(argv[1], infd, 0);
+		int infd = open(ymldb_file, O_RDONLY, 0644);
+		ymldb_run_with_fd(major_key, infd, 0);
 		close(infd);
 	}
 
     ymldb_dump_all(stdout, NULL);
 
-    // unlink("ymldb-io");
-    // mkfifo("ymldb-io", 0644);
-
-    // int local_fd = open("ymldb-io", O_WRONLY, 0644);
-    // ymldb_distribution_add("interface", local_fd);
+    int res;
+    int max_fd = 0;
+    fd_set read_set;
+    struct timeval tv;
     do
     {
         fprintf(stdout, "\n");
-        fprintf(stdout, "CMD KEY1 KEY2 ... DATA\n");
-        fprintf(stdout, "  CMD: (sync|get|write|delete)\n");
-        fprintf(stdout, "  KEY: key to access a data.\n");
-        fprintf(stdout, "  DATA: data to write a data.\n");
+        fprintf(stdout, "(sync|get|write|delete) KEY1 KEY2 ... DATA\n");
+        fprintf(stdout, "  - KEY: key to access a data.\n");
+        fprintf(stdout, "  - DATA: data to write a data.\n");
+        fprintf(stdout, "  * debugging: verbose (on|off|stdio|file LOG_FILE) \n");
         FD_ZERO(&read_set);
         tv.tv_sec = 1000;
         tv.tv_usec = 0;
@@ -191,6 +213,33 @@ int main(int argc, char *argv[])
                 else if(strncmp(cmd, "delete", 6) == 0)
                 {
                     res = ymldb_delete2(cnt, keys);
+                }
+                else if(strncmp(cmd, "verbose", 7) == 0)
+                {
+                    if(cnt >= 2) {
+                        if(strcmp("off", keys[1]) == 0)
+                        {
+                            log_level = YMLDB_LOG_NONE;
+                            log_file = NULL;
+                        }
+                        else if(strcmp("on", keys[1]) == 0)
+                        {
+                            log_level = YMLDB_LOG_LOG;
+                        }
+                        else if(strcmp("file", keys[1]) == 0)
+                        {
+                            static char _log_file[32] = {0};
+                            if(cnt > 2) {
+                                strncpy(_log_file, keys[2], sizeof(_log_file));
+                                log_file = _log_file;
+                            }
+                            else
+                                log_file = NULL;
+                        }
+                        else if(strcmp("stdio", keys[1]) == 0)
+                            log_file = NULL;
+                    }
+                    ymldb_log_set(log_level, log_file);
                 }
                 if(res < 0) {
                     fprintf(stderr, "CMD failed (%d)\n", res);
