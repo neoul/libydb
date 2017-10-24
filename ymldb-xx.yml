@@ -1,15 +1,14 @@
 %TAG !merge! ymldb:op:merge
 ---
-hostname: abc
-os:
+os2:
   dir:
     mytop:
       three: mmmm
       two: abc
   name: actus
   type: linux
-$log:
-  level: debug
-  file:
-  idea: register an notify callback...
+  $send:
+    time: 2011
+  ~send:
+    time: 2011
 ...

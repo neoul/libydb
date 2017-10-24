@@ -161,7 +161,8 @@ int main(int argc, char *argv[])
         fprintf(stdout, "(sync|get|write|delete) KEY1 KEY2 ... DATA\n");
         fprintf(stdout, "  - KEY: key to access a data.\n");
         fprintf(stdout, "  - DATA: data to write a data.\n");
-        fprintf(stdout, "  * debugging: verbose (on|off|stdio|file LOG_FILE) \n");
+        fprintf(stdout, "  * verbose (on|off|stdio|file LOG_FILE): debugging\n");
+        fprintf(stdout, "  * file YMLDB_FILE: read data from a file\n");
         FD_ZERO(&read_set);
         tv.tv_sec = 1000;
         tv.tv_usec = 0;
@@ -213,6 +214,23 @@ int main(int argc, char *argv[])
                 else if(strncmp(cmd, "delete", 6) == 0)
                 {
                     res = ymldb_delete2(cnt, keys);
+                }
+                else if(strncmp(cmd, "file", 6) == 0)
+                {
+					if(cnt >= 1)
+					{
+						static char _ymldb_file[32] = {0};
+						strncpy(_ymldb_file, keys[1], sizeof(_ymldb_file));
+						ymldb_file = _ymldb_file;
+						int infd = open(ymldb_file, O_RDONLY, 0644);
+						res = ymldb_run_with_fd(major_key, infd, 0);
+						close(infd);
+					}
+					else
+					{
+						fprintf(stdout, "need to specify the file to read\n");
+						continue;
+					}
                 }
                 else if(strncmp(cmd, "verbose", 7) == 0)
                 {

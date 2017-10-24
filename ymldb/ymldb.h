@@ -187,7 +187,7 @@ struct ymldb_iterator *ymldb_iterator_copy(struct ymldb_iterator *src);
 // lookup a child node using the key and then move to that node.
 const char *ymldb_iterator_lookup_down(struct ymldb_iterator *iter, char *key);
 // lookup a sibling node using the key and then move to that node.
-const char *ymldb_iterator_lookup_next(struct ymldb_iterator *iter, char *key);
+const char *ymldb_iterator_lookup(struct ymldb_iterator *iter, char *key);
 
 // go to the first child node, return NULL if not exist.
 const char *ymldb_iterator_down(struct ymldb_iterator *iter);

@@ -2651,6 +2651,8 @@ static int _distribution_recv_internal(struct ymldb_cb *cb, FILE *outstream, fd_
     }
     if (cb->flags & YMLDB_FLAG_RECONNECT)
     {
+		if(cb->fd_publisher > 0)
+			FD_CLR(cb->fd_publisher, set);
         return _distribution_init(cb, cb->flags);
     }
     if (cb->fd_publisher >= 0)
@@ -4051,7 +4053,7 @@ const char *ymldb_iterator_lookup_down(struct ymldb_iterator *iter, char *key)
     return NULL;
 }
 
-const char *ymldb_iterator_lookup_next(struct ymldb_iterator *iter, char *key)
+const char *ymldb_iterator_lookup(struct ymldb_iterator *iter, char *key)
 {
     struct ymldb *next = NULL;
     struct ymldb *cur = NULL;
