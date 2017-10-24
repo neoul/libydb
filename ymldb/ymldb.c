@@ -79,6 +79,7 @@ struct ymldb_distribution
     fd_set *set;
     int max;
     FILE *stream;
+	int res;
 };
 
 struct ymldb_params
@@ -2687,7 +2688,8 @@ static int _distribution_recv_each_of_cb(void *n, void *dummy)
     cp_avlnode *node = n;
     struct ymldb_cb *cb = node->value;
     struct ymldb_distribution *yd = dummy;
-    return _distribution_recv_internal(cb, yd->stream, yd->set);
+    yd->res += _distribution_recv_internal(cb, yd->stream, yd->set);
+	return 0;
 }
 
 // available for subscriber
@@ -3342,6 +3344,7 @@ int ymldb_distribution_set(fd_set *set)
     struct ymldb_distribution yd;
     yd.set = set;
     yd.max = 0;
+	yd.res = 0;
     _log_entrance();
     if (!set)
     {
@@ -3359,6 +3362,7 @@ int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set)
     yd.set = set;
     yd.max = 0;
     yd.stream = outstream;
+	yd.res = 0;
     _log_entrance();
     if (!set)
     {
@@ -3367,7 +3371,8 @@ int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set)
     }
     if (g_ycb)
         cp_avltree_callback(g_ycb, _distribution_recv_each_of_cb, &yd);
-    return 0;
+	_log_debug("res=%d\n", yd.res);
+    return yd.res;
 }
 
 int ymldb_distribution_recv(fd_set *set)
