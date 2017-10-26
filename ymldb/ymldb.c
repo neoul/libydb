@@ -2056,6 +2056,7 @@ static int _params_buf_reset(struct ymldb_params *params)
     _ymldb_stream_close(streambuffer);
     _ymldb_stream_open(params->streambuffer, "w");
     _ymldb_fprintf_head(params->streambuffer->stream, params->out.opcode, params->out.sequence);
+    return 0;
 }
 
 static int _ymldb_run(struct ymldb_cb *cb, int requester, FILE *instream, FILE *outstream)
