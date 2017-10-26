@@ -133,21 +133,28 @@ int main(int argc, char *argv[])
     int max_fd = 0;
     fd_set read_set;
     struct timeval tv;
+    int show_help = 1;
     do
     {
-        fprintf(stdout, "\n");
-        fprintf(stdout, "(sync|get|write|delete) KEY1 KEY2 ... DATA\n");
-        fprintf(stdout, "  - KEY: key to access a data.\n");
-        fprintf(stdout, "  - DATA: data to write a data.\n");
-        fprintf(stdout, "  * debugging: verbose (on|off|stdio|file LOG_FILE) \n");
+        if(show_help)
+        {
+            // fprintf(stdout, "\n");
+            fprintf(stdout, "(sync|get|write|delete) KEY1 KEY2 ... DATA\n");
+            fprintf(stdout, "  - KEY: key to access a data.\n");
+            fprintf(stdout, "  - DATA: data to write a data.\n");
+            fprintf(stdout, "  * debugging: verbose (on|off|stdio|file LOG_FILE) \n");
+            fprintf(stdout, "> ");
+            fflush(stdout);
+            show_help = 0;
+        }
+        
         FD_ZERO(&read_set);
         tv.tv_sec = 1000;
         tv.tv_usec = 0;
 
         max_fd = ymldb_distribution_set(&read_set);
         FD_SET(STDIN_FILENO, &read_set);
-        fprintf(stdout, "> ");
-        fflush(stdout);
+        
         res = select(max_fd + 1, &read_set, NULL, NULL, &tv);
         if (res < 0)
         {
@@ -223,8 +230,10 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "CMD failed (%d)\n", res);
                 }
             }
+            show_help = 1;
         }
-        ymldb_distribution_recv(&read_set);
+        else
+            ymldb_distribution_recv(&read_set);
     } while (!done);
     ymldb_dump_all(stdout, NULL);
     ymldb_destroy_all();

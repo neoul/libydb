@@ -2847,21 +2847,24 @@ static int _distribution_send(struct ymldb_params *params)
         _log_debug("send_relay\n");
         if (cb->flags & YMLDB_FLAG_SUB_PUBLISHER)
         {
-        subscriber_rewrite:
-            res = write(cb->fd_publisher, streambuffer->buf + sent, streambuffer->len - sent);
-            if (res < 0)
+            if(params->fd_requester != cb->fd_publisher)
             {
-                cb->flags |= YMLDB_FLAG_RECONNECT;
-                _log_error("fd %d send failed (%s)\n",
-                           cb->fd_publisher, strerror(errno));
-                return -1;
-            }
-            sent = res + sent;
-            if (sent < streambuffer->len && retry < 3)
-            {
-                retry++;
-                _log_debug("retry++\n");
-                goto subscriber_rewrite;
+            subscriber_rewrite:
+                res = write(cb->fd_publisher, streambuffer->buf + sent, streambuffer->len - sent);
+                if (res < 0)
+                {
+                    cb->flags |= YMLDB_FLAG_RECONNECT;
+                    _log_error("fd %d send failed (%s)\n",
+                               cb->fd_publisher, strerror(errno));
+                    return -1;
+                }
+                sent = res + sent;
+                if (sent < streambuffer->len && retry < 3)
+                {
+                    retry++;
+                    _log_debug("retry++\n");
+                    goto subscriber_rewrite;
+                }
             }
         }
         else if (cb->flags & YMLDB_FLAG_PUBLISHER && !(cb->flags & YMLDB_FLAG_SUB_PUBLISHER))
@@ -2869,7 +2872,8 @@ static int _distribution_send(struct ymldb_params *params)
             int i;
             for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
             {
-                if (cb->fd_subscriber[i] >= 0)
+                // doesn't relay message to params->fd_requester
+                if (cb->fd_subscriber[i] >= 0 && params->fd_requester != cb->fd_subscriber[i])
                 {
                     sent = 0;
                     retry = 0;
