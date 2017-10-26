@@ -60,6 +60,7 @@ int ymldb_log_set(int log_level, char *log_file);
 #define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 128)
 
 // create or delete ymldb
+int ymldb_is_created(char *major_key);
 int ymldb_create(char *major_key, unsigned int flags);
 void ymldb_destroy(char *major_key);
 void ymldb_destroy_all();

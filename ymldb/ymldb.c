@@ -2192,6 +2192,16 @@ int ymldb_run_with_fd(char *major_key, int infd, int outfd)
     return res;
 }
 
+int ymldb_is_created(char *major_key)
+{
+    struct ymldb_cb *cb;
+    if (!(cb = _ymldb_cb(major_key)))
+    {
+        return 0;
+    }
+    return 1;
+}
+
 int ymldb_create(char *major_key, unsigned int flags)
 {
     struct ymldb_cb *cb;
