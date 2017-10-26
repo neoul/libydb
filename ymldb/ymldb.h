@@ -169,10 +169,15 @@ struct ymldb_iterator
 
 // internal function for ymldb iterator creation.
 struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *major_key, ...);
+struct ymldb_iterator *_ymldb_iterator_init2(struct ymldb_iterator *iter, int keys_num, char *keys[]);
+
 // allocate new ymldb iterator
 #define ymldb_iterator_alloc(major_key, ...) _ymldb_iterator_init(NULL, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_iterator_alloc2(keys_num, keys) _ymldb_iterator_init2(NULL, (keys_num), (keys))
+
 // initilize the ymldb iterator without allocation.
 #define ymldb_iterator_init(iter, major_key, ...) _ymldb_iterator_init(iter, major_key, ##__VA_ARGS__, NULL)
+#define ymldb_iterator_init2(iter, keys_num, keys) _ymldb_iterator_init2(iter, (keys_num), (keys))
 // remove the ymldb iterator data without free.
 void ymldb_iterator_deinit(struct ymldb_iterator *iter);
 // free the ymldb iterator.

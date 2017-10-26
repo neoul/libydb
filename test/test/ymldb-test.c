@@ -47,9 +47,15 @@ void ymldb_notify_callback(void *usr_data, struct ymldb_callback_data *cdata)
 
     printf("\t- keys_num=%d, keys_level=%d\n\n",cdata->keys_num, cdata->keys_level);
 
+    // ymldb iterator example in ymldb notify callback
+    struct ymldb_iterator *iter = 
+        ymldb_iterator_alloc2(cdata->keys_num, cdata->keys);
+    const char *key = ymldb_iterator_get_key(iter);
+    printf(" ###### ITER=%s\n", key);
+    ymldb_iterator_free(iter);
+
     if(!cdata->unregistered && !cdata->deleted) {
-        // if(!cdata->value)
-            ymldb_notify_callback_register2(ymldb_notify_callback, "SUB", cdata->keys_num, cdata->keys );
+        ymldb_notify_callback_register2(ymldb_notify_callback, "SUB", cdata->keys_num, cdata->keys );
     }
 }
 
@@ -106,7 +112,7 @@ int ymldb_test()
 
     // ymldb_notify_callback_register(ymldb_notify_callback, "interfaces-cb", "interfaces");
     // ymldb_notify_callback_register(ymldb_notify_callback, "interface-cb", "interfaces", "interface");
-    // ymldb_notify_callback_register(ymldb_notify_callback, "ge1-cb", "interfaces", "interface", "ge1");
+    ymldb_notify_callback_register(ymldb_notify_callback, "ge1-cb", "interfaces", "interface", "ge1");
 
     ymldb_dump_all(stdout, NULL);
 
@@ -117,7 +123,8 @@ int ymldb_test()
 
     // use ymldb iterator
     const char *key;
-    struct ymldb_iterator *iter = ymldb_iterator_alloc("interfaces", "interface", "ge1", "mtu");
+    struct ymldb_iterator *iter = 
+        ymldb_iterator_alloc("interfaces", "interface", "ge1", "mtu");
     key = ymldb_iterator_up(iter);
     do
     {

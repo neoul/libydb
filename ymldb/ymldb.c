@@ -877,10 +877,12 @@ static void _ymldb_node_free(void *vdata)
     {
         if (ydb->type == YMLDB_BRANCH)
         {
-            cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
+            // fixed BUG - prevent to loop infinitely in children free phase.
+            cp_avltree *children = ydb->children;
             ydb->children = NULL;
+            cp_avltree_destroy_custom(children, NULL, _ymldb_node_free);
         }
-
+        
         _notify_callback_run(ydb, 1);
         if (ydb->callback)
         {
@@ -2410,7 +2412,7 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
-        _log_error("socket failed (%s)\n", strerror(errno));
+        _log_error("%s socket failed (%s)\n", cb->key, strerror(errno));
         cb->flags |= YMLDB_FLAG_RECONNECT;
         return -1;
     }
@@ -2431,7 +2433,7 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
             // if there is already binding publisher.
             if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
             {
-                _log_error("connect failed (%s).\n", strerror(errno));
+                _log_error("%s connect failed (%s).\n", cb->key, strerror(errno));
                 cb->flags |= YMLDB_FLAG_RECONNECT;
                 return -1;
             }
@@ -2443,7 +2445,7 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
         }
         if (listen(fd, YMLDB_SUBSCRIBER_MAX) < 0)
         {
-            _log_error("listen failed (%s).\n", strerror(errno));
+            _log_error("%s listen failed (%s).\n", cb->key, strerror(errno));
             cb->flags |= YMLDB_FLAG_RECONNECT;
             return -1;
         }
@@ -2453,14 +2455,14 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
         cb->flags |= YMLDB_FLAG_SUBSCRIBER;
         if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
         {
-            _log_error("connect failed (%s).\n", strerror(errno));
+            _log_error("%s connect failed (%s).\n", cb->key, strerror(errno));
             cb->flags |= YMLDB_FLAG_RECONNECT;
             return -1;
         }
     }
 _done:
     cp_avltree_insert(g_fds, &cb->fd_publisher, cb);
-    _log_debug("done (sock %d)\n", fd);
+    _log_debug("%s distribution - done (sock %d)\n", cb->key, fd);
     return fd;
 }
 
@@ -3936,6 +3938,7 @@ struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *m
 {
     struct ymldb *ydb;
     struct ymldb_cb *cb;
+    int iter_allocated = 0;
     _log_entrance();
     if (!(cb = _ymldb_cb(major_key)))
     {
@@ -3944,7 +3947,10 @@ struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *m
     }
     ydb = cb->ydb;
     if (!iter)
+    {
         iter = malloc(sizeof(struct ymldb_iterator));
+        iter_allocated = 1;
+    }
     if (!iter)
     {
         _log_error("ymldb_iterator alloc failed.\n");
@@ -3960,7 +3966,7 @@ struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *m
         _log_debug("key %s\n", cur_token);
         if (ydb)
         {
-            if (ydb->type == YMLDB_BRANCH)
+            if (ydb->type == YMLDB_BRANCH && ydb->children)
                 ydb = cp_avltree_get(ydb->children, cur_token);
             else
                 ydb = NULL;
@@ -3976,6 +3982,8 @@ struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *m
     if (!ydb)
     {
         _log_error("no entry found\n");
+        if(iter_allocated)
+            free(iter);
         return NULL;
     }
 
@@ -3983,6 +3991,67 @@ struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *m
     iter->cur = (void *)ydb;
     return iter;
 }
+
+struct ymldb_iterator *_ymldb_iterator_init2(struct ymldb_iterator *iter, int keys_num, char *keys[])
+{
+    int level;
+    struct ymldb *ydb;
+    struct ymldb_cb *cb;
+    int iter_allocated = 0;
+    _log_entrance();
+    if (keys_num <= 0 || keys == NULL)
+    {
+        _log_error("no key\n");
+        return NULL;
+    }
+    if (!(cb = _ymldb_cb(keys[0])))
+    {
+        _log_error("no ymldb or key (%s) found.\n", keys[0]);
+        return NULL;
+    }
+    ydb = cb->ydb;
+    if (!iter)
+    {
+        iter = malloc(sizeof(struct ymldb_iterator));
+        iter_allocated = 1;
+    }
+    if (!iter)
+    {
+        _log_error("ymldb_iterator alloc failed.\n");
+        return NULL;
+    }
+    _log_debug("key %s, keys_num %d\n", ydb->key, keys_num);
+    for(level = 1; level < keys_num; level++)
+    {
+        if (ydb)
+        {
+            if (ydb->type == YMLDB_BRANCH && ydb->children)
+            {
+                ydb = cp_avltree_get(ydb->children, keys[level]);
+            }
+            else {
+                ydb = NULL;
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    if (!ydb)
+    {
+        _log_error("no entry found\n");
+        if(iter_allocated)
+            free(iter);
+        return NULL;
+    }
+
+    iter->ydb = (void *)ydb;
+    iter->cur = (void *)ydb;
+    return iter;
+}
+
 
 void ymldb_iterator_deinit(struct ymldb_iterator *iter)
 {
