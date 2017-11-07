@@ -112,7 +112,7 @@ int ymldb_test()
 
     // ymldb_notify_callback_register(ymldb_notify_callback, "interfaces-cb", "interfaces");
     // ymldb_notify_callback_register(ymldb_notify_callback, "interface-cb", "interfaces", "interface");
-    ymldb_notify_callback_register(ymldb_notify_callback, "ge1-cb", "interfaces", "interface", "ge1");
+    // ymldb_notify_callback_register(ymldb_notify_callback, "ge1-cb", "interfaces", "interface", "ge1");
 
     ymldb_dump_all(stdout, NULL);
 

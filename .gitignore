@@ -26,3 +26,5 @@ test/test/ymldb-update-callback-example
 tools/monitor/Makefile.in
 ymldb/Makefile.in
 autom4te.cache
+test/test/ymldb-file-rw
+ymldb-file.yml

@@ -1780,6 +1780,7 @@ static enum internal_op _ymldb_sm(struct ymldb_params *params)
         {
             iop =
                 (in_opcode & YMLDB_OP_MERGE) ? iop_merge : (in_opcode & YMLDB_OP_DELETE) ? iop_delete : (in_opcode & YMLDB_OP_SYNC) ? iop_ignore : iop_get;
+            out_opcode = (in_opcode & YMLDB_OP_MERGE) ? YMLDB_OP_MERGE : (in_opcode & YMLDB_OP_DELETE) ? YMLDB_OP_DELETE : (in_opcode & YMLDB_OP_GET) ? YMLDB_OP_GET : 0;
         }
     }
 _done:
@@ -4275,4 +4276,129 @@ const char *ymldb_iterator_get_key(struct ymldb_iterator *iter)
     if (!cur)
         return NULL;
     return cur->key;
+}
+
+
+int ymldb_file_push(char *filename, char *format, ...)
+{
+    int res = 0;
+    FILE *outstream;
+    struct ymldb_stream *input = NULL;
+
+    _log_entrance();
+    if(!filename)
+        return -1;
+    if(ymldb_is_created(filename))
+        return -2;
+    outstream = fopen(filename, "w+");
+    if(!outstream)
+        return -3;
+    res = ymldb_create(filename, YMLDB_FLAG_NONE);
+    if(res < 0) {
+        res = -4;
+        goto _done;
+    }
+
+    _log_debug("\n");
+    input = _ymldb_stream_alloc_and_open(1024, "w");
+    if (!input)
+    {
+        res = -5;
+        goto _done;
+    }
+    // write ymldb data to the streambuf
+    _ymldb_fprintf_head(input->stream, YMLDB_OP_MERGE, 0);
+    va_list args;
+    va_start(args, format);
+    vfprintf(input->stream, format, args);
+    va_end(args);
+    _ymldb_fprintf_tail(input->stream);
+
+    _ymldb_stream_open(input, "r");
+    if (!input->stream)
+    {
+        res = -5;
+        goto _done;
+    }
+    _log_debug("input->len=%zd buf=\n%s\n", input->len, input->buf);
+    res = ymldb_run(filename, input->stream, outstream);
+_done:
+    _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
+    _ymldb_stream_free(input);
+    ymldb_destroy(filename);
+    // fflush(outstream);
+    fclose(outstream);
+    return res;
+}
+
+int ymldb_file_pull(char *filename, char *format, ...)
+{
+    int res;
+    FILE *instream;
+    struct ymldb_stream *input = NULL;
+    struct ymldb_stream *output = NULL;
+    
+    _log_entrance();
+    if(!filename)
+        return -1;
+    if(ymldb_is_created(filename))
+        return -2;
+    instream = fopen(filename, "r");
+    if(!instream)
+        return -3;
+    res = ymldb_create(filename, YMLDB_FLAG_NONE);
+    if(res < 0) {
+        fclose(instream);
+        return -4;
+    }
+
+    ymldb_run(filename, instream, NULL);
+    fclose(instream);
+    
+    _log_debug("\n");
+    input = _ymldb_stream_alloc_and_open(1024, "w");
+    if (!input)
+    {
+        res = -5;
+        goto _done;
+    }
+    output = _ymldb_stream_alloc_and_open(1024, "w");
+    if (!output)
+    {
+        res = -6;
+        goto _done;
+    }
+
+    _ymldb_fprintf_head(input->stream, YMLDB_OP_GET, 0);
+    _ymldb_remove_specifiers(input->stream, format);
+    _ymldb_fprintf_tail(input->stream);
+
+    _ymldb_stream_open(input, "r");
+    if (!input->stream)
+    {
+        _log_error("fail to open ymldb stream");
+        goto _done;
+    }
+
+    _log_debug("input->len=%zd buf=\n%s\n", input->len, input->buf);
+    res = ymldb_run(filename, input->stream, output->stream);
+    if (res >= 0)
+    { // success
+        char *doc_body = strstr(output->buf, "---");
+        if (doc_body)
+            doc_body = doc_body + 4;
+        else
+            doc_body = output->buf;
+        va_list args;
+        va_start(args, format);
+        vsscanf(doc_body, format, args);
+        va_end(args);
+    }
+_done:
+    _log_debug("output->len=%zd buf=\n%s\n", output->len, output->buf);
+    _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
+    _ymldb_stream_free(input);
+    _ymldb_stream_free(output);
+    ymldb_destroy(filename);
+    return res;
 }

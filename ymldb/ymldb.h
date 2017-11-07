@@ -87,9 +87,9 @@ char *_ymldb_read2(int keys_num, char *keys[]);
 #define ymldb_get2(OUTSTREAM, KEYS_NUM, KEYS) _ymldb_write2(OUTSTREAM, YMLDB_OP_GET, KEYS_NUM, KEYS)
 #define ymldb_read2(KEYS_NUM, KEYS) _ymldb_read2(KEYS_NUM, KEYS)
 
-// write ymldb using YAML document format.
+// write ymldb data using YAML document format.
 int ymldb_push(char *major_key, char *format, ...);
-// read ymldb using YAML document format.
+// read ymldb data using YAML document format.
 int ymldb_pull(char *major_key, char *format, ...);
 
 // [YMLDB update facility - from file]
@@ -208,6 +208,11 @@ const char *ymldb_iterator_prev(struct ymldb_iterator *iter);
 const char *ymldb_iterator_get_value(struct ymldb_iterator *iter);
 // get the key of the ymldb iterator.
 const char *ymldb_iterator_get_key(struct ymldb_iterator *iter);
+
+// write ymldb format data to a file.
+int ymldb_file_push(char *filename, char *format, ...);
+// read ymldb format data to a file.
+int ymldb_file_pull(char *filename, char *format, ...);
 
 // [YMLDB data retrieval facility]
 // print all ymldb to the stream if NULL.
