@@ -2330,6 +2330,7 @@ void ymldb_destroy(char *major_key)
         g_ydb = NULL;
     }
     _notify_callback_run_pending();
+	_log_debug("done...\n");
 }
 
 void ymldb_destroy_all()
@@ -2345,6 +2346,7 @@ void ymldb_destroy_all()
         g_ydb = NULL;
     }
     _notify_callback_run_pending();
+	_log_debug("done...\n");
 }
 
 static int _distribution_deinit(struct ymldb_cb *cb)
@@ -2355,11 +2357,13 @@ static int _distribution_deinit(struct ymldb_cb *cb)
         return -1;
     }
 
-    _log_debug("deinit conn\n");
+    _log_debug("deinit conn g_fds=%p\n", g_fds);
 
     if (cb->fd_publisher >= 0)
     {
-        cp_avltree_delete(g_fds, &cb->fd_publisher);
+		if(g_fds) {
+			cp_avltree_delete(g_fds, &cb->fd_publisher);
+		}
         close(cb->fd_publisher);
         cb->fd_publisher = -1;
     }
@@ -2370,7 +2374,9 @@ static int _distribution_deinit(struct ymldb_cb *cb)
         {
             if (cb->fd_subscriber[i] >= 0)
             {
-                cp_avltree_delete(g_fds, &cb->fd_subscriber[i]);
+				if(g_fds) {
+					cp_avltree_delete(g_fds, &cb->fd_subscriber[i]);
+				}
                 close(cb->fd_subscriber[i]);
                 cb->fd_subscriber[i] = -1;
                 cb->fd_flags[i] = 0;
@@ -2384,6 +2390,7 @@ static int _distribution_deinit(struct ymldb_cb *cb)
     cb->flags = cb->flags & (~YMLDB_FLAG_SUB_PUBLISHER);
     if (g_fds)
     {
+		_log_debug("g_fds count %d\n", cp_avltree_count(g_fds));
         if (cp_avltree_count(g_fds) <= 0)
         {
             cp_avltree_destroy(g_fds);
@@ -2473,7 +2480,8 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
         }
     }
 _done:
-    cp_avltree_insert(g_fds, &cb->fd_publisher, cb);
+	if(g_fds)
+		cp_avltree_insert(g_fds, &cb->fd_publisher, cb);
     _log_debug("%s distribution - done (sock %d)\n", cb->key, fd);
     return fd;
 }
@@ -2564,7 +2572,8 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
                 {
                     cb->fd_subscriber[i] = fd;
                     cb->fd_flags[i] = 0;
-                    cp_avltree_insert(g_fds, &cb->fd_subscriber[i], cb);
+					if(g_fds)
+	                    cp_avltree_insert(g_fds, &cb->fd_subscriber[i], cb);
                     _log_debug("subscriber (fd %d) added..\n", fd);
                     if (!(cb->flags & YMLDB_FLAG_ASYNC))
                         ymldb_sync_ack(cb->key);
@@ -2602,7 +2611,8 @@ read_message:
         {
             int i;
             _log_debug("\n");
-            cp_avltree_delete(g_fds, &fd);
+			if(g_fds)
+	            cp_avltree_delete(g_fds, &fd);
             for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
             {
                 if (cb->fd_subscriber[i] == fd)
@@ -3407,18 +3417,21 @@ int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd)
         _log_error("no cur_fd\n");
         return -1;
     }
-
-    cb = cp_avltree_get(g_fds, cur_fd);
-    if (cb)
-    {
-        int res = _distribution_recv(cb, outstream, *cur_fd);
-        if (res < 0)
-        {
-            *cur_fd = -1;
-        }
-        _log_debug("\n");
-        return res;
-    }
+	
+	if(g_fds)
+	{
+		cb = cp_avltree_get(g_fds, cur_fd);
+		if (cb)
+		{
+			int res = _distribution_recv(cb, outstream, *cur_fd);
+			if (res < 0)
+			{
+				*cur_fd = -1;
+			}
+			_log_debug("\n");
+			return res;
+		}
+	}
 
     _log_error("unknown fd (%d) \n", *cur_fd);
     *cur_fd = -1;
