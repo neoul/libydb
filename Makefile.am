@@ -1,2 +1,6 @@
-SUBDIRS=ymldb tools/monitor test/test test/publisher test/subscriber
+SUBDIRS=ymldb
+SUBDIRS+=tools/monitor
+SUBDIRS+=examples
+SUBDIRS+=test/test 
+SUBDIRS+=test/subscriber
 

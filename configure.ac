@@ -34,8 +34,8 @@ AC_CHECK_FUNCS([memset mkfifo select socket strchr strdup strerror strstr])
 
 AC_CONFIG_FILES([Makefile
                  test/test/Makefile
-                 test/publisher/Makefile
                  test/subscriber/Makefile
+                 examples/Makefile
 				 tools/monitor/Makefile
                  ymldb/Makefile])
 AC_OUTPUT

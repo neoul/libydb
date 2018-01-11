@@ -1,5 +1,6 @@
 #ifndef __YMLDB__
 #define __YMLDB__
+#include <stdio.h>
 
 #define YMLDB_LOG_LOG 3
 #define YMLDB_LOG_INFO 2
@@ -47,11 +48,13 @@ int ymldb_log_set(int log_level, char *log_file);
 #define YMLDB_FLAG_NONE 0x00
 #define YMLDB_FLAG_PUBLISHER 0x01 // publish ymldb if set, subscribe ymldb if not.
 #define YMLDB_FLAG_SUBSCRIBER 0x02
-#define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER) // communcation channel enabled
 #define YMLDB_FLAG_ASYNC 0x04
 #define YMLDB_FLAG_RECONNECT 0x100
 #define YMLDB_FLAG_INSYNC 0x200
 #define YMLDB_FLAG_SUB_PUBLISHER 0x400
+#define YMLDB_FLAG_NO_RECORD 0x800
+#define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER | YMLDB_FLAG_SUB_PUBLISHER) // communcation channel enabled
+
 
 // unix socket pathname
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
