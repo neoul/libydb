@@ -1,6 +1,5 @@
 SUBDIRS=ymldb
 SUBDIRS+=tools/monitor
-SUBDIRS+=examples
-SUBDIRS+=test/test 
-SUBDIRS+=test/subscriber
+SUBDIRS+=examples/agent
+SUBDIRS+=examples/samples
 

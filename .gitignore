@@ -28,3 +28,4 @@ ymldb/Makefile.in
 autom4te.cache
 test/test/ymldb-file-rw
 ymldb-file.yml
+Makefile.in
