@@ -29,3 +29,8 @@ autom4te.cache
 test/test/ymldb-file-rw
 ymldb-file.yml
 Makefile.in
+examples/agent/ymldb-tester
+examples/samples/ymldb-file-rw
+examples/samples/ymldb-test
+examples/samples/ymldb-update-callback-example
+examples/samples/ymldb-push-pull
