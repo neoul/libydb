@@ -969,19 +969,19 @@ static int _ymldb_node_free_no_record(void *n, void *dummy)
 {
     cp_avlnode *node = n;
     struct ynode *ydb = node->value;
-    cp_list *del_list = dummy;
 
     if (ydb)
     {
         if(ydb->no_record)
         {
+            cp_list *del_list = dummy;
             cp_list_append(del_list, ydb);
         }
         else
         {
             if (ydb->type == YMLDB_BRANCH)
             {
-                cp_avltree_callback(ydb->children, _ymldb_node_free_no_record, NULL);
+                cp_avltree_callback(ydb->children, _ymldb_node_free_no_record, dummy);
             }
         }
     }
@@ -2150,6 +2150,7 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
 {
     int res = 0;
     int done = 0;
+    int updated = 0;
     struct ymldb_params *params;
     if (!cb)
     {
@@ -2199,7 +2200,10 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
 
             _params_buf_init(params);
             if (iop == iop_merge)
+            {
                 _ymldb_internal_merge(params, cb->ydb, 1, 1);
+                updated = 1;
+            }
             else if (iop == iop_delete)
                 _ymldb_internal_delete(params, cb->ydb, 1, 1);
             else if (iop == iop_get)
@@ -2225,7 +2229,7 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     res = params->res;
     _params_free(params);
     _notify_callback_run_pending();
-    if(cb->flags & YMLDB_FLAG_NO_RECORD)
+    if(cb->flags & YMLDB_FLAG_NO_RECORD && updated)
     {
         // remove no_record ynodes.
         if(cb->ydb && cb->ydb->type == YMLDB_BRANCH)
