@@ -104,7 +104,8 @@ struct ymldb_params
     int res;
     struct ynode *last_ydb; // last updated ydb
     struct ystream *streambuffer;
-    int resv : 28;
+    int resv : 27;
+    int no_record : 1;
     int send_relay : 1;
     int request_and_reply : 1;
     int no_change : 1;
@@ -939,6 +940,54 @@ static void _ymldb_node_free(void *vdata)
     }
 }
 
+// Remove all subtree and data
+static void _ymldb_node_free_without_callback(void *vdata)
+{
+    struct ynode *ydb = vdata;
+    if (ydb)
+    {
+        _log_debug("@@ no-record (%s)\n", ydb->key);
+        if (ydb->type == YMLDB_BRANCH)
+        {
+            // fixed BUG - prevent to loop infinitely in children free phase.
+            cp_avltree *children = ydb->children;
+            ydb->children = NULL;
+            cp_avltree_destroy_custom(children, NULL, _ymldb_node_free_without_callback);
+        }
+        _callback_free(ydb->callback);
+        if (ydb->type != YMLDB_BRANCH)
+            if (ydb->value)
+                free(ydb->value);
+        free(ydb->key);
+        free(ydb);
+    }
+}
+
+
+// Remove all no-record ynodes
+static int _ymldb_node_free_no_record(void *n, void *dummy)
+{
+    cp_avlnode *node = n;
+    struct ynode *ydb = node->value;
+    cp_list *del_list = dummy;
+
+    if (ydb)
+    {
+        if(ydb->no_record)
+        {
+            cp_list_append(del_list, ydb);
+        }
+        else
+        {
+            if (ydb->type == YMLDB_BRANCH)
+            {
+                cp_avltree_callback(ydb->children, _ymldb_node_free_no_record, NULL);
+            }
+        }
+    }
+    return 0;
+}
+
 int _ymldb_print_level(struct ynode *last_ydb, struct ynode *cur_ydb)
 {
     int print_level = 0;
@@ -1031,14 +1080,6 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
                         goto free_ydb;
                 }
                 _ymldb_node_merge_reply(params, ydb);
-                // if (ydb->callback)
-                // {
-                //     callback = ydb->callback;
-                //     ydb->callback = NULL;
-                // }
-                // cp_avltree_delete(parent->children, ydb->key);
-                // _ymldb_node_free(ydb);
-                // goto new_ydb;
             }
             else if (ydb->type == YMLDB_LEAF)
             {
@@ -1102,6 +1143,8 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
     }
     // _log_debug("ydb->key %s ydb->type %d ydb->value '%s'\n", ydb->key, ydb->type, ydb->value);
     // notify_ydb:
+    if(params && params->no_record)
+        ydb->no_record = 1;
     _ymldb_node_merge_reply(params, ydb);
     return ydb;
 
@@ -1929,6 +1972,7 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
     }
     params->res = 0;
     params->cb = cb;
+    params->no_record = (cb->flags & YMLDB_FLAG_NO_RECORD)?1:0;
     return params;
 failed:
     _ystream_free(params->streambuffer);
@@ -2181,6 +2225,24 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     res = params->res;
     _params_free(params);
     _notify_callback_run_pending();
+    if(cb->flags & YMLDB_FLAG_NO_RECORD)
+    {
+        // remove no_record ynodes.
+        if(cb->ydb && cb->ydb->type == YMLDB_BRANCH)
+        {
+            struct ynode *del_ynode;
+            cp_list *del_list = cp_list_create_nosync();
+            cp_avltree_callback(cb->ydb->children, _ymldb_node_free_no_record, del_list);
+            while((del_ynode = cp_list_remove_head(del_list)) != NULL)
+            {
+                struct ynode *parent = del_ynode->parent;
+                cp_avltree_delete(parent->children, del_ynode->key);
+                _ymldb_node_free_without_callback((void *) del_ynode);
+            }
+            _log_debug("no-record operation is done!\n");
+            cp_list_destroy(del_list);
+        }
+    }
     cb->inprogress_cnt--;
     return res;
 }
@@ -3618,9 +3680,9 @@ static void _callback_data_free(struct ymldb_callback_data *cd)
 
 static void _callback_free(struct ycallback *callback)
 {
-    _log_debug("callback %p free\n", callback);
     if (callback)
     {
+        _log_debug("callback %p free\n", callback);
         _callback_data_free(callback->meta_data);
         free(callback);
     }
