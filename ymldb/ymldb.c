@@ -2526,9 +2526,8 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
     struct sockaddr_un addr;
     _log_debug("\n");
     if (cb->flags & YMLDB_FLAG_CONN)
-    {
         _distribution_deinit(cb);
-    }
+
     if (!g_fds)
     {
         g_fds = cp_avltree_create((cp_compare_fn)_g_fds_cmp);
@@ -2538,6 +2537,16 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
             return -1;
         }
     }
+
+    if (flags & YMLDB_FLAG_ASYNC)
+        cb->flags |= YMLDB_FLAG_ASYNC;
+    if (flags & YMLDB_FLAG_SUBSCRIBER)
+        cb->flags |= YMLDB_FLAG_SUBSCRIBER;
+    else if (flags & YMLDB_FLAG_PUBLISHER)
+        cb->flags |= YMLDB_FLAG_PUBLISHER;
+    else if (flags & YMLDB_FLAG_SUB_PUBLISHER)
+        cb->flags |= YMLDB_FLAG_SUB_PUBLISHER;
+
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
@@ -2550,12 +2559,9 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, socketpath, sizeof(addr.sun_path) - 1);
     addr.sun_path[0] = 0;
-    cb->fd_publisher = fd;
-    if (flags & YMLDB_FLAG_ASYNC)
-        cb->flags |= YMLDB_FLAG_ASYNC;
+    
     if (flags & YMLDB_FLAG_PUBLISHER)
     { // PUBLISHER
-        cb->flags |= YMLDB_FLAG_PUBLISHER;
         if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         {
             // _log_error("bind failed (%s).\n", strerror(errno));
@@ -2582,7 +2588,6 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
     else if (flags & YMLDB_FLAG_SUB_PUBLISHER)
     { // sub-publisher
         cb->flags |= YMLDB_FLAG_PUBLISHER;
-        cb->flags |= YMLDB_FLAG_SUB_PUBLISHER;
         if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
         {
             _log_error("%s connect failed (%s).\n", cb->key, strerror(errno));
@@ -2592,7 +2597,6 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
     }
     else if (flags & YMLDB_FLAG_SUBSCRIBER)
     { // SUBSCRIBER
-        cb->flags |= YMLDB_FLAG_SUBSCRIBER;
         if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
         {
             _log_error("%s connect failed (%s).\n", cb->key, strerror(errno));
@@ -2601,6 +2605,7 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
         }
     }
 _done:
+    cb->fd_publisher = fd;
 	if(g_fds)
 		cp_avltree_insert(g_fds, &cb->fd_publisher, cb);
     _log_debug("%s distribution - done (sock %d)\n", cb->key, fd);
@@ -2674,6 +2679,7 @@ static int _strfind_backward(char *src, ssize_t slen, char *searchstr)
 
 static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
 {
+    int res = 0;
     int len = 0;
     struct ystream *input;
     cb->fd_requester = fd;
@@ -2682,21 +2688,23 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
         if (cb->fd_publisher == fd)
         {
             int i;
-            fd = accept(cb->fd_publisher, NULL, NULL);
-            if (fd < 0)
+            int subfd = accept(cb->fd_publisher, NULL, NULL);
+            if (subfd < 0)
             {
                 _log_error("accept failed (%s)\n", strerror(errno));
-                goto _failed;
+                cb->flags |= YMLDB_FLAG_RECONNECT;
+                res = -1;
+                goto _done;
             }
             for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
             {
                 if (cb->fd_subscriber[i] < 0)
                 {
-                    cb->fd_subscriber[i] = fd;
+                    cb->fd_subscriber[i] = subfd;
                     cb->fd_flags[i] = 0;
 					if(g_fds)
 	                    cp_avltree_insert(g_fds, &cb->fd_subscriber[i], cb);
-                    _log_debug("subscriber (fd %d) added..\n", fd);
+                    _log_debug("subscriber (subfd %d) added..\n", subfd);
                     if (!(cb->flags & YMLDB_FLAG_ASYNC))
                         ymldb_sync_ack(cb->key);
                     break;
@@ -2704,10 +2712,12 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
             }
             if (i >= YMLDB_SUBSCRIBER_MAX)
             {
-                _log_error("subscription over..\n");
-                close(fd);
-                goto _failed;
+                // return no error, because it is partial error.
+                _log_error("subscriber (subfd %d) - adding failed due to over subscription..\n", subfd);
+                close(subfd);
+                subfd = 0;
             }
+            res = subfd;
             goto _done;
         }
     }
@@ -2715,7 +2725,9 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
     if (!input)
     {
         _log_error("fail to open ymldb stream\n");
-        goto _failed;
+        cb->flags |= YMLDB_FLAG_RECONNECT;
+        res = -1;
+        goto _done;
     }
 read_message:
     len = read(fd, input->buf + input->len, input->buflen - input->len);
@@ -2724,32 +2736,32 @@ read_message:
     {
         if (len < 0)
             _log_error("fd %d read failed (%s)\n", fd, strerror(errno));
-        else
+        else // (len == 0)
             _log_error("fd %d closed (EOF)\n", fd);
 
         if (fd == cb->fd_publisher)
+        {
             cb->flags |= YMLDB_FLAG_RECONNECT;
+            res = -1;
+        }
         else
         {
             int i;
-            _log_debug("\n");
 			if(g_fds)
 	            cp_avltree_delete(g_fds, &fd);
             for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
             {
                 if (cb->fd_subscriber[i] == fd)
                 {
-                    _log_debug("\n");
                     cb->fd_subscriber[i] = -1;
                     cb->fd_flags[i] = 0;
                     close(fd);
                 }
             }
+            res = 0;
         }
-        _log_debug("\n");
         _ystream_free(input);
-        _log_debug("\n");
-        goto _failed;
+        goto _done;
     }
     input->buf[input->len] = 0;
     if (input->len > YMLDB_STREAM_THRESHOLD)
@@ -2774,7 +2786,6 @@ read_message:
             _log_debug("oversize message");
             // oversize message will be dropped.
             _ystream_free(input);
-            goto _done;
         }
     }
     else
@@ -2784,12 +2795,10 @@ read_message:
         _ymldb_run(cb, input->stream, outstream);
         _ystream_free(input);
     }
+    res = 0;
 _done:
     cb->fd_requester = 0;
-    return fd;
-_failed:
-    cb->fd_requester = 0;
-    return -1;
+    return res;
 }
 
 static int _distribution_recv_internal(struct ymldb_cb *cb, FILE *outstream, fd_set *set)
@@ -2805,7 +2814,8 @@ static int _distribution_recv_internal(struct ymldb_cb *cb, FILE *outstream, fd_
     {
 		if(cb->fd_publisher > 0)
 			FD_CLR(cb->fd_publisher, set);
-        return _distribution_init(cb, cb->flags);
+        res = _distribution_init(cb, cb->flags);
+        return (res >= 0)?0:-1;
     }
     if (cb->fd_publisher >= 0)
     {
@@ -3535,8 +3545,10 @@ int ymldb_distribution_recv(fd_set *set)
     return ymldb_distribution_recv_and_dump(NULL, set);
 }
 
+// 0 if success, -1 if a critical error occurs, r>0 if a new connection is established.
 int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd)
 {
+    int res;
     struct ymldb_cb *cb;
     _log_entrance();
     if (!cur_fd)
@@ -3544,24 +3556,40 @@ int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd)
         _log_error("no cur_fd\n");
         return -1;
     }
-	
+    
 	if(g_fds)
 	{
 		cb = cp_avltree_get(g_fds, cur_fd);
 		if (cb)
 		{
-			int res = _distribution_recv(cb, outstream, *cur_fd);
-			if (res < 0)
-			{
-				*cur_fd = -1;
-			}
+            if (!(cb->flags & YMLDB_FLAG_CONN))
+            {
+                _log_error("not a subscriber or publisher\n");
+                return -1;
+            }
+			res = _distribution_recv(cb, outstream, *cur_fd);
+            if(res < 0)
+            {
+                int new_fd = 0;
+                if (cb->flags & YMLDB_FLAG_RECONNECT)
+                    new_fd = _distribution_init(cb, cb->flags);
+                if(new_fd <= 0)
+                {
+                    _log_error("%s distribution re-init failed.\n", cb->key);
+                    return res;
+                }
+                else
+                {
+                    _log_debug("%s distribution reinit succeed..n", cb->key);
+                    *cur_fd = new_fd;
+                    return 0; // no error if the initialization succeed.
+                }
+            }
 			_log_debug("\n");
 			return res;
 		}
 	}
-
     _log_error("unknown fd (%d) \n", *cur_fd);
-    *cur_fd = -1;
     return -1;
 }
 
