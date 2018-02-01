@@ -2742,7 +2742,6 @@ read_message:
         if (fd == cb->fd_publisher)
         {
             cb->flags |= YMLDB_FLAG_RECONNECT;
-            res = -1;
         }
         else
         {
@@ -2758,8 +2757,8 @@ read_message:
                     close(fd);
                 }
             }
-            res = 0;
         }
+        res = -1;
         _ystream_free(input);
         goto _done;
     }
@@ -3570,19 +3569,21 @@ int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd)
 			res = _distribution_recv(cb, outstream, *cur_fd);
             if(res < 0)
             {
-                int new_fd = 0;
                 if (cb->flags & YMLDB_FLAG_RECONNECT)
+                {
+                    int new_fd = 0;
                     new_fd = _distribution_init(cb, cb->flags);
-                if(new_fd <= 0)
-                {
-                    _log_error("%s distribution re-init failed.\n", cb->key);
-                    return res;
-                }
-                else
-                {
-                    _log_debug("%s distribution reinit succeed..n", cb->key);
-                    *cur_fd = new_fd;
-                    return 0; // no error if the initialization succeed.
+                    if(new_fd <= 0)
+                    {
+                        _log_error("%s distribution re-init failed.\n", cb->key);
+                        return res;
+                    }
+                    else
+                    {
+                        _log_debug("%s distribution reinit succeed..n", cb->key);
+                        *cur_fd = new_fd;
+                        return 0; // no error if the initialization succeed.
+                    }
                 }
             }
 			_log_debug("\n");
