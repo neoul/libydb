@@ -3683,6 +3683,7 @@ const char *ymldb_distribution_get_major_key(int fd)
     cb = cp_avltree_get(g_fds, &fd);
     if(cb)
         return cb->key;
+    return NULL;
 }
 
 static struct ycallback *_callback_alloc(
