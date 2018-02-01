@@ -121,6 +121,8 @@ int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set);
 int ymldb_distribution_recv_fd(int *cur_fd);
 int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd);
 
+const char *ymldb_distribution_get_major_key(int fd);
+
 // YMLDB callback type
 #define YMLDB_UPDATE_CALLBACK 0x01
 #define YMLDB_NOTIFY_CALLBACK 0x00

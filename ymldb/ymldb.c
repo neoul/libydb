@@ -3677,6 +3677,14 @@ int ymldb_distribution_delete(char *major_key, int subscriber_fd)
     return 0;
 }
 
+const char *ymldb_distribution_get_major_key(int fd)
+{
+    struct ymldb_cb *cb;
+    cb = cp_avltree_get(g_fds, &fd);
+    if(cb)
+        return cb->key;
+}
+
 static struct ycallback *_callback_alloc(
     int type, ymldb_callback_fn usr_func, void *usr_data, struct ynode *ydb)
 {
