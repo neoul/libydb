@@ -35,3 +35,9 @@ examples/samples/ymldb-test
 examples/samples/ymldb-update-callback-example
 examples/samples/ymldb-push-pull
 examples/agent/ymldb-agent
+configure
+examples/ycomm/ex-yalloc
+examples/ycomm/ex-yque
+examples/ycomm/ex-ytree
+examples/ycomm/ex-ytrie
+ycomm/utilities/.dirstamp

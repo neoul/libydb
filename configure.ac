@@ -32,9 +32,13 @@ AC_TYPE_SIZE_T
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([memset mkfifo select socket strchr strdup strerror strstr])
 
+AM_INIT_AUTOMAKE([subdir-objects])
+
 AC_CONFIG_FILES([Makefile
                  examples/agent/Makefile
 				 examples/samples/Makefile
+                 examples/ycomm/Makefile
 				 tools/monitor/Makefile
-                 ymldb/Makefile])
+                 ymldb/Makefile
+                 ycomm/Makefile])
 AC_OUTPUT
