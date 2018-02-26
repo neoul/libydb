@@ -19,7 +19,7 @@ char *example[] = {
 
 int main(void) {
 	int count;
-	ylist list = ylist_create();
+	ylist *list = ylist_create();
 
 	for (count=0; count < (sizeof(example)/sizeof(char *)) ; count++)
 	{

@@ -89,28 +89,28 @@ ytrie_iter* ytrie_iter_create(ytrie trie, const void *prefix, int prefix_len)
             art_iter_prefix_leaf(trie, (const unsigned char *)prefix, prefix_len, add_leaf, range);
         else
             fprintf(stderr, "  oops? - ytrie_iter_new seems to fail.\n");
-        range->list_iter = ylist_iter_front(range->list);
+        range->list_iter = ylist_first(range->list);
     }
     return range;
 }
 
 ytrie_iter* ytrie_iter_next(ytrie_iter *range)
 {
-    range->list_iter = ylist_iter_next(range->list_iter);
+    range->list_iter = ylist_next(range->list_iter);
     return range;
 }
 
 int ytrie_iter_done(ytrie_iter *range)
 {
     if(range)
-        return ylist_iter_done(range->list_iter);
+        return ylist_done(range->list_iter);
     return 1;
 }
 
 
 ytrie_iter* ytrie_iter_reset(ytrie_iter *range)
 {
-    range->list_iter = ylist_iter_front(range->list);
+    range->list_iter = ylist_first(range->list);
     return range;
 }
 
@@ -129,7 +129,7 @@ void ytrie_iter_delete(ytrie_iter *range)
 
 void *ytrie_iter_get_data(ytrie_iter *range)
 {
-    art_leaf *leaf = ylist_iter_data(range->list_iter);
+    art_leaf *leaf = ylist_data(range->list_iter);
     if(leaf)
         return leaf->value;
     return NULL;
@@ -137,7 +137,7 @@ void *ytrie_iter_get_data(ytrie_iter *range)
 
 const void *ytrie_iter_get_key(ytrie_iter *range)
 {
-    art_leaf *leaf = ylist_iter_data(range->list_iter);
+    art_leaf *leaf = ylist_data(range->list_iter);
     if(leaf)
         return (const void *)leaf->key;
     return NULL;
@@ -145,7 +145,7 @@ const void *ytrie_iter_get_key(ytrie_iter *range)
 
 int ytrie_iter_get_key_len(ytrie_iter *range)
 {
-    art_leaf *leaf = ylist_iter_data(range->list_iter);
+    art_leaf *leaf = ylist_data(range->list_iter);
     if(leaf)
         return leaf->key_len;
     return 0;

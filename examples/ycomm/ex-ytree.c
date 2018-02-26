@@ -50,7 +50,7 @@ int main (int argc, char **argv) {
     udata ud1 = NULL, ud2;
     int count = 0;
  
-    tree = ytree_create (comp, print);
+    tree = ytree_create (comp);
  
     while (!done) {
         count++;

@@ -41,8 +41,8 @@ int ytrie_traverse_prefix(ytrie trie, const void *prefix, int prefix_len, ytrie_
 typedef struct ytrie_iter_s
 {
     ytrie trie;
-    ylist list;
-    ylist_iter list_iter;
+    ylist *list;
+    ylist_iter *list_iter;
 } ytrie_iter;
 
 ytrie_iter* ytrie_iter_create(ytrie trie, const void *prefix, int prefix_len);

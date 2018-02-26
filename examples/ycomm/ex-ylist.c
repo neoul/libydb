@@ -19,11 +19,11 @@ void user_print (void *data, void *add)
 int main()
 {
     int i;
-    ylist_iter iter;
-    ylist list = ylist_create();
+    ylist_iter *iter;
+    ylist *list = ylist_create();
     struct user_data *data;
 
-    iter = ylist_iter_front(list);
+    iter = ylist_first(list);
     data = malloc(sizeof(struct user_data));
     data->id = 1000;
     sprintf(data->str, "user[%d]", data->id);
@@ -72,16 +72,16 @@ int main()
         }
     }
 
-    for (iter = ylist_iter_front(list);
-         !ylist_iter_done(iter);
-         iter = ylist_iter_next(iter))
+    for (iter = ylist_first(list);
+         !ylist_done(iter);
+         iter = ylist_next(iter))
     {
-        data = ylist_iter_data(iter);
+        data = ylist_data(iter);
         printf("LIST user[%d]\n", data->id);
     }
 
-    // iter = ylist_iter_prev(iter);
-    iter = ylist_iter_next(iter);
+    // iter = ylist_prev(iter);
+    iter = ylist_next(iter);
 
     data = malloc(sizeof(struct user_data));
     data->id = 100;
@@ -89,28 +89,28 @@ int main()
     ylist_insert(iter, data);
     printf("INSERT user[%d]\n", data->id);
 
-    for (iter = ylist_iter_back(list);
-         !ylist_iter_done(iter);
-         iter = ylist_iter_prev(iter))
+    for (iter = ylist_last(list);
+         !ylist_done(iter);
+         iter = ylist_prev(iter))
     {
-        data = ylist_iter_data(iter);
+        data = ylist_data(iter);
         printf("LIST user[%d]\n", data->id);
     }
 
-    for (iter = ylist_iter_front(list);
-         !ylist_iter_done(iter);
-         iter = ylist_iter_next(iter))
+    for (iter = ylist_first(list);
+         !ylist_done(iter);
+         iter = ylist_next(iter))
     {
-        data = ylist_iter_data(iter);
+        data = ylist_data(iter);
         if (data->id > 10)
             iter = ylist_erase(iter, free);
     }
     printf("After ERASE!!\n");
-    for (iter = ylist_iter_back(list);
-         !ylist_iter_done(iter);
-         iter = ylist_iter_prev(iter))
+    for (iter = ylist_last(list);
+         !ylist_done(iter);
+         iter = ylist_prev(iter))
     {
-        data = ylist_iter_data(iter);
+        data = ylist_data(iter);
         printf("LIST user[%d]\n", data->id);
     }
 

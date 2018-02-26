@@ -7,14 +7,17 @@ typedef void (*user_free)(void *);
 #endif
 
 typedef void *ytree;
-typedef void *ynode;
+typedef void *ytree_iter;
 typedef int (*ytree_cmp)(void *, void *);
-typedef void (*ytree_print)(void *);
+typedef void (*ytree_print)(void *data);
 
 // callback function for ytree iteration
 typedef int(*ytree_callback)(void *data, void *addition);
 
-ytree ytree_create(ytree_cmp cmp, ytree_print print);
+ytree ytree_create(ytree_cmp cmp);
+
+// int ytree_register_print(ytree_print print);
+
 void ytree_destroy(ytree tree);
 void ytree_destroy_custom(ytree tree, user_free data_free);
 unsigned int ytree_size(ytree tree);
@@ -33,13 +36,13 @@ int ytree_traverse_in_range(ytree tree, void *lower_boundary_data, void *higher_
 
 void ytree_printf(ytree tree);
 
-ynode ytree_top(ytree tree);
-ynode ytree_first(ytree tree);
-ynode ytree_last(ytree tree);
+ytree_iter ytree_top(ytree tree);
+ytree_iter ytree_first(ytree tree);
+ytree_iter ytree_last(ytree tree);
  
-ynode  ytree_prev(ytree tree, ynode n);
-ynode  ytree_next(ytree tree, ynode n);
+ytree_iter ytree_prev(ytree tree, ytree_iter n);
+ytree_iter ytree_next(ytree tree, ytree_iter n);
 
-void *ytree_data(ynode n);
+void *ytree_data(ytree_iter n);
 
 #endif // __YTREE__

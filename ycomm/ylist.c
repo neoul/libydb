@@ -3,60 +3,58 @@
 #include <stdlib.h>
 #include "ylist.h"
 
-struct node
+struct _ylist_iter
 {
-    struct node *next;
-    struct node *prev;
+    struct _ylist_iter *next;
+    struct _ylist_iter *prev;
     void *data;
 };
 
-struct list
+struct _ylist
 {
-    struct node *head;
+    struct _ylist_iter *head;
     ylist_cmp comp;
 };
 
 // create a list
-ylist ylist_create()
+ylist *ylist_create()
 {
-    struct list *l = malloc(sizeof(struct list));
-    if (l)
+    struct _ylist *list = malloc(sizeof(struct _ylist));
+    if (list)
     {
-        l->head = malloc(sizeof(struct node));
-        if (!l->head)
+        list->head = malloc(sizeof(struct _ylist_iter));
+        if (!list->head)
         {
-            free(l);
+            free(list);
             return NULL;
         }
-        l->head->next = l->head;
-        l->head->prev = l->head;
-        l->head->data = NULL;
-        l->comp = NULL;
+        list->head->next = list->head;
+        list->head->prev = list->head;
+        list->head->data = NULL;
+        list->comp = NULL;
     }
-    return l;
+    return list;
 }
 
 // destroy the list
-void ylist_destroy(ylist list)
+void ylist_destroy(ylist *list)
 {
-    struct list *l = list;
-    if (l)
+    if (list)
     {
         void *data = NULL;
         do
         {
             data = ylist_pop_front(list);
         } while (data);
-        free(l->head);
-        free(l);
+        free(list->head);
+        free(list);
     }
 }
 
 // destroy the list with free
-void ylist_destroy_custom(ylist list, user_free ufree)
+void ylist_destroy_custom(ylist *list, user_free ufree)
 {
-    struct list *l = list;
-    if (l)
+    if (list)
     {
         void *data = NULL;
         do
@@ -65,102 +63,93 @@ void ylist_destroy_custom(ylist list, user_free ufree)
             if (data && ufree)
                 ufree(data);
         } while (data);
-        free(l->head);
-        free(l);
+        free(list->head);
+        free(list);
     }
 }
 
-// return ylist_iter if success
-ylist_iter ylist_push_front(ylist list, void *data)
+// return iterator if success
+ylist_iter *ylist_push_front(ylist *list, void *data)
 {
-    struct list *l;
-    struct node *n;
+    struct _ylist_iter *iter;
     if (!list || !data)
         return NULL;
-    l = list;
-    n = malloc(sizeof(struct node));
-    if (n)
+    iter = malloc(sizeof(struct _ylist_iter));
+    if (iter)
     {
-        n->data = data;
-        n->next = l->head->next;
-        n->prev = l->head;
-        l->head->next->prev = n;
-        l->head->next = n;
+        iter->data = data;
+        iter->next = list->head->next;
+        iter->prev = list->head;
+        list->head->next->prev = iter;
+        list->head->next = iter;
     }
-    return n;
+    return iter;
 }
 
-// return ylist_iter if success
-ylist_iter ylist_push_back(ylist list, void *data)
+// return iterator if success
+ylist_iter *ylist_push_back(ylist *list, void *data)
 {
-    struct list *l;
-    struct node *n;
+    struct _ylist_iter *iter;
     if (!list || !data)
         return NULL;
-    l = list;
-    n = malloc(sizeof(struct node));
-    if (n)
+    iter = malloc(sizeof(struct _ylist_iter));
+    if (iter)
     {
-        n->data = data;
-        n->next = l->head;
-        n->prev = l->head->prev;
-        l->head->prev->next = n;
-        l->head->prev = n;
+        iter->data = data;
+        iter->next = list->head;
+        iter->prev = list->head->prev;
+        list->head->prev->next = iter;
+        list->head->prev = iter;
     }
-    return n;
+    return iter;
 }
 
 // pop out data of the first entry if success
-void *ylist_pop_front(ylist list)
+void *ylist_pop_front(ylist *list)
 {
-    struct list *l;
-    struct node *n;
+    struct _ylist_iter *iter;
     if (!list)
         return NULL;
-    l = list;
-    n = l->head->next;
-    if (n == l->head)
+    iter = list->head->next;
+    if (iter == list->head)
         return NULL;
     else
     {
-        void *data = n->data;
-        n->next->prev = l->head;
-        l->head->next = n->next;
-        free(n);
+        void *data = iter->data;
+        iter->next->prev = list->head;
+        list->head->next = iter->next;
+        free(iter);
         return data;
     }
 }
 
 // pop out data of the last entry if success
-void *ylist_pop_back(ylist list)
+void *ylist_pop_back(ylist *list)
 {
-    struct list *l;
-    struct node *n;
+    struct _ylist_iter *iter;
     if (!list)
         return NULL;
-    l = list;
-    n = l->head->prev;
-    if (n == l->head)
+    iter = list->head->prev;
+    if (iter == list->head)
         return NULL;
     else
     {
-        void *data = n->data;
-        n->prev->next = l->head;
-        l->head->prev = n->prev;
-        free(n);
+        void *data = iter->data;
+        iter->prev->next = list->head;
+        list->head->prev = iter->prev;
+        free(iter);
         return data;
     }
 }
 
 // true if it is empty.
-int ylist_empty(ylist list)
+int ylist_empty(ylist *list)
 {
     if (list)
     {
-        struct list *l = list;
-        if (l->head->next == l->head)
+        if (list->head->next == list->head)
             return 1;
-        if (l->head->prev == l->head)
+        if (list->head->prev == list->head)
             return 1;
         return 0;
     }
@@ -168,103 +157,91 @@ int ylist_empty(ylist list)
 }
 
 // return the data of the first entry
-void *ylist_front(ylist list)
+void *ylist_front(ylist *list)
 {
-    struct list *l;
-    struct node *n;
+    struct _ylist_iter *iter;
     if (!list)
         return NULL;
-    l = list;
-    n = l->head->next;
-    if (n == l->head)
+    iter = list->head->next;
+    if (iter == list->head)
         return NULL;
     else
-        return n->data;
+        return iter->data;
 }
 
 // return the data of the last entry
-void *ylist_back(ylist list)
+void *ylist_back(ylist *list)
 {
-    struct list *l;
-    struct node *n;
+    struct _ylist_iter *iter;
     if (!list)
         return NULL;
-    l = list;
-    n = l->head->prev;
-    if (n == l->head)
+    iter = list->head->prev;
+    if (iter == list->head)
         return NULL;
     else
-        return n->data;
+        return iter->data;
 }
 
-ylist_iter ylist_iter_front(ylist list)
+ylist_iter *ylist_first(ylist *list)
 {
-    struct list *l;
     if (!list)
         return NULL;
-    l = list;
-    return l->head->next;
+    return list->head->next;
 }
 
-ylist_iter ylist_iter_back(ylist list)
+ylist_iter *ylist_last(ylist *list)
 {
-    struct list *l;
     if (!list)
         return NULL;
-    l = list;
-    return l->head->prev;
+    return list->head->prev;
 }
 
 // return next iterator of the current iterator.
-ylist_iter ylist_iter_next(ylist_iter iter)
+ylist_iter *ylist_next(ylist_iter *iter)
 {
-    return iter ? (((struct node *)(iter))->next) : NULL;
+    return iter ? (iter->next) : NULL;
 }
 
 // return previous iterator of the current iterator.
-ylist_iter ylist_iter_prev(ylist_iter iter)
+ylist_iter *ylist_prev(ylist_iter *iter)
 {
-    return iter ? (((struct node *)(iter))->prev) : NULL;
+    return iter ? (iter->prev) : NULL;
 }
 
 // true if the iterator ended
-int ylist_iter_done(ylist_iter iter)
+int ylist_done(ylist_iter *iter)
 {
     if (!iter)
         return 1;
-    if (((struct node *)(iter))->data)
+    if (iter->data)
         return 0;
     return 1;
 }
 
 // get data of the iterator
-void *ylist_iter_data(ylist_iter iter)
+void *ylist_data(ylist_iter *iter)
 {
-    struct node *n;
     if (iter)
     {
-        n = iter;
-        return n->data;
+        return iter->data;
     }
     return NULL;
 }
 
 // delete the data of the iterator and then return next iterator.
-ylist_iter ylist_erase(ylist_iter iter, user_free ufree)
+ylist_iter *ylist_erase(ylist_iter *iter, user_free ufree)
 {
-    struct node *n;
     if (!iter)
         return iter;
-    n = iter;
-    if (n->data)
+    if (iter->data)
     {
-        struct node *next;
+        struct _ylist_iter *next;
         if (ufree)
-            ufree(n->data);
-        n->prev->next = n->next;
-        n->next->prev = n->prev;
-        next = n->next;
-        free(n);
+            ufree(iter->data);
+        iter->prev->next = iter->next;
+        iter->next->prev = iter->prev;
+        next = iter->next;
+        free(iter);
         return next;
     }
     else
@@ -275,49 +252,42 @@ ylist_iter ylist_erase(ylist_iter iter, user_free ufree)
 
 // insert the data ahead of the iterator and then return new iterator for the data
 // return NULL if it failed.
-ylist_iter ylist_insert(ylist_iter iter, void *data)
+ylist_iter *ylist_insert(ylist_iter *iter, void *data)
 {
-    struct node *n, *inode;
+    struct _ylist_iter *new_iter;
     if (!iter || !data)
         return NULL;
-    n = iter;
-    inode = malloc(sizeof(struct node));
-    if (inode)
+    new_iter = malloc(sizeof(struct _ylist_iter));
+    if (new_iter)
     {
-        inode->data = data;
-        inode->next = n;
-        inode->prev = n->prev;
-        n->prev->next = inode;
-        n->prev = inode;
+        new_iter->data = data;
+        new_iter->next = iter;
+        new_iter->prev = iter->prev;
+        iter->prev->next = new_iter;
+        iter->prev = new_iter;
     }
-    return inode;
+    return new_iter;
 }
 
-void ylist_printf(ylist list, ylist_print print, void *addition)
+void ylist_printf(ylist *list, ylist_print print, void *addition)
 {
-    struct list *l;
-    struct node *n;
+    struct _ylist_iter *iter;
     if (!list)
         return;
-    l = list;
-
-    for (n = l->head->next; n != l->head; n = n->next)
+    for (iter = list->head->next; iter != list->head; iter = iter->next)
     {
-        print(n->data, addition);
+        print(iter->data, addition);
     }
 }
 
-void ylist_traverse(ylist list, ylist_callback cb, void *addition)
+void ylist_traverse(ylist *list, ylist_callback cb, void *addition)
 {
-    struct list *l;
-    struct node *n;
+    struct _ylist_iter *iter;
     if (!list)
         return;
-    l = list;
-
-    for (n = l->head->next; n != l->head; n = n->next)
+    for (iter = list->head->next; iter != list->head; iter = iter->next)
     {
-        cb(n->data, addition);
+        cb(iter->data, addition);
     }
 }
 

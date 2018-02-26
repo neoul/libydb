@@ -374,7 +374,7 @@ static char *g_space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 static struct ynode *g_ydb = NULL;
 static cp_avltree *g_ycb = NULL;
 static cp_avltree *g_fds = NULL;
-static ylist g_callbacks = NULL;
+static ylist *g_callbacks = NULL;
 
 static unsigned int g_sequence = 1;
 
@@ -476,11 +476,11 @@ struct ymldb_cb *_ymldb_cb(char *major_key)
     return NULL;
 }
 
-static ylist _ymldb_traverse_ancestors(struct ynode *ydb, int traverse_level)
+static ylist *_ymldb_traverse_ancestors(struct ynode *ydb, int traverse_level)
 {
     if (!ydb)
         return NULL;
-    ylist templist = ylist_create();
+    ylist *templist = ylist_create();
     ydb = ydb->parent;
     while (ydb && ydb->level >= traverse_level)
     {
@@ -491,7 +491,7 @@ static ylist _ymldb_traverse_ancestors(struct ynode *ydb, int traverse_level)
     return templist;
 }
 
-static void _ymldb_traverse_free(ylist templist)
+static void _ymldb_traverse_free(ylist *templist)
 {
     if (templist)
     {
@@ -529,15 +529,15 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
     if (print_level < ydb->level)
     { // print parents
         struct ynode *ancestor;
-        ylist_iter iter;
-        ylist ancestors;
+        ylist_iter *iter;
+        ylist *ancestors;
         
         ancestors = _ymldb_traverse_ancestors(ydb, print_level);
         
-        iter = ylist_iter_front(ancestors);
-        while (!ylist_iter_done(iter))
+        iter = ylist_first(ancestors);
+        while (!ylist_done(iter))
         {
-            ancestor = ylist_iter_data(iter);
+            ancestor = ylist_data(iter);
             if (ancestor->level == 0)
                 break;
             switch (ancestor->type)
@@ -552,7 +552,7 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
                 fprintf(stream, "%.*s%s: %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key, ancestor->value);
                 break;
             }
-            iter = ylist_iter_next(iter);
+            iter = ylist_next(iter);
         }
         _ymldb_traverse_free(ancestors);
     }
@@ -819,7 +819,7 @@ static int _ymldb_node_free_no_record(void *n, void *dummy)
     {
         if(ydb->no_record)
         {
-            ylist del_list = dummy;
+            ylist *del_list = dummy;
             ylist_push_back(del_list, ydb);
         }
         else
@@ -1880,15 +1880,15 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
     if (print_level < ydb->level)
     { // print parents
         struct ynode *ancestor;
-        ylist_iter iter;
-        ylist ancestors;
+        ylist_iter *iter;
+        ylist *ancestors;
 
         ancestors = _ymldb_traverse_ancestors(ydb, print_level);
-        iter = ylist_iter_front(ancestors);
+        iter = ylist_first(ancestors);
 
-        while (!ylist_iter_done(iter))
+        while (!ylist_done(iter))
         {
-            ancestor = ylist_iter_data(iter);
+            ancestor = ylist_data(iter);
             if (ancestor->level <= 1)
                 break;
             switch (ancestor->type)
@@ -1906,7 +1906,7 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
                 _log_error("unknown type?!??? %d\n", ancestor->type);
                 break;
             }
-            iter = ylist_iter_next(iter);
+            iter = ylist_next(iter);
         }
         _ymldb_traverse_free(ancestors);
     }
@@ -2084,7 +2084,7 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
         if(cb->ydb && cb->ydb->type == YMLDB_BRANCH)
         {
             struct ynode *del_ynode;
-            ylist del_list = ylist_create();
+            ylist *del_list = ylist_create();
             cp_avltree_callback(cb->ydb->children, _ymldb_node_free_no_record, del_list);
             while((del_ynode = ylist_pop_front(del_list)) != NULL)
             {

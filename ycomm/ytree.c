@@ -19,17 +19,25 @@ int default_cmp (void *a1, void *a2) {
         return 0;
 }
 
-ytree ytree_create(ytree_cmp cmp, ytree_print print)
+ytree ytree_create(ytree_cmp cmp)
 {
     Tree tree;
     if(!cmp)
         cmp = default_cmp;
-    if(!print)
-        print = default_print;
     
-    tree = Tree_New (cmp, print);
+    tree = Tree_New (cmp, default_print);
     return (ytree) tree;
 }
+
+// int ytree_register_print(ytree tree, ytree_print print)
+// {
+//     if(tree)
+//     {
+//         struct Tree *t = tree;
+//         t->print = print;
+//     }
+//     return 0;
+// }
 
 void ytree_destroy(ytree tree)
 {
@@ -166,32 +174,32 @@ void ytree_printf(ytree tree)
     Tree_Print(tree);
 }
 
-ynode ytree_top(ytree tree)
+ytree_iter ytree_top(ytree tree)
 {
     return Tree_TopNode(tree);
 }
 
-ynode ytree_first(ytree tree)
+ytree_iter ytree_first(ytree tree)
 {
     return Tree_FirstNode(tree);
 }
 
-ynode ytree_last(ytree tree)
+ytree_iter ytree_last(ytree tree)
 {
     return Tree_LastNode(tree);
 }
  
-ynode  ytree_prev(ytree tree, ynode n)
+ytree_iter  ytree_prev(ytree tree, ytree_iter n)
 {
     return Tree_PrevNode(tree, n);
 }
 
-ynode  ytree_next(ytree tree, ynode n)
+ytree_iter  ytree_next(ytree tree, ytree_iter n)
 {
     return Tree_NextNode(tree, n);
 }
 
-void *ytree_data(ynode n)
+void *ytree_data(ytree_iter n)
 {
     return Node_GetData(n);
 }
