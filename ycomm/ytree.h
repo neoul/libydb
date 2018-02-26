@@ -12,7 +12,7 @@ typedef int (*ytree_cmp)(void *, void *);
 typedef void (*ytree_print)(void *);
 
 // callback function for ytree iteration
-typedef int(*ytree_callback)(void *data, void *user_data);
+typedef int(*ytree_callback)(void *data, void *addition);
 
 ytree ytree_create(ytree_cmp cmp, ytree_print print);
 void ytree_destroy(ytree tree);
@@ -25,11 +25,11 @@ void *ytree_delete(ytree tree, void *data);
 // return the value if found, otherwise return NULL
 void *ytree_search(ytree tree, void *data);
 // Iterates through entries in the tree
-int ytree_traverse(ytree tree, ytree_callback cb, void *user_data);
+int ytree_traverse(ytree tree, ytree_callback cb, void *addition);
 // Iterates through entries in the tree in reverse direction
-int ytree_traverse_reverse(ytree tree, ytree_callback cb, void *user_data);
+int ytree_traverse_reverse(ytree tree, ytree_callback cb, void *addition);
 // Iterates through the entries in the tree within a range.
-int ytree_traverse_in_range(ytree tree, void *lower_boundary_data, void *higher_boundary_data, ytree_callback cb, void *user_data);
+int ytree_traverse_in_range(ytree tree, void *lower_boundary_data, void *higher_boundary_data, ytree_callback cb, void *addition);
 
 void ytree_printf(ytree tree);
 

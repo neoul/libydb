@@ -32,10 +32,10 @@ void *ytrie_search(ytrie trie, const void *key, int key_len);
 typedef int(*ytrie_callback)(void *arg, const void *key, int key_len, void *value);
 
 // Iterates through the entries pairs in the map
-int ytrie_traverse(ytrie trie, ytrie_callback cb, void *data);
+int ytrie_traverse(ytrie trie, ytrie_callback cb, void *addition);
 
 // Iterates through the entries pairs in the map
-int ytrie_traverse_prefix(ytrie trie, const void *prefix, int prefix_len, ytrie_callback cb, void *data);
+int ytrie_traverse_prefix(ytrie trie, const void *prefix, int prefix_len, ytrie_callback cb, void *addition);
 
 
 typedef struct ytrie_iter_s

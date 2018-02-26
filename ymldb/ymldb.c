@@ -15,8 +15,14 @@
 
 #include <yaml.h>
 #include <cprops/avl.h>
-#include <cprops/linked_list.h>
-#include <cprops/trie.h>
+
+#include "ylist.h"
+#include "yalloc.h"
+
+#undef strdup
+#define strdup ystrdup
+#define malloc yalloc
+#define free yfree
 
 #include "ymldb.h"
 
@@ -362,178 +368,13 @@ static void _notify_callback_run_pending();
 static void _callback_unreg(struct ynode *ydb, int del);
 static void _update_callback_run(struct ynode *ydb);
 
-static cp_trie *g_key_pool = NULL;
-static int g_alloc_count = 0;
-static char g_empty_str[4] = {0, 0, 0, 0};
-
-struct ymldb_key
-{
-    char *key; // ymldb key
-    int ref;   // reference count;
-};
-
-void *_malloc(size_t s)
-{
-    if (!g_key_pool)
-    {
-        g_key_pool = cp_trie_create(COLLECTION_MODE_NOSYNC);
-        _log_debug("g_key_pool is created...\n");
-    }
-    void *p = malloc(s);
-    if (p)
-    {
-        // _log_debug("alloc p=%p\n", p);
-        g_alloc_count++;
-    }
-    return p;
-}
-
-char *_strdup(char *src)
-{
-    struct ymldb_key *ykey;
-    g_alloc_count++;
-    if (!g_key_pool)
-    {
-        g_key_pool = cp_trie_create(COLLECTION_MODE_NOSYNC);
-        _log_debug("g_key_pool is created...\n");
-    }
-    if (!src || src[0] == 0)
-    {
-        return g_empty_str;
-    }
-    ykey = cp_trie_exact_match(g_key_pool, src);
-    if (ykey)
-    {
-        ykey->ref++;
-    }
-    else
-    {
-        ykey = malloc(sizeof(struct ymldb_key));
-        if (!ykey)
-            return NULL;
-        ykey->key = strdup(src);
-        if (!ykey->key)
-        {
-            free(ykey);
-            return NULL;
-        }
-        ykey->ref = 1;
-        int res = cp_trie_add(g_key_pool, ykey->key, ykey);
-        if (res != 0)
-        {
-            free(ykey->key);
-            free(ykey);
-            return NULL;
-        }
-    }
-    // _log_debug("alloc p=%p p->key=%p key=%s ref=%d \n", ykey, ykey->key, ykey->key, ykey->ref);
-    return ykey->key;
-}
-
-void _free(void *p)
-{
-    g_alloc_count--;
-    if (!p || p == g_empty_str)
-    {
-        return;
-    }
-
-    if (g_key_pool)
-    {
-        struct ymldb_key *ykey;
-        ykey = cp_trie_exact_match(g_key_pool, (char *)p);
-        if (ykey)
-        {
-            ykey->ref--;
-            // _log_debug("free p=%p p->key=%p key=%s ref=%d \n", ykey, ykey->key, ykey->key, ykey->ref);
-            if (ykey->ref <= 0)
-            {
-                cp_trie_remove(g_key_pool, ykey->key, NULL);
-                free(ykey->key);
-                free(ykey);
-            }
-        }
-        else
-        { // free malloc()
-            // _log_debug("free p=%p\n", p);
-            free(p);
-        }
-        if (cp_trie_count(g_key_pool) <= 0)
-        {
-            cp_trie_destroy(g_key_pool);
-            g_key_pool = NULL;
-            _log_debug("g_key_pool is freed...\n");
-        }
-        return;
-    }
-    else
-    {
-        // _log_debug("free p=%p\n", p);
-        free(p);
-    }
-    return;
-}
-
-struct cp_trie_cb_data
-{
-    int node_count;
-    int depth_total;
-    int max_level;
-};
-
-void cp_trie_dump_node(cp_trie_node *node, int level, char *prefix, struct cp_trie_cb_data *cdata)
-{
-    int i;
-    mtab_node *map_node;
-
-    cdata->node_count++;
-    cdata->depth_total += level;
-    if (level > cdata->max_level)
-        cdata->max_level = level;
-
-    for (i = 0; i < node->others->size; i++)
-    {
-        map_node = node->others->table[i];
-        while (map_node)
-        {
-            cp_trie_dump_node(map_node->value, level + 1, map_node->attr, cdata);
-            map_node = map_node->next;
-        }
-    }
-
-    for (i = 0; i < level; i++)
-        printf("\t");
-    struct ymldb_key *ykey = node->leaf;
-    printf(" - %s => [%s][p=%p][key-p=%p]\n", prefix, ykey ? (char *)ykey->key : "", ykey, ykey ? ykey->key : NULL);
-}
-
-void key_pool_dump()
-{
-    cp_trie *grp = g_key_pool;
-    struct cp_trie_cb_data cdata;
-    cdata.node_count = 0;
-    cdata.depth_total = 0;
-    cdata.max_level = 0;
-
-    cp_trie_dump_node(grp->root, 0, "", &cdata);
-
-    printf("\n %d nodes, %d deepest, avg. depth is %.2f\n\n",
-           cdata.node_count, cdata.max_level, (float)cdata.depth_total / cdata.node_count);
-}
-
-// #define _ENHANCED_
-// #define free _free
-// #define malloc _malloc
-// #undef strdup
-// #define strdup _strdup
-
 #define S10 "          "
 static char *g_space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
 static struct ynode *g_ydb = NULL;
 static cp_avltree *g_ycb = NULL;
 static cp_avltree *g_fds = NULL;
-static cp_list *g_callbacks = NULL;
+static ylist g_callbacks = NULL;
 
 static unsigned int g_sequence = 1;
 
@@ -635,26 +476,26 @@ struct ymldb_cb *_ymldb_cb(char *major_key)
     return NULL;
 }
 
-static cp_list *_ymldb_traverse_ancestors(struct ynode *ydb, int traverse_level)
+static ylist _ymldb_traverse_ancestors(struct ynode *ydb, int traverse_level)
 {
     if (!ydb)
         return NULL;
-    cp_list *templist = cp_list_create_nosync();
+    ylist templist = ylist_create();
     ydb = ydb->parent;
     while (ydb && ydb->level >= traverse_level)
     {
-        cp_list_insert(templist, ydb);
+        ylist_push_back(templist, ydb);
         ydb = ydb->parent;
     }
 
     return templist;
 }
 
-static void _ymldb_traverse_free(cp_list *templist)
+static void _ymldb_traverse_free(ylist templist)
 {
     if (templist)
     {
-        cp_list_destroy(templist);
+        ylist_destroy(templist);
     }
 }
 
@@ -683,19 +524,22 @@ static int _ymldb_fprintf_each_of_node(void *n, void *dummy)
 
 static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level, int no_print_children)
 {
-    cp_list *ancestors;
     if (!ydb)
         return;
     if (print_level < ydb->level)
     { // print parents
         struct ynode *ancestor;
-        cp_list_iterator iter;
+        ylist_iter iter;
+        ylist ancestors;
+        
         ancestors = _ymldb_traverse_ancestors(ydb, print_level);
-        cp_list_iterator_init(&iter, ancestors, COLLECTION_LOCK_NONE);
-        while ((ancestor = cp_list_iterator_next(&iter)))
+        
+        iter = ylist_iter_front(ancestors);
+        while (!ylist_iter_done(iter))
         {
+            ancestor = ylist_iter_data(iter);
             if (ancestor->level == 0)
-                continue;
+                break;
             switch (ancestor->type)
             {
             case YMLDB_BRANCH:
@@ -708,6 +552,7 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
                 fprintf(stream, "%.*s%s: %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key, ancestor->value);
                 break;
             }
+            iter = ylist_iter_next(iter);
         }
         _ymldb_traverse_free(ancestors);
     }
@@ -974,8 +819,8 @@ static int _ymldb_node_free_no_record(void *n, void *dummy)
     {
         if(ydb->no_record)
         {
-            cp_list *del_list = dummy;
-            cp_list_append(del_list, ydb);
+            ylist del_list = dummy;
+            ylist_push_back(del_list, ydb);
         }
         else
         {
@@ -2019,7 +1864,6 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
 {
     int flushed = 0;
     FILE *stream;
-    cp_list *ancestors;
     if (!ydb)
         return;
     flushed = _params_buf_flush(params, 0);
@@ -2036,13 +1880,17 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
     if (print_level < ydb->level)
     { // print parents
         struct ynode *ancestor;
-        cp_list_iterator iter;
+        ylist_iter iter;
+        ylist ancestors;
+
         ancestors = _ymldb_traverse_ancestors(ydb, print_level);
-        cp_list_iterator_init(&iter, ancestors, COLLECTION_LOCK_NONE);
-        while ((ancestor = cp_list_iterator_next(&iter)))
+        iter = ylist_iter_front(ancestors);
+
+        while (!ylist_iter_done(iter))
         {
+            ancestor = ylist_iter_data(iter);
             if (ancestor->level <= 1)
-                continue;
+                break;
             switch (ancestor->type)
             {
             case YMLDB_BRANCH:
@@ -2058,6 +1906,7 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
                 _log_error("unknown type?!??? %d\n", ancestor->type);
                 break;
             }
+            iter = ylist_iter_next(iter);
         }
         _ymldb_traverse_free(ancestors);
     }
@@ -2235,16 +2084,16 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
         if(cb->ydb && cb->ydb->type == YMLDB_BRANCH)
         {
             struct ynode *del_ynode;
-            cp_list *del_list = cp_list_create_nosync();
+            ylist del_list = ylist_create();
             cp_avltree_callback(cb->ydb->children, _ymldb_node_free_no_record, del_list);
-            while((del_ynode = cp_list_remove_head(del_list)) != NULL)
+            while((del_ynode = ylist_pop_front(del_list)) != NULL)
             {
                 struct ynode *parent = del_ynode->parent;
                 cp_avltree_delete(parent->children, del_ynode->key);
                 _ymldb_node_free_without_callback((void *) del_ynode);
             }
             _log_debug("no-record operation is done!\n");
-            cp_list_destroy(del_list);
+            ylist_destroy(del_list);
         }
     }
     cb->inprogress_cnt--;
@@ -3469,13 +3318,11 @@ void ymldb_dump_all(FILE *outstream, char *major_key)
         }
         fprintf(outstream, "\n [Current ymldb tree]\n\n");
         _ymldb_fprintf_node(outstream, cb->ydb, 0, 0);
-        fprintf(outstream, "\n  @@ g_alloc_count %d @@\n\n", g_alloc_count);
     }
     else
     { // print all..
         fprintf(outstream, "\n [Current ymldb tree]\n\n");
         _ymldb_fprintf_node(outstream, g_ydb, 0, 0);
-        fprintf(outstream, "\n  @@ g_alloc_count %d @@\n\n", g_alloc_count);
     }
 }
 
@@ -4012,12 +3859,12 @@ static void _notify_callback_pending(struct ynode *ydb, int deleted, int unregis
         _log_debug("\n");
         struct ycallback *new_callback = NULL;
         if (!g_callbacks)
-            g_callbacks = cp_list_create_nosync();
+            g_callbacks = ylist_create();
         new_callback = _callback_alloc(callback->type, callback->usr_func, callback->usr_data, callback->ydb);
         if (new_callback && g_callbacks)
         {
             new_callback->meta_data = cd;
-            cp_list_append(g_callbacks, new_callback);
+            ylist_push_back(g_callbacks, new_callback);
             return;
         }
         _callback_free(new_callback);
@@ -4075,13 +3922,13 @@ static void _notify_callback_run_pending()
     struct ycallback *callback = NULL;
     if (!g_callbacks)
         return;
-    _log_debug("callback (cnt=%d)\n", (int)cp_list_item_count(g_callbacks));
-    while ((callback = cp_list_remove_head(g_callbacks)) != NULL)
+    _log_debug("notify callback: %s\n", ylist_empty(g_callbacks)?"off":"on");
+    while ((callback = ylist_pop_front(g_callbacks)) != NULL)
     {
         callback->usr_func(callback->usr_data, callback->meta_data);
         _callback_free(callback);
     }
-    cp_list_destroy(g_callbacks);
+    ylist_destroy(g_callbacks);
     g_callbacks = NULL;
 }
 

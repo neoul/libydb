@@ -306,3 +306,18 @@ void ylist_printf(ylist list, ylist_print print, void *addition)
         print(n->data, addition);
     }
 }
+
+void ylist_traverse(ylist list, ylist_callback cb, void *addition)
+{
+    struct list *l;
+    struct node *n;
+    if (!list)
+        return;
+    l = list;
+
+    for (n = l->head->next; n != l->head; n = n->next)
+    {
+        cb(n->data, addition);
+    }
+}
+

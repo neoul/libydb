@@ -46,7 +46,7 @@ int ymldb_file_rw_test()
     int snmp = 0;
     int gfast = 0;
 
-
+    // success case
     res = ymldb_file_pull(yfilename,
         "daemon:\n"
         "  zebos:\n"

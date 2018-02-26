@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ytree.h"
-#include "yalloc.h"
 
+#include "yalloc.h"
+#include "ylist.h"
 
 char *example[] = {
 	"abs",
@@ -19,19 +19,23 @@ char *example[] = {
 
 int main(void) {
 	int count;
+	ylist list = ylist_create();
+
 	for (count=0; count < (sizeof(example)/sizeof(char *)) ; count++)
 	{
 		char *key = ystrdup(example[count]);
-		printf("key address %p\n", key);
+		ylist_push_back(list, key);
 	}
 	
 	ystrprint();
 
-	for (count=0; count < (sizeof(example)/sizeof(char *)) ; count++)
+	char *key = ylist_pop_front(list);
+	while(key)
 	{
-		yfree(example[count]);
+		yfree(key);
+		key = ylist_pop_front(list);
 	}
-	printf("TEST\n");
+	ylist_destroy(list);
 	yalloc_destroy();
 	return 0;
 }
