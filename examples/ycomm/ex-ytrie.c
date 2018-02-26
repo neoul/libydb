@@ -67,6 +67,8 @@ int main(void) {
 	qres = ytrie_search(trie, &query, YDATA_KEY_SIZE);
 	if(qres)
 		printf("[SEARCH]('%u')=%u,%s\n", query.key, qres->key, qres->value);
+	else
+		printf("[SEARCH] -- failed\n");
 
 	// DELETE
 	printf("DELETE\n");
@@ -97,8 +99,8 @@ int main(void) {
 	ytrie_traverse_prefix(trie, query.value, strlen(query.value), traverse, "Callback_data");
 
 	// TRAVERSE_IN_RANGE
-	ytrie_iter* range = ytrie_iter_new(trie, query.value, strlen(query.value));
-	for(; range && range->que_iter; range=ytrie_iter_next(range))
+	ytrie_iter* range = ytrie_iter_create(trie, query.value, strlen(query.value));
+	for(; ytrie_iter_done(range); range=ytrie_iter_next(range))
 	{
 		struct user_data *udata = ytrie_iter_get_data(range);
     	printf("[TRAVERSE_IN_RANGE] %u %s\n", udata->key, udata->value);

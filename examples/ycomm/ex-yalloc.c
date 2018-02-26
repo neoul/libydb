@@ -19,29 +19,19 @@ char *example[] = {
 
 int main(void) {
 	int count;
-	ytree mpool = ytree_create(NULL, NULL);
-	// FILE *fp = fopen("alphago.txt", "r");
-	// char buf[4094];
-	// while(fgets(buf, sizeof(buf), fp) != NULL)
-	// {
-	// 	char *pch = strtok (buf," ,.-\n\t'\"");
-	// 	while (pch != NULL)
-	// 	{
-	// 		char *tmp = ystrdup(pch);
-	// 		pch = strtok (NULL," ,.-\n\t'\"");
-	// 		//ytree_insert(mpool, tmp);
-	// 	}
-	// }
-	// fclose(fp);
-	
 	for (count=0; count < (sizeof(example)/sizeof(char *)) ; count++)
 	{
 		char *key = ystrdup(example[count]);
-		ytree_insert(mpool, key);
+		printf("key address %p\n", key);
 	}
 	
 	ystrprint();
-	ytree_destroy_custom(mpool, yfree);
+
+	for (count=0; count < (sizeof(example)/sizeof(char *)) ; count++)
+	{
+		yfree(example[count]);
+	}
+	printf("TEST\n");
 	yalloc_destroy();
 	return 0;
 }

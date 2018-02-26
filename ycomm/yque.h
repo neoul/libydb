@@ -37,7 +37,6 @@ void yque_iter_delete(yque_iter iter);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"
-
 #endif
 
 #endif // __YQUEUE__

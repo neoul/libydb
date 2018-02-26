@@ -3,7 +3,7 @@ lib_LTLIBRARIES = libycomm.la
 libycomm_la_SOURCES = \
     utilities/art.c \
     utilities/avl.c \
-    yque.cpp \
+    ylist.c \
     ytrie.c \
     ytree.c \
     yalloc.c

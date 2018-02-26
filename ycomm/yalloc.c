@@ -7,8 +7,8 @@
 #define S10 "          "
 char *y_space_str = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
-static ytrie mem_pool = NULL;
-static ytree string_pool = NULL;
+static ytree mem_pool = NULL;
+static ytrie string_pool = NULL;
 static char empty[4] = {0, 0, 0, 0};
 
 struct ystr_alloc
@@ -42,6 +42,7 @@ void *yalloc(size_t s)
 
 const char *ystrdup(char *src)
 {
+    printf("src=%p", src);
     int srclen;
     struct ystr_alloc *ykey;
     if (!string_pool)
@@ -86,6 +87,7 @@ const char *ystrdup(char *src)
 
 void yfree(void *src)
 {
+    printf("src=%p", src);
     if (!src || src == empty)
     {
         return;
@@ -131,8 +133,8 @@ void yfree(void *src)
         }
     }
 
-    printf("free p=%p\n", src);
-    free(src);
+    // printf("free p=%p\n", src);
+    // free(src);
 }
 
 int string_traverse(void *data, const void *key, int key_len, void *value)

@@ -143,11 +143,12 @@ int main(int argc, char *argv[])
         if(show_help)
         {
             fprintf(stdout, "\n");
-            fprintf(stdout, "(sync|get|write|delete) KEY1 KEY2 ... DATA\n");
+            fprintf(stdout, "(sync|get|write|delete|print) KEY1 KEY2 ... DATA\n");
             fprintf(stdout, "  - KEY: key to access a data.\n");
             fprintf(stdout, "  - DATA: data to write a data.\n");
             fprintf(stdout, "  * verbose (on|off|stdio|file LOG_FILE): debugging\n");
             fprintf(stdout, "  * file YMLDB_FILE: read data from a file\n");
+            fprintf(stdout, "  * print: print current ymldb tree\n");
             fprintf(stdout, "> ");
             fflush(stdout);
             show_help = 0;
@@ -195,6 +196,10 @@ int main(int argc, char *argv[])
                 else if(strncmp(cmd, "get", 3) == 0)
                 {
                     res = ymldb_get2(stdout, cnt, keys);
+                }
+                else if(strncmp(cmd, "print", 5) == 0)
+                {
+                    ymldb_dump_all(stdout, NULL);
                 }
                 else if(strncmp(cmd, "write", 5) == 0)
                 {
@@ -259,7 +264,6 @@ int main(int argc, char *argv[])
     } while (!done);
     ymldb_dump_all(stdout, NULL);
     ymldb_destroy_all();
-    ymldb_dump_all(stdout, NULL);
     fprintf(stdout, "end.\n");
     return 0;
 }

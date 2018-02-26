@@ -2,7 +2,7 @@
 #define __YTRIE__
 
 #include <stddef.h>
-#include "yque.h"
+#include "ylist.h"
 
 #ifndef _USER_FREE_
 #define _USER_FREE_
@@ -29,8 +29,7 @@ void *ytrie_delete(ytrie trie, const void *key, int key_len);
 void *ytrie_search(ytrie trie, const void *key, int key_len);
 
 // callback function for ytrie iteration
-typedef int(*ytrie_callback)(void *data, const void *key, int key_len, void *value);
-
+typedef int(*ytrie_callback)(void *arg, const void *key, int key_len, void *value);
 
 // Iterates through the entries pairs in the map
 int ytrie_traverse(ytrie trie, ytrie_callback cb, void *data);
@@ -42,24 +41,19 @@ int ytrie_traverse_prefix(ytrie trie, const void *prefix, int prefix_len, ytrie_
 typedef struct ytrie_iter_s
 {
     ytrie trie;
-    yque que;
-    yque_iter que_iter;
+    ylist list;
+    ylist_iter list_iter;
 } ytrie_iter;
 
-ytrie_iter* ytrie_iter_new(ytrie trie, const void *prefix, int prefix_len);
+ytrie_iter* ytrie_iter_create(ytrie trie, const void *prefix, int prefix_len);
 ytrie_iter* ytrie_iter_next(ytrie_iter *iter);
+int ytrie_iter_done(ytrie_iter *range);
 ytrie_iter* ytrie_iter_reset(ytrie_iter *iter);
 void ytrie_iter_delete(ytrie_iter *iter);
 
 void *ytrie_iter_get_data(ytrie_iter *iter);
 const void *ytrie_iter_get_key(ytrie_iter *iter);
 int ytrie_iter_get_key_len(ytrie_iter *iter);
-
-
-// ytrie_iter* iter = ytrie_iter_new(trie, prefix, prefix_len);
-// for(; iter && iter->que_iter; iter=ytrie_iter_next(iter))
-// {  }
-// ytrie_iter_delete(iter);
 
 #endif // __YTRIE__
 
