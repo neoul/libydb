@@ -40,7 +40,7 @@ int main(void) {
 	// Fixed length of key
 	// CREATE
 	printf("CREATE\n");
-	ytrie trie = ytrie_create();
+	ytrie *trie = ytrie_create();
 
 	// INSERT
 	printf("INSERT\n");

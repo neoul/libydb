@@ -9,7 +9,7 @@ static ytree mem_pool = NULL;
 #else
 static unsigned int mem_count = 0;
 #endif
-static ytrie string_pool = NULL;
+static ytrie *string_pool = NULL;
 static char empty[4] = {0, 0, 0, 0};
 
 struct ystr_alloc

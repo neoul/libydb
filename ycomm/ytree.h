@@ -32,7 +32,8 @@ int ytree_traverse(ytree tree, ytree_callback cb, void *addition);
 // Iterates through entries in the tree in reverse direction
 int ytree_traverse_reverse(ytree tree, ytree_callback cb, void *addition);
 // Iterates through the entries in the tree within a range.
-int ytree_traverse_in_range(ytree tree, void *lower_boundary_data, void *higher_boundary_data, ytree_callback cb, void *addition);
+int ytree_traverse_in_range(ytree tree, 
+    void *lower_boundary, void *higher_boundary, ytree_callback cb, void *addition);
 
 void ytree_printf(ytree tree);
 

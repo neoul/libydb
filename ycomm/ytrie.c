@@ -5,7 +5,7 @@
 #include "ytrie.h"
 #include "ylist.h"
 
-ytrie ytrie_create()
+ytrie *ytrie_create()
 {
     art_tree *art;
     art = malloc(sizeof(art_tree));
@@ -13,58 +13,58 @@ ytrie ytrie_create()
     {
         art_tree_init(art);
     }
-    return (ytrie) art;
+    return (ytrie *) art;
 }
 
-void ytrie_destroy(ytrie trie)
+void ytrie_destroy(ytrie *trie)
 {
     if(trie)
-        art_tree_destroy(trie);
+        art_tree_destroy((art_tree *) trie);
     free(trie);
 }
 
-void ytrie_destroy_custom(ytrie trie, user_free data_free)
+void ytrie_destroy_custom(ytrie *trie, user_free data_free)
 {
     if(trie)
-        art_tree_destroy_custom(trie, data_free);
+        art_tree_destroy_custom((art_tree *) trie, data_free);
     free(trie);
 }
 
-size_t ytrie_size(ytrie trie)
+size_t ytrie_size(ytrie *trie)
 {
-    return (size_t) art_size(trie);
+    return (size_t) art_size((art_tree *) trie);
 }
 
 // return NULL if ok, otherwise return old value
-void *ytrie_insert(ytrie trie, const void *key, int key_len, void *value)
+void *ytrie_insert(ytrie *trie, const void *key, int key_len, void *value)
 {
-    return art_insert(trie, (const unsigned char *)key, key_len, value);
+    return art_insert((art_tree *) trie, (const unsigned char *)key, key_len, value);
 }
 
 // delete the key and return the found value, otherwise return NULL
-void *ytrie_delete(ytrie trie, const void *key, int key_len)
+void *ytrie_delete(ytrie *trie, const void *key, int key_len)
 {
-    return art_delete(trie, (const unsigned char *)key, key_len);
+    return art_delete((art_tree *) trie, (const unsigned char *)key, key_len);
 }
 
 // return the value if found, otherwise return NULL
-void *ytrie_search(ytrie trie, const void *key, int key_len)
+void *ytrie_search(ytrie *trie, const void *key, int key_len)
 {
-    return art_search(trie, (const unsigned char *)key, key_len);
+    return art_search((art_tree *) trie, (const unsigned char *)key, key_len);
 }
 
 // Iterates through the entries pairs in the map
-int ytrie_traverse(ytrie trie, ytrie_callback cb, void *data)
+int ytrie_traverse(ytrie *trie, ytrie_callback cb, void *data)
 {
     art_callback art_cb = (art_callback) cb;
-    return art_iter(trie, art_cb, data);
+    return art_iter((art_tree *) trie, art_cb, data);
 }
 
 // Iterates through the entries pairs in the map
-int ytrie_traverse_prefix(ytrie trie, const void *prefix, int prefix_len, ytrie_callback cb, void *data)
+int ytrie_traverse_prefix(ytrie *trie, const void *prefix, int prefix_len, ytrie_callback cb, void *data)
 {
     art_callback art_cb = (art_callback) cb;
-    art_iter_prefix(trie, (const unsigned char *)prefix, prefix_len, art_cb, data);
+    art_iter_prefix((art_tree *) trie, (const unsigned char *)prefix, prefix_len, art_cb, data);
 }
 
 static int add_leaf(void *data, art_leaf *leaf)
@@ -76,7 +76,7 @@ static int add_leaf(void *data, art_leaf *leaf)
     ylist_push_back(range->list, (void *) leaf);
 }
 
-ytrie_iter* ytrie_iter_create(ytrie trie, const void *prefix, int prefix_len)
+ytrie_iter* ytrie_iter_create(ytrie *trie, const void *prefix, int prefix_len)
 {
     ytrie_iter *range;
     range = (ytrie_iter *) malloc(sizeof(ytrie_iter));
@@ -86,7 +86,7 @@ ytrie_iter* ytrie_iter_create(ytrie trie, const void *prefix, int prefix_len)
         range->trie = trie;
         range->list = ylist_create();
         if(range->list)
-            art_iter_prefix_leaf(trie, (const unsigned char *)prefix, prefix_len, add_leaf, range);
+            art_iter_prefix_leaf((art_tree *) trie, (const unsigned char *)prefix, prefix_len, add_leaf, range);
         else
             fprintf(stderr, "  oops? - ytrie_iter_new seems to fail.\n");
         range->list_iter = ylist_first(range->list);
