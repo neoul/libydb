@@ -2,7 +2,6 @@ lib_LTLIBRARIES = libycomm.la
 
 libycomm_la_SOURCES = \
     utilities/art.c \
-    utilities/avl.c \
     ylist.c \
     ytrie.c \
     ytree.c \

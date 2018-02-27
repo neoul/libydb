@@ -45,7 +45,9 @@ void *yalloc(size_t s)
     {
         p = malloc(s);
         if(p)
+        {
             mem_count++;
+        }
     }
 #endif
     return p;
@@ -145,7 +147,6 @@ void yfree(void *src)
     if(src)
     {
         mem_count--;
-        // printf("free p=%p\n", src);
         free(src);
     }
 #endif

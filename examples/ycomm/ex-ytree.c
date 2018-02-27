@@ -2,92 +2,158 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
-
 #include "ytree.h"
- 
+
 #define MAX_KEY_VALUE 100
- 
-typedef struct udata {
-    int    key;
+
+struct ukey
+{
+    int key;
     double value;
-} *udata;
- 
-int comp (void *a1, void *a2) {
-    udata ud1 = (udata) a1;
-    udata ud2 = (udata) a2;
- 
-    if (ud1->key < ud2->key) {
+};
+
+struct udata
+{
+    char str[32];
+};
+
+int comp(void *a1, void *a2)
+{
+    struct ukey *ud1 = (struct ukey*)a1;
+    struct ukey *ud2 = (struct ukey*)a2;
+
+    if (ud1->key < ud2->key)
         return -1;
-    } else if (ud1->key > ud2->key) {
+    else if (ud1->key > ud2->key)
         return +1;
-    } else {
+    else
         return 0;
-    }
-}
- 
-void print (void *a) {
-    udata ud = (udata) a;
- 
-    printf ("%3d \"%6.3f\"", ud->key, ud->value);
 }
 
-int done = 0;
-
-void signal_handler_INT(int param)
+int _user_cb_ukey(void *key, void *data, void *user_data)
 {
-    done = 1;
-}
+    int *count = (int *)user_data;
+    struct ukey *ukey = (struct ukey *)key;
 
-int user_cb (void *data, void *user_data)
-{
-    udata ud = (udata) data;
-    printf (" - %s %3d(^%6.3f)\n", (char *)user_data, ud->key, ud->value);
+    (*count)++;
+    printf("TRAVERSE: %d. - %d(^%.3f)\n", *count, ukey->key, ukey->value);
     return 0;
 }
- 
-int main (int argc, char **argv) {
-    ytree tree;
-    udata ud1 = NULL, ud2;
+
+int _user_cb_udata(void *key, void *data, void *user_data)
+{
+    int *count = (int *)user_data;
+    struct ukey *ukey = (struct ukey *)key;
+    struct udata *udata = (struct udata *)data;
+
+    (*count)++;
+    printf("TRAVERSE: %d. - %d %s\n", *count, ukey->key, udata->str);
+    return 0;
+}
+
+void _user_free(void *v)
+{
+    printf("%p is removed\n", v);
+    free(v);
+}
+
+int main(int argc, char **argv)
+{
+    ytree *tree;
+    struct ukey *ukey = NULL;
+    struct udata *udata = NULL;
     int count = 0;
- 
-    tree = ytree_create (comp);
- 
-    while (!done) {
-        count++;
-        if(count > 20) break;
-        if (ud1 == NULL) {
-            ud1 = malloc (sizeof (*ud1));
-        }
-        ud1->key = rand () % MAX_KEY_VALUE;
-        ud1->value = sqrt(ud1->key);
 
-        if ((ud2 = ytree_search (tree, ud1)) != NULL) {
-            printf (">>> delete key %d\n\n", ud2->key);
-            ytree_delete(tree, ud2);
-            free (ud2);
-            free (ud1);
-        } else {
-            printf (">>> insert key %d\n\n", ud1->key);
-            ytree_insert (tree, ud1);
-        }
-        ytree_printf (tree);
-        ud1 = NULL;
+    printf("\nYTREE case 1)\n");
+    printf(" - key == data\n");
+    tree = ytree_create(comp, NULL);
+
+    for (count = 1; count <= 10; count++)
+    {
+        ukey = malloc(sizeof(*ukey));
+        ukey->key = rand() % MAX_KEY_VALUE;
+        ukey->value = sqrt(ukey->key);
+
+        // the same (duplicated) key value will be removed by _user_free.
+        ytree_insert_custom(tree, ukey, ukey, _user_free);
+        printf("INSERT: %d. (%d)\n", count, ukey->key);
     }
-    if(ud1)
-        free(ud1);
-    printf("%d = ytree_size()\n", ytree_size(tree));
+    count = 0;
+    ytree_traverse(tree, _user_cb_ukey, &count);
 
-    ytree_traverse(tree, user_cb, "~~~");
+    for (count = 0; count < MAX_KEY_VALUE; count++)
+    {
+        struct ukey searchkey;
+        searchkey.key = count;
+        udata = ytree_delete(tree, &searchkey);
+        if(udata)
+        {
+            _user_free(udata);
+        }
+    }
+    ytree_destroy(tree);
+    
+    printf("\nYTREE case 2)\n");
+    printf(" - key != data\n");
+    tree = ytree_create(comp, _user_free);
+    for (count = 1; count <= 10; count++)
+    {
+        ukey = malloc(sizeof(*ukey));
+        ukey->key = rand() % MAX_KEY_VALUE;
+        ukey->value = sqrt(ukey->key);
 
-    struct udata udLow;
-    struct udata udHigh;
-    udLow.key = 16;
-    udHigh.key = 90;
-    ytree_traverse_in_range(tree, &udLow, &udHigh, user_cb, "===");
+        udata = malloc(sizeof(*udata));
+        sprintf(udata->str, "@@ udata of key %d", ukey->key);
+        printf("INSERT: %d. (%d)\n", count, ukey->key);
 
-    ytree_printf(tree);
+        // old key (ukey) will be removed by _user_free configured on ytree_create()
+        // but, you still need to remove the data.
+        struct udata *old = ytree_insert(tree, ukey, udata);
+        if(old)
+        {
+            printf("old data is returned. (%s)\n", udata->str);
+            _user_free(old);
+        }
+    }
 
-    ytree_destroy_custom(tree, free);
+    count = 0;
+    ytree_iter *iter = ytree_first(tree);
+    for(; iter != NULL; iter = ytree_next(tree, iter))
+    {
+        count++;
+        ukey = ytree_key(iter);
+        udata = ytree_data(iter);
+        printf("ITERATE: %d. - %d %s\n", count, ukey->key, udata->str);
+        if(count == 5)
+        {
+            ytree_iter *prev = ytree_prev(tree, iter);
+            udata = ytree_remove(tree, iter);
+            if(udata) {
+                _user_free(udata);
+            }
+            iter = prev;
+        }
+    }
 
+    count = 0;
+    iter = ytree_last(tree);
+    for(; iter != NULL; iter = ytree_prev(tree, iter))
+    {
+        count++;
+        ukey = ytree_key(iter);
+        udata = ytree_data(iter);
+        printf("ITERATE BACK: %d. - %d %s\n", count, ukey->key, udata->str);
+    }
+
+    count = 0;
+    struct ukey low;
+    struct ukey high;
+    low.key = 20;
+    high.key = 50;
+    printf("\nTRAVERSE IN RANGE from %d to %d\n", low.key, high.key);
+    ytree_traverse_in_range(tree, &low, &high, _user_cb_udata, &count);
+
+    // ytree_destroy_custom() must be called for freeing all data.
+    ytree_destroy_custom(tree, _user_free);
     return 0;
 }
