@@ -64,7 +64,7 @@ int ytrie_traverse(ytrie *trie, ytrie_callback cb, void *data)
 int ytrie_traverse_prefix(ytrie *trie, const void *prefix, int prefix_len, ytrie_callback cb, void *data)
 {
     art_callback art_cb = (art_callback) cb;
-    art_iter_prefix((art_tree *) trie, (const unsigned char *)prefix, prefix_len, art_cb, data);
+    return art_iter_prefix((art_tree *) trie, (const unsigned char *)prefix, prefix_len, art_cb, data);
 }
 
 static int add_leaf(void *data, art_leaf *leaf)
@@ -73,7 +73,10 @@ static int add_leaf(void *data, art_leaf *leaf)
     if(!data)
         return 1;
     range = data;
-    ylist_push_back(range->list, (void *) leaf);
+    range->list_iter = ylist_push_back(range->list, (void *) leaf);
+    if(range->list_iter)
+        return 0;
+    return 1;
 }
 
 ytrie_iter* ytrie_iter_create(ytrie *trie, const void *prefix, int prefix_len)

@@ -938,6 +938,7 @@ int ytree_traverse(ytree *tree, ytree_callback cb, void *user_data)
             return res;
         node = Tree_NextNode(tree, node);
     }
+    return 0;
 }
 
 // Iterates through entries in the tree in reverse direction
@@ -953,6 +954,7 @@ int ytree_traverse_reverse(ytree *tree, ytree_callback cb, void *user_data)
             return res;
         node = Tree_PrevNode(tree, node);
     }
+    return 0;
 }
 
 // Iterates through the entries in the tree within a range.

@@ -487,7 +487,7 @@ static ylist *_ymldb_traverse_ancestors(struct ynode *ydb, int traverse_level)
         ylist_push_front(templist, ydb);
         ydb = ydb->parent;
     }
-    ylist_iter *iter;
+    // ylist_iter *iter;
     // for(iter = ylist_first(templist); !ylist_done(iter); iter = ylist_next(iter))
     // {
     //     ydb = ylist_data(iter);
