@@ -840,16 +840,16 @@ int _ymldb_print_level(struct ynode *last_ydb, struct ynode *cur_ydb)
     if (!last_ydb || !cur_ydb)
         return print_level;
     int search_max_level = cur_ydb->level < last_ydb->level ? cur_ydb->level : last_ydb->level;
-    _log_debug("\nsearch_max_level %d cur_ydb->level %d last_ydb->level %d\n",
-        search_max_level, cur_ydb->level, last_ydb->level);
-    _log_debug("cur_ydb=%s last_ydb=%s\n", cur_ydb->key, last_ydb->key);
+    // _log_debug("\nsearch_max_level %d cur_ydb->level %d last_ydb->level %d\n",
+    //     search_max_level, cur_ydb->level, last_ydb->level);
+    // _log_debug("cur_ydb=%s last_ydb=%s\n", cur_ydb->key, last_ydb->key);
     while (print_level <= search_max_level)
     {
         ancestor1 = _ymldb_get_ancestor(cur_ydb, print_level);
         ancestor2 = _ymldb_get_ancestor(last_ydb, print_level);
         if (!ancestor1 || !ancestor2)
             break;
-_log_debug("@@@@ ancestor1=%s, ancestor2=%s\n", ancestor1->key, ancestor2->key);
+// _log_debug("@@@@ ancestor1=%s, ancestor2=%s\n", ancestor1->key, ancestor2->key);
 #ifdef _ENHANCED_
         if (ancestor1->key != ancestor2->key)
             break;
