@@ -169,8 +169,8 @@ int _ymldb_callback_unregister2(int keys_num, char *keys[]);
 
 struct ymldb_iterator
 {
-    void *ydb;
-    void *cur;
+    struct _ytree_node *cur;
+    struct _ytree_node *base;
 };
 
 // internal function for ymldb iterator creation.

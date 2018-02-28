@@ -19,8 +19,8 @@ struct udata
 
 int comp(void *a1, void *a2)
 {
-    struct ukey *ud1 = (struct ukey*)a1;
-    struct ukey *ud2 = (struct ukey*)a2;
+    struct ukey *ud1 = (struct ukey *)a1;
+    struct ukey *ud2 = (struct ukey *)a2;
 
     if (ud1->key < ud2->key)
         return -1;
@@ -86,13 +86,13 @@ int main(int argc, char **argv)
         struct ukey searchkey;
         searchkey.key = count;
         udata = ytree_delete(tree, &searchkey);
-        if(udata)
+        if (udata)
         {
             _user_free(udata);
         }
     }
     ytree_destroy(tree);
-    
+
     printf("\nYTREE case 2)\n");
     printf(" - key != data\n");
     tree = ytree_create(comp, _user_free);
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
         // old key (ukey) will be removed by _user_free configured on ytree_create()
         // but, you still need to remove the data.
         struct udata *old = ytree_insert(tree, ukey, udata);
-        if(old)
+        if (old)
         {
             printf("old data is returned. (%s)\n", udata->str);
             _user_free(old);
@@ -118,17 +118,18 @@ int main(int argc, char **argv)
 
     count = 0;
     ytree_iter *iter = ytree_first(tree);
-    for(; iter != NULL; iter = ytree_next(tree, iter))
+    for (; iter != NULL; iter = ytree_next(tree, iter))
     {
         count++;
         ukey = ytree_key(iter);
         udata = ytree_data(iter);
         printf("ITERATE: %d. - %d %s\n", count, ukey->key, udata->str);
-        if(count == 5)
+        if (count == 5)
         {
             ytree_iter *prev = ytree_prev(tree, iter);
             udata = ytree_remove(tree, iter);
-            if(udata) {
+            if (udata)
+            {
                 _user_free(udata);
             }
             iter = prev;
@@ -137,7 +138,7 @@ int main(int argc, char **argv)
 
     count = 0;
     iter = ytree_last(tree);
-    for(; iter != NULL; iter = ytree_prev(tree, iter))
+    for (; iter != NULL; iter = ytree_prev(tree, iter))
     {
         count++;
         ukey = ytree_key(iter);
@@ -152,6 +153,14 @@ int main(int argc, char **argv)
     high.key = 50;
     printf("\nTRAVERSE IN RANGE from %d to %d\n", low.key, high.key);
     ytree_traverse_in_range(tree, &low, &high, _user_cb_udata, &count);
+
+    struct ukey nkey;
+    nkey.key = 25;
+    iter = ytree_find_nearest(tree, &nkey);
+    printf("\nSEARCH an node that is the nearest %d\n", nkey.key);
+    printf(" %d=%s\n",
+           ((struct ukey *)(ytree_key(iter)))->key,
+           ((struct udata *)ytree_data(iter))->str);
 
     // ytree_destroy_custom() must be called for freeing all data.
     ytree_destroy_custom(tree, _user_free);

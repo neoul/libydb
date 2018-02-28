@@ -57,6 +57,10 @@ int ytree_traverse_reverse(ytree *tree, ytree_callback cb, void *addition);
 int ytree_traverse_in_range(ytree *tree, 
     void *lower_boundary, void *higher_boundary, ytree_callback cb, void *addition);
 
+// return the nearest iterator to the key. (This searches lower nodes first.)
+ytree_iter *ytree_find_nearest(ytree *tree, void *key);
+ytree_iter *ytree_find(ytree *tree, void *key);
+
 ytree_iter *ytree_top(ytree *tree);
 ytree_iter *ytree_first(ytree *tree);
 ytree_iter *ytree_last(ytree *tree);

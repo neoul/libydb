@@ -288,36 +288,6 @@ Node Tree_SearchNode(Tree t, void *key)
     return NULL;
 }
 
-// Tree_SearchNode_Nearest --
-//
-//     Searches the tree for a node containing the given key.
-//
-Node Tree_SearchNode_Nearest(Tree t, void *key)
-{
-    Node node = t->root;
-    Node nearest = node;
-
-    while (node != NULL)
-    {
-        if ((t->comp)(key, node->key) < 0)
-        {
-            nearest = node;
-            node = node->left;
-        }
-        else if ((t->comp)(key, node->key) > 0)
-        {
-            nearest = node;
-            node = node->right;
-        }
-        else
-        {
-            return node;
-        }
-    }
-
-    return nearest;
-}
-
 // Tree_Print --
 //
 //     Prints an ASCII representation of the tree on screen.
@@ -996,7 +966,7 @@ int ytree_traverse_in_range(ytree *tree, void *lower_boundary, void *higher_boun
     Node node;
 
     cmp = tree->comp;
-    base = Tree_SearchNode_Nearest(tree, lower_boundary);
+    base = ytree_find_nearest(tree, lower_boundary);
     if (!cmp)
         return -1;
     if (!base)
@@ -1029,6 +999,36 @@ int ytree_traverse_in_range(ytree *tree, void *lower_boundary, void *higher_boun
         node = Tree_NextNode(tree, node);
     }
     return 0;
+}
+
+ytree_iter *ytree_find_nearest(ytree *tree, void *key)
+{
+    ytree_iter *node = tree->root;
+    ytree_iter *nearest = node;
+    while (node != NULL)
+    {
+        if ((tree->comp)(key, node->key) < 0)
+        {
+            nearest = node;
+            node = node->left;
+        }
+        else if ((tree->comp)(key, node->key) > 0)
+        {
+            nearest = node;
+            node = node->right;
+        }
+        else
+        {
+            return node;
+        }
+    }
+    return nearest;
+}
+
+// return the value if found, otherwise return NULL
+ytree_iter *ytree_find(ytree *tree, void *key)
+{
+    return Tree_SearchNode(tree, key);
 }
 
 ytree_iter *ytree_top(ytree *tree)

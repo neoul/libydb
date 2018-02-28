@@ -20,7 +20,7 @@ int ymldb_file_rw_test()
     int res = 0;
     char *yfilename = "ymldb-file.yml";
 
-    // ymldb_log_set(YMLDB_LOG_LOG, NULL);
+    ymldb_log_set(YMLDB_LOG_LOG, NULL);
     res = ymldb_file_push(yfilename,
         "daemon:\n"
         "  zebos:\n"
@@ -75,6 +75,8 @@ int ymldb_file_rw_test()
     res = ymldb_file_pull(unknown, "hello : %d\n", &hello);
     fprintf(stdout, "ymldb_file_pull %s res %d\n", VARIABLE_NAME(unknown), res);
     fprintf(stdout, "%s %d\n",VARIABLE_NAME(hello), hello);
+
+    
     return 0;
 }
 

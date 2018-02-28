@@ -14,10 +14,10 @@
 #include <unistd.h>
 
 #include <yaml.h>
-#include <cprops/avl.h>
 
-#include "ylist.h"
 #include "yalloc.h"
+#include "ylist.h"
+#include "ytree.h"
 
 #undef strdup
 #define strdup ystrdup
@@ -50,7 +50,7 @@ struct ynode
     int level:31;
     ymldb_type_t type;
     union {
-        cp_avltree *children;
+        ytree *children;
         char *value;
     };
     struct ynode *parent;
@@ -372,8 +372,8 @@ static void _update_callback_run(struct ynode *ydb);
 static char *g_space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
 static struct ynode *g_ydb = NULL;
-static cp_avltree *g_ycb = NULL;
-static cp_avltree *g_fds = NULL;
+static ytree *g_ycb = NULL;
+static ytree *g_fds = NULL;
 static ylist *g_callbacks = NULL;
 
 static unsigned int g_sequence = 1;
@@ -469,7 +469,7 @@ struct ymldb_cb *_ymldb_cb(char *major_key)
 {
     if (major_key && g_ycb)
     {
-        struct ymldb_cb *cb = cp_avltree_get(g_ycb, major_key);
+        struct ymldb_cb *cb = ytree_search(g_ycb, major_key);
         if (cb)
             return cb;
     }
@@ -484,10 +484,15 @@ static ylist *_ymldb_traverse_ancestors(struct ynode *ydb, int traverse_level)
     ydb = ydb->parent;
     while (ydb && ydb->level >= traverse_level)
     {
-        ylist_push_back(templist, ydb);
+        ylist_push_front(templist, ydb);
         ydb = ydb->parent;
     }
-
+    ylist_iter *iter;
+    // for(iter = ylist_first(templist); !ylist_done(iter); iter = ylist_next(iter))
+    // {
+    //     ydb = ylist_data(iter);
+    //     printf("TRAVERSE %s\n", ydb->key);
+    // }
     return templist;
 }
 
@@ -513,10 +518,9 @@ struct ynode *_ymldb_get_ancestor(struct ynode *ydb, int level)
 }
 
 static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level, int no_print_children);
-static int _ymldb_fprintf_each_of_node(void *n, void *dummy)
+static int _ymldb_fprintf_each_of_node(void *key, void *data, void *dummy)
 {
-    cp_avlnode *node = n;
-    struct ynode *ydb = node->value;
+    struct ynode *ydb = data;
     FILE *stream = dummy;
     _ymldb_fprintf_node(stream, ydb, ydb->level, 0); // not print parents
     return 0;
@@ -528,18 +532,16 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
         return;
     if (print_level < ydb->level)
     { // print parents
-        struct ynode *ancestor;
         ylist_iter *iter;
         ylist *ancestors;
         
         ancestors = _ymldb_traverse_ancestors(ydb, print_level);
-        
-        iter = ylist_first(ancestors);
-        while (!ylist_done(iter))
+        for(iter = ylist_first(ancestors); !ylist_done(iter); iter = ylist_next(iter))
         {
+            struct ynode *ancestor;
             ancestor = ylist_data(iter);
-            if (ancestor->level == 0)
-                break;
+            if (ancestor->level == 0) // skip level 0
+                continue;
             switch (ancestor->type)
             {
             case YMLDB_BRANCH:
@@ -552,7 +554,6 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
                 fprintf(stream, "%.*s%s: %s\n", (ancestor->level - 1) * 2, g_space, ancestor->key, ancestor->value);
                 break;
             }
-            iter = ylist_next(iter);
         }
         _ymldb_traverse_free(ancestors);
     }
@@ -565,7 +566,7 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
         }
         if (no_print_children)
             return;
-        cp_avltree_callback(ydb->children, _ymldb_fprintf_each_of_node, stream);
+        ytree_traverse(ydb->children, _ymldb_fprintf_each_of_node, stream);
     }
     else if (ydb->type == YMLDB_LEAFLIST)
         fprintf(stream, "%.*s- %s\n", (ydb->level - 1) * 2, g_space, _str_dump(ydb->key));
@@ -766,9 +767,9 @@ static void _ymldb_node_free(void *vdata)
         if (ydb->type == YMLDB_BRANCH)
         {
             // fixed BUG - prevent to loop infinitely in children free phase.
-            cp_avltree *children = ydb->children;
+            ytree *children = ydb->children;
             ydb->children = NULL;
-            cp_avltree_destroy_custom(children, NULL, _ymldb_node_free);
+            ytree_destroy_custom(children, _ymldb_node_free);
         }
         
         _notify_callback_run(ydb, 1);
@@ -795,9 +796,9 @@ static void _ymldb_node_free_without_callback(void *vdata)
         if (ydb->type == YMLDB_BRANCH)
         {
             // fixed BUG - prevent to loop infinitely in children free phase.
-            cp_avltree *children = ydb->children;
+            ytree *children = ydb->children;
             ydb->children = NULL;
-            cp_avltree_destroy_custom(children, NULL, _ymldb_node_free_without_callback);
+            ytree_destroy_custom(children, _ymldb_node_free_without_callback);
         }
         _callback_free(ydb->callback);
         if (ydb->type != YMLDB_BRANCH)
@@ -810,11 +811,9 @@ static void _ymldb_node_free_without_callback(void *vdata)
 
 
 // Remove all no-record ynodes
-static int _ymldb_node_free_no_record(void *n, void *dummy)
+static int _ymldb_node_free_no_record(void *key, void *data, void *dummy)
 {
-    cp_avlnode *node = n;
-    struct ynode *ydb = node->value;
-
+    struct ynode *ydb = data;
     if (ydb)
     {
         if(ydb->no_record)
@@ -826,7 +825,7 @@ static int _ymldb_node_free_no_record(void *n, void *dummy)
         {
             if (ydb->type == YMLDB_BRANCH)
             {
-                cp_avltree_callback(ydb->children, _ymldb_node_free_no_record, dummy);
+                ytree_traverse(ydb->children, _ymldb_node_free_no_record, dummy);
             }
         }
     }
@@ -841,16 +840,16 @@ int _ymldb_print_level(struct ynode *last_ydb, struct ynode *cur_ydb)
     if (!last_ydb || !cur_ydb)
         return print_level;
     int search_max_level = cur_ydb->level < last_ydb->level ? cur_ydb->level : last_ydb->level;
-    // _log_debug("\nsearch_max_level %d cur_ydb->level %d last_ydb->level %d\n",
-    //     search_max_level, cur_ydb->level, last_ydb->level);
-    // _log_debug("cur_ydb=%s last_ydb=%s\n", cur_ydb->key, last_ydb->key);
+    _log_debug("\nsearch_max_level %d cur_ydb->level %d last_ydb->level %d\n",
+        search_max_level, cur_ydb->level, last_ydb->level);
+    _log_debug("cur_ydb=%s last_ydb=%s\n", cur_ydb->key, last_ydb->key);
     while (print_level <= search_max_level)
     {
         ancestor1 = _ymldb_get_ancestor(cur_ydb, print_level);
         ancestor2 = _ymldb_get_ancestor(last_ydb, print_level);
         if (!ancestor1 || !ancestor2)
             break;
-// _log_debug("@@@@ ancestor1=%s, ancestor2=%s\n", ancestor1->key, ancestor2->key);
+_log_debug("@@@@ ancestor1=%s, ancestor2=%s\n", ancestor1->key, ancestor2->key);
 #ifdef _ENHANCED_
         if (ancestor1->key != ancestor2->key)
             break;
@@ -891,7 +890,7 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
             return NULL;
         }
 
-        ydb = cp_avltree_get(parent->children, key);
+        ydb = ytree_search(parent->children, key);
         if (ydb)
         {
             // check if the key exists.
@@ -901,14 +900,14 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
                 _log_debug("different type (%s %s-->%s)\n",
                            ydb->key, _ydb_type(ydb->type), _ydb_type(type));
                 if (ydb->type == YMLDB_BRANCH && ydb->children)
-                    cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
+                    ytree_destroy_custom(ydb->children, _ymldb_node_free);
                 else if (ydb->value)
                     free(ydb->value);
 
                 ydb->type = type;
                 if (ydb->type == YMLDB_BRANCH)
                 {
-                    ydb->children = cp_avltree_create((cp_compare_fn)strcmp);
+                    ydb->children = ytree_create((ytree_cmp)strcmp, NULL);
                     if (!ydb->children)
                         goto free_ydb;
                 }
@@ -958,7 +957,7 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
 
     if (type == YMLDB_BRANCH)
     {
-        ydb->children = cp_avltree_create((cp_compare_fn)strcmp);
+        ydb->children = ytree_create((ytree_cmp)strcmp, NULL);
         if (!ydb->children)
             goto free_ydb;
     }
@@ -979,7 +978,7 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
     {
         ydb->parent = parent;
         ydb->level = parent->level + 1;
-        cp_avltree_insert(parent->children, ydb->key, ydb);
+        ytree_insert(parent->children, ydb->key, ydb);
     }
     else
     {
@@ -1002,7 +1001,7 @@ free_ydb:
         // }
         if (type == YMLDB_BRANCH && ydb->children)
         {
-            cp_avltree_destroy_custom(ydb->children, NULL, _ymldb_node_free);
+            ytree_destroy_custom(ydb->children, _ymldb_node_free);
         }
         else
         {
@@ -1034,7 +1033,7 @@ void _ymldb_node_delete(struct ymldb_params *params, struct ynode *parent, char 
         return;
     }
 
-    ydb = cp_avltree_get(parent->children, key);
+    ydb = ytree_search(parent->children, key);
     if (ydb)
     {
         if (ydb->level <= 1)
@@ -1056,7 +1055,7 @@ void _ymldb_node_delete(struct ymldb_params *params, struct ynode *parent, char 
     _params_buf_dump(params, ydb, print_level, 1);
     // parent should be saved because of the ydb will be removed.
     params->last_ydb = parent;
-    ydb = cp_avltree_delete(parent->children, key);
+    ydb = ytree_delete(parent->children, key);
     _ymldb_node_free(ydb);
     return;
 }
@@ -1078,7 +1077,7 @@ void _ymldb_node_get(struct ymldb_params *params, struct ynode *parent, char *ke
     }
     if (key[0] > 0)
     {
-        ydb = cp_avltree_get(parent->children, key);
+        ydb = ytree_search(parent->children, key);
         if (!ydb)
         {
             _log_error("'%s' doesn't exists\n", key);
@@ -1182,7 +1181,7 @@ int _ymldb_internal_merge(struct ymldb_params *params, struct ynode *p_ydb, int 
                 struct ynode *ydb = NULL;
                 _log_debug("## %s\n", key);
                 if (p_ydb->level <= 0)
-                    ydb = cp_avltree_get(p_ydb->children, key);
+                    ydb = ytree_search(p_ydb->children, key);
                 else
                     ydb = _ymldb_node_merge(params, p_ydb, YMLDB_BRANCH, key, NULL);
                 _ymldb_internal_merge(params, ydb, pair->value, index);
@@ -1270,7 +1269,7 @@ int _ymldb_internal_delete(struct ymldb_params *params, struct ynode *p_ydb, int
                 {
                     struct ynode *ydb = NULL;
                     _log_debug("## %s, %s\n", key, value);
-                    ydb = cp_avltree_get(p_ydb->children, key);
+                    ydb = ytree_search(p_ydb->children, key);
                     _ymldb_node_delete(params, ydb, value);
                 }
                 else
@@ -1283,7 +1282,7 @@ int _ymldb_internal_delete(struct ymldb_params *params, struct ynode *p_ydb, int
             { // not leaf
                 struct ynode *ydb = NULL;
                 _log_debug("## %s\n", key);
-                ydb = cp_avltree_get(p_ydb->children, key);
+                ydb = ytree_search(p_ydb->children, key);
                 _ymldb_internal_delete(params, ydb, pair->value, index);
             }
         }
@@ -1372,7 +1371,7 @@ int _ymldb_internal_get(struct ymldb_params *params, struct ynode *p_ydb, int in
                 {
                     struct ynode *ydb = NULL;
                     _log_debug("## %s, %s\n", key, value);
-                    ydb = cp_avltree_get(p_ydb->children, key);
+                    ydb = ytree_search(p_ydb->children, key);
                     _ymldb_node_get(params, ydb, value);
                 }
                 else
@@ -1390,7 +1389,7 @@ int _ymldb_internal_get(struct ymldb_params *params, struct ynode *p_ydb, int in
                     if (p_ydb->callback->type == YMLDB_UPDATE_CALLBACK)
                         _update_callback_run(p_ydb);
                 }
-                ydb = cp_avltree_get(p_ydb->children, key);
+                ydb = ytree_search(p_ydb->children, key);
                 _ymldb_internal_get(params, ydb, pair->value, index);
             }
         }
@@ -1851,10 +1850,9 @@ static int _params_buf_init(struct ymldb_params *params)
     return 0;
 }
 
-static int _ymldb_param_streambuffer_each_of_node(void *n, void *dummy)
+static int _ymldb_param_streambuffer_each_of_node(void *key, void *data, void *dummy)
 {
-    cp_avlnode *node = n;
-    struct ynode *ydb = node->value;
+    struct ynode *ydb = data;
     struct ymldb_params *params = dummy;
     _params_buf_dump(params, ydb, ydb->level, 0); // not print parents
     return 0;
@@ -1879,18 +1877,16 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
 
     if (print_level < ydb->level)
     { // print parents
-        struct ynode *ancestor;
         ylist_iter *iter;
         ylist *ancestors;
 
         ancestors = _ymldb_traverse_ancestors(ydb, print_level);
-        iter = ylist_first(ancestors);
-
-        while (!ylist_done(iter))
+        for(iter = ylist_first(ancestors); !ylist_done(iter); iter = ylist_next(iter))
         {
+            struct ynode *ancestor;
             ancestor = ylist_data(iter);
             if (ancestor->level <= 1)
-                break;
+                continue;
             switch (ancestor->type)
             {
             case YMLDB_BRANCH:
@@ -1906,7 +1902,6 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
                 _log_error("unknown type?!??? %d\n", ancestor->type);
                 break;
             }
-            iter = ylist_next(iter);
         }
         _ymldb_traverse_free(ancestors);
     }
@@ -1925,7 +1920,7 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
         }
         if (no_print_children)
             goto end;
-        cp_avltree_callback(ydb->children, _ymldb_param_streambuffer_each_of_node, params);
+        ytree_traverse(ydb->children, _ymldb_param_streambuffer_each_of_node, params);
     }
     else if (ydb->type == YMLDB_LEAFLIST)
     {
@@ -2085,11 +2080,11 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
         {
             struct ynode *del_ynode;
             ylist *del_list = ylist_create();
-            cp_avltree_callback(cb->ydb->children, _ymldb_node_free_no_record, del_list);
+            ytree_traverse(cb->ydb->children, _ymldb_node_free_no_record, del_list);
             while((del_ynode = ylist_pop_front(del_list)) != NULL)
             {
                 struct ynode *parent = del_ynode->parent;
-                cp_avltree_delete(parent->children, del_ynode->key);
+                ytree_delete(parent->children, del_ynode->key);
                 _ymldb_node_free_without_callback((void *) del_ynode);
             }
             _log_debug("no-record operation is done!\n");
@@ -2184,7 +2179,7 @@ int ymldb_create(char *major_key, unsigned int flags)
 
     if (!g_ycb)
     {
-        g_ycb = cp_avltree_create((cp_compare_fn)strcmp);
+        g_ycb = ytree_create((ytree_cmp)strcmp, NULL);
         if (!g_ycb)
         {
             _log_error("g_ycb failed.\n");
@@ -2192,7 +2187,7 @@ int ymldb_create(char *major_key, unsigned int flags)
         }
     }
 
-    if (cp_avltree_get(g_ydb->children, major_key))
+    if (ytree_search(g_ydb->children, major_key))
     {
         _log_error("key exsits.\n");
         return -1;
@@ -2241,7 +2236,7 @@ int ymldb_create(char *major_key, unsigned int flags)
     if (flags & (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER | YMLDB_FLAG_SUB_PUBLISHER))
         _distribution_init(cb, flags);
 
-    cp_avltree_insert(g_ycb, cb->key, cb);
+    ytree_insert(g_ycb, cb->key, cb);
     return 0;
 }
 
@@ -2255,7 +2250,7 @@ static void _ymldb_destroy(void *data)
     {
         struct ynode *ydb = cb->ydb;
         if (ydb->parent)
-            cp_avltree_delete(cb->ydb->parent->children, ydb->key);
+            ytree_delete(cb->ydb->parent->children, ydb->key);
         _ymldb_node_free(ydb);
     }
     _distribution_deinit(cb);
@@ -2278,12 +2273,12 @@ void ymldb_destroy(char *major_key)
     }
     _log_debug("major_key %s\n", major_key);
 
-    cp_avltree_delete(g_ycb, cb->key);
+    ytree_delete(g_ycb, cb->key);
     _ymldb_destroy(cb);
-    if (cp_avltree_count(g_ycb) <= 0)
+    if (ytree_size(g_ycb) <= 0)
     {
         _ymldb_node_free(g_ydb);
-        cp_avltree_destroy(g_ycb);
+        ytree_destroy(g_ycb);
         _log_debug("all destroyed ...\n");
         g_ycb = NULL;
         g_ydb = NULL;
@@ -2298,7 +2293,7 @@ void ymldb_destroy_all()
     _log_debug("\n");
     if (g_ycb)
     {
-        cp_avltree_destroy_custom(g_ycb, NULL, _ymldb_destroy);
+        ytree_destroy_custom(g_ycb, _ymldb_destroy);
         _ymldb_node_free(g_ydb);
         _log_debug("all destroyed ...\n");
         g_ycb = NULL;
@@ -2321,7 +2316,7 @@ static int _distribution_deinit(struct ymldb_cb *cb)
     if (cb->fd_publisher >= 0)
     {
 		if(g_fds) {
-			cp_avltree_delete(g_fds, &cb->fd_publisher);
+			ytree_delete(g_fds, &cb->fd_publisher);
 		}
         close(cb->fd_publisher);
         cb->fd_publisher = -1;
@@ -2334,7 +2329,7 @@ static int _distribution_deinit(struct ymldb_cb *cb)
             if (cb->fd_subscriber[i] >= 0)
             {
 				if(g_fds) {
-					cp_avltree_delete(g_fds, &cb->fd_subscriber[i]);
+					ytree_delete(g_fds, &cb->fd_subscriber[i]);
 				}
                 close(cb->fd_subscriber[i]);
                 cb->fd_subscriber[i] = -1;
@@ -2349,10 +2344,10 @@ static int _distribution_deinit(struct ymldb_cb *cb)
     cb->flags = cb->flags & (~YMLDB_FLAG_SUB_PUBLISHER);
     if (g_fds)
     {
-		_log_debug("g_fds count %d\n", cp_avltree_count(g_fds));
-        if (cp_avltree_count(g_fds) <= 0)
+		_log_debug("g_fds count %d\n", ytree_size(g_fds));
+        if (ytree_size(g_fds) <= 0)
         {
-            cp_avltree_destroy(g_fds);
+            ytree_destroy(g_fds);
             g_fds = NULL;
         }
     }
@@ -2379,7 +2374,7 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
 
     if (!g_fds)
     {
-        g_fds = cp_avltree_create((cp_compare_fn)_g_fds_cmp);
+        g_fds = ytree_create(_g_fds_cmp, NULL);
         if (!g_fds)
         {
             _log_error("g_fds failed.\n");
@@ -2456,15 +2451,14 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
 _done:
     cb->fd_publisher = fd;
 	if(g_fds)
-		cp_avltree_insert(g_fds, &cb->fd_publisher, cb);
+		ytree_insert(g_fds, &cb->fd_publisher, cb);
     _log_debug("%s distribution - done (sock %d)\n", cb->key, fd);
     return fd;
 }
 
-static int _distribution_set(void *n, void *dummy)
+static int _distribution_set(void *key, void *data, void *dummy)
 {
-    cp_avlnode *node = n;
-    struct ymldb_cb *cb = node->value;
+    struct ymldb_cb *cb = data;
     struct ymldb_distribution *yd = dummy;
     int max = yd->max;
     fd_set *set = yd->set;
@@ -2552,7 +2546,7 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
                     cb->fd_subscriber[i] = subfd;
                     cb->fd_flags[i] = 0;
 					if(g_fds)
-	                    cp_avltree_insert(g_fds, &cb->fd_subscriber[i], cb);
+	                    ytree_insert(g_fds, &cb->fd_subscriber[i], cb);
                     _log_debug("subscriber (subfd %d) added..\n", subfd);
                     if (!(cb->flags & YMLDB_FLAG_ASYNC))
                         ymldb_sync_ack(cb->key);
@@ -2596,7 +2590,7 @@ read_message:
         {
             int i;
 			if(g_fds)
-	            cp_avltree_delete(g_fds, &fd);
+	            ytree_delete(g_fds, &fd);
             for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
             {
                 if (cb->fd_subscriber[i] == fd)
@@ -2692,10 +2686,9 @@ static int _distribution_recv_internal(struct ymldb_cb *cb, FILE *outstream, fd_
     return 0;
 }
 
-static int _distribution_recv_each_of_cb(void *n, void *dummy)
+static int _distribution_recv_each_of_cb(void *key, void *data, void *dummy)
 {
-    cp_avlnode *node = n;
-    struct ymldb_cb *cb = node->value;
+    struct ymldb_cb *cb = data;
     struct ymldb_distribution *yd = dummy;
     yd->res += _distribution_recv_internal(cb, yd->stream, yd->set);
 	return 0;
@@ -3227,7 +3220,7 @@ char *_ymldb_read(char *major_key, ...)
             {
                 if (ydb->type == YMLDB_BRANCH)
                 {
-                    ydb = cp_avltree_get(ydb->children, cur_token);
+                    ydb = ytree_search(ydb->children, cur_token);
                 }
                 else
                 { // not exist..
@@ -3247,7 +3240,7 @@ char *_ymldb_read(char *major_key, ...)
             {
                 if (ydb->type == YMLDB_BRANCH)
                 {
-                    ydb = cp_avltree_get(ydb->children, cur_token);
+                    ydb = ytree_search(ydb->children, cur_token);
                 }
             }
         }
@@ -3288,7 +3281,7 @@ char *_ymldb_read2(int keys_num, char *keys[])
         if (ydb)
         {
             if (ydb->type == YMLDB_BRANCH)
-                ydb = cp_avltree_get(ydb->children, keys[i]);
+                ydb = ytree_search(ydb->children, keys[i]);
             else
                 return NULL;
         }
@@ -3363,7 +3356,7 @@ int ymldb_distribution_set(fd_set *set)
         return -1;
     }
     if (g_ycb)
-        cp_avltree_callback(g_ycb, _distribution_set, &yd);
+        ytree_traverse(g_ycb, _distribution_set, &yd);
     return yd.max;
 }
 
@@ -3381,7 +3374,7 @@ int ymldb_distribution_recv_and_dump(FILE *outstream, fd_set *set)
         return -1;
     }
     if (g_ycb)
-        cp_avltree_callback(g_ycb, _distribution_recv_each_of_cb, &yd);
+        ytree_traverse(g_ycb, _distribution_recv_each_of_cb, &yd);
 	_log_debug("res=%d\n", yd.res);
     return yd.res;
 }
@@ -3405,7 +3398,7 @@ int ymldb_distribution_recv_fd_and_dump(FILE *outstream, int *cur_fd)
     
 	if(g_fds)
 	{
-		cb = cp_avltree_get(g_fds, cur_fd);
+		cb = ytree_search(g_fds, cur_fd);
 		if (cb)
 		{
             if (!(cb->flags & YMLDB_FLAG_CONN))
@@ -3527,7 +3520,7 @@ int ymldb_distribution_delete(char *major_key, int subscriber_fd)
 const char *ymldb_distribution_get_major_key(int fd)
 {
     struct ymldb_cb *cb;
-    cb = cp_avltree_get(g_fds, &fd);
+    cb = ytree_search(g_fds, &fd);
     if(cb)
         return cb->key;
     return NULL;
@@ -3627,7 +3620,7 @@ int _ymldb_callback_register(int type, ymldb_callback_fn usr_func, void *usr_dat
             _log_error("usr_func is unable to be registered to ymldb leaf.!\n");
             return -1;
         }
-        ydb = cp_avltree_get(p_ydb->children, key[i]);
+        ydb = ytree_search(p_ydb->children, key[i]);
         if (!ydb)
         {
             ydb = _ymldb_node_merge(NULL, p_ydb, YMLDB_BRANCH, key[i], NULL);
@@ -3685,7 +3678,7 @@ int _ymldb_callback_unregister(char *major_key, ...)
             _log_error("invalid ydb '%s'.\n", ydb->key);
             return -1;
         }
-        ydb = cp_avltree_get(ydb->children, cur_token);
+        ydb = ytree_search(ydb->children, cur_token);
         if (!ydb)
         {
             _log_error("invalid key '%s'.\n", cur_token);
@@ -3735,7 +3728,7 @@ int _ymldb_callback_register2(
             _log_error("usr_func is unable to be registered to ymldb leaf.!\n");
             return -1;
         }
-        ydb = cp_avltree_get(p_ydb->children, keys[i]);
+        ydb = ytree_search(p_ydb->children, keys[i]);
         if (!ydb)
         {
             ydb = _ymldb_node_merge(NULL, p_ydb, YMLDB_BRANCH, keys[i], NULL);
@@ -3796,7 +3789,7 @@ int _ymldb_callback_unregister2(int keys_num, char *keys[])
             _log_error("invalid ydb '%s'.\n", ydb->key);
             return -1;
         }
-        ydb = cp_avltree_get(ydb->children, keys[i]);
+        ydb = ytree_search(ydb->children, keys[i]);
         if (!ydb)
         {
             _log_error("invalid key '%s'.\n", keys[i]);
@@ -4008,7 +4001,7 @@ struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *m
         if (ydb)
         {
             if (ydb->type == YMLDB_BRANCH && ydb->children)
-                ydb = cp_avltree_get(ydb->children, cur_token);
+                ydb = ytree_search(ydb->children, cur_token);
             else
                 ydb = NULL;
         }
@@ -4028,8 +4021,8 @@ struct ymldb_iterator *_ymldb_iterator_init(struct ymldb_iterator *iter, char *m
         return NULL;
     }
 
-    iter->ydb = (void *)ydb;
-    iter->cur = (void *)ydb;
+    iter->base = ytree_find(ydb->parent->children, ydb->key);
+    iter->cur = iter->base;
     return iter;
 }
 
@@ -4068,7 +4061,7 @@ struct ymldb_iterator *_ymldb_iterator_init2(struct ymldb_iterator *iter, int ke
         {
             if (ydb->type == YMLDB_BRANCH && ydb->children)
             {
-                ydb = cp_avltree_get(ydb->children, keys[level]);
+                ydb = ytree_search(ydb->children, keys[level]);
             }
             else {
                 ydb = NULL;
@@ -4088,8 +4081,8 @@ struct ymldb_iterator *_ymldb_iterator_init2(struct ymldb_iterator *iter, int ke
         return NULL;
     }
 
-    iter->ydb = (void *)ydb;
-    iter->cur = (void *)ydb;
+    iter->base = ytree_find(ydb->parent->children, ydb->key);
+    iter->cur = iter->base;
     return iter;
 }
 
@@ -4112,7 +4105,7 @@ int ymldb_iterator_reset(struct ymldb_iterator *iter)
 {
     if (!iter)
         return -1;
-    iter->cur = iter->ydb;
+    iter->cur = iter->base;
     return 0;
 }
 
@@ -4120,7 +4113,7 @@ int ymldb_iterator_rebase(struct ymldb_iterator *iter)
 {
     if (!iter)
         return -1;
-    iter->ydb = iter->cur;
+    iter->base = iter->cur;
     return 0;
 }
 
@@ -4137,7 +4130,7 @@ struct ymldb_iterator *ymldb_iterator_copy(struct ymldb_iterator *src)
     if (dest)
     {
         memset(dest, 0, sizeof(struct ymldb_iterator));
-        dest->ydb = src->ydb;
+        dest->base = src->base;
         dest->cur = src->cur;
     }
     return dest;
@@ -4145,23 +4138,23 @@ struct ymldb_iterator *ymldb_iterator_copy(struct ymldb_iterator *src)
 
 const char *ymldb_iterator_lookup_down(struct ymldb_iterator *iter, char *key)
 {
-    struct ynode *cur = NULL;
-    struct ynode *child = NULL;
+    struct ynode *ydb = NULL;
+    ytree_iter *child = NULL;
     if (!iter)
         return NULL;
     if (!key)
         key = "";
-    cur = (struct ynode *)iter->cur;
-    if (!cur)
+    ydb = (struct ynode *) ytree_data(iter->cur);
+    if (!ydb)
         return NULL;
-    if (cur->type == YMLDB_BRANCH)
+    if (ydb->type == YMLDB_BRANCH)
     {
-        child = cp_avltree_get(cur->children, (void *)key);
+        child = ytree_find(ydb->children, (void *)key);
         if (child)
         {
-            cur = child;
-            iter->cur = (void *)cur;
-            return cur->key;
+            iter->cur = child;
+            ydb = (struct ynode *) ytree_data(iter->cur);
+            return ydb->key;
         }
         return NULL;
     }
@@ -4170,21 +4163,23 @@ const char *ymldb_iterator_lookup_down(struct ymldb_iterator *iter, char *key)
 
 const char *ymldb_iterator_lookup(struct ymldb_iterator *iter, char *key)
 {
-    struct ynode *next = NULL;
-    struct ynode *cur = NULL;
+    struct ynode *ydb = NULL;
+    ytree_iter *next = NULL;
     if (!iter)
         return NULL;
-    cur = (struct ynode *)iter->cur;
-    if (!cur)
+    if (!key)
+        key = "";
+    ydb = (struct ynode *) ytree_data(iter->cur);
+    if (!ydb)
         return NULL;
-    if (cur->parent)
+    if (ydb->parent)
     {
-        next = cp_avltree_get(cur->parent->children, (void *)key);
+        next = ytree_find(ydb->parent->children, (void *)key);
         if (next)
         {
-            cur = next;
-            iter->cur = (void *)cur;
-            return cur->key;
+            iter->cur = next;
+            ydb = (struct ynode *) ytree_data(iter->cur);
+            return ydb->key;
         }
         return NULL;
     }
@@ -4193,21 +4188,21 @@ const char *ymldb_iterator_lookup(struct ymldb_iterator *iter, char *key)
 
 const char *ymldb_iterator_down(struct ymldb_iterator *iter)
 {
-    struct ynode *cur = NULL;
-    struct ynode *child = NULL;
+    struct ynode *ydb = NULL;
+    ytree_iter *child = NULL;
     if (!iter)
         return NULL;
-    cur = (struct ynode *)iter->cur;
-    if (!cur)
+    ydb = (struct ynode *) ytree_data(iter->cur);
+    if (!ydb)
         return NULL;
-    if (cur->type == YMLDB_BRANCH)
+    if (ydb->type == YMLDB_BRANCH)
     {
-        child = cp_avltree_find(cur->children, "", CP_OP_GE);
+        child = ytree_first(ydb->children);
         if (child)
         {
-            cur = child;
-            iter->cur = (void *)cur;
-            return cur->key;
+            iter->cur = child;
+            ydb = (struct ynode *) ytree_data(iter->cur);
+            return ydb->key;
         }
         return NULL;
     }
@@ -4216,38 +4211,45 @@ const char *ymldb_iterator_down(struct ymldb_iterator *iter)
 
 const char *ymldb_iterator_up(struct ymldb_iterator *iter)
 {
-    struct ynode *cur = NULL;
+    struct ynode *ydb = NULL;
     if (!iter)
         return NULL;
-    cur = (struct ynode *)iter->cur;
-    if (!cur)
+    ydb = (struct ynode *) ytree_data(iter->cur);
+    if (!ydb)
         return NULL;
-    if (cur->parent)
+    if (ydb->parent)
     {
-        cur = cur->parent;
-        iter->cur = (void *)cur;
-        return cur->key;
+        ydb = ydb->parent;
+        if(ydb->parent)
+        {
+            iter->cur = ytree_find(ydb->parent->children, ydb->key);
+            return ydb->key;
+        }
+        else {
+            return NULL;
+        }
     }
     return NULL;
 }
 
 const char *ymldb_iterator_next(struct ymldb_iterator *iter)
 {
-    struct ynode *next = NULL;
-    struct ynode *cur = NULL;
+    struct ynode *ydb = NULL;
+    ytree_iter *next = NULL;
     if (!iter)
         return NULL;
-    cur = (struct ynode *)iter->cur;
-    if (!cur)
+    ydb = (struct ynode *) ytree_data(iter->cur);
+    if (!ydb)
         return NULL;
-    if (cur->parent)
+    
+    if (ydb->parent)
     {
-        next = cp_avltree_find(cur->parent->children, cur->key, CP_OP_GT);
+        next = ytree_next(ydb->parent->children, iter->cur);
         if (next)
         {
-            cur = next;
-            iter->cur = (void *)cur;
-            return cur->key;
+            iter->cur = next;
+            ydb = (struct ynode *) ytree_data(iter->cur);
+            return ydb->key;
         }
         return NULL;
     }
@@ -4256,21 +4258,22 @@ const char *ymldb_iterator_next(struct ymldb_iterator *iter)
 
 const char *ymldb_iterator_prev(struct ymldb_iterator *iter)
 {
-    struct ynode *prev = NULL;
-    struct ynode *cur = NULL;
+    struct ynode *ydb = NULL;
+    ytree_iter *prev = NULL;
     if (!iter)
         return NULL;
-    cur = (struct ynode *)iter->cur;
-    if (!cur)
+    ydb = (struct ynode *) ytree_data(iter->cur);
+    if (!ydb)
         return NULL;
-    if (cur->parent)
+    
+    if (ydb->parent)
     {
-        prev = cp_avltree_find(cur->parent->children, cur->key, CP_OP_LT);
+        prev = ytree_prev(ydb->parent->children, iter->cur);
         if (prev)
         {
-            cur = prev;
-            iter->cur = (void *)cur;
-            return cur->key;
+            iter->cur = prev;
+            ydb = (struct ynode *) ytree_data(iter->cur);
+            return ydb->key;
         }
         return NULL;
     }
@@ -4279,28 +4282,28 @@ const char *ymldb_iterator_prev(struct ymldb_iterator *iter)
 
 const char *ymldb_iterator_get_value(struct ymldb_iterator *iter)
 {
-    struct ynode *cur = NULL;
+    struct ynode *ydb = NULL;
     if (!iter)
         return NULL;
-    cur = (struct ynode *)iter->cur;
-    if (!cur)
+    ydb = (struct ynode *) ytree_data(iter->cur);
+    if (!ydb)
         return NULL;
-    if (cur->type == YMLDB_LEAF)
-        return cur->value;
-    else if (cur->type == YMLDB_LEAFLIST)
-        return cur->key;
+    if (ydb->type == YMLDB_LEAF)
+        return ydb->value;
+    else if (ydb->type == YMLDB_LEAFLIST)
+        return ydb->key;
     return NULL;
 }
 
 const char *ymldb_iterator_get_key(struct ymldb_iterator *iter)
 {
-    struct ynode *cur = NULL;
+    struct ynode *ydb = NULL;
     if (!iter)
         return NULL;
-    cur = (struct ynode *)iter->cur;
-    if (!cur)
+    ydb = (struct ynode *) ytree_data(iter->cur);
+    if (!ydb)
         return NULL;
-    return cur->key;
+    return ydb->key;
 }
 
 
@@ -4405,7 +4408,7 @@ int ymldb_file_pull(char *filename, char *format, ...)
         goto _done;
     }
 
-    _log_debug("input->len=%zd buf=\n%s\n", input->len, input->buf);
+    _log_debug("@@ input->len=%zd buf=\n%s\n", input->len, input->buf);
     res = ymldb_run(filename, input->stream, output->stream);
     if (res >= 0)
     { // success
@@ -4424,6 +4427,7 @@ _done:
     _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
     _ystream_free(input);
     _ystream_free(output);
+    ymldb_dump_all(stdout, NULL);
     ymldb_destroy(filename);
     return res;
 }
