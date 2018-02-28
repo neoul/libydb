@@ -7,7 +7,7 @@ libycomm_la_SOURCES = \
     ytree.c \
     yalloc.c
 libycomm_la_CPPFLAGS = -Iutilities
-libycomm_CFLAGS = "-g -Wall"
+libycomm_CFLAGS = "-g -Wall -std=c99"
 
 
 include_HEADERS = ycomm.h
