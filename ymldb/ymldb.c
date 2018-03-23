@@ -19,10 +19,10 @@
 #include "ylist.h"
 #include "ytree.h"
 
-#undef strdup
-#define strdup ystrdup
-#define malloc yalloc
-#define free yfree
+// #undef strdup
+// #define strdup ystrdup
+// #define malloc yalloc
+// #define free yfree
 
 #include "ymldb.h"
 
@@ -780,8 +780,8 @@ static void _ymldb_node_free(void *vdata)
         }
         if (ydb->type != YMLDB_BRANCH)
             if (ydb->value)
-                free(ydb->value);
-        free(ydb->key);
+                yfree(ydb->value);
+        yfree(ydb->key);
         free(ydb);
     }
 }
@@ -803,8 +803,8 @@ static void _ymldb_node_free_without_callback(void *vdata)
         _callback_free(ydb->callback);
         if (ydb->type != YMLDB_BRANCH)
             if (ydb->value)
-                free(ydb->value);
-        free(ydb->key);
+                yfree(ydb->value);
+        yfree(ydb->key);
         free(ydb);
     }
 }
@@ -902,7 +902,7 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
                 if (ydb->type == YMLDB_BRANCH && ydb->children)
                     ytree_destroy_custom(ydb->children, _ymldb_node_free);
                 else if (ydb->value)
-                    free(ydb->value);
+                    yfree(ydb->value);
 
                 ydb->type = type;
                 if (ydb->type == YMLDB_BRANCH)
@@ -913,13 +913,13 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
                 }
                 else if (type == YMLDB_LEAFLIST)
                 {
-                    ydb->value = strdup(key);
+                    ydb->value = ystrdup(key);
                     if (!ydb->value)
                         goto free_ydb;
                 }
                 else
                 {
-                    ydb->value = strdup(value);
+                    ydb->value = ystrdup(value);
                     if (!ydb->value)
                         goto free_ydb;
                 }
@@ -929,8 +929,8 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
             {
                 if (strcmp(ydb->value, value) != 0)
                 {
-                    free(ydb->value);
-                    ydb->value = strdup(value);
+                    yfree(ydb->value);
+                    ydb->value = ystrdup(value);
                     _ymldb_node_merge_reply(params, ydb);
                 }
             }
@@ -944,7 +944,7 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
         goto free_ydb;
     memset(ydb, 0, sizeof(struct ynode));
 
-    ykey = strdup(key);
+    ykey = ystrdup(key);
     if (!ykey)
         goto free_ydb;
 
@@ -963,13 +963,13 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
     }
     else if (type == YMLDB_LEAFLIST)
     {
-        ydb->value = strdup(key);
+        ydb->value = ystrdup(key);
         if (!ydb->value)
             goto free_ydb;
     }
     else
     {
-        ydb->value = strdup(value);
+        ydb->value = ystrdup(value);
         if (!ydb->value)
             goto free_ydb;
     }
@@ -1006,12 +1006,12 @@ free_ydb:
         else
         {
             if (ydb->value)
-                free(ydb->value);
+                yfree(ydb->value);
         }
     }
 
     if (ykey)
-        free(ykey);
+        yfree(ykey);
     if (ydb)
         free(ydb);
     return NULL;
