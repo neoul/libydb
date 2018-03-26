@@ -1940,13 +1940,19 @@ static int _params_buf_flush(struct ymldb_params *params, int forced)
 {
     struct ystream *streambuffer = params->streambuffer;
     _log_debug("======\n");
-    if (forced)
+    if (forced) {
+        _log_debug("======\n");
         goto flushing;
+    }
     else if (ftell(streambuffer->stream) >= YMLDB_STREAM_THRESHOLD)
+    {
+        _log_debug("======\n");
         goto flushing;
-    return 0;
+    }
     _log_debug("======\n");
+    return 0;
 flushing:
+    _log_debug("======\n");
     _ymldb_fprintf_tail(streambuffer->stream);
     // write the stream to streambuffer->buf.
     _log_debug("======\n");
