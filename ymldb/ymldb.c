@@ -90,6 +90,105 @@ struct ymldb_distribution
 	int res;
 };
 
+struct sbuf {
+    char buf[YMLDB_STREAM_BUF_SIZE];
+    int len;
+    int res;
+};
+
+#define sbuf_write(STRBUF, ...)                                                                                  \
+    do                                                                                                          \
+    {                                                                                                           \
+        if ((STRBUF)->res)                                                                                      \
+            break;                                                                                              \
+        int len = snprintf((STRBUF)->buf + (STRBUF)->len, YMLDB_STREAM_BUF_SIZE - (STRBUF)->len, __VA_ARGS__); \
+        if (len < 0)                                                                                            \
+            (STRBUF)->res = -1;                                                                                 \
+        else                                                                                                    \
+            (STRBUF)->len += len;                                                                               \
+    } while (0)
+
+void sbuf_free(struct sbuf *sbuf)
+{
+    if(sbuf)
+        free(sbuf);
+}
+
+struct sbuf *sbuf_new()
+{
+    struct sbuf *sbuf = malloc(sizeof(struct sbuf));
+    if(!sbuf)
+        return NULL;
+    sbuf->buf[0] = 0;
+    sbuf->len = 0;
+    sbuf->res = 0;
+    return sbuf;
+}
+
+void sbuf_clean(struct sbuf *sbuf)
+{
+    if(sbuf)
+    {
+        sbuf->buf[0] = 0;
+        sbuf->len = 0;
+        sbuf->res = 0;
+    }
+}
+
+
+void sbuf_printf_head(struct sbuf *sbuf, unsigned int opcode, unsigned int sequence)
+{
+    sbuf_write(sbuf, "# %u\n", sequence);
+
+    // %TAG !merge! actusnetworks.com:op:
+    if (opcode & YMLDB_OP_SEQ)
+    {
+        if (opcode & YMLDB_OP_SEQ_CON)
+            sbuf_write(sbuf, "%s %s %s%u\n", "%TAG", YMLDB_TAG_OP_SEQ, YMLDB_TAG_SEQ_CON, sequence);
+        else
+            sbuf_write(sbuf, "%s %s %s%u\n", "%TAG", YMLDB_TAG_OP_SEQ, YMLDB_TAG_SEQ, sequence);
+    }
+
+    if (opcode & YMLDB_OP_ACK)
+    {
+        sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_ACK, YMLDB_TAG_ACK);
+    }
+
+    if (opcode & YMLDB_OP_MERGE)
+    {
+        sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_MERGE, YMLDB_TAG_MERGE);
+    }
+    else if (opcode & YMLDB_OP_DELETE)
+    {
+        sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_DELETE, YMLDB_TAG_DELETE);
+    }
+    else if (opcode & YMLDB_OP_GET)
+    {
+        sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_GET, YMLDB_TAG_GET);
+    }
+    else if (opcode & YMLDB_OP_SYNC)
+    {
+        sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SYNC, YMLDB_TAG_SYNC);
+    }
+
+    if (opcode & YMLDB_OP_SUBSCRIBER)
+    {
+        sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SUBSCRIBER, YMLDB_TAG_SUBSCRIBER);
+    }
+    else if (opcode & YMLDB_OP_PUBLISHER)
+    {
+        sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_PUBLISHER, YMLDB_TAG_PUBLISHER);
+    }
+
+    sbuf_write(sbuf, "---\n");
+}
+
+void sbuf_printf_tail(struct sbuf *sbuf)
+{
+    sbuf_write(sbuf, "\n...\n\n");
+}
+
+
 struct ymldb_params
 {
     struct ymldb_cb *cb;
@@ -109,7 +208,7 @@ struct ymldb_params
     } out;
     int res;
     struct ynode *last_ydb; // last updated ydb
-    struct ystream *streambuffer;
+    struct sbuf *outbuf;
     int resv : 27;
     int no_record : 1;
     int send_relay : 1;
@@ -1412,7 +1511,7 @@ int _ymldb_internal_get(struct ymldb_params *params, struct ynode *p_ydb, int in
 
 int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int p_index)
 {
-    FILE *stream = params->streambuffer->stream;
+    struct sbuf *outbuf = params->outbuf;
     yaml_node_t *node = NULL;
     node = yaml_document_get_node(&params->document, index);
     if (!node)
@@ -1434,7 +1533,7 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
             _log_debug("## %s\n", key);
             if (node->type == YAML_SCALAR_NODE)
             {
-                fprintf(stream, "%.*s- %s\n", level * 2, g_space, key);
+                sbuf_write(outbuf, "%.*s- %s\n", level * 2, g_space, key);
             }
             else
             {
@@ -1458,12 +1557,12 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
             if (value_node->type == YAML_SCALAR_NODE)
             {
                 _log_debug("## %s, %s\n", key, value);
-                fprintf(stream, "%.*s%s: %s\n", level * 2, g_space, key, value);
+                sbuf_write(outbuf, "%.*s%s: %s\n", level * 2, g_space, key, value);
             }
             else
             { // not leaf
                 _log_debug("## %s\n", key);
-                fprintf(stream, "%.*s%s:\n", level * 2, g_space, key);
+                sbuf_write(outbuf, "%.*s%s:\n", level * 2, g_space, key);
                 _ymldb_internal_relay(params, level + 1, pair->value, index);
             }
         }
@@ -1474,7 +1573,7 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
         char *key;
         key = (char *)node->data.scalar.value;
         _log_debug("## %s\n", key);
-        fprintf(stream, "%.*s%s\n", level * 2, g_space, key);
+        sbuf_write(outbuf, "%.*s%s\n", level * 2, g_space, key);
     }
     break;
     case YAML_NO_NODE:
@@ -1758,12 +1857,12 @@ static void _params_free(struct ymldb_params *params)
 {
     yaml_parser_t *parser;
     yaml_document_t *document;
-    struct ystream *streambuffer;
+    struct sbuf *outbuf;
     if (!params)
         return;
     parser = &(params->parser);
     document = &(params->document);
-    streambuffer = params->streambuffer;
+    outbuf = params->outbuf;
 
     if (document->nodes.start)
     {
@@ -1773,9 +1872,9 @@ static void _params_free(struct ymldb_params *params)
     {
         yaml_parser_delete(parser);
     }
-    if (streambuffer)
+    if (outbuf)
     {
-        _ystream_free(streambuffer);
+        sbuf_free(outbuf);
     }
     free(params);
     return;
@@ -1807,11 +1906,10 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
     params->out.opcode = 0;
     params->in.sequence = 0;
     params->out.sequence = 0;
-    params->streambuffer = _ystream_alloc(YMLDB_STREAM_BUF_SIZE);
-    // _ystream_alloc_and_open(YMLDB_STREAM_BUF_SIZE, "w");
-    if (!params->streambuffer)
+    params->outbuf = sbuf_new();
+    if (!params->outbuf)
     {
-        _log_error("streambuffer alloc failed.\n");
+        _log_error("outbuf alloc failed.\n");
         goto failed;
     }
     params->res = 0;
@@ -1819,7 +1917,7 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
     params->no_record = (cb->flags & YMLDB_FLAG_NO_RECORD)?1:0;
     return params;
 failed:
-    _ystream_free(params->streambuffer);
+    sbuf_free(params->outbuf);
     _params_free(params);
     return NULL;
 }
@@ -1845,12 +1943,12 @@ failed:
 static int _params_buf_init(struct ymldb_params *params)
 {
     params->last_ydb = NULL;
-    _ystream_open(params->streambuffer, "w");
-    _ymldb_fprintf_head(params->streambuffer->stream, params->out.opcode, params->out.sequence);
+    sbuf_clean(params->outbuf);
+    sbuf_printf_head(params->outbuf, params->out.opcode, params->out.sequence);
     return 0;
 }
 
-static int _ymldb_param_streambuffer_each_of_node(void *key, void *data, void *dummy)
+static int _params_buf_dump_children(void *key, void *data, void *dummy)
 {
     struct ynode *ydb = data;
     struct ymldb_params *params = dummy;
@@ -1861,7 +1959,7 @@ static int _ymldb_param_streambuffer_each_of_node(void *key, void *data, void *d
 static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int print_level, int no_print_children)
 {
     int flushed = 0;
-    FILE *stream;
+    struct sbuf *outbuf = NULL;
     if (!ydb)
         return;
     flushed = _params_buf_flush(params, 0);
@@ -1870,10 +1968,9 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
         _params_buf_init(params);
         _log_debug("print_level %d\n", print_level);
         _log_debug("cur ydb->key %s ydb->level %d\n", ydb->key, ydb->level);
-        // no_print_children = 0;
         print_level = 0;
     }
-    stream = params->streambuffer->stream;
+    outbuf = params->outbuf;
 
     if (print_level < ydb->level)
     { // print parents
@@ -1890,13 +1987,13 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
             switch (ancestor->type)
             {
             case YMLDB_BRANCH:
-                fprintf(stream, "%.*s%s:\n", (ancestor->level - 2) * 2, g_space, ancestor->key);
+                sbuf_write(outbuf, "%.*s%s:\n", (ancestor->level - 2) * 2, g_space, ancestor->key);
                 break;
             case YMLDB_LEAFLIST:
-                fprintf(stream, "%.*s- %s\n", (ancestor->level - 2) * 2, g_space, ancestor->key);
+                sbuf_write(outbuf, "%.*s- %s\n", (ancestor->level - 2) * 2, g_space, ancestor->key);
                 break;
             case YMLDB_LEAF:
-                fprintf(stream, "%.*s%s: %s\n", (ancestor->level - 2) * 2, g_space, ancestor->key, ancestor->value);
+                sbuf_write(outbuf, "%.*s%s: %s\n", (ancestor->level - 2) * 2, g_space, ancestor->key, ancestor->value);
                 break;
             default:
                 _log_error("unknown type?!??? %d\n", ancestor->type);
@@ -1916,19 +2013,19 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
     {
         if (ydb->level > 1) // 0 and 1 is major_key.
         {                   // not print out for top node
-            fprintf(stream, "%.*s%s:\n", (ydb->level - 2) * 2, g_space, ydb->key);
+            sbuf_write(outbuf, "%.*s%s:\n", (ydb->level - 2) * 2, g_space, ydb->key);
         }
         if (no_print_children)
             goto end;
-        ytree_traverse(ydb->children, _ymldb_param_streambuffer_each_of_node, params);
+        ytree_traverse(ydb->children, _params_buf_dump_children, params);
     }
     else if (ydb->type == YMLDB_LEAFLIST)
     {
-        fprintf(stream, "%.*s- %s\n", (ydb->level - 2) * 2, g_space, _str_dump(ydb->key));
+        sbuf_write(outbuf, "%.*s- %s\n", (ydb->level - 2) * 2, g_space, _str_dump(ydb->key));
     }
     else
     {
-        fprintf(stream, "%.*s%s: %s\n", (ydb->level - 2) * 2, g_space, ydb->key, _str_dump(ydb->value));
+        sbuf_write(outbuf, "%.*s%s: %s\n", (ydb->level - 2) * 2, g_space, ydb->key, _str_dump(ydb->value));
     }
 end:
     params->last_ydb = ydb;
@@ -1938,13 +2035,13 @@ end:
 // Return 1 if reply.stream is flushed, otherwise 0.
 static int _params_buf_flush(struct ymldb_params *params, int forced)
 {
-    struct ystream *streambuffer = params->streambuffer;
+    struct sbuf *outbuf = params->outbuf;
     _log_debug("======\n");
     if (forced) {
         _log_debug("======\n");
         goto flushing;
     }
-    else if (ftell(streambuffer->stream) >= YMLDB_STREAM_THRESHOLD)
+    else if (outbuf->len >= YMLDB_STREAM_THRESHOLD || outbuf->res)
     {
         _log_debug("======\n");
         goto flushing;
@@ -1953,22 +2050,18 @@ static int _params_buf_flush(struct ymldb_params *params, int forced)
     return 0;
 flushing:
     _log_debug("======\n");
-    _ymldb_fprintf_tail(streambuffer->stream);
-    // write the stream to streambuffer->buf.
-    _log_debug("======\n");
-    _ystream_close(streambuffer);
-    _log_debug("======\n");
+    sbuf_printf_tail(outbuf);
     if (!forced)
     {
         if (params->out.opcode & YMLDB_OP_SEQ)
         {
-            char *seq_tag = strstr(streambuffer->buf, YMLDB_TAG_SEQ_BASE);
+            char *seq_tag = strstr(outbuf->buf, YMLDB_TAG_SEQ_BASE);
             if (seq_tag)
                 strncpy(seq_tag, YMLDB_TAG_SEQ_CON, strlen(YMLDB_TAG_SEQ_CON));
         }
     }
 
-    _log_debug("@@ %zd %s\n\n", streambuffer->len, streambuffer->buf);
+    _log_debug("@@ %d %s\n\n", outbuf->len, outbuf->buf);
 
     _log_debug("@@ inprogress_cnt %d\n", params->cb->inprogress_cnt);
     if (params->cb->inprogress_cnt > 1)
@@ -1980,7 +2073,7 @@ flushing:
 
     if (params->out.stream)
     {
-        fputs(streambuffer->buf, params->out.stream);
+        fputs(outbuf->buf, params->out.stream);
         fflush(params->out.stream);
     }
 
@@ -1991,10 +2084,9 @@ flushing:
 
 static int _params_buf_reset(struct ymldb_params *params)
 {
-    struct ystream *streambuffer = params->streambuffer;
-    _ystream_close(streambuffer);
-    _ystream_open(params->streambuffer, "w");
-    _ymldb_fprintf_head(params->streambuffer->stream, params->out.opcode, params->out.sequence);
+    struct sbuf *outbuf = params->outbuf;
+    sbuf_clean(outbuf);
+    sbuf_printf_head(outbuf, params->out.opcode, params->out.sequence);
     return 0;
 }
 
@@ -2787,7 +2879,7 @@ static int _distribution_send(struct ymldb_params *params)
     int sent = 0;
     int retry = 0;
     struct ymldb_cb *cb = params->cb;
-    struct ystream *streambuffer = params->streambuffer;
+    struct sbuf *outbuf = params->outbuf;
     if ((cb->flags & YMLDB_FLAG_RECONNECT) || (cb->fd_publisher < 0))
     {
         cb->flags |= YMLDB_FLAG_RECONNECT;
@@ -2824,7 +2916,7 @@ static int _distribution_send(struct ymldb_params *params)
             return 0;
         }
     _relay_rewrite:
-        res = write(fd, streambuffer->buf + sent, streambuffer->len - sent);
+        res = write(fd, outbuf->buf + sent, outbuf->len - sent);
         if (res < 0)
         {
             cb->flags |= YMLDB_FLAG_RECONNECT;
@@ -2832,7 +2924,7 @@ static int _distribution_send(struct ymldb_params *params)
             return -1;
         }
         sent = res + sent;
-        if (sent < streambuffer->len && retry < 3)
+        if (sent < outbuf->len && retry < 3)
         {
             retry++;
             _log_debug("retry++\n");
@@ -2848,7 +2940,7 @@ static int _distribution_send(struct ymldb_params *params)
             if(cb->fd_requester != cb->fd_publisher)
             {
             subscriber_rewrite:
-                res = write(cb->fd_publisher, streambuffer->buf + sent, streambuffer->len - sent);
+                res = write(cb->fd_publisher, outbuf->buf + sent, outbuf->len - sent);
                 if (res < 0)
                 {
                     cb->flags |= YMLDB_FLAG_RECONNECT;
@@ -2857,7 +2949,7 @@ static int _distribution_send(struct ymldb_params *params)
                     return -1;
                 }
                 sent = res + sent;
-                if (sent < streambuffer->len && retry < 3)
+                if (sent < outbuf->len && retry < 3)
                 {
                     retry++;
                     _log_debug("retry++\n");
@@ -2876,7 +2968,7 @@ static int _distribution_send(struct ymldb_params *params)
                     sent = 0;
                     retry = 0;
                 publisher_rewrite:
-                    res = write(cb->fd_subscriber[i], streambuffer->buf + sent, streambuffer->len - sent);
+                    res = write(cb->fd_subscriber[i], outbuf->buf + sent, outbuf->len - sent);
                     if (res < 0)
                     {
                         _log_error("fd %d send failed (%s)\n",
@@ -2887,7 +2979,7 @@ static int _distribution_send(struct ymldb_params *params)
                         continue;
                     }
                     sent = res + sent;
-                    if (sent < streambuffer->len && retry < 3)
+                    if (sent < outbuf->len && retry < 3)
                     {
                         retry++;
                         _log_debug("retry++\n");
