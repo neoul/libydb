@@ -335,7 +335,7 @@ static void _log_close(FILE *stream)
         _log_close(_log_stream);               \
     } while (0)
 
-int _ymldb_log_error_parser(yaml_parser_t *parser)
+int _log_error_parser(yaml_parser_t *parser)
 {
     /* Display a parser error message. */
     switch (parser->error)
@@ -449,7 +449,7 @@ struct ystream *_ystream_alloc_and_open(size_t len, char *rw);
 
 static void _params_free(struct ymldb_params *params);
 static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, FILE *outstream);
-static int _params_document_load(struct ymldb_params *params);
+
 static int _params_buf_init(struct ymldb_params *params);
 static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int print_level, int no_print_children);
 static int _params_buf_flush(struct ymldb_params *params, int forced);
@@ -1855,27 +1855,11 @@ _done:
 
 static void _params_free(struct ymldb_params *params)
 {
-    yaml_parser_t *parser;
-    yaml_document_t *document;
-    struct sbuf *outbuf;
     if (!params)
         return;
-    parser = &(params->parser);
-    document = &(params->document);
-    outbuf = params->outbuf;
-
-    if (document->nodes.start)
-    {
-        yaml_document_delete(document);
-    }
-    if (parser->raw_buffer.start || parser->error)
-    {
-        yaml_parser_delete(parser);
-    }
-    if (outbuf)
-    {
-        sbuf_free(outbuf);
-    }
+    if (params->outbuf)
+        sbuf_free(params->outbuf);
+    yaml_parser_delete(&params->parser);
     free(params);
     return;
 }
@@ -1883,23 +1867,22 @@ static void _params_free(struct ymldb_params *params)
 static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
 {
     struct ymldb_params *params;
-    yaml_parser_t *parser;
-
     params = malloc(sizeof(struct ymldb_params));
     if (!params)
     {
-        _log_error("mem alloc failed.\n");
+        _log_error("ymldb_params alloc failed.\n");
         return NULL;
     }
     memset(params, 0, sizeof(struct ymldb_params));
 
-    parser = &(params->parser);
-    if (!yaml_parser_initialize(parser))
+    if (!yaml_parser_initialize(&params->parser))
     {
-        _ymldb_log_error_parser(parser);
-        goto failed;
+        _log_error_parser(&params->parser);
+        yaml_parser_delete(&params->parser);
+        free(params);
+        return NULL;
     }
-    yaml_parser_set_input_file(parser, instream);
+    yaml_parser_set_input_file(&params->parser, instream);
     params->in.stream = instream;
     params->out.stream = outstream;
     params->in.opcode = 0;
@@ -1909,35 +1892,15 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
     params->outbuf = sbuf_new();
     if (!params->outbuf)
     {
-        _log_error("outbuf alloc failed.\n");
-        goto failed;
+        _log_error("ymldb_params->outbuf alloc failed.\n");
+        yaml_parser_delete(&params->parser);
+        free(params);
+        return NULL;
     }
     params->res = 0;
     params->cb = cb;
     params->no_record = (cb->flags & YMLDB_FLAG_NO_RECORD)?1:0;
     return params;
-failed:
-    sbuf_free(params->outbuf);
-    _params_free(params);
-    return NULL;
-}
-
-static int _params_document_load(struct ymldb_params *params)
-{
-    yaml_parser_t *parser = &params->parser;
-    yaml_document_t *document = &params->document;
-    if (document->nodes.start)
-    {
-        yaml_document_delete(document);
-    }
-    if (!yaml_parser_load(parser, document))
-    {
-        goto failed;
-    }
-    return 0;
-failed:
-    _ymldb_log_error_parser(parser);
-    return -1;
 }
 
 static int _params_buf_init(struct ymldb_params *params)
@@ -1971,7 +1934,7 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
         print_level = 0;
     }
     outbuf = params->outbuf;
-
+    // _log_debug("outbuf %p, print_level %d\n", outbuf, print_level);
     if (print_level < ydb->level)
     { // print parents
         ylist_iter *iter;
@@ -2036,20 +1999,15 @@ end:
 static int _params_buf_flush(struct ymldb_params *params, int forced)
 {
     struct sbuf *outbuf = params->outbuf;
-    _log_debug("======\n");
     if (forced) {
-        _log_debug("======\n");
         goto flushing;
     }
     else if (outbuf->len >= YMLDB_STREAM_THRESHOLD || outbuf->res)
     {
-        _log_debug("======\n");
         goto flushing;
     }
-    _log_debug("======\n");
     return 0;
 flushing:
-    _log_debug("======\n");
     sbuf_printf_tail(outbuf);
     if (!forced)
     {
@@ -2116,17 +2074,16 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     _log_debug(">>>\n");
     while (!done)
     {
-        yaml_node_t *yroot = NULL;
-        /* Get the next ymldb document. */
-        res = _params_document_load(params);
-        if (res < 0)
+        if (!yaml_parser_load(&params->parser, &params->document))
         {
+            _log_error_parser(&params->parser);
             params->res--;
             break;
         }
+        
         _params_opcode_extract(params);
-        yroot = yaml_document_get_root_node(&params->document);
-        if (yroot)
+        done = (!yaml_document_get_root_node(&params->document));
+        if (!done)
         {
             enum internal_op iop;
             iop = _ymldb_sm(params);
@@ -2135,15 +2092,13 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
                 if (!(params->in.opcode & YMLDB_OP_SEQ_CON))
                     cb->flags = cb->flags & (~YMLDB_FLAG_INSYNC);
 
+            _params_buf_init(params);
             if (iop == iop_ignore)
             {
                 _log_debug("in %uth %s\n", params->in.sequence, "ignored ...");
                 params->res--;
-                continue;
             }
-
-            _params_buf_init(params);
-            if (iop == iop_merge)
+            else if (iop == iop_merge)
             {
                 _ymldb_internal_merge(params, cb->ydb, 1, 1);
                 updated = 1;
@@ -2161,13 +2116,12 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
                 _params_buf_reset(params); // reset output buffer
                 _ymldb_internal_relay(params, 0, 1, 1);
             }
-            _params_buf_flush(params, 1); // forced flush!
+
+            if (iop != iop_ignore)
+                _params_buf_flush(params, 1); // forced flush!
             _log_debug("result: %s\n", params->res < 0 ? "failed" : "ok");
         }
-        else
-        {
-            done = 1;
-        }
+        yaml_document_delete(&params->document);
     }
     _log_debug("<<<\n");
     res = params->res;
