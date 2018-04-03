@@ -20,7 +20,10 @@ int ymldb_file_rw_test()
     int res = 0;
     char *yfilename = "ymldb-file.yml";
 
-    ymldb_log_set(YMLDB_LOG_LOG, NULL);
+    // ymldb_log_set(YMLDB_LOG_LOG, NULL);
+
+    fprintf(stdout, "\n\n[FILE push]\n");
+
     res = ymldb_file_push(yfilename,
         "daemon:\n"
         "  zebos:\n"
@@ -47,6 +50,7 @@ int ymldb_file_rw_test()
     int gfast = 0;
 
     // success case
+    fprintf(stdout, "\n\n[FILE pull - success]\n");
     res = ymldb_file_pull(yfilename,
         "daemon:\n"
         "  zebos:\n"
@@ -70,6 +74,7 @@ int ymldb_file_rw_test()
     fprintf(stdout, "%s %d\n",VARIABLE_NAME(gfast), gfast);
 
     // failure case
+    fprintf(stdout, "\n\n[FILE pull - failure]\n");
     int hello = 0;
     char *unknown = "unknown.yml";
     res = ymldb_file_pull(unknown, "hello : %d\n", &hello);

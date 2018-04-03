@@ -28,7 +28,7 @@ int push_and_pull()
     }
 
     ymldb_push("example", example, 10, 20, 30, 40, 50);
-    // ymldb_dump_all(stdout, "example");
+    // ymldb_dump(stdout, "example");
     
     int python = 0;
     int java = 0;

@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 		close(infd);
 	}
 
-    ymldb_dump_all(stdout, NULL);
+    ymldb_dump(stdout, NULL);
 
     int res;
     int max_fd = 0;
@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
                 }
                 else if(strncmp(cmd, "print", 5) == 0)
                 {
-                    ymldb_dump_all(stdout, NULL);
+                    ymldb_dump(stdout, NULL);
                 }
                 else if(strncmp(cmd, "write", 5) == 0)
                 {
@@ -262,7 +262,7 @@ int main(int argc, char *argv[])
         else
             ymldb_distribution_recv(&read_set);
     } while (!done);
-    ymldb_dump_all(stdout, NULL);
+    ymldb_dump(stdout, NULL);
     ymldb_destroy_all();
     fprintf(stdout, "end.\n");
     return 0;

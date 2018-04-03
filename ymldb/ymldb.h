@@ -221,6 +221,6 @@ int ymldb_file_pull(char *filename, char *format, ...);
 
 // [YMLDB data retrieval facility]
 // print all ymldb to the stream if NULL.
-void ymldb_dump_all(FILE *outstream, char *major_key);
+void ymldb_dump(FILE *outstream, char *major_key);
 
 #endif

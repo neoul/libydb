@@ -62,7 +62,7 @@ void ymldb_notify_callback(void *usr_data, struct ymldb_callback_data *cdata)
 int ymldb_test()
 {
     // write a file for a ymldb stream input.
-    FILE *f = fopen("ymldb-interface.yml", "w");
+    FILE *f = fopen("interfaces.yml", "w");
     if (!f)
     {
         fprintf(stderr, "%s", strerror(errno));
@@ -100,8 +100,9 @@ int ymldb_test()
     double cpu_time_used;
     start = clock();
 
-    ymldb_log_set(YMLDB_LOG_LOG, NULL);
+    // ymldb_log_set(YMLDB_LOG_LOG, NULL);
     
+    printf("\n\n[ymldb_create(interfaces)]\n");
     // create ymldb for interface.
     int res = ymldb_create("interfaces", YMLDB_FLAG_NONE);
     if (res < 0)
@@ -114,34 +115,35 @@ int ymldb_test()
     // ymldb_notify_callback_register(ymldb_notify_callback, "interface-cb", "interfaces", "interface");
     // ymldb_notify_callback_register(ymldb_notify_callback, "ge1-cb", "interfaces", "interface", "ge1");
 
-    ymldb_dump_all(stdout, NULL);
-
     // read ymldb from a file.
-    int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
+    printf("\n\n[ymldb_run_with_fd]\n");
+    int infd = open("interfaces.yml", O_RDONLY, 0644);
     ymldb_run_with_fd("interfaces", infd, 0);
     close(infd);
 
+    printf("\n\n[ymldb_dump]\n");
+    ymldb_dump(stdout, NULL);
+
     // use ymldb iterator
+    printf("\n\n[ymldb_iterator]\n");
     const char *key;
     struct ymldb_iterator *iter = 
         ymldb_iterator_alloc("interfaces", "interface", "ge1", "mtu");
     key = ymldb_iterator_up(iter);
     do
     {
-        printf("key=%s\n", key);
+        printf(" key=%s\n", key);
     } while((key = ymldb_iterator_next(iter)) != NULL);
 
+    printf("\n\n[ymldb_iter_lookup]\n");
     key = ymldb_iterator_lookup(iter, "ge2");
     printf("ymldb_iterator_lookup key=%s\n", key);
-
 
     ymldb_iterator_free(iter);
     iter = NULL;
 
-
-    ymldb_dump_all(stdout, NULL);
-
     // get data from ymldb.
+    printf("\n\n[ymldb_read]\n");
     char *value = ymldb_read("interfaces", "interface", "ge1", "operstatus");
     fprintf(stdout, "ymldb_read(ge1 operstatus=%s)\n", value);
     
@@ -151,6 +153,7 @@ int ymldb_test()
     fprintf(stdout, "ymldb_read2(ge1 operstatus=%s)\n", value);
 
     // get data from ymldb using ymldb_pull.
+    printf("\n\n[ymldb_pull]\n");
     int mtu = 0;
     char operstatus_str[32] = {0};
     ymldb_pull("interfaces",
@@ -162,11 +165,14 @@ int ymldb_test()
     fprintf(stdout, "ge2 mtu=%d\n", mtu);
     fprintf(stdout, "ge2 operstatus=%s\n", operstatus_str);
 
-    ymldb_write("interfaces", "ge2");
+    printf("\n\n[ymldb_write]\n");
+    ymldb_write("interfaces", "interface", "ge2", "speed", "1G");
 
+    printf("\n\n[ymldb_get]\n");
     // read ymldb data (yaml format string) to OUTPUT stream.
     ymldb_get(stdout, "interfaces", "interface", "ge2");
 
+    printf("\n\n[ymldb_create(system)]\n");
     res = ymldb_create("system", YMLDB_FLAG_NONE);
     if (res < 0)
     {
@@ -174,6 +180,7 @@ int ymldb_test()
         return -1;
     }
 
+    printf("\n\n[ymldb_push(system)]\n");
     res = ymldb_push("system",
                          "product: %s\n"
                          "serial-number: %s\n"
@@ -185,42 +192,47 @@ int ymldb_test()
         fprintf(stderr, "fail to push data.\n");
     }
     
-
+    printf("\n\n[ymldb_write(system)]\n");
     res = ymldb_write("system", "product", "HA-805");
     if (res < 0)
     {
         fprintf(stderr, "fail to write data.\n");
     }
+
+    printf("\n\n[ymldb_get(system)]\n");
+    ymldb_get(stdout, "system");
     
     // delete an ymldb.
+    printf("\n\n[ymldb_delete(rx-octet)]\n");
     ymldb_delete("interfaces", "interface", "ge1", "rx-octet");
     
-    // it would be failed to remove unknown ymldb node.
-    res = ymldb_delete("interfaces", "interface", "ge1");
-    if (res < 0)
-    {
-        fprintf(stderr, "failed to delete.\n");
-    }
+    // printf("\n\n[ymldb_delete(interfaces)]\n");
+    // // it would be failed to remove unknown ymldb node.
+    // res = ymldb_delete("interfaces", "interface", "ge1");
+    // if (res < 0)
+    // {
+    //     fprintf(stderr, "failed to delete.\n");
+    // }
     
 
     // this would return NULL.
+    printf("\n\n[ymldb_read(system)]\n");
     value = ymldb_read("system");
     fprintf(stdout, "read data = %s\n", value);
 
     // ymldb_read read the value of a leaf!
+    printf("\n\n[ymldb_read(system)]\n");
     value = ymldb_read("system", "product");
     fprintf(stdout, "read data = %s\n", value);
 
-    ymldb_dump_all(stdout, NULL);
-    ymldb_get(stdout, "interfaces");
-    // ymldb_callback_unregister("interfaces", "interface");
-
-
+    printf("\n\n[ymldb_dump]\n");
+    ymldb_dump(stdout, NULL);
+    
     ymldb_destroy_all();
     // ymldb_destroy("interface");
     // ymldb_destroy("system");
     
-    ymldb_dump_all(stdout, NULL);
+    ymldb_dump(stdout, NULL);
 
     end = clock();
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;

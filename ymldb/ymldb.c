@@ -60,11 +60,11 @@ struct ynode
 struct ystream
 {
     FILE *stream;
-    size_t buflen;
     size_t len;
-    int is_write : 1;
-    int is_dynamic : 1;
-    int options : 30;
+    int writable : 1;
+    int dynamic : 1;
+    int allocated : 1;
+    int options : 29;
     char *buf;
 };
 
@@ -441,12 +441,6 @@ int ymldb_log_set(int log_level, char *log_file)
     return g_ymldb_log;
 }
 
-struct ystream *_ystream_alloc(size_t len);
-void _ystream_close(struct ystream *buf);
-FILE *_ystream_open(struct ystream *buf, char *rw);
-void _ystream_free(struct ystream *buf);
-struct ystream *_ystream_alloc_and_open(size_t len, char *rw);
-
 static void _params_free(struct ymldb_params *params);
 static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, FILE *outstream);
 
@@ -726,136 +720,99 @@ void _ymldb_fprintf_tail(FILE *stream)
     fprintf(stream, "\n...\n\n");
 }
 
-// support readonly or writeonly.
-struct ystream *_ystream_alloc(size_t len)
+struct ystream *_ystream_open_to_write(int buflen)
 {
-    struct ystream *buf;
-    buf = malloc(sizeof(struct ystream));
-    if (buf)
+    struct ystream *ystream;
+    ystream = malloc(sizeof(struct ystream));
+    if(ystream)
     {
-        buf->stream = NULL;
-        if (len > 0)
+        memset(ystream, 0x0, sizeof(struct ystream));
+        if (buflen > 0)
         {
-            buf->buf = malloc(len);
-            if (!buf->buf)
+            ystream->buf = malloc(buflen);
+            if (!ystream->buf)
             {
-                free(buf);
+                free(ystream);
                 return NULL;
             }
-            buf->buflen = len;
-            buf->buf[0] = 0;
+            ystream->buf[0] = 0;
+            ystream->stream = fmemopen(ystream->buf, ystream->len, "w");
+            setbuf(ystream->stream, NULL);
+            ystream->writable = 1;
+            ystream->dynamic = 0;
+            ystream->len = buflen;
         }
         else
         {
-            buf->buf = NULL;
-            buf->buflen = 0;
-        }
-        buf->len = 0;
-        buf->is_write = 0;
-        buf->is_dynamic = 0;
-    }
-    return buf;
-}
-
-void _ystream_close(struct ystream *buf)
-{
-    if (buf)
-    {
-        if (buf->stream)
-        {
-            if (buf->is_write && !buf->is_dynamic)
+            ystream->stream = open_memstream(&(ystream->buf), &(ystream->len));
+            if (!ystream->stream)
             {
-                buf->len = ftell(buf->stream);
-                // fflush(buf->stream);
-                buf->buf[buf->len] = 0;
+                free(ystream);
+                return NULL;
             }
-            else if (buf->is_dynamic)
-            {
-                buf->buflen = buf->len;
-            }
-            fclose(buf->stream);
-            buf->stream = NULL;
+            ystream->writable = 1;
+            ystream->dynamic = 1;
         }
     }
-    return;
+    ystream->allocated = 1;
+    return ystream;
 }
 
-FILE *_ystream_open(struct ystream *buf, char *rw)
+struct ystream *_ystream_reopen_to_read(struct ystream *ystream)
 {
-    if (buf)
+    if (ystream)
     {
-        _ystream_close(buf);
-        if (strncmp(rw, "r", 1) == 0)
+        if (ystream->stream)
+            fclose(ystream->stream);
+        ystream->stream = NULL;
+        if(!ystream->buf)
+            goto open_failed;
+        ystream->stream = fmemopen(ystream->buf, ystream->len, "r");
+        ystream->writable = 0;
+        if(!ystream->stream)
+            goto open_failed;
+    }
+    return ystream;
+open_failed:
+    if (ystream->stream)
+        fclose(ystream->stream);
+    if(ystream->buf && ystream->allocated)
+        free(ystream->buf);
+    free(ystream);
+    return NULL;
+}
+
+struct ystream *_ystream_open_to_read_from_buf(char *buf, int buflen)
+{
+    struct ystream *ystream;
+    if(!buf || buflen < 0)
+        return NULL;
+    ystream = malloc(sizeof(struct ystream));
+    if (ystream)
+    {
+        memset(ystream, 0x0, sizeof(struct ystream));
+        ystream->buf = buf;
+        ystream->len = buflen;
+        ystream->stream = fmemopen(ystream->buf, ystream->len, "r");
+        if(!ystream->stream)
         {
-            buf->stream = fmemopen(buf->buf, buf->len, rw);
-            buf->is_write = 0;
-        }
-        else
-        { // w, w+
-            if (buf->is_dynamic)
-            {
-                if (buf->buf)
-                    free(buf->buf);
-                buf->buf = NULL;
-                buf->len = 0;
-                buf->buflen = 0;
-                buf->stream = open_memstream(&(buf->buf), &(buf->len));
-                buf->is_write = 1;
-                buf->is_dynamic = 1;
-            }
-            else if (buf->buflen > 0)
-            {
-                buf->len = 0;
-                buf->buf[0] = 0;
-                buf->stream = fmemopen(buf->buf, buf->buflen, rw);
-                buf->is_write = 1;
-                setbuf(buf->stream, NULL);
-            }
-        }
-        if (!buf->stream)
+            free(ystream);
             return NULL;
-        return buf->stream;
-    }
-    return NULL;
-}
-
-void _ystream_free(struct ystream *buf)
-{
-    if (buf)
-    {
-        if (buf->stream)
-            fclose(buf->stream);
-        if (buf->buf)
-            free(buf->buf);
-        free(buf);
-    }
-}
-
-struct ystream *_ystream_alloc_and_open(size_t len, char *rw)
-{
-    struct ystream *buf = _ystream_alloc(len);
-    _ystream_open(buf, rw);
-    if (buf && buf->stream)
-        return buf;
-    _ystream_free(buf);
-    return NULL;
-}
-
-struct ystream *_ystream_open_dynamic(void)
-{
-    struct ystream *buf = _ystream_alloc(0);
-    if (buf)
-    {
-        buf->stream = open_memstream(&(buf->buf), &(buf->len));
-        if (buf->stream)
-        {
-            buf->is_write = 1;
-            buf->is_dynamic = 1;
-            return buf;
         }
-        _ystream_free(buf);
+        // ystream->writable = 0;
+        // ystream->dynamic = 0;
+        ystream->allocated = 0;
     }
-    return NULL;
+    return ystream;
+}
+
+void _ystream_free(struct ystream *ystream)
+{
+    if (ystream->stream)
+        fclose(ystream->stream);
+    if(ystream->buf && ystream->allocated)
+        free(ystream->buf);
+    free(ystream);
 }
 
 // Remove all subtree and data
@@ -2571,7 +2528,7 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
 {
     int res = 0;
     int len = 0;
-    struct ystream *input;
+    struct ystream *input = NULL;
     cb->fd_requester = fd;
     if (cb->flags & YMLDB_FLAG_PUBLISHER && !(cb->flags & YMLDB_FLAG_SUB_PUBLISHER))
     {
@@ -2611,7 +2568,7 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
             goto _done;
         }
     }
-    input = _ystream_alloc(YMLDB_STREAM_BUF_SIZE);
+    input = _ystream_open_to_write(YMLDB_STREAM_BUF_SIZE);
     if (!input)
     {
         _log_error("fail to open ymldb stream\n");
@@ -2620,7 +2577,7 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
         goto _done;
     }
 read_message:
-    len = read(fd, input->buf + input->len, input->buflen - input->len);
+    len = read(fd, input->buf + input->len, YMLDB_STREAM_BUF_SIZE - input->len);
     input->len += len;
     if (len <= 0)
     {
@@ -2662,7 +2619,7 @@ read_message:
             input->len = end_of_doc + 3;
             input->buf[input->len] = 0;
             _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
-            _ystream_open(input, "r");
+            _ystream_reopen_to_read(input);
             _ymldb_run(cb, input->stream, outstream);
 
             strcpy(input->buf, &input->buf[end_of_doc + 4]);
@@ -2680,7 +2637,7 @@ read_message:
     else
     {
         _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
-        _ystream_open(input, "r");
+        _ystream_reopen_to_read(input);
         _ymldb_run(cb, input->stream, outstream);
         _ystream_free(input);
     }
@@ -2952,7 +2909,7 @@ int ymldb_push(char *major_key, char *format, ...)
         return -1;
     }
     _log_debug("\n");
-    input = _ystream_open_dynamic();
+    input = _ystream_open_to_write(0);
     if (!input)
     {
         _log_error("fail to open ymldb stream\n");
@@ -2966,7 +2923,7 @@ int ymldb_push(char *major_key, char *format, ...)
     va_end(args);
     _ymldb_fprintf_tail(input->stream);
 
-    _ystream_open(input, "r");
+    _ystream_reopen_to_read(input);
     if (!input->stream)
     {
         _log_error("fail to open ymldb stream");
@@ -3047,13 +3004,13 @@ int ymldb_pull(char *major_key, char *format, ...)
         return -1;
     }
     _log_debug("\n");
-    input = _ystream_open_dynamic();
+    input = _ystream_open_to_write(0);
     if (!input)
     {
         _log_error("fail to open ymldb stream\n");
         goto failed;
     }
-    output = _ystream_open_dynamic();
+    output = _ystream_open_to_write(0);
     if (!output)
     {
         _log_error("fail to open ymldb stream\n");
@@ -3064,7 +3021,7 @@ int ymldb_pull(char *major_key, char *format, ...)
     _ymldb_remove_specifiers(input->stream, format);
     _ymldb_fprintf_tail(input->stream);
 
-    _ystream_open(input, "r");
+    _ystream_reopen_to_read(input);
     if (!input->stream)
     {
         _log_error("fail to open ymldb stream");
@@ -3113,7 +3070,7 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     }
     _log_debug("major_key %s\n", cb->key);
     _log_debug("opcode %s\n", _opcode_str(opcode));
-    input = _ystream_open_dynamic();
+    input = _ystream_open_to_write(0);
     if (!input)
     {
         _log_error("fail to open ymldb stream\n");
@@ -3144,7 +3101,7 @@ int _ymldb_write(FILE *outstream, unsigned int opcode, char *major_key, ...)
     va_end(args);
     _ymldb_fprintf_tail(input->stream);
 
-    _ystream_open(input, "r");
+    _ystream_reopen_to_read(input);
     if (!input->stream)
     {
         _log_error("fail to open ymldb stream");
@@ -3197,7 +3154,7 @@ int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys
 
     _log_debug("major_key %s\n", keys[0]);
     _log_debug("opcode %s\n", _opcode_str(opcode));
-    input = _ystream_open_dynamic();
+    input = _ystream_open_to_write(0);
     if (!input)
     {
         _log_error("fail to open ymldb stream\n");
@@ -3212,7 +3169,7 @@ int _ymldb_write2(FILE *outstream, unsigned int opcode, int keys_num, char *keys
     }
     _ymldb_fprintf_tail(input->stream);
 
-    _ystream_open(input, "r");
+    _ystream_reopen_to_read(input);
     if (!input->stream)
     {
         _log_error("fail to open ymldb stream");
@@ -3345,7 +3302,7 @@ char *_ymldb_read2(int keys_num, char *keys[])
         return NULL;
 }
 
-void ymldb_dump_all(FILE *outstream, char *major_key)
+void ymldb_dump(FILE *outstream, char *major_key)
 {
     if (!outstream)
         return;
@@ -3356,12 +3313,10 @@ void ymldb_dump_all(FILE *outstream, char *major_key)
         {
             return;
         }
-        fprintf(outstream, "\n [Current ymldb tree]\n\n");
         _ymldb_fprintf_node(outstream, cb->ydb, 0, 0);
     }
     else
     { // print all..
-        fprintf(outstream, "\n [Current ymldb tree]\n\n");
         _ymldb_fprintf_node(outstream, g_ydb, 0, 0);
     }
 }
@@ -4376,7 +4331,7 @@ int ymldb_file_push(char *filename, char *format, ...)
     }
 
     _log_debug("\n");
-    input = _ystream_open_dynamic();
+    input = _ystream_open_to_write(0);
     if (!input)
     {
         res = -5;
@@ -4390,7 +4345,7 @@ int ymldb_file_push(char *filename, char *format, ...)
     va_end(args);
     _ymldb_fprintf_tail(input->stream);
 
-    _ystream_open(input, "r");
+    _ystream_reopen_to_read(input);
     if (!input->stream)
     {
         res = -5;
@@ -4433,13 +4388,13 @@ int ymldb_file_pull(char *filename, char *format, ...)
     fclose(instream);
 
     _log_debug("\n");
-    input = _ystream_open_dynamic();
+    input = _ystream_open_to_write(0);
     if (!input)
     {
         res = -5;
         goto _done;
     }
-    output = _ystream_open_dynamic();
+    output = _ystream_open_to_write(0);
     if (!output)
     {
         res = -6;
@@ -4450,7 +4405,7 @@ int ymldb_file_pull(char *filename, char *format, ...)
     _ymldb_remove_specifiers(input->stream, format);
     _ymldb_fprintf_tail(input->stream);
 
-    _ystream_open(input, "r");
+    _ystream_reopen_to_read(input);
     if (!input->stream)
     {
         _log_error("fail to open ymldb stream");
@@ -4476,7 +4431,7 @@ _done:
     _log_debug("result: %s\n", res < 0 ? "failed" : "ok");
     _ystream_free(input);
     _ystream_free(output);
-    ymldb_dump_all(stdout, NULL);
+    // ymldb_dump(stdout, NULL);
     ymldb_destroy(filename);
     return res;
 }

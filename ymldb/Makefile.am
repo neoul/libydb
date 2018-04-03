@@ -4,4 +4,4 @@ libymldb_la_CPPFLAGS = -I $(top_srcdir)/ycomm
 libymldb_la_CFLAGS = -g -Wall -D_GNU_SOURCE
 
 include_HEADERS = ymldb.h
-dist_pkgdata_DATA = ../ymldb-input.yml
+# dist_pkgdata_DATA = ../ymldb-input.yml

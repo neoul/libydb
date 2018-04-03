@@ -59,7 +59,7 @@ void ymldb_update_callback(void *usr_data, struct ymldb_callback_data *cdata)
 int ymldb_test()
 {
     // write a file for a ymldb stream input.
-    FILE *f = fopen("ymldb-interface.yml", "w");
+    FILE *f = fopen("interfaces.yml", "w");
     if (!f)
     {
         fprintf(stderr, "%s", strerror(errno));
@@ -108,12 +108,12 @@ int ymldb_test()
     }
 
     // read ymldb from a file.
-    int infd = open("ymldb-interface.yml", O_RDONLY, 0644);
+    int infd = open("interfaces.yml", O_RDONLY, 0644);
     ymldb_run_with_fd("interfaces", infd, 0);
     close(infd);
 
     ymldb_update_callback_register(ymldb_update_callback, "USR-DATA", "interfaces", "interface", "ge3");
-    ymldb_dump_all(stdout, NULL);
+    ymldb_dump(stdout, NULL);
 
     // read ymldb data (yaml format string) to OUTPUT stream.
     ymldb_get(stdout, "interfaces", "interface");
@@ -125,7 +125,7 @@ int ymldb_test()
     // ymldb_destroy("interface");
     // ymldb_destroy("system");
     
-    ymldb_dump_all(stdout, NULL);
+    ymldb_dump(stdout, NULL);
 
     end = clock();
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
