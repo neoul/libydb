@@ -61,6 +61,7 @@ struct ystream
 {
     FILE *stream;
     size_t len;
+    size_t maxlen;
     int writable : 1;
     int dynamic : 1;
     int allocated : 1;
@@ -736,11 +737,11 @@ struct ystream *_ystream_open_to_write(int buflen)
                 return NULL;
             }
             ystream->buf[0] = 0;
-            ystream->stream = fmemopen(ystream->buf, ystream->len, "w");
+            ystream->len = 0;
+            ystream->maxlen = buflen;
+            ystream->stream = fmemopen(ystream->buf, ystream->maxlen, "w");
             setbuf(ystream->stream, NULL);
-            ystream->writable = 1;
             ystream->dynamic = 0;
-            ystream->len = buflen;
         }
         else
         {
@@ -750,10 +751,10 @@ struct ystream *_ystream_open_to_write(int buflen)
                 free(ystream);
                 return NULL;
             }
-            ystream->writable = 1;
             ystream->dynamic = 1;
         }
     }
+    ystream->writable = 1;
     ystream->allocated = 1;
     return ystream;
 }
@@ -763,7 +764,15 @@ struct ystream *_ystream_reopen_to_read(struct ystream *ystream)
     if (ystream)
     {
         if (ystream->stream)
+        {
+            if (!ystream->dynamic)
+            {
+                if(ystream->len <= 0)
+                    ystream->len = ftell(ystream->stream);
+                ystream->buf[ystream->len] = 0;
+            }
             fclose(ystream->stream);
+        }
         ystream->stream = NULL;
         if(!ystream->buf)
             goto open_failed;
