@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
         fprintf(stdout, "\n");
         fprintf(stdout, "%s MAJOR_KEY OPTIONS\n", basename(argv[0]));
         fprintf(stdout, "   -(p|sp|s) %-5s: %-24s\n", " ", "Publisher|SubPublisher|Subscriber");
+        fprintf(stdout, "   -nr %-12s: %-24s\n", " ", "no_relay_to_sub_publisher mode");
         fprintf(stdout, "   -n %-12s: %-24s\n", " ", "no-record mode");
         fprintf(stdout, "   -a %-12s: %-24s\n", " ", "async mode");
         fprintf(stdout, "   -f %-12s: %-24s\n", "YMLDB_FILE", "e.g. -f ymldb_input.yml");
@@ -49,6 +50,7 @@ int main(int argc, char *argv[])
     int role = YMLDB_FLAG_SUBSCRIBER;
     int sync = 1;
     int no_record = 0;
+    int no_relay_to_sub_publisher = 0;
     int verbose = 0;
     int log_level = 0;
     char *major_key = argv[1];
@@ -90,6 +92,10 @@ int main(int argc, char *argv[])
             fprintf(stdout, "%s mode enabled\n", sync?"sync":"async");
             sync = 0;
         }
+        else if(strcmp(argv[i], "-nr") == 0) {
+            fprintf(stdout, "no_relay_to_sub_publisher is enabled\n");
+            no_relay_to_sub_publisher = 1;
+        }
         else if(strcmp(argv[i], "-v") == 0) {
             verbose = 1;
             if(i+1 < argc && (strncmp(argv[i+1], "-", 1) != 0)) {
@@ -120,6 +126,7 @@ int main(int argc, char *argv[])
     unsigned int flags = role;
     flags |= ((sync)?YMLDB_FLAG_NONE:YMLDB_FLAG_ASYNC);
     flags |= ((no_record)?YMLDB_FLAG_NO_RECORD:YMLDB_FLAG_NONE);
+    flags |= ((no_relay_to_sub_publisher)?YMLDB_FLAG_NO_RELAY_TO_SUB_PUBLISHER:YMLDB_FLAG_NONE);
 
     ymldb_create(major_key, flags);
 

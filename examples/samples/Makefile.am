@@ -1,9 +1,17 @@
-bin_PROGRAMS=ymldb-example ymldb-update-callback-example ymldb-file-rw ymldb-push-pull
+bin_PROGRAMS=ymldb-example ymldb-example2 ymldb-update-callback-example ymldb-file-rw ymldb-push-pull
+
 ymldb_example_SOURCES=example.c
 ymldb_example_CPPFLAGS = -I $(top_srcdir)/ymldb
 ymldb_example_LDFLAGS = -L$(top_srcdir)/ymldb/.libs -L$(top_srcdir)/ycomm/.libs \
                   -lymldb -lyaml -lycomm
 ymldb_example_CFLAGS = -g -Wall
+
+ymldb_example2_SOURCES=example2.c
+ymldb_example2_CPPFLAGS = -I $(top_srcdir)/ymldb
+ymldb_example2_LDFLAGS = -L$(top_srcdir)/ymldb/.libs -L$(top_srcdir)/ycomm/.libs \
+                  -lymldb -lyaml -lycomm
+ymldb_example2_CFLAGS = -g -Wall
+
 
 ymldb_update_callback_example_SOURCES=update-callback-example.c
 ymldb_update_callback_example_CPPFLAGS = -I $(top_srcdir)/ymldb

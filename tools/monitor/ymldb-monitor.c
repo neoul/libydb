@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
 				argv[0]);
 		return 0;
 	}
+	ymldb_dump(stdout, NULL);
 
 	int res;
 	int max_fd = 0;
@@ -74,8 +75,7 @@ int main(int argc, char *argv[])
 		ymldb_distribution_recv_and_dump(stdout, &read_set);
     } while (!done);
     ymldb_dump(stdout, NULL);
-    ymldb_destroy_all();
-    ymldb_dump(stdout, NULL);
+	ymldb_destroy_all();
     fprintf(stdout, "end.\n");
     return 0;
 }

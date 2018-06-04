@@ -143,6 +143,10 @@ void yfree(void *src)
             }
             return;
         }
+        else
+        {
+            printf("yfree failed for %p\n", src);
+        }
     }
 #ifndef MEM_POOL
     if(src)

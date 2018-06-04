@@ -34,6 +34,7 @@ examples/samples/ymldb-file-rw
 examples/samples/ymldb-test
 examples/samples/ymldb-update-callback-example
 examples/samples/ymldb-push-pull
+examples/samples/ymldb-example2
 examples/agent/ymldb-agent
 configure
 examples/ycomm/ex-yalloc

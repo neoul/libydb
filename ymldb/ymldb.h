@@ -9,6 +9,7 @@
 int ymldb_log_set(int log_level, char *log_file);
 
 // yaml tag for ymldb operation
+#define YMLDB_TAG_OP_NOOP "!no-op!"
 #define YMLDB_TAG_OP_GET "!get!"
 #define YMLDB_TAG_OP_DELETE "!delete!"
 #define YMLDB_TAG_OP_MERGE "!merge!"
@@ -20,6 +21,7 @@ int ymldb_log_set(int log_level, char *log_file);
 
 // yaml prefix for ymldb operation
 #define YMLDB_TAG_BASE "ymldb:op:"
+#define YMLDB_TAG_NOOP YMLDB_TAG_BASE "no-op"
 #define YMLDB_TAG_GET YMLDB_TAG_BASE "get"
 #define YMLDB_TAG_DELETE YMLDB_TAG_BASE "delete"
 #define YMLDB_TAG_MERGE YMLDB_TAG_BASE "merge"
@@ -33,16 +35,17 @@ int ymldb_log_set(int log_level, char *log_file);
 #define YMLDB_TAG_SEQ_CON "ymldb:seq:c:" // the consecutive messages exists
 
 // opcode
-#define YMLDB_OP_GET 0x01
-#define YMLDB_OP_DELETE 0x02
-#define YMLDB_OP_MERGE 0x04
-#define YMLDB_OP_SEQ 0x08
-#define YMLDB_OP_SUBSCRIBER 0x10
-#define YMLDB_OP_PUBLISHER 0x20
-#define YMLDB_OP_SYNC 0x40
-#define YMLDB_OP_ACTION (YMLDB_OP_GET | YMLDB_OP_DELETE | YMLDB_OP_MERGE | YMLDB_OP_SYNC)
-#define YMLDB_OP_SEQ_CON 0x80
-#define YMLDB_OP_ACK 0x100
+#define YMLDB_OP_NOOP   0x01
+#define YMLDB_OP_GET    0x02
+#define YMLDB_OP_DELETE 0x04
+#define YMLDB_OP_MERGE  0x08
+#define YMLDB_OP_SEQ    0x10
+#define YMLDB_OP_SUBSCRIBER 0x20
+#define YMLDB_OP_PUBLISHER  0x40
+#define YMLDB_OP_SYNC       0x80
+#define YMLDB_OP_ACTION (YMLDB_OP_GET | YMLDB_OP_DELETE | YMLDB_OP_MERGE | YMLDB_OP_SYNC | YMLDB_OP_NOOP)
+#define YMLDB_OP_SEQ_CON    0x100
+#define YMLDB_OP_ACK        0x200
 
 // flags
 #define YMLDB_FLAG_NONE 0x00
@@ -53,13 +56,14 @@ int ymldb_log_set(int log_level, char *log_file);
 #define YMLDB_FLAG_INSYNC 0x200
 #define YMLDB_FLAG_SUB_PUBLISHER 0x400
 #define YMLDB_FLAG_NO_RECORD 0x800
+#define YMLDB_FLAG_NO_RELAY_TO_SUB_PUBLISHER 0X1000
 #define YMLDB_FLAG_CONN (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER | YMLDB_FLAG_SUB_PUBLISHER) // communcation channel enabled
 
 
 // unix socket pathname
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
-#define YMLDB_STREAM_THRESHOLD 4094
+#define YMLDB_STREAM_THRESHOLD 2560
 #define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 256)
 
 // create or delete ymldb
@@ -75,6 +79,7 @@ char *_ymldb_read(char *major_key, ...);
 char *_ymldb_read2(int keys_num, char *keys[]);
 
 // [YMLDB update facility - from string]
+#define ymldb_noop(major_key, ...) _ymldb_write(NULL, YMLDB_OP_NOOP, major_key, ##__VA_ARGS__, NULL)
 #define ymldb_write(major_key, ...) _ymldb_write(NULL, YMLDB_OP_MERGE, major_key, ##__VA_ARGS__, NULL)
 #define ymldb_delete(major_key, ...) _ymldb_write(NULL, YMLDB_OP_DELETE, major_key, ##__VA_ARGS__, NULL)
 #define ymldb_sync(major_key, ...) _ymldb_write(NULL, YMLDB_OP_SYNC, major_key, ##__VA_ARGS__, NULL)

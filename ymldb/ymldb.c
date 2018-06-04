@@ -26,7 +26,8 @@
 
 #include "ymldb.h"
 
-typedef enum ymldb_type_e {
+typedef enum ymldb_type_e
+{
     YMLDB_LEAF,
     YMLDB_LEAFLIST,
     YMLDB_BRANCH
@@ -170,6 +171,10 @@ void sbuf_printf_head(struct sbuf *sbuf, unsigned int opcode, unsigned int seque
     else if (opcode & YMLDB_OP_SYNC)
     {
         sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SYNC, YMLDB_TAG_SYNC);
+    }
+    else if (opcode & YMLDB_OP_NOOP)
+    {
+        sbuf_write(sbuf, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_NOOP, YMLDB_TAG_NOOP);
     }
 
     if (opcode & YMLDB_OP_SUBSCRIBER)
@@ -555,6 +560,8 @@ static char *_opcode_str(int opcode)
         strcat(opstr, "pub|");
     if (opcode & YMLDB_OP_SYNC)
         strcat(opstr, "sync|");
+    if (opcode & YMLDB_OP_NOOP)
+        strcat(opstr, "no-op|");
     strcat(opstr, ")");
     return opstr;
 }
@@ -703,6 +710,10 @@ void _ymldb_fprintf_head(FILE *stream, unsigned int opcode, unsigned int sequenc
     {
         fprintf(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_SYNC, YMLDB_TAG_SYNC);
     }
+    else if (opcode & YMLDB_OP_NOOP)
+    {
+        fprintf(stream, "%s %s %s\n", "%TAG", YMLDB_TAG_OP_NOOP, YMLDB_TAG_NOOP);
+    }
 
     if (opcode & YMLDB_OP_SUBSCRIBER)
     {
@@ -725,7 +736,7 @@ struct ystream *_ystream_open_to_write(int buflen)
 {
     struct ystream *ystream;
     ystream = malloc(sizeof(struct ystream));
-    if(ystream)
+    if (ystream)
     {
         memset(ystream, 0x0, sizeof(struct ystream));
         if (buflen > 0)
@@ -767,25 +778,25 @@ struct ystream *_ystream_reopen_to_read(struct ystream *ystream)
         {
             if (!ystream->dynamic)
             {
-                if(ystream->len <= 0)
+                if (ystream->len <= 0)
                     ystream->len = ftell(ystream->stream);
                 ystream->buf[ystream->len] = 0;
             }
             fclose(ystream->stream);
         }
         ystream->stream = NULL;
-        if(!ystream->buf)
+        if (!ystream->buf)
             goto open_failed;
         ystream->stream = fmemopen(ystream->buf, ystream->len, "r");
         ystream->writable = 0;
-        if(!ystream->stream)
+        if (!ystream->stream)
             goto open_failed;
     }
     return ystream;
 open_failed:
     if (ystream->stream)
         fclose(ystream->stream);
-    if(ystream->buf && ystream->allocated)
+    if (ystream->buf && ystream->allocated)
         free(ystream->buf);
     free(ystream);
     return NULL;
@@ -794,7 +805,7 @@ open_failed:
 struct ystream *_ystream_open_to_read_from_buf(char *buf, int buflen)
 {
     struct ystream *ystream;
-    if(!buf || buflen < 0)
+    if (!buf || buflen < 0)
         return NULL;
     ystream = malloc(sizeof(struct ystream));
     if (ystream)
@@ -803,7 +814,7 @@ struct ystream *_ystream_open_to_read_from_buf(char *buf, int buflen)
         ystream->buf = buf;
         ystream->len = buflen;
         ystream->stream = fmemopen(ystream->buf, ystream->len, "r");
-        if(!ystream->stream)
+        if (!ystream->stream)
         {
             free(ystream);
             return NULL;
@@ -819,7 +830,7 @@ void _ystream_free(struct ystream *ystream)
 {
     if (ystream->stream)
         fclose(ystream->stream);
-    if(ystream->buf && ystream->allocated)
+    if (ystream->buf && ystream->allocated)
         free(ystream->buf);
     free(ystream);
 }
@@ -1549,6 +1560,23 @@ int _ymldb_internal_relay(struct ymldb_params *params, int level, int index, int
     return 0;
 }
 
+int _ymldb_internal_updated_fd_flags(struct ymldb_params *params)
+{
+    struct ymldb_cb *cb = params->cb;
+    int is_pub = params->in.opcode & YMLDB_OP_PUBLISHER;
+    int i;
+    for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
+    {
+        if (cb->fd_subscriber[i] == cb->fd_requester)
+        {
+            cb->fd_flags[i] = cb->fd_flags[i] | (is_pub)?YMLDB_FLAG_PUBLISHER:YMLDB_FLAG_SUBSCRIBER;
+            _log_debug("fd (%d) is %s\n", cb->fd_requester, (is_pub)?"publisher":"subscriber");
+            break;
+        }
+    }
+    return 0;
+}
+
 int _params_opcode_extract(struct ymldb_params *params)
 {
     unsigned int opcode = 0;
@@ -1588,6 +1616,10 @@ int _params_opcode_extract(struct ymldb_params *params)
             {
                 opcode = opcode | YMLDB_OP_GET;
             }
+            else if (strcmp(op, YMLDB_TAG_OP_NOOP) == 0)
+            {
+                opcode = opcode | YMLDB_OP_NOOP;
+            }
             else if (strcmp(op, YMLDB_TAG_OP_SUBSCRIBER) == 0)
             {
                 opcode = opcode | YMLDB_OP_SUBSCRIBER;
@@ -1615,6 +1647,7 @@ enum internal_op
     iop_delete,
     iop_relay,
     iop_relay_delete,
+    iop_update_fd_flags,
 };
 
 static enum internal_op _ymldb_sm(struct ymldb_params *params)
@@ -1640,6 +1673,46 @@ static enum internal_op _ymldb_sm(struct ymldb_params *params)
         iop = iop_ignore;
         goto _done;
     }
+
+    // no-operation
+    if(in_opcode & YMLDB_OP_NOOP)
+    {
+        if(ack)
+            goto _done;
+        if (flags & YMLDB_FLAG_PUBLISHER)
+        {
+            out_opcode |= YMLDB_OP_PUBLISHER;
+            if (in_opcode & YMLDB_OP_SUBSCRIBER)
+                iop = iop_update_fd_flags;
+            else if (in_opcode & YMLDB_OP_PUBLISHER)
+                iop = iop_update_fd_flags;
+            else
+            {
+                iop = iop_relay;
+                request_and_reply = 1;
+            }
+        }
+        else if (flags & YMLDB_FLAG_SUBSCRIBER)
+        {
+            out_opcode |= YMLDB_OP_SUBSCRIBER;
+            if (in_opcode & YMLDB_OP_SUBSCRIBER)
+                iop = iop_ignore;
+            else if (in_opcode & YMLDB_OP_PUBLISHER)
+                iop = iop_ignore;
+            else
+            {
+                iop = iop_relay;
+                request_and_reply = 1;
+            }
+        }
+        else
+        {
+            iop = iop_ignore;
+        }
+        out_opcode |= YMLDB_OP_NOOP;
+        goto _done;
+    }
+
     if (flags & YMLDB_FLAG_PUBLISHER)
     {
         out_opcode |= YMLDB_OP_PUBLISHER;
@@ -1804,7 +1877,7 @@ _done:
                request_and_reply ? "request/reply" : "no-request/reply",
                send_relay ? "send_relay" : "no-send_relay");
     _log_debug("internal op: %s\n",
-               (iop == iop_ignore) ? "ignore" : (iop == iop_merge) ? "merge" : (iop == iop_delete) ? "delete" : (iop == iop_relay) ? "relay" : (iop == iop_get) ? "get" : (iop == iop_relay_delete) ? "relay_and_delete" : "-");
+               (iop == iop_ignore) ? "ignore" : (iop == iop_merge) ? "merge" : (iop == iop_delete) ? "delete" : (iop == iop_relay) ? "relay" : (iop == iop_get) ? "get" : (iop == iop_relay_delete) ? "relay_and_delete" : (iop == iop_update_fd_flags) ? "iop_update_fd_flags" :  "-" );
 
     return iop;
 }
@@ -1884,6 +1957,7 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
     flushed = _params_buf_flush(params, 0);
     if (flushed)
     {
+        _log_debug("sent buf is flushed\n");
         _params_buf_init(params);
         _log_debug("print_level %d\n", print_level);
         _log_debug("cur ydb->key %s ydb->level %d\n", ydb->key, ydb->level);
@@ -1954,7 +2028,10 @@ end:
 // Return 1 if reply.stream is flushed, otherwise 0.
 static int _params_buf_flush(struct ymldb_params *params, int forced)
 {
-    struct sbuf *outbuf = params->outbuf;
+    struct sbuf *outbuf;
+    if (!params || !params->outbuf)
+        return 0;
+    outbuf = params->outbuf;
     if (forced)
     {
         goto flushing;
@@ -2010,6 +2087,7 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     int res = 0;
     int done = 0;
     int updated = 0;
+    int flush_count = 0;
     struct ymldb_params *params;
     if (!cb)
     {
@@ -2055,31 +2133,40 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
                 _log_debug("in %uth %s\n", params->in.sequence, "ignored ...");
                 params->res--;
             }
-            else if (iop == iop_merge)
+            else
             {
-                _ymldb_internal_merge(params, cb->ydb, 1, 1);
-                updated = 1;
-            }
-            else if (iop == iop_delete)
-                _ymldb_internal_delete(params, cb->ydb, 1, 1);
-            else if (iop == iop_get)
-                _ymldb_internal_get(params, cb->ydb, 1, 1);
-            else if (iop == iop_relay)
-                _ymldb_internal_relay(params, 0, 1, 1);
-            else if (iop == iop_relay_delete)
-            {
-                _ymldb_internal_delete(params, cb->ydb, 1, 1);
-                params->res = 0;           // reset failures.
-                _params_buf_reset(params); // reset output buffer
-                _ymldb_internal_relay(params, 0, 1, 1);
-            }
-
-            if (iop != iop_ignore)
+                if (iop == iop_merge)
+                {
+                    _ymldb_internal_merge(params, cb->ydb, 1, 1);
+                    updated = 1;
+                }
+                else if (iop == iop_delete)
+                    _ymldb_internal_delete(params, cb->ydb, 1, 1);
+                else if (iop == iop_get)
+                    _ymldb_internal_get(params, cb->ydb, 1, 1);
+                else if (iop == iop_relay)
+                    _ymldb_internal_relay(params, 0, 1, 1);
+                else if (iop == iop_relay_delete)
+                {
+                    _ymldb_internal_delete(params, cb->ydb, 1, 1);
+                    params->res = 0;           // reset failures.
+                    _params_buf_reset(params); // reset output buffer
+                    _ymldb_internal_relay(params, 0, 1, 1);
+                }
+                else if (iop_update_fd_flags)
+                {
+                    _ymldb_internal_updated_fd_flags(params);
+                }
                 _params_buf_flush(params, 1); // forced flush!
+                flush_count++;
+            }
             _log_debug("result: %s\n", params->res < 0 ? "failed" : "ok");
         }
         yaml_document_delete(&params->document);
     }
+    // if (flush_count > 0)
+    //     _params_buf_flush(params, 1); // forced flush!
+
     _log_debug("<<<\n");
     res = params->res;
     _params_free(params);
@@ -2240,14 +2327,18 @@ int ymldb_create(char *major_key, unsigned int flags)
 
     _log_debug("major_key %s flags %x\n", major_key, flags);
 
+    ytree_insert(g_ycb, cb->key, cb);
+
     if (flags & YMLDB_FLAG_ASYNC)
         cb->flags |= YMLDB_FLAG_ASYNC;
     if (flags & YMLDB_FLAG_NO_RECORD)
         cb->flags |= YMLDB_FLAG_NO_RECORD;
+    if (flags & YMLDB_FLAG_NO_RELAY_TO_SUB_PUBLISHER)
+        cb->flags |= YMLDB_FLAG_NO_RELAY_TO_SUB_PUBLISHER;
+        
     if (flags & (YMLDB_FLAG_PUBLISHER | YMLDB_FLAG_SUBSCRIBER | YMLDB_FLAG_SUB_PUBLISHER))
         _distribution_init(cb, flags);
 
-    ytree_insert(g_ycb, cb->key, cb);
     return 0;
 }
 
@@ -2260,9 +2351,16 @@ static void _ymldb_destroy(void *data)
     if (cb->ydb)
     {
         struct ynode *ydb = cb->ydb;
-        if (ydb->parent)
-            ytree_delete(cb->ydb->parent->children, ydb->key);
+		_log_debug("cb->ydb->key %s cb->ydb->parent %p\n", ydb->key, ydb->parent);
+
+        if (ydb->parent && ydb->parent->children && ydb->type == YMLDB_BRANCH && ydb->key)
+		{
+            ytree_delete(ydb->parent->children, ydb->key);
+		}
+		_log_debug("ydb->parent->count %d\n", ytree_size(ydb->parent->children));
         _ymldb_node_free(ydb);
+		cb->ydb = NULL;
+        _log_debug("\n");
     }
     _distribution_deinit(cb);
 
@@ -2403,6 +2501,11 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
         cb->flags |= YMLDB_FLAG_PUBLISHER;
     else if (flags & YMLDB_FLAG_SUB_PUBLISHER)
         cb->flags |= YMLDB_FLAG_SUB_PUBLISHER;
+    else
+    {
+        _log_error("%s no flags\n", cb->key);
+        return -1;
+    }
 
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
@@ -2416,57 +2519,58 @@ static int _distribution_init(struct ymldb_cb *cb, int flags)
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, socketpath, sizeof(addr.sun_path) - 1);
     addr.sun_path[0] = 0;
+    
+    cb->fd_publisher = fd;
 
     if (flags & YMLDB_FLAG_PUBLISHER)
     { // PUBLISHER
         if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         {
-            // _log_error("bind failed (%s).\n", strerror(errno));
-            // if there is already binding publisher.
-            if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
-            {
-                _log_error("%s connect failed (%s).\n", cb->key, strerror(errno));
-                cb->flags |= YMLDB_FLAG_RECONNECT;
-                return -1;
-            }
-            cb->flags |= YMLDB_FLAG_SUB_PUBLISHER;
-            _log_debug("configured as a sub publisher\n");
-            goto _done;
-            // cb->flags |= YMLDB_FLAG_RECONNECT;
-            // return -1;
+            goto sub_pub;
         }
         if (listen(fd, YMLDB_SUBSCRIBER_MAX) < 0)
         {
             _log_error("%s listen failed (%s).\n", cb->key, strerror(errno));
-            cb->flags |= YMLDB_FLAG_RECONNECT;
-            return -1;
+            goto _error;
         }
     }
     else if (flags & YMLDB_FLAG_SUB_PUBLISHER)
     { // sub-publisher
+sub_pub:
         cb->flags |= YMLDB_FLAG_PUBLISHER;
+        cb->flags |= YMLDB_FLAG_SUB_PUBLISHER;
         if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
         {
             _log_error("%s connect failed (%s).\n", cb->key, strerror(errno));
-            cb->flags |= YMLDB_FLAG_RECONNECT;
-            return -1;
+            goto _error;
         }
+        _log_debug("configured as a sub-publisher\n");
+        // send what I am
+        ymldb_noop(cb->key);
     }
     else if (flags & YMLDB_FLAG_SUBSCRIBER)
     { // SUBSCRIBER
         if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
         {
             _log_error("%s connect failed (%s).\n", cb->key, strerror(errno));
-            cb->flags |= YMLDB_FLAG_RECONNECT;
-            return -1;
+            goto _error;
         }
+        // send what I am
+        ymldb_noop(cb->key);
+        if (!(cb->flags & YMLDB_FLAG_ASYNC))
+            ymldb_sync(cb->key);
     }
-_done:
-    cb->fd_publisher = fd;
+    
     if (g_fds)
         ytree_insert(g_fds, &cb->fd_publisher, cb);
     _log_debug("%s distribution - done (sock %d)\n", cb->key, fd);
     return fd;
+_error:
+    cb->fd_publisher = -1;
+    cb->flags |= YMLDB_FLAG_RECONNECT;
+    if(fd)
+     close(fd);
+    return -1;
 }
 
 static int _distribution_set(void *key, void *data, void *dummy)
@@ -2561,8 +2665,6 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
                     if (g_fds)
                         ytree_insert(g_fds, &cb->fd_subscriber[i], cb);
                     _log_debug("subscriber (subfd %d) added..\n", subfd);
-                    if (!(cb->flags & YMLDB_FLAG_ASYNC))
-                        ymldb_sync_ack(cb->key);
                     break;
                 }
             }
@@ -2875,6 +2977,12 @@ static int _distribution_send(struct ymldb_params *params)
             int i;
             for (i = 0; i < YMLDB_SUBSCRIBER_MAX; i++)
             {
+                if ((cb->flags & YMLDB_FLAG_NO_RELAY_TO_SUB_PUBLISHER) && 
+                    (cb->fd_flags[i] & YMLDB_FLAG_PUBLISHER))
+                {
+                    _log_debug("no_relay_to_sub_publisher configured (fd %d)\n", cb->fd_subscriber[i]);
+                    continue;
+                }
                 // doesn't relay message to cb->fd_requester
                 if (cb->fd_subscriber[i] >= 0 && cb->fd_requester != cb->fd_subscriber[i])
                 {
@@ -3477,8 +3585,6 @@ int ymldb_distribution_add(char *major_key, int subscriber_fd)
             cb->fd_subscriber[i] = subscriber_fd;
             cb->fd_flags[i] = 0;
             _log_debug("subscriber (fd %d) added..\n", subscriber_fd);
-            if (!(cb->flags & YMLDB_FLAG_ASYNC))
-                ymldb_sync_ack(cb->key);
             break;
         }
         if (i >= YMLDB_SUBSCRIBER_MAX)
