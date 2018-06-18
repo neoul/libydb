@@ -856,9 +856,12 @@ static void _ymldb_node_free(void *vdata)
             int deleted = ydb->callback->deleted ? 0 : 1;
             _callback_unreg(ydb, deleted);
         }
+
         if (ydb->type != YMLDB_BRANCH)
+        {
             if (ydb->value)
                 yfree(ydb->value);
+        }
         yfree(ydb->key);
         free(ydb);
     }
@@ -879,9 +882,12 @@ static void _ymldb_node_free_without_callback(void *vdata)
             ytree_destroy_custom(children, _ymldb_node_free_without_callback);
         }
         _callback_free(ydb->callback);
+
         if (ydb->type != YMLDB_BRANCH)
+        {
             if (ydb->value)
                 yfree(ydb->value);
+        }
         yfree(ydb->key);
         free(ydb);
     }
@@ -954,9 +960,7 @@ void _ymldb_node_merge_reply(struct ymldb_params *params, struct ynode *ydb)
 struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *parent,
                                 ymldb_type_t type, char *key, char *value)
 {
-    // struct ycallback *callback = NULL;
     struct ynode *ydb = NULL;
-    char *ykey = NULL;
     if (parent)
     {
         if (parent->type != YMLDB_BRANCH)
@@ -976,10 +980,16 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
             {
                 _log_debug("different type (%s %s-->%s)\n",
                            ydb->key, _ydb_type(ydb->type), _ydb_type(type));
-                if (ydb->type == YMLDB_BRANCH && ydb->children)
-                    ytree_destroy_custom(ydb->children, _ymldb_node_free);
-                else if (ydb->value)
-                    yfree(ydb->value);
+                if (ydb->type == YMLDB_BRANCH)
+                {
+                    if(ydb->children)
+                        ytree_destroy_custom(ydb->children, _ymldb_node_free);
+                }
+                else
+                {
+                    if (ydb->value)
+                        yfree(ydb->value);
+                }
 
                 ydb->type = type;
                 if (ydb->type == YMLDB_BRANCH)
@@ -1020,17 +1030,10 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
     if (!ydb)
         goto free_ydb;
     memset(ydb, 0, sizeof(struct ynode));
-
-    ykey = ystrdup(key);
-    if (!ykey)
-        goto free_ydb;
-
-    ydb->key = ykey;
     ydb->type = type;
-
-    // ydb->callback = callback;
-    // if (callback)
-    //     callback->ydb = ydb;
+    ydb->key = ystrdup(key);
+    if (!ydb->key)
+        goto free_ydb;
 
     if (type == YMLDB_BRANCH)
     {
@@ -1073,12 +1076,10 @@ free_ydb:
     _log_error("mem alloc failed for ymldb node.\n");
     if (ydb)
     {
-        // if (callback) {
-        //     _callback_free(callback);
-        // }
-        if (type == YMLDB_BRANCH && ydb->children)
+        if (type == YMLDB_BRANCH)
         {
-            ytree_destroy_custom(ydb->children, _ymldb_node_free);
+            if(ydb->children)
+                ytree_destroy_custom(ydb->children, _ymldb_node_free);
         }
         else
         {
@@ -1087,8 +1088,8 @@ free_ydb:
         }
     }
 
-    if (ykey)
-        yfree(ykey);
+    if (ydb->key)
+        yfree(ydb->key);
     if (ydb)
         free(ydb);
     return NULL;

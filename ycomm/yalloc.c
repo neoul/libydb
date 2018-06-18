@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 
 #include "ytrie.h"
 #include "ytree.h"
@@ -105,6 +108,7 @@ const char *ystrdup(char *src)
         if (!ykey->key)
         {
             free(ykey);
+            logging("[pid %d] ystrdup failed to strdup\n", getpid());
             return NULL;
         }
         ykey->ref = 1;
@@ -113,10 +117,11 @@ const char *ystrdup(char *src)
         {
             free(ykey->key);
             free(ykey);
+            logging("[pid %d] ystrdup failed to insert\n", getpid());
             return NULL;
         }
     }
-    logging("ystrdup ykey=%p key=%s (%p) ref=%d \n", ykey, ykey->key, ykey->key, ykey->ref);
+    logging("[pid %d] ystrdup ykey=%p key=%s (%p) ref=%d \n", getpid(), ykey, ykey->key, ykey->key, ykey->ref);
     return ykey->key;
 }
 
@@ -152,7 +157,7 @@ void yfree(void *src)
         if (ykey)
         {
             ykey->ref--;
-            logging("yfree ykey=%p key=%s (%p) ref=%d \n", ykey, ykey->key, ykey->key, ykey->ref);
+            logging("[pid %d] yfree ykey=%p key=%s (%p) ref=%d \n", getpid(), ykey, ykey->key, ykey->key, ykey->ref);
             if (ykey->ref <= 0)
             {
                 ytrie_delete(string_pool, ykey->key, srclen);
@@ -162,11 +167,11 @@ void yfree(void *src)
         }
         else
         {
-            logging("yfree search failed - key=%s\n", src);
+            logging("[pid %d] yfree search failed - key=%s (%p)\n", getpid(), src, src);
         }
         if (ytrie_size(string_pool) <= 0)
         {
-            logging("string pool destroyed\n");
+            logging("[pid %d] string pool destroyed\n", getpid());
             ytrie_destroy(string_pool);
             string_pool = NULL;
         }
@@ -174,7 +179,7 @@ void yfree(void *src)
     }
     else
     {
-        logging("yfree failed - no string pool\n");
+        logging("[pid %d] yfree failed - no string pool\n", getpid());
     }
 #ifndef MEM_POOL
     if(src)
