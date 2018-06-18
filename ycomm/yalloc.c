@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "ytrie.h"
 #include "ytree.h"
@@ -12,6 +13,25 @@ static unsigned int mem_count = 0;
 #endif
 static ytrie *string_pool = NULL;
 static char empty[4] = {0, 0, 0, 0};
+
+
+void logging (const char *format, ...)
+{
+  FILE *fp;
+  va_list args;
+  char buf[1024];
+
+  fp = fopen("/tmp/yalloc.log", "a");
+  if(fp == NULL) return;
+
+  va_start (args, format);
+  vsnprintf(buf, sizeof(buf), format, args);
+
+  fprintf (fp, "%s", buf);
+
+  fclose(fp);
+  va_end (args);
+}
 
 struct ystr_alloc
 {
@@ -58,17 +78,19 @@ const char *ystrdup(char *src)
 {
     int srclen;
     struct ystr_alloc *ykey;
+    if(src == NULL)
+        return NULL;
     if (!string_pool)
     {
         string_pool = ytrie_create();
         if (!string_pool)
             return NULL;
-    }
-    if (!src || src[0] == 0)
-    {
-        return empty;
+        logging("string pool created\n");
     }
     srclen = strlen(src);
+    if (srclen == 0)
+        return empty;
+    
     ykey = ytrie_search(string_pool, src, srclen);
     if (ykey)
     {
@@ -94,16 +116,17 @@ const char *ystrdup(char *src)
             return NULL;
         }
     }
-    // printf("ystrdup p=%p p->key=%p key=%s ref=%d \n", ykey, ykey->key, ykey->key, ykey->ref);
+    logging("ystrdup ykey=%p key=%s (%p) ref=%d \n", ykey, ykey->key, ykey->key, ykey->ref);
     return ykey->key;
 }
 
 void yfree(void *src)
 {
-    if (!src || src == empty)
-    {
+    if(!src)
         return;
-    }
+    if (src == empty)
+        return;
+
 #ifdef MEM_POOL
     if (mem_pool)
     {
@@ -129,24 +152,29 @@ void yfree(void *src)
         if (ykey)
         {
             ykey->ref--;
-            // printf("yfree p=%p p->key=%p key=%s ref=%d \n", ykey, ykey->key, ykey->key, ykey->ref);
+            logging("yfree ykey=%p key=%s (%p) ref=%d \n", ykey, ykey->key, ykey->key, ykey->ref);
             if (ykey->ref <= 0)
             {
                 ytrie_delete(string_pool, ykey->key, srclen);
                 free(ykey->key);
                 free(ykey);
             }
-            if (ytrie_size(string_pool) <= 0)
-            {
-                ytrie_destroy(string_pool);
-                string_pool = NULL;
-            }
-            return;
         }
         else
         {
-            printf("yfree failed for %p\n", src);
+            logging("yfree search failed - key=%s\n", src);
         }
+        if (ytrie_size(string_pool) <= 0)
+        {
+            logging("string pool destroyed\n");
+            ytrie_destroy(string_pool);
+            string_pool = NULL;
+        }
+        return;
+    }
+    else
+    {
+        logging("yfree failed - no string pool\n");
     }
 #ifndef MEM_POOL
     if(src)

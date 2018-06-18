@@ -1,500 +1,347 @@
-%TAG !merge! ymldb:op:merge
----
-key0:
-  identifier: 0
-...
-%TAG !merge! ymldb:op:merge
----
-key1:
-  identifier: 1
-...
-%TAG !merge! ymldb:op:merge
----
-key2:
-  identifier: 2
-...
-%TAG !merge! ymldb:op:merge
----
-key3:
-  identifier: 3
-...
-%TAG !merge! ymldb:op:merge
----
-key4:
-  identifier: 4
-...
-%TAG !merge! ymldb:op:merge
----
-key5:
-  identifier: 5
-...
-%TAG !merge! ymldb:op:merge
----
-key6:
-  identifier: 6
-...
-%TAG !merge! ymldb:op:merge
----
-key7:
-  identifier: 7
-...
-%TAG !merge! ymldb:op:merge
----
-key8:
-  identifier: 8
-...
-%TAG !merge! ymldb:op:merge
----
-key9:
-  identifier: 9
-...
-%TAG !merge! ymldb:op:merge
----
-key10:
-  identifier: 10
-...
-%TAG !merge! ymldb:op:merge
----
-key11:
-  identifier: 11
-...
-%TAG !merge! ymldb:op:merge
----
-key12:
-  identifier: 12
-...
-%TAG !merge! ymldb:op:merge
----
-key13:
-  identifier: 13
-...
-%TAG !merge! ymldb:op:merge
----
-key14:
-  identifier: 14
-...
-%TAG !merge! ymldb:op:merge
----
-key15:
-  identifier: 15
-...
-%TAG !merge! ymldb:op:merge
----
-key16:
-  identifier: 16
-...
-%TAG !merge! ymldb:op:merge
----
-key17:
-  identifier: 17
-...
-%TAG !merge! ymldb:op:merge
----
-key18:
-  identifier: 18
-...
-%TAG !merge! ymldb:op:merge
----
-key19:
-  identifier: 19
-...
-%TAG !merge! ymldb:op:merge
----
-key20:
-  identifier: 20
-...
-%TAG !merge! ymldb:op:merge
----
-key21:
-  identifier: 21
-...
-%TAG !merge! ymldb:op:merge
----
-key22:
-  identifier: 22
-...
-%TAG !merge! ymldb:op:merge
----
-key23:
-  identifier: 23
-...
-%TAG !merge! ymldb:op:merge
----
-key24:
-  identifier: 24
-...
-%TAG !merge! ymldb:op:merge
----
-key25:
-  identifier: 25
-...
-%TAG !merge! ymldb:op:merge
----
-key26:
-  identifier: 26
-...
-%TAG !merge! ymldb:op:merge
----
-key27:
-  identifier: 27
-...
-%TAG !merge! ymldb:op:merge
----
-key28:
-  identifier: 28
-...
-%TAG !merge! ymldb:op:merge
----
-key29:
-  identifier: 29
-...
-%TAG !merge! ymldb:op:merge
----
-key30:
-  identifier: 30
-...
-%TAG !merge! ymldb:op:merge
----
-key31:
-  identifier: 31
-...
-%TAG !merge! ymldb:op:merge
----
-key32:
-  identifier: 32
-...
-%TAG !merge! ymldb:op:merge
----
-key33:
-  identifier: 33
-...
-%TAG !merge! ymldb:op:merge
----
-key34:
-  identifier: 34
-...
-%TAG !merge! ymldb:op:merge
----
-key35:
-  identifier: 35
-...
-%TAG !merge! ymldb:op:merge
----
-key36:
-  identifier: 36
-...
-%TAG !merge! ymldb:op:merge
----
-key37:
-  identifier: 37
-...
-%TAG !merge! ymldb:op:merge
----
-key38:
-  identifier: 38
-...
-%TAG !merge! ymldb:op:merge
----
-key39:
-  identifier: 39
-...
-%TAG !merge! ymldb:op:merge
----
-key40:
-  identifier: 40
-...
-%TAG !merge! ymldb:op:merge
----
-key41:
-  identifier: 41
-...
-%TAG !merge! ymldb:op:merge
----
-key42:
-  identifier: 42
-...
-%TAG !merge! ymldb:op:merge
----
-key43:
-  identifier: 43
-...
-%TAG !merge! ymldb:op:merge
----
-key44:
-  identifier: 44
-...
-%TAG !merge! ymldb:op:merge
----
-key45:
-  identifier: 45
-...
-%TAG !merge! ymldb:op:merge
----
-key46:
-  identifier: 46
-...
-%TAG !merge! ymldb:op:merge
----
-key47:
-  identifier: 47
-...
-%TAG !merge! ymldb:op:merge
----
-key48:
-  identifier: 48
-...
-%TAG !merge! ymldb:op:merge
----
-key49:
-  identifier: 49
-...
-%TAG !merge! ymldb:op:merge
----
-key50:
-  identifier: 50
-...
-%TAG !merge! ymldb:op:merge
----
-key51:
-  identifier: 51
-...
-%TAG !merge! ymldb:op:merge
----
-key52:
-  identifier: 52
-...
-%TAG !merge! ymldb:op:merge
----
-key53:
-  identifier: 53
-...
-%TAG !merge! ymldb:op:merge
----
-key54:
-  identifier: 54
-...
-%TAG !merge! ymldb:op:merge
----
-key55:
-  identifier: 55
-...
-%TAG !merge! ymldb:op:merge
----
-key56:
-  identifier: 56
-...
-%TAG !merge! ymldb:op:merge
----
-key57:
-  identifier: 57
-...
-%TAG !merge! ymldb:op:merge
----
-key58:
-  identifier: 58
-...
-%TAG !merge! ymldb:op:merge
----
-key59:
-  identifier: 59
-...
-%TAG !merge! ymldb:op:merge
----
-key60:
-  identifier: 60
-...
-%TAG !merge! ymldb:op:merge
----
-key61:
-  identifier: 61
-...
-%TAG !merge! ymldb:op:merge
----
-key62:
-  identifier: 62
-...
-%TAG !merge! ymldb:op:merge
----
-key63:
-  identifier: 63
-...
-%TAG !merge! ymldb:op:merge
----
-key64:
-  identifier: 64
-...
-%TAG !merge! ymldb:op:merge
----
-key65:
-  identifier: 65
-...
-%TAG !merge! ymldb:op:merge
----
-key66:
-  identifier: 66
-...
-%TAG !merge! ymldb:op:merge
----
-key67:
-  identifier: 67
-...
-%TAG !merge! ymldb:op:merge
----
-key68:
-  identifier: 68
-...
-%TAG !merge! ymldb:op:merge
----
-key69:
-  identifier: 69
-...
-%TAG !merge! ymldb:op:merge
----
-key70:
-  identifier: 70
-...
-%TAG !merge! ymldb:op:merge
----
-key71:
-  identifier: 71
-...
-%TAG !merge! ymldb:op:merge
----
-key72:
-  identifier: 72
-...
-%TAG !merge! ymldb:op:merge
----
-key73:
-  identifier: 73
-...
-%TAG !merge! ymldb:op:merge
----
-key74:
-  identifier: 74
-...
-%TAG !merge! ymldb:op:merge
----
-key75:
-  identifier: 75
-...
-%TAG !merge! ymldb:op:merge
----
-key76:
-  identifier: 76
-...
-%TAG !merge! ymldb:op:merge
----
-key77:
-  identifier: 77
-...
-%TAG !merge! ymldb:op:merge
----
-key78:
-  identifier: 78
-...
-%TAG !merge! ymldb:op:merge
----
-key79:
-  identifier: 79
-...
-%TAG !merge! ymldb:op:merge
----
-key80:
-  identifier: 80
-...
-%TAG !merge! ymldb:op:merge
----
-key81:
-  identifier: 81
-...
-%TAG !merge! ymldb:op:merge
----
-key82:
-  identifier: 82
-...
-%TAG !merge! ymldb:op:merge
----
-key83:
-  identifier: 83
-...
-%TAG !merge! ymldb:op:merge
----
-key84:
-  identifier: 84
-...
-%TAG !merge! ymldb:op:merge
----
-key85:
-  identifier: 85
-...
-%TAG !merge! ymldb:op:merge
----
-key86:
-  identifier: 86
-...
-%TAG !merge! ymldb:op:merge
----
-key87:
-  identifier: 87
-...
-%TAG !merge! ymldb:op:merge
----
-key88:
-  identifier: 88
-...
-%TAG !merge! ymldb:op:merge
----
-key89:
-  identifier: 89
-...
-%TAG !merge! ymldb:op:merge
----
-key90:
-  identifier: 90
-...
-%TAG !merge! ymldb:op:merge
----
-key91:
-  identifier: 91
-...
-%TAG !merge! ymldb:op:merge
----
-key92:
-  identifier: 92
-...
-%TAG !merge! ymldb:op:merge
----
-key93:
-  identifier: 93
-...
-%TAG !merge! ymldb:op:merge
----
-key94:
-  identifier: 94
-...
-%TAG !merge! ymldb:op:merge
----
-key95:
-  identifier: 95
-...
-%TAG !merge! ymldb:op:merge
----
-key96:
-  identifier: 96
-...
-%TAG !merge! ymldb:op:merge
----
-key97:
-  identifier: 97
-...
-%TAG !merge! ymldb:op:merge
----
-key98:
-  identifier: 98
-...
-%TAG !merge! ymldb:op:merge
----
-key99:
-  identifier: 99
+
+%TAG !merge! ymldb:op:merge
+---
+interface:
+  Vlan1:
+    description:
+    enabled: true
+    link-up-down-trap-enable: disabled
+    name: Vlan1
+    type: l2vlan
+  Vlan4094:
+    description:
+    enabled: true
+    ipv4:
+      address:
+        10.10.10.100:
+          prefix-length: 24
+          secondary: false
+    link-up-down-trap-enable: disabled
+    name: Vlan4094
+    type: l2vlan
+  ge1:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge1
+    type: ethernetCsmacd
+  ge10:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge10
+    type: ethernetCsmacd
+  ge11:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge11
+    type: ethernetCsmacd
+  ge12:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge12
+    type: ethernetCsmacd
+  ge13:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge13
+    type: ethernetCsmacd
+  ge14:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge14
+    type: ethernetCsmacd
+  ge15:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge15
+    type: ethernetCsmacd
+  ge16:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge16
+    type: ethernetCsmacd
+  ge17:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge17
+    type: ethernetCsmacd
+  ge18:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge18
+    type: ethernetCsmacd
+  ge19:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge19
+    type: ethernetCsmacd
+  ge2:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge2
+    type: ethernetCsmacd
+  ge20:
+    description:
+    enabled: false
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge20
+    type: ethernetCsmacd
+  ge21:
+    description:
+    enabled: false
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge21
+    type: ethernetCsmacd
+  ge22:
+    description:
+    enabled: false
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge22
+    type: ethernetCsmacd
+  ge23:
+    description:
+    enabled: false
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge23
+    type: ethernetCsmacd
+  ge24:
+    description:
+    enabled: false
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge24
+    type: ethernetCsmacd
+  ge3:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge3
+    type: ethernetCsmacd
+  ge4:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge4
+    type: ethernetCsmacd
+  ge5:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge5
+    type: ethernetCsmacd
+  ge6:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge6
+    type: ethernetCsmacd
+  ge7:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge7
+    type: ethernetCsmacd
+  ge8:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge8
+    type: ethernetCsmacd
+  ge9:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge9
+    type: ethernetCsmacd
+  loopback0:
+    description:
+    enabled: true
+    link-up-down-trap-enable: disabled
+    name: loopback0
+    type: softwareLoopback
+  mgmt:
+    description:
+    enabled: true
+    ipv4:
+      address:
+        192.168.77.10:
+          prefix-length: 16
+          secondary: false
+    link-up-down-trap-enable: disabled
+    name: mgmt
+    type: mgmt
+  xe1:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: false
+      duplex: full
+      speed: 10.000
+    link-up-down-trap-enable: disabled
+    name: xe1
+    type: ethernetCsmacd
+  xe2:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: false
+      duplex: full
+      speed: 10.000
+    link-up-down-trap-enable: disabled
+    name: xe2
+    type: ethernetCsmacd
+  xe3:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: auto
+      speed: 0.000
+    link-up-down-trap-enable: disabled
+    name: xe3
+    type: ethernetCsmacd
+  xe4:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: false
+      duplex: full
+      speed: 10.000
+    link-up-down-trap-enable: disabled
+    name: xe4
+    type: ethernetCsmacd
 ...

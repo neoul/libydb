@@ -63,7 +63,7 @@ int ymldb_log_set(int log_level, char *log_file);
 // unix socket pathname
 #define YMLDB_UNIXSOCK_PATH "@ymldb:%s"
 
-#define YMLDB_STREAM_THRESHOLD 2560
+#define YMLDB_STREAM_THRESHOLD 2048
 #define YMLDB_STREAM_BUF_SIZE (YMLDB_STREAM_THRESHOLD + 256)
 
 // create or delete ymldb

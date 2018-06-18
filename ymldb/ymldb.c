@@ -747,6 +747,7 @@ struct ystream *_ystream_open_to_write(int buflen)
                 free(ystream);
                 return NULL;
             }
+            // memset(ystream->buf, 0x0, buflen);
             ystream->buf[0] = 0;
             ystream->len = 0;
             ystream->maxlen = buflen;
@@ -2614,34 +2615,13 @@ static int _distribution_set(void *key, void *data, void *dummy)
     return 0;
 }
 
-static int _strfind_backward(char *src, ssize_t slen, char *searchstr)
-{
-    int searchstrlen = strlen(searchstr);
-    int i = slen;
-    int j = searchstrlen - 1;
-    if (searchstrlen <= 0 || slen <= 0)
-        return -1;
-    for (; i >= 0; i--)
-    {
-        if (src[i] == searchstr[j])
-        {
-            j--;
-        }
-        else
-        {
-            j = searchstrlen - 1;
-        }
-        if (j < 0)
-            break;
-    }
-    return i;
-}
-
 static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
 {
     int res = 0;
     int len = 0;
-    struct ystream *input = NULL;
+    int buflen = 0;
+    char buf[YMLDB_STREAM_BUF_SIZE+1];
+    buf[YMLDB_STREAM_BUF_SIZE] = 0;
     cb->fd_requester = fd;
     if (cb->flags & YMLDB_FLAG_PUBLISHER && !(cb->flags & YMLDB_FLAG_SUB_PUBLISHER))
     {
@@ -2679,17 +2659,9 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
             goto _done;
         }
     }
-    input = _ystream_open_to_write(YMLDB_STREAM_BUF_SIZE);
-    if (!input)
-    {
-        _log_error("fail to open ymldb stream\n");
-        cb->flags |= YMLDB_FLAG_RECONNECT;
-        res = -1;
-        goto _done;
-    }
 read_message:
-    len = read(fd, input->buf + input->len, YMLDB_STREAM_BUF_SIZE - input->len);
-    input->len += len;
+    len = read(fd, buf + buflen, YMLDB_STREAM_BUF_SIZE - buflen);
+    buflen += len;
     if (len <= 0)
     {
         if (len < 0)
@@ -2717,40 +2689,46 @@ read_message:
             }
         }
         res = -1;
-        _ystream_free(input);
         goto _done;
     }
-    input->buf[input->len] = 0;
-    if (input->len > YMLDB_STREAM_THRESHOLD)
+    
+    if (buflen > YMLDB_STREAM_THRESHOLD)
     {
-        len = input->len;
-        int end_of_doc = _strfind_backward(input->buf, input->len, "...");
-        if (end_of_doc >= 0)
+        char *pos = strstr(buf, "...\n");
+        if (pos)
         {
-            input->len = end_of_doc + 3;
-            input->buf[input->len] = 0;
-            _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
-            _ystream_reopen_to_read(input);
-            _ymldb_run(cb, input->stream, outstream);
-
-            strcpy(input->buf, &input->buf[end_of_doc + 4]);
-            input->len = len - (end_of_doc + 4);
-            _log_debug("len=%zd strlen=%zd\n", input->len, strlen(input->buf));
+            FILE *instream;
+            len = (pos - buf) + 4;
+            buf[len] = 0;
+            instream = fmemopen(buf, len, "r");
+            _log_debug("@@ len=%ld buf=\n%s\n", (pos - buf), buf);
+            if(instream)
+            {
+                _ymldb_run(cb, instream, outstream);
+                fclose(instream);
+            }
+            len++;
+            memcpy(buf, buf + len, buflen - len);
+            buflen = buflen - len;
+            _log_debug("remained len=%d\n", buflen);
             goto read_message;
         }
         else
         {
-            _log_debug("oversize message");
-            // oversize message will be dropped.
-            _ystream_free(input);
+            _log_debug("oversize message is ignored.\n");
         }
     }
     else
     {
-        _log_debug("len=%zd buf=\n%s\n", input->len, input->buf);
-        _ystream_reopen_to_read(input);
-        _ymldb_run(cb, input->stream, outstream);
-        _ystream_free(input);
+        FILE *instream;
+        buf[buflen] = 0;
+        instream = fmemopen(buf, buflen, "r");
+        // _log_debug("@@ len=%d buf=\n%s\n", buflen, buf);
+        if(instream)
+        {
+            _ymldb_run(cb, instream, outstream);
+            fclose(instream);
+        }
     }
     res = 0;
 _done:
