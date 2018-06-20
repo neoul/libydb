@@ -15,14 +15,6 @@ Publisher (Data owner) and Subscriber fashion.
 
 # Required libraries
 
-## CPROPS (c prototyping tools)
-
-### Website
-http://cprops.sourceforge.net/
-
-### Download
-https://svwh.dl.sourceforge.net/project/cprops/cprops/cprops-0.1.12/libcprops-0.1.12.tar.gz
-
 ## YAML
 
 ### Website
