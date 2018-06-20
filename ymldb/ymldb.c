@@ -1123,8 +1123,7 @@ void _ymldb_node_delete(struct ymldb_params *params, struct ynode *parent, char 
     }
     else
     {
-        _log_error("'%s' doesn't exists\n", key);
-        params->res--;
+        _log_debug("'%s' doesn't exists\n", key);
         return;
     }
 
@@ -2692,45 +2691,58 @@ read_message:
         res = -1;
         goto _done;
     }
-    
-    if (buflen > YMLDB_STREAM_THRESHOLD)
+
+    len = 0;
+    while(buflen > 0)
     {
-        char *pos = strstr(buf, "...\n");
+        char *cur = &buf[len];
+        char *pos = strstr(cur, "...\n");
         if (pos)
         {
             FILE *instream;
-            len = (pos - buf) + 4;
-            buf[len] = 0;
-            instream = fmemopen(buf, len, "r");
-            _log_debug("@@ len=%ld buf=\n%s\n", (pos - buf), buf);
+            len = (pos - cur) + 4;
+            cur[len] = 0;
+            instream = fmemopen(cur, len, "r");
+            _log_debug("@@ len=%ld buf=\n%s\n", (pos - cur), cur);
             if(instream)
             {
                 _ymldb_run(cb, instream, outstream);
                 fclose(instream);
             }
             len++;
-            memcpy(buf, buf + len, buflen - len);
             buflen = buflen - len;
             _log_debug("remained len=%d\n", buflen);
-            goto read_message;
         }
         else
         {
-            _log_debug("oversize message is ignored.\n");
+            fd_set set;
+            struct timeval tv;
+            if (buflen >= YMLDB_STREAM_BUF_SIZE)
+            {
+                _log_error("drop jumbo message larger than rx buffer (%d).\n", buflen);
+                res = -1;
+                goto _done;
+            }
+            _log_debug("receive more...(buflen=%d)\n", buflen);
+            memcpy(buf, cur, buflen);
+           
+            FD_ZERO(&set);
+            FD_SET(fd, &set);
+            tv.tv_sec = 3;
+            tv.tv_usec = 0;
+            
+            res = select(fd + 1, &set, NULL, NULL, &tv);
+            if (res <= 0)
+            {
+                _log_error("messaging failed (%s)\n", strerror(errno));
+                cb->flags |= YMLDB_FLAG_RECONNECT;
+                res = -1;
+                goto _done;
+            }
+            goto read_message;
         }
     }
-    else
-    {
-        FILE *instream;
-        buf[buflen] = 0;
-        instream = fmemopen(buf, buflen, "r");
-        // _log_debug("@@ len=%d buf=\n%s\n", buflen, buf);
-        if(instream)
-        {
-            _ymldb_run(cb, instream, outstream);
-            fclose(instream);
-        }
-    }
+    _log_debug("recv is done.\n");
     res = 0;
 _done:
     cb->fd_requester = 0;
@@ -2854,7 +2866,7 @@ static int _sync_wait(struct ymldb_cb *cb, FILE *outstream)
 
         if (is_insync)
         {
-            if (diff < 1.0)
+            if (diff < 1000000.0)
             {
                 _log_debug("sync-wait again\n");
                 goto _recv;
