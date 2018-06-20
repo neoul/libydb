@@ -369,10 +369,11 @@ art_leaf* art_maximum(art_tree *t) {
 }
 
 static art_leaf* make_leaf(const unsigned char *key, int key_len, void *value) {
-    art_leaf *l = (art_leaf*)calloc(1, sizeof(art_leaf)+key_len);
+    art_leaf *l = (art_leaf*)calloc(1, sizeof(art_leaf)+key_len+1); // [neoul@actus] fixed search failure
     l->value = value;
     l->key_len = key_len;
     memcpy(l->key, key, key_len);
+    l->key[key_len]=0; // [neoul@actus] fixed search failure caused by out of range comparison.
     return l;
 }
 

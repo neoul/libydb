@@ -5,7 +5,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-
+#ifdef YALLOC_DEBUG
+#include "ylog.h"
+#endif
 #include "ytrie.h"
 #include "ytree.h"
 
@@ -15,32 +17,13 @@ static ytree mem_pool = NULL;
 static unsigned int mem_count = 0;
 #endif
 static ytrie *string_pool = NULL;
-static char empty[4] = {0, 0, 0, 0};
-
-
-void logging (const char *format, ...)
-{
-  FILE *fp;
-  va_list args;
-  char buf[1024];
-
-  fp = fopen("/tmp/yalloc.log", "a");
-  if(fp == NULL) return;
-
-  va_start (args, format);
-  vsnprintf(buf, sizeof(buf), format, args);
-
-  fprintf (fp, "%s", buf);
-
-  fclose(fp);
-  va_end (args);
-}
-
 struct ystr_alloc
 {
     char *key; // ymldb key
     int ref;   // reference count;
 };
+static char emptystr[4] = {0, 0, 0, 0};
+static struct ystr_alloc empty = { .key = emptystr, .ref = 0};
 
 void *yalloc(size_t s)
 {
@@ -82,17 +65,32 @@ const char *ystrdup(char *src)
     int srclen;
     struct ystr_alloc *ykey;
     if(src == NULL)
-        return NULL;
+    {
+        empty.ref++;
+#ifdef YALLOC_DEBUG
+        ylogging("[pid %d] ystrdup src=NULL, return empty.key %p\n", getpid(), empty.key);
+#endif
+        return empty.key;
+    }
+    srclen = strlen(src);
+    if (srclen <= 0)
+    {
+        empty.ref++;
+#ifdef YALLOC_DEBUG
+        ylogging("[pid %d] ystrdup srclen<= 0, return empty.key %p\n", getpid(), empty.key);
+#endif
+        return empty.key;
+    }
+
     if (!string_pool)
     {
         string_pool = ytrie_create();
         if (!string_pool)
             return NULL;
-        logging("string pool created\n");
+#ifdef YALLOC_DEBUG
+        ylogging("string pool created\n");
+#endif
     }
-    srclen = strlen(src);
-    if (srclen == 0)
-        return empty;
     
     ykey = ytrie_search(string_pool, src, srclen);
     if (ykey)
@@ -108,29 +106,47 @@ const char *ystrdup(char *src)
         if (!ykey->key)
         {
             free(ykey);
-            logging("[pid %d] ystrdup failed to strdup\n", getpid());
+#ifdef YALLOC_DEBUG
+            ylogging("[pid %d] ystrdup failed to strdup\n", getpid());
+#endif
             return NULL;
         }
         ykey->ref = 1;
-        void *res = ytrie_insert(string_pool, ykey->key, srclen, ykey);
+        void *res = ytrie_insert(string_pool, ykey->key, strlen(ykey->key), ykey);
         if (res != NULL)
         {
             free(ykey->key);
             free(ykey);
-            logging("[pid %d] ystrdup failed to insert\n", getpid());
+#ifdef YALLOC_DEBUG
+            ylogging("[pid %d] ystrdup failed to insert\n", getpid());
+#endif
             return NULL;
         }
     }
-    logging("[pid %d] ystrdup ykey=%p key=%s (%p) ref=%d \n", getpid(), ykey, ykey->key, ykey->key, ykey->ref);
+#ifdef YALLOC_DEBUG
+    ylogging("[pid %d] ystrdup ykey=%p key=%s (%p) ref=%d \n", getpid(), ykey, ykey->key, ykey->key, ykey->ref);
+#endif
     return ykey->key;
 }
 
 void yfree(void *src)
 {
     if(!src)
+    {
+        empty.ref--;
+#ifdef YALLOC_DEBUG
+        ylogging("[pid %d] yfree src=NULL, return empty.key %p\n", getpid(), empty.key);
+#endif
         return;
-    if (src == empty)
+    }
+    if (src == empty.key)
+    {
+        empty.ref--;
+#ifdef YALLOC_DEBUG
+        ylogging("[pid %d] yfree src=empty.key, return empty.key %p\n", getpid(), empty.key);
+#endif
         return;
+    }
 
 #ifdef MEM_POOL
     if (mem_pool)
@@ -157,7 +173,9 @@ void yfree(void *src)
         if (ykey)
         {
             ykey->ref--;
-            logging("[pid %d] yfree ykey=%p key=%s (%p) ref=%d \n", getpid(), ykey, ykey->key, ykey->key, ykey->ref);
+#ifdef YALLOC_DEBUG
+            ylogging("[pid %d] yfree ykey=%p key=%s (%p) ref=%d \n", getpid(), ykey, ykey->key, ykey->key, ykey->ref);
+#endif
             if (ykey->ref <= 0)
             {
                 ytrie_delete(string_pool, ykey->key, srclen);
@@ -167,11 +185,16 @@ void yfree(void *src)
         }
         else
         {
-            logging("[pid %d] yfree search failed - key=%s (%p)\n", getpid(), src, src);
+#ifdef YALLOC_DEBUG
+            ylogging("[pid %d] yfree search failed - key=%s (%p)\n", getpid(), src, src);
+#endif
         }
+        
         if (ytrie_size(string_pool) <= 0)
         {
-            logging("[pid %d] string pool destroyed\n", getpid());
+#ifdef YALLOC_DEBUG
+            ylogging("[pid %d] string pool destroyed\n", getpid());
+#endif
             ytrie_destroy(string_pool);
             string_pool = NULL;
         }
@@ -179,7 +202,9 @@ void yfree(void *src)
     }
     else
     {
-        logging("[pid %d] yfree failed - no string pool\n", getpid());
+#ifdef YALLOC_DEBUG
+        ylogging("[pid %d] yfree failed - no string pool\n", getpid());
+#endif
     }
 #ifndef MEM_POOL
     if(src)

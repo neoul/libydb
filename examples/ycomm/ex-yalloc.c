@@ -17,25 +17,35 @@ char *example[] = {
 };
 
 
-int main(void) {
-	int count;
+int main(int argc, char *argv[])
+{
+	char buf[512];
+	char *key, *line;
+	FILE *fp = fopen(argv[1], "r");
+	if(!fp)
+	{
+		printf("[EXIT] no argument\n");
+		return -1;
+	}
 	ylist *list = ylist_create();
 
-	for (count=0; count < (sizeof(example)/sizeof(char *)) ; count++)
+	while((line = fgets(buf, 512, fp)) != NULL)
 	{
-		char *key = ystrdup(example[count]);
+		char *newline = strchr(line, '\n');
+		if(newline)
+			*newline=0;
+		key = ystrdup(line);
 		ylist_push_back(list, key);
 	}
-	
-	ystrprint();
 
-	char *key = ylist_pop_front(list);
+	key = ylist_pop_front(list);
 	while(key)
 	{
 		yfree(key);
 		key = ylist_pop_front(list);
 	}
+	
 	ylist_destroy(list);
-	yalloc_destroy();
+	// yalloc_destroy();
 	return 0;
 }

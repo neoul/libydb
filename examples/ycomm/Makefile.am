@@ -23,3 +23,5 @@ ex_yalloc_CPPFLAGS = -I $(top_srcdir)/ycomm
 ex_yalloc_LDFLAGS = -L$(top_srcdir)/ycomm/.libs \
                   -lycomm -lyaml
 ex_yalloc_CFLAGS = -g -Wall
+
+# dist_pkgdata_DATA = ytrie-input.txt
