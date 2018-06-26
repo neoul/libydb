@@ -2619,6 +2619,7 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
 {
     int res = 0;
     int len = 0;
+    int retry = 3;
     int buflen = 0;
     char buf[YMLDB_STREAM_BUF_SIZE+1];
     buf[YMLDB_STREAM_BUF_SIZE] = 0;
@@ -2660,12 +2661,27 @@ static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
         }
     }
 read_message:
-    len = read(fd, buf + buflen, YMLDB_STREAM_BUF_SIZE - buflen);
+    if(retry <= 0)
+    {
+        _log_error("fd %d recv failed - retry %d\n", fd, retry);
+        res = 0;
+        goto _done;
+    }
+    // len = read(fd, buf + buflen, YMLDB_STREAM_BUF_SIZE - buflen);
+    len = recv(fd, buf + buflen, YMLDB_STREAM_BUF_SIZE - buflen, MSG_DONTWAIT);
     buflen += len;
     if (len <= 0)
     {
         if (len < 0)
+        {
             _log_error("fd %d read failed (%s)\n", fd, strerror(errno));
+        }
+        else if(errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            retry--;
+            usleep(10);
+            goto read_message;
+        }
         else // (len == 0)
             _log_error("fd %d closed (EOF)\n", fd);
 
@@ -2696,14 +2712,14 @@ read_message:
     while(buflen > 0)
     {
         char *cur = &buf[len];
-        char *pos = strstr(cur, "...\n");
-        if (pos)
+        char *end = strstr(cur, "...\n");
+        if (end)
         {
             FILE *instream;
-            len = (pos - cur) + 4;
+            len = (end - cur) + 4;
             cur[len] = 0;
             instream = fmemopen(cur, len, "r");
-            _log_debug("@@ len=%ld buf=\n%s\n", (pos - cur), cur);
+            _log_debug("@@ len=%ld buf=\n%s\n", (end - cur), cur);
             if(instream)
             {
                 _ymldb_run(cb, instream, outstream);
@@ -2715,30 +2731,15 @@ read_message:
         }
         else
         {
-            fd_set set;
-            struct timeval tv;
             if (buflen >= YMLDB_STREAM_BUF_SIZE)
             {
                 _log_error("drop jumbo message larger than rx buffer (%d).\n", buflen);
-                res = -1;
+                res = 0;
                 goto _done;
             }
             _log_debug("receive more...(buflen=%d)\n", buflen);
             memcpy(buf, cur, buflen);
-           
-            FD_ZERO(&set);
-            FD_SET(fd, &set);
-            tv.tv_sec = 3;
-            tv.tv_usec = 0;
-            
-            res = select(fd + 1, &set, NULL, NULL, &tv);
-            if (res <= 0)
-            {
-                _log_error("messaging failed (%s)\n", strerror(errno));
-                cb->flags |= YMLDB_FLAG_RECONNECT;
-                res = -1;
-                goto _done;
-            }
+            usleep(10); // for context switching
             goto read_message;
         }
     }
