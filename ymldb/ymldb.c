@@ -679,7 +679,7 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
 
 void _ymldb_fprintf_head(FILE *stream, unsigned int opcode, unsigned int sequence)
 {
-    sbuf_write(sbuf, "# @@\n");
+    fprintf(stream, "# @@\n");
     fprintf(stream, "# %u\n", sequence);
 
     // %TAG !merge! actusnetworks.com:op:
