@@ -2719,21 +2719,22 @@ read_message:
     while(buflen > 0)
     {
 		char *start = strstr(cur, "# @@\n");
-		if(start && start < cur + buflen) {
+		if(start) {
 			// roll forward
+            _log_debug("skip string in front of the start delimiter (len %ld)\n", (start - cur));
 			len = (start - cur);
 			cur = cur + len;
 			buflen = buflen - len;
 		}
 		
 		char *end = strstr(cur, "...\n");
-        if (start && end && end < cur+buflen)
+        if (start && end)
         {
             FILE *instream;
             len = (end - cur) + 4;
             cur[len] = 0;
             instream = fmemopen(cur, len, "r");
-            _log_debug("@@ len=%ld buf=\n----------\n%s\n---------\n", len+1, cur);
+            _log_debug("@@ len=%d buf=\n----------\n%s\n---------\n", (len+1), cur);
             if(instream)
             {
                 _ymldb_run(cb, instream, outstream);
@@ -2744,17 +2745,24 @@ read_message:
             buflen = buflen - len;
             _log_debug("remained len=%d\n", buflen);
         }
+        else if(!start)
+        {
+            len = 0;
+            cur = &buf[len];
+            buflen = 0;
+            _log_debug("discard buf due to no start delimiter (buflen %d)\n", buflen);
+        }
         else
         {
             if (buflen >= YMLDB_STREAM_BUF_SIZE)
             {
-                _log_error("drop jumbo message larger than rx buffer (%d).\n", buflen);
+                _log_error("discard jumbo message larger than rx buffer (buflen %d).\n", buflen);
                 res = 0;
                 goto _done;
             }
             memcpy(buf, cur, buflen);
 			buf[buflen] = 0;
-            _log_debug("receive more...(buflen=%d)\n", buflen);
+            _log_debug("receive more...(current buflen=%d)\n", buflen);
             _log_debug("remained buf...\n--------------------\n%s\n----------------------\n", buf);
             usleep(1); // for context switching
             goto read_message;
