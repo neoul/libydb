@@ -140,6 +140,7 @@ void sbuf_clean(struct sbuf *sbuf)
 
 void sbuf_printf_head(struct sbuf *sbuf, unsigned int opcode, unsigned int sequence)
 {
+    sbuf_write(sbuf, "# @@\n");
     sbuf_write(sbuf, "# %u\n", sequence);
 
     // %TAG !merge! actusnetworks.com:op:
@@ -678,6 +679,7 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
 
 void _ymldb_fprintf_head(FILE *stream, unsigned int opcode, unsigned int sequence)
 {
+    sbuf_write(sbuf, "# @@\n");
     fprintf(stream, "# %u\n", sequence);
 
     // %TAG !merge! actusnetworks.com:op:
@@ -2617,9 +2619,10 @@ static int _distribution_set(void *key, void *data, void *dummy)
 
 static int _distribution_recv(struct ymldb_cb *cb, FILE *outstream, int fd)
 {
-    int res = 0;
+	char *cur; 
+	int res = 0;
     int len = 0;
-    int retry = 3;
+    int retry = 10;
     int buflen = 0;
     char buf[YMLDB_STREAM_BUF_SIZE+1];
     buf[YMLDB_STREAM_BUF_SIZE] = 0;
@@ -2669,18 +2672,18 @@ read_message:
     }
     // len = read(fd, buf + buflen, YMLDB_STREAM_BUF_SIZE - buflen);
     len = recv(fd, buf + buflen, YMLDB_STREAM_BUF_SIZE - buflen, MSG_DONTWAIT);
-    buflen += len;
     if (len <= 0)
     {
-        if (len < 0)
-        {
-            _log_error("fd %d read failed (%s)\n", fd, strerror(errno));
-        }
-        else if(errno == EAGAIN || errno == EWOULDBLOCK)
+        if(errno == EAGAIN || errno == EWOULDBLOCK)
         {
             retry--;
-            usleep(10);
+            usleep(1);
+			_log_debug("retry .. remained %d\n", retry);
             goto read_message;
+        }
+		else if (len < 0)
+        {
+            _log_error("fd %d read failed (%s)\n", fd, strerror(errno));
         }
         else // (len == 0)
             _log_error("fd %d closed (EOF)\n", fd);
@@ -2707,25 +2710,37 @@ read_message:
         res = -1;
         goto _done;
     }
-
+    buflen += len;
+	buf[buflen] = 0;
+	
+	_log_debug("recv() buflen %d\n", buflen);
     len = 0;
+	cur = &buf[len];
     while(buflen > 0)
     {
-        char *cur = &buf[len];
-        char *end = strstr(cur, "...\n");
-        if (end)
+		char *start = strstr(cur, "# @@\n");
+		if(start && start < cur + buflen) {
+			// roll forward
+			len = (start - cur);
+			cur = cur + len;
+			buflen = buflen - len;
+		}
+		
+		char *end = strstr(cur, "...\n");
+        if (start && end && end < cur+buflen)
         {
             FILE *instream;
             len = (end - cur) + 4;
             cur[len] = 0;
             instream = fmemopen(cur, len, "r");
-            _log_debug("@@ len=%ld buf=\n%s\n", (end - cur), cur);
+            _log_debug("@@ len=%ld buf=\n----------\n%s\n---------\n", len+1, cur);
             if(instream)
             {
                 _ymldb_run(cb, instream, outstream);
                 fclose(instream);
             }
             len++;
+			cur = cur + len;
             buflen = buflen - len;
             _log_debug("remained len=%d\n", buflen);
         }
@@ -2737,9 +2752,11 @@ read_message:
                 res = 0;
                 goto _done;
             }
-            _log_debug("receive more...(buflen=%d)\n", buflen);
             memcpy(buf, cur, buflen);
-            usleep(10); // for context switching
+			buf[buflen] = 0;
+            _log_debug("receive more...(buflen=%d)\n", buflen);
+            _log_debug("remained buf...\n--------------------\n%s\n----------------------\n", buf);
+            usleep(1); // for context switching
             goto read_message;
         }
     }
