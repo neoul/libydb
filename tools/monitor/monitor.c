@@ -23,6 +23,7 @@ void signal_handler_INT(int param)
 int main(int argc, char *argv[])
 {
     int k;
+	int no_record = 0;
 
     // MUST ignore SIGPIPE.
     signal(SIGPIPE, SIG_IGN);
@@ -39,16 +40,25 @@ int main(int argc, char *argv[])
     {
         if (strcmp(argv[k], "-h") == 0
                 || strcmp(argv[k], "--help") == 0) {
-			printf("\n%s key1 key2 ...\n\n"
-					"\tkey: YMLDB key to monitor\n\n",
+			printf("\n%s -n key1 key2 ...\n"
+				   "\t-n: no-record\n"
+				   "\tkey: YMLDB key to monitor\n\n",
 					argv[0]);
 			return 0;
 		}
-		ymldb_create(argv[k], YMLDB_FLAG_SUBSCRIBER);
+
+		if(strcmp(argv[k], "-n") == 0)
+		{
+			no_record = 1;
+			continue;
+		}
+		ymldb_create(argv[k], (YMLDB_FLAG_SUBSCRIBER | ((no_record)?YMLDB_FLAG_NO_RECORD:0x0)));
+		no_record = 0;
 	}
 	if(k == 1)
 	{
-		printf("\n%s key1 key2 ...\n\n"
+		printf("\n%s -n key1 key2 ...\n"
+				"\t-n: no-record\n"
 				"\tkey: YMLDB key to monitor\n\n",
 				argv[0]);
 		return 0;
