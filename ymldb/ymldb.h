@@ -228,4 +228,8 @@ int ymldb_file_pull(char *filename, char *format, ...);
 // print all ymldb to the stream if NULL.
 void ymldb_dump(FILE *outstream, char *major_key);
 
+
+// dump ymldb input and output stream
+extern FILE *instream_mointor;
+extern FILE *outstream_monitor;
 #endif

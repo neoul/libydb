@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     signal(SIGINT, signal_handler_INT);
 	
 	// set ymldb log
-	// ymldb_log_set(YMLDB_LOG_LOG, "/tmp/ymldb-monitor.log");
+	ymldb_log_set(YMLDB_LOG_LOG, "/tmp/ymldb-monitor.log");
 	// ymldb_log_set(YMLDB_LOG_LOG, NULL);
 
     /* Analyze command line options. */
@@ -40,11 +40,25 @@ int main(int argc, char *argv[])
     {
         if (strcmp(argv[k], "-h") == 0
                 || strcmp(argv[k], "--help") == 0) {
-			printf("\n%s -n key1 key2 ...\n"
+			printf("\n%s -in -out -n key1 key2 ...\n"
+				   "\t-in: ymldb input monitoring\n"
+				   "\t-out: ymldb output monitoring\n"
 				   "\t-n: no-record\n"
 				   "\tkey: YMLDB key to monitor\n\n",
 					argv[0]);
 			return 0;
+		}
+
+		if(strcmp(argv[k], "-in") == 0)
+		{
+			instream_mointor = stdout;
+			continue;
+		}
+
+		if(strcmp(argv[k], "-out") == 0)
+		{
+			outstream_monitor = stdout;
+			continue;
 		}
 
 		if(strcmp(argv[k], "-n") == 0)
@@ -57,13 +71,15 @@ int main(int argc, char *argv[])
 	}
 	if(k == 1)
 	{
-		printf("\n%s -n key1 key2 ...\n"
-				"\t-n: no-record\n"
-				"\tkey: YMLDB key to monitor\n\n",
-				argv[0]);
+		printf("\n%s -in -out -n key1 key2 ...\n"
+				   "\t-in: ymldb input monitoring\n"
+				   "\t-out: ymldb output monitoring\n"
+				   "\t-n: no-record\n"
+				   "\tkey: YMLDB key to monitor\n\n",
+					argv[0]);
 		return 0;
 	}
-	ymldb_dump(stdout, NULL);
+	// ymldb_dump(stdout, NULL);
 
 	int res;
 	int max_fd = 0;
@@ -83,7 +99,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "select failed (%s)\n", strerror(errno));
 			break;
 		}
-		ymldb_distribution_recv_and_dump(stdout, &read_set);
+		ymldb_distribution_recv_and_dump(NULL, &read_set);
     } while (!done);
     ymldb_dump(stdout, NULL);
 	ymldb_destroy_all();

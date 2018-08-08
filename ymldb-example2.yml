@@ -1,5 +1,4 @@
 
-%TAG !merge! ymldb:op:merge
 ---
 interface:
   Vlan1:

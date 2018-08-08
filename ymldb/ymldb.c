@@ -26,6 +26,9 @@
 
 #include "ymldb.h"
 
+FILE *instream_mointor;
+FILE *outstream_monitor;
+
 typedef enum ymldb_type_e
 {
     YMLDB_LEAF,
@@ -1637,6 +1640,8 @@ int _params_opcode_extract(struct ymldb_params *params)
             }
         }
     }
+    if(!opcode) // default opcode (merge)
+        opcode = opcode | YMLDB_OP_MERGE;
     params->in.opcode = opcode;
     params->in.sequence = sequence;
     return opcode;
@@ -1914,7 +1919,34 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
         free(params);
         return NULL;
     }
-    yaml_parser_set_input_file(&params->parser, instream);
+    if (instream_mointor)
+    {
+        char c;
+        struct ystream *dupstream;
+        dupstream = _ystream_open_to_write(0);
+        if (!dupstream)
+        {
+            _log_error("fail to open ymldb stream\n");
+            yaml_parser_delete(&params->parser);
+            free(params);
+            return NULL;
+        }
+        // Read contents from file
+        c = fgetc(instream);
+        while (c != EOF)
+        {
+            fputc(c, dupstream->stream);
+            fputc(c, instream_mointor);
+            c = fgetc(instream);
+        }
+
+        _ystream_reopen_to_read(dupstream);
+        yaml_parser_set_input_file(&params->parser, dupstream->stream);
+    }
+    else
+    {
+        yaml_parser_set_input_file(&params->parser, instream);
+    }
     params->in.stream = instream;
     params->out.stream = outstream;
     params->in.opcode = 0;
@@ -1933,6 +1965,28 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
     params->cb = cb;
     params->no_record = (cb->flags & YMLDB_FLAG_NO_RECORD) ? 1 : 0;
     return params;
+}
+
+static int _params_yaml_load(struct ymldb_params *params)
+{
+    if (!yaml_parser_load(&params->parser, &params->document))
+    {
+        _log_error_parser(&params->parser);
+        return -1;
+    }
+    return 0;
+}
+
+static int _params_yaml_empty(struct ymldb_params *params)
+{
+    if(yaml_document_get_root_node(&params->document))
+        return 0;
+    return 1; // empty
+}
+
+static void _params_yaml_unload(struct ymldb_params *params)
+{
+    yaml_document_delete(&params->document);
 }
 
 static int _params_buf_init(struct ymldb_params *params)
@@ -2072,6 +2126,12 @@ flushing:
         fflush(params->out.stream);
     }
 
+    if (outstream_monitor)
+    {
+        fputs(outbuf->buf, outstream_monitor);
+        fflush(outstream_monitor);
+    }
+
     if (params->cb->flags & YMLDB_FLAG_CONN)
         _distribution_send(params);
     return 1;
@@ -2112,15 +2172,14 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
     _log_debug(">>>\n");
     while (!done)
     {
-        if (!yaml_parser_load(&params->parser, &params->document))
+        if (_params_yaml_load(params))
         {
-            _log_error_parser(&params->parser);
             params->res--;
             break;
         }
 
         _params_opcode_extract(params);
-        done = (!yaml_document_get_root_node(&params->document));
+        done = _params_yaml_empty(params);
         if (!done)
         {
             enum internal_op iop;
@@ -2165,7 +2224,7 @@ static int _ymldb_run(struct ymldb_cb *cb, FILE *instream, FILE *outstream)
             }
             _log_debug("result: %s\n", params->res < 0 ? "failed" : "ok");
         }
-        yaml_document_delete(&params->document);
+        _params_yaml_unload(params);
     }
     // if (flush_count > 0)
     //     _params_buf_flush(params, 1); // forced flush!
