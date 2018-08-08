@@ -218,6 +218,7 @@ struct ymldb_params
     int res;
     struct ynode *last_ydb; // last updated ydb
     struct sbuf *outbuf;
+    struct ystream *dupstream;
     int resv : 27;
     int no_record : 1;
     int send_relay : 1;
@@ -1894,6 +1895,8 @@ static void _params_free(struct ymldb_params *params)
 {
     if (!params)
         return;
+    if(params->dupstream)
+        _ystream_free(params->dupstream);
     if (params->outbuf)
         sbuf_free(params->outbuf);
     yaml_parser_delete(&params->parser);
@@ -1939,7 +1942,7 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
             fputc(c, instream_mointor);
             c = fgetc(instream);
         }
-
+        params->dupstream = dupstream;
         _ystream_reopen_to_read(dupstream);
         yaml_parser_set_input_file(&params->parser, dupstream->stream);
     }
