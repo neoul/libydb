@@ -1936,7 +1936,7 @@ static struct ymldb_params *_params_alloc(struct ymldb_cb *cb, FILE *instream, F
         }
         // Read contents from file
         c = fgetc(instream);
-        while (c != EOF)
+        while (!feof(instream) && c != 0)
         {
             fputc(c, dupstream->stream);
             fputc(c, instream_mointor);
