@@ -1,0 +1,4953 @@
+# @@
+# 0
+%TAG !no-op! ymldb:op:no-op
+---
+
+...
+
+# @@
+# 0
+%TAG !sync! ymldb:op:sync
+---
+
+...
+
+# @@
+# 2
+%TAG !seq! ymldb:seq:c:2
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1:
+    description:
+    enabled: true
+    link-up-down-trap-enable: disabled
+    name: Vlan1
+    type: l2vlan
+  Vlan4094:
+    description:
+    enabled: true
+    ipv4:
+      address:
+        10.10.10.100:
+          prefix-length: 24
+          secondary: false
+    link-up-down-trap-enable: disabled
+    name: Vlan4094
+    type: l2vlan
+  ge1:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge1
+    type: ethernetCsmacd
+  ge10:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge10
+    type: ethernetCsmacd
+  ge11:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge11
+    type: ethernetCsmacd
+  ge12:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge12
+    type: ethernetCsmacd
+  ge13:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge13
+    type: ethernetCsmacd
+  ge14:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge14
+    type: ethernetCsmacd
+  ge15:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge15
+    type: ethernetCsmacd
+  ge16:
+    description:
+    enabled: true
+
+...
+# @@
+# 2
+%TAG !seq! ymldb:seq:c:2
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge16:
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge16
+    type: ethernetCsmacd
+  ge17:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge17
+    type: ethernetCsmacd
+  ge18:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge18
+    type: ethernetCsmacd
+  ge19:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge19
+    type: ethernetCsmacd
+  ge2:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge2
+    type: ethernetCsmacd
+  ge20:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge20
+    type: ethernetCsmacd
+  ge21:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge21
+    type: ethernetCsmacd
+  ge22:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge22
+    type: ethernetCsmacd
+  ge23:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge23
+    type: ethernetCsmacd
+
+...
+# @@
+# 2
+%TAG !seq! ymldb:seq:c:2
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge24:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge24
+    type: ethernetCsmacd
+  ge3:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge3
+    type: ethernetCsmacd
+  ge4:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge4
+    type: ethernetCsmacd
+  ge5:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge5
+    type: ethernetCsmacd
+  ge6:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge6
+    type: ethernetCsmacd
+  ge7:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge7
+    type: ethernetCsmacd
+  ge8:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge8
+    type: ethernetCsmacd
+  ge9:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 1.000
+    link-up-down-trap-enable: disabled
+    name: ge9
+    type: ethernetCsmacd
+  line1:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line1
+    type: fastdsl
+
+...
+# @@
+# 2
+%TAG !seq! ymldb:seq:c:2
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  line10:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line10
+    type: fastdsl
+  line11:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line11
+    type: fastdsl
+  line12:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line12
+    type: fastdsl
+  line13:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line13
+    type: fastdsl
+  line14:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line14
+    type: fastdsl
+  line15:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line15
+    type: fastdsl
+  line16:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line16
+    type: fastdsl
+  line17:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line17
+    type: fastdsl
+  line18:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line18
+    type: fastdsl
+  line19:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line19
+    type: fastdsl
+  line2:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+
+...
+# @@
+# 2
+%TAG !seq! ymldb:seq:c:2
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  line2:
+    line:
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line2
+    type: fastdsl
+  line20:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line20
+    type: fastdsl
+  line21:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line21
+    type: fastdsl
+  line22:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line22
+    type: fastdsl
+  line23:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line23
+    type: fastdsl
+  line24:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line24
+    type: fastdsl
+  line3:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line3
+    type: fastdsl
+  line4:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line4
+    type: fastdsl
+  line5:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line5
+    type: fastdsl
+  line6:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line6
+    type: fastdsl
+  line7:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+
+...
+# @@
+# 2
+%TAG !seq! ymldb:seq:e:2
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  line7:
+    line:
+      supported-mode: mode-fast
+    name: line7
+    type: fastdsl
+  line8:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line8
+    type: fastdsl
+  line9:
+    enabled: true
+    line:
+      configured-mode: mode-fast
+      line:
+        line-config-vector: default
+      supported-mode: mode-fast
+    name: line9
+    type: fastdsl
+  loopback0:
+    description:
+    enabled: true
+    link-up-down-trap-enable: disabled
+    name: loopback0
+    type: softwareLoopback
+  mgmt:
+    description:
+    enabled: true
+    ipv4:
+      address:
+        192.168.77.10:
+          prefix-length: 16
+          secondary: false
+    link-up-down-trap-enable: disabled
+    name: mgmt
+    type: mgmt
+  xe1:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 10.000
+    link-up-down-trap-enable: disabled
+    name: xe1
+    type: ethernetCsmacd
+  xe2:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: false
+      duplex: full
+      speed: 10.000
+    link-up-down-trap-enable: disabled
+    name: xe2
+    type: ethernetCsmacd
+  xe3:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: true
+      duplex: full
+      speed: 10.000
+    link-up-down-trap-enable: disabled
+    name: xe3
+    type: ethernetCsmacd
+  xe4:
+    description:
+    enabled: true
+    ethernet:
+      auto-negotiation:
+        enable: false
+      duplex: full
+      speed: 10.000
+    link-up-down-trap-enable: disabled
+    name: xe4
+    type: ethernetCsmacd
+
+...
+# @@
+# 0
+%TAG !no-op! ymldb:op:no-op
+---
+
+...
+
+# @@
+# 0
+%TAG !sync! ymldb:op:sync
+---
+
+...
+
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1:
+    admin-status: up
+    if-index: 25001
+    last-change: 2018-08-08T18:29:42+09:00
+    oper-status: up
+    phys-address: 00:00:00:00:00:00
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 0
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 0
+      out-unicast-pkts: 0
+    type: l2vlan
+  Vlan4094:
+    admin-status: up
+    if-index: 29094
+    last-change: 2018-08-08T18:29:42+09:00
+    oper-status: up
+    phys-address: 00:00:00:00:00:00
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 0
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 0
+      out-unicast-pkts: 0
+    type: l2vlan
+  ge1:
+    admin-status: up
+    if-index: 5001
+    last-change: 2018-08-08T18:29:42+09:00
+    lower-layer-if: line1
+    oper-status: up
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 65
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 403386
+      in-unicast-pkts: 1674
+      in-unknown-protos: 0
+      out-broadcast-pkts: 66
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 152128
+      out-unicast-pkts: 1668
+    type: ethernetCsmacd
+  ge10:
+    admin-status: up
+    if-index: 5010
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line10
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge10:
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge11:
+    admin-status: up
+    if-index: 5011
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line11
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge12:
+    admin-status: up
+    if-index: 5012
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line12
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge13:
+    admin-status: up
+    if-index: 5013
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line13
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge13:
+    statistics:
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge14:
+    admin-status: up
+    if-index: 5014
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line14
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge15:
+    admin-status: up
+    if-index: 5015
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line15
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge16:
+    admin-status: up
+    if-index: 5016
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line16
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge16:
+    statistics:
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge17:
+    admin-status: up
+    if-index: 5017
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line17
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 185804
+      in-unicast-pkts: 571
+      in-unknown-protos: 0
+      out-broadcast-pkts: 138
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 116550
+      out-unicast-pkts: 570
+    type: ethernetCsmacd
+  ge18:
+    admin-status: up
+    if-index: 5018
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line18
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge19:
+    admin-status: up
+    if-index: 5019
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line19
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge19:
+    statistics:
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge2:
+    admin-status: up
+    if-index: 5002
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line2
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge20:
+    admin-status: up
+    if-index: 5020
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line20
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge21:
+    admin-status: up
+    if-index: 5021
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line21
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge21:
+    statistics:
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge22:
+    admin-status: up
+    if-index: 5022
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line22
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge23:
+    admin-status: up
+    if-index: 5023
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line23
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge24:
+    admin-status: up
+    if-index: 5024
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line24
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge3:
+    admin-status: up
+    if-index: 5003
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line3
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge4:
+    admin-status: up
+    if-index: 5004
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line4
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge5:
+    admin-status: up
+    if-index: 5005
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line5
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge6:
+    admin-status: up
+    if-index: 5006
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line6
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge6:
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge7:
+    admin-status: up
+    if-index: 5007
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line7
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge8:
+    admin-status: up
+    if-index: 5008
+    last-change: 2018-08-08T18:28:34+09:00
+    lower-layer-if: line8
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 130
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 77220
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  ge9:
+    admin-status: up
+    if-index: 5009
+    last-change: 2018-08-08T18:30:28+09:00
+    lower-layer-if: line9
+    oper-status: up
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 1000000000
+    statistics:
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  ge9:
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 65
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 373960
+      in-unicast-pkts: 1432
+      in-unknown-protos: 0
+      out-broadcast-pkts: 74
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 135808
+      out-unicast-pkts: 1420
+    type: ethernetCsmacd
+  line1:
+    last-change: 2018-08-08T18:29:42+09:00
+    line:
+      line:
+        channel:
+          status:
+            downstream:
+              attainable-net-data-rate: 0
+              dtu-fec-codeword-length: 255
+              dtu-fec-redundancy: 8
+              expected-throughput: 0
+              fec-codewords-per-dtu: 8
+              gamma-data-rate: 0
+              net-data-rate: 352368
+            upstream:
+              attainable-net-data-rate: 0
+              dtu-fec-codeword-length: 255
+              dtu-fec-redundancy: 8
+              expected-throughput: 0
+              fec-codewords-per-dtu: 8
+              gamma-data-rate: 0
+              net-data-rate: 352368
+    oper-status: up
+  line9:
+    last-change: 2018-08-08T18:30:28+09:00
+    line:
+      line:
+        channel:
+          status:
+            downstream:
+              attainable-net-data-rate: 0
+              dtu-fec-codeword-length: 255
+              dtu-fec-redundancy: 8
+              expected-throughput: 0
+              fec-codewords-per-dtu: 8
+              gamma-data-rate: 0
+              net-data-rate: 246099
+            upstream:
+              attainable-net-data-rate: 0
+              dtu-fec-codeword-length: 255
+              dtu-fec-redundancy: 8
+              expected-throughput: 0
+              fec-codewords-per-dtu: 8
+              gamma-data-rate: 0
+              net-data-rate: 246099
+    oper-status: up
+  loopback0:
+    admin-status: up
+    if-index: 1
+    last-change: 2018-08-08T18:28:31+09:00
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:c:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  loopback0:
+    oper-status: up
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 0
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 0
+      out-unicast-pkts: 0
+    type: softwareLoopback
+  mgmt:
+    admin-status: up
+    if-index: 2
+    last-change: 2018-08-08T18:28:31+09:00
+    oper-status: up
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 96000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 0
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 0
+      out-unicast-pkts: 0
+    type: mgmt
+  xe1:
+    admin-status: up
+    if-index: 5025
+    last-change: 2018-08-08T18:28:34+09:00
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 10000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 0
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 0
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  xe2:
+    admin-status: up
+    if-index: 5026
+    last-change: 2018-08-08T18:28:34+09:00
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 10000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+
+...
+# @@
+# 4
+%TAG !seq! ymldb:seq:e:4
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  xe2:
+    statistics:
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 0
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 0
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  xe3:
+    admin-status: up
+    if-index: 5027
+    last-change: 2018-08-08T18:28:34+09:00
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 10000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 0
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 0
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+  xe4:
+    admin-status: up
+    if-index: 5028
+    last-change: 2018-08-08T18:28:34+09:00
+    oper-status: down
+    phys-address: 00:23:aa:00:1a:c0
+    speed: 10000000000
+    statistics:
+      discontinuity-time: 2018-08-08T18:50:16+09:00
+      in-broadcast-pkts: 0
+      in-discards: 0
+      in-errors: 0
+      in-multicast-pkts: 0
+      in-octets: 0
+      in-unicast-pkts: 0
+      in-unknown-protos: 0
+      out-broadcast-pkts: 0
+      out-discards: 0
+      out-errors: 0
+      out-multicast-pkts: 0
+      out-octets: 0
+      out-unicast-pkts: 0
+    type: ethernetCsmacd
+
+...
+# @@
+# 0
+%TAG !no-op! ymldb:op:no-op
+---
+
+...
+
+# @@
+# 0
+%TAG !sync! ymldb:op:sync
+---
+
+...
+
+# @@
+# 6
+%TAG !seq! ymldb:seq:e:6
+%TAG !ack! ymldb:op:ack
+%TAG !sync! ymldb:op:sync
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1:
+  4094:
+
+...
+# @@
+# 298
+%TAG !seq! ymldb:seq:e:298
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1001:
+    name: Vlan1001
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 299
+%TAG !seq! ymldb:seq:e:299
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1001:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:51:16+09:00
+    if-index: 26001
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 300
+%TAG !seq! ymldb:seq:e:300
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1001:
+
+...
+# @@
+# 302
+%TAG !seq! ymldb:seq:e:302
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1001:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 306
+%TAG !seq! ymldb:seq:e:306
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1001:
+    oper-status: down
+    last-change: 2018-08-08T18:51:35+09:00
+
+...
+# @@
+# 307
+%TAG !seq! ymldb:seq:e:307
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1001:
+    enabled: false
+
+...
+# @@
+# 309
+%TAG !seq! ymldb:seq:e:309
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1001:
+
+...
+# @@
+# 308
+%TAG !seq! ymldb:seq:e:308
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1001:
+    admin-status: down
+    last-change: 2018-08-08T18:51:44+09:00
+
+...
+# @@
+# 310
+%TAG !seq! ymldb:seq:e:310
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1001:
+
+...
+# @@
+# 311
+%TAG !seq! ymldb:seq:e:311
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1001:
+
+...
+# @@
+# 312
+%TAG !seq! ymldb:seq:e:312
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1002:
+    name: Vlan1002
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 313
+%TAG !seq! ymldb:seq:e:313
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1002:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:51:46+09:00
+    if-index: 26002
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 314
+%TAG !seq! ymldb:seq:e:314
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1002:
+
+...
+# @@
+# 316
+%TAG !seq! ymldb:seq:e:316
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1002:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 320
+%TAG !seq! ymldb:seq:e:320
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1002:
+    oper-status: down
+    last-change: 2018-08-08T18:52:05+09:00
+
+...
+# @@
+# 321
+%TAG !seq! ymldb:seq:e:321
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1002:
+    enabled: false
+
+...
+# @@
+# 323
+%TAG !seq! ymldb:seq:e:323
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1002:
+
+...
+# @@
+# 322
+%TAG !seq! ymldb:seq:e:322
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1002:
+    admin-status: down
+    last-change: 2018-08-08T18:52:15+09:00
+
+...
+# @@
+# 324
+%TAG !seq! ymldb:seq:e:324
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1002:
+
+...
+# @@
+# 325
+%TAG !seq! ymldb:seq:e:325
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1002:
+
+...
+# @@
+# 326
+%TAG !seq! ymldb:seq:e:326
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1003:
+    name: Vlan1003
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 327
+%TAG !seq! ymldb:seq:e:327
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1003:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:52:16+09:00
+    if-index: 26003
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 328
+%TAG !seq! ymldb:seq:e:328
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1003:
+
+...
+# @@
+# 330
+%TAG !seq! ymldb:seq:e:330
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1003:
+    oper-status: up
+    last-change: 2018-08-08T18:52:17+09:00
+    speed: 1000000000
+
+...
+# @@
+# 334
+%TAG !seq! ymldb:seq:e:334
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1003:
+    oper-status: down
+    last-change: 2018-08-08T18:52:36+09:00
+
+...
+# @@
+# 335
+%TAG !seq! ymldb:seq:e:335
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1003:
+    enabled: false
+
+...
+# @@
+# 337
+%TAG !seq! ymldb:seq:e:337
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1003:
+
+...
+# @@
+# 336
+%TAG !seq! ymldb:seq:e:336
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1003:
+    admin-status: down
+    last-change: 2018-08-08T18:52:46+09:00
+
+...
+# @@
+# 338
+%TAG !seq! ymldb:seq:e:338
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1003:
+
+...
+# @@
+# 339
+%TAG !seq! ymldb:seq:e:339
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1003:
+
+...
+# @@
+# 340
+%TAG !seq! ymldb:seq:e:340
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1004:
+    name: Vlan1004
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 341
+%TAG !seq! ymldb:seq:e:341
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1004:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:52:47+09:00
+    if-index: 26004
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 342
+%TAG !seq! ymldb:seq:e:342
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1004:
+
+...
+# @@
+# 344
+%TAG !seq! ymldb:seq:e:344
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1004:
+    oper-status: up
+    last-change: 2018-08-08T18:52:48+09:00
+    speed: 1000000000
+
+...
+# @@
+# 348
+%TAG !seq! ymldb:seq:e:348
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1004:
+    oper-status: down
+    last-change: 2018-08-08T18:53:08+09:00
+
+...
+# @@
+# 349
+%TAG !seq! ymldb:seq:e:349
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1004:
+    enabled: false
+
+...
+# @@
+# 351
+%TAG !seq! ymldb:seq:e:351
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1004:
+
+...
+# @@
+# 350
+%TAG !seq! ymldb:seq:e:350
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1004:
+    admin-status: down
+    last-change: 2018-08-08T18:53:18+09:00
+
+...
+# @@
+# 352
+%TAG !seq! ymldb:seq:e:352
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1004:
+
+...
+# @@
+# 353
+%TAG !seq! ymldb:seq:e:353
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1004:
+
+...
+# @@
+# 354
+%TAG !seq! ymldb:seq:e:354
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1005:
+    name: Vlan1005
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 355
+%TAG !seq! ymldb:seq:e:355
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1005:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:53:19+09:00
+    if-index: 26005
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 356
+%TAG !seq! ymldb:seq:e:356
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1005:
+
+...
+# @@
+# 358
+%TAG !seq! ymldb:seq:e:358
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1005:
+    oper-status: up
+    last-change: 2018-08-08T18:53:20+09:00
+    speed: 1000000000
+
+...
+# @@
+# 362
+%TAG !seq! ymldb:seq:e:362
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1005:
+    oper-status: down
+    last-change: 2018-08-08T18:53:39+09:00
+
+...
+# @@
+# 363
+%TAG !seq! ymldb:seq:e:363
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1005:
+    enabled: false
+
+...
+# @@
+# 365
+%TAG !seq! ymldb:seq:e:365
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1005:
+
+...
+# @@
+# 364
+%TAG !seq! ymldb:seq:e:364
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1005:
+    admin-status: down
+    last-change: 2018-08-08T18:53:49+09:00
+
+...
+# @@
+# 366
+%TAG !seq! ymldb:seq:e:366
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1005:
+
+...
+# @@
+# 367
+%TAG !seq! ymldb:seq:e:367
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1005:
+
+...
+# @@
+# 368
+%TAG !seq! ymldb:seq:e:368
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1006:
+    name: Vlan1006
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 369
+%TAG !seq! ymldb:seq:e:369
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1006:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:53:51+09:00
+    if-index: 26006
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 370
+%TAG !seq! ymldb:seq:e:370
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1006:
+
+...
+# @@
+# 372
+%TAG !seq! ymldb:seq:e:372
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1006:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 376
+%TAG !seq! ymldb:seq:e:376
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1006:
+    oper-status: down
+    last-change: 2018-08-08T18:54:10+09:00
+
+...
+# @@
+# 377
+%TAG !seq! ymldb:seq:e:377
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1006:
+    enabled: false
+
+...
+# @@
+# 379
+%TAG !seq! ymldb:seq:e:379
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1006:
+
+...
+# @@
+# 378
+%TAG !seq! ymldb:seq:e:378
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1006:
+    admin-status: down
+    last-change: 2018-08-08T18:54:20+09:00
+
+...
+# @@
+# 380
+%TAG !seq! ymldb:seq:e:380
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1006:
+
+...
+# @@
+# 381
+%TAG !seq! ymldb:seq:e:381
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1006:
+
+...
+# @@
+# 382
+%TAG !seq! ymldb:seq:e:382
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1007:
+    name: Vlan1007
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 383
+%TAG !seq! ymldb:seq:e:383
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1007:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:54:22+09:00
+    if-index: 26007
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 384
+%TAG !seq! ymldb:seq:e:384
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1007:
+
+...
+# @@
+# 386
+%TAG !seq! ymldb:seq:e:386
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1007:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 390
+%TAG !seq! ymldb:seq:e:390
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1007:
+    oper-status: down
+    last-change: 2018-08-08T18:54:41+09:00
+
+...
+# @@
+# 391
+%TAG !seq! ymldb:seq:e:391
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1007:
+    enabled: false
+
+...
+# @@
+# 393
+%TAG !seq! ymldb:seq:e:393
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1007:
+
+...
+# @@
+# 392
+%TAG !seq! ymldb:seq:e:392
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1007:
+    admin-status: down
+    last-change: 2018-08-08T18:54:51+09:00
+
+...
+# @@
+# 394
+%TAG !seq! ymldb:seq:e:394
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1007:
+
+...
+# @@
+# 395
+%TAG !seq! ymldb:seq:e:395
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1007:
+
+...
+# @@
+# 396
+%TAG !seq! ymldb:seq:e:396
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1008:
+    name: Vlan1008
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 397
+%TAG !seq! ymldb:seq:e:397
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1008:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:54:53+09:00
+    if-index: 26008
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 398
+%TAG !seq! ymldb:seq:e:398
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1008:
+
+...
+# @@
+# 400
+%TAG !seq! ymldb:seq:e:400
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1008:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 404
+%TAG !seq! ymldb:seq:e:404
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1008:
+    oper-status: down
+    last-change: 2018-08-08T18:55:12+09:00
+
+...
+# @@
+# 405
+%TAG !seq! ymldb:seq:e:405
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1008:
+    enabled: false
+
+...
+# @@
+# 406
+%TAG !seq! ymldb:seq:e:406
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1008:
+    admin-status: down
+    last-change: 2018-08-08T18:55:22+09:00
+
+...
+# @@
+# 407
+%TAG !seq! ymldb:seq:e:407
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1008:
+
+...
+# @@
+# 408
+%TAG !seq! ymldb:seq:e:408
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1008:
+
+...
+# @@
+# 409
+%TAG !seq! ymldb:seq:e:409
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1008:
+
+...
+# @@
+# 410
+%TAG !seq! ymldb:seq:e:410
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1009:
+    name: Vlan1009
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 411
+%TAG !seq! ymldb:seq:e:411
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1009:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:55:23+09:00
+    if-index: 26009
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 412
+%TAG !seq! ymldb:seq:e:412
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1009:
+
+...
+# @@
+# 414
+%TAG !seq! ymldb:seq:e:414
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1009:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 418
+%TAG !seq! ymldb:seq:e:418
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1009:
+    oper-status: down
+    last-change: 2018-08-08T18:55:43+09:00
+
+...
+# @@
+# 419
+%TAG !seq! ymldb:seq:e:419
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1009:
+    enabled: false
+
+...
+# @@
+# 421
+%TAG !seq! ymldb:seq:e:421
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1009:
+
+...
+# @@
+# 420
+%TAG !seq! ymldb:seq:e:420
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1009:
+    admin-status: down
+    last-change: 2018-08-08T18:55:53+09:00
+
+...
+# @@
+# 422
+%TAG !seq! ymldb:seq:e:422
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1009:
+
+...
+# @@
+# 423
+%TAG !seq! ymldb:seq:e:423
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1009:
+
+...
+# @@
+# 424
+%TAG !seq! ymldb:seq:e:424
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1010:
+    name: Vlan1010
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 425
+%TAG !seq! ymldb:seq:e:425
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1010:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:55:54+09:00
+    if-index: 26010
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 426
+%TAG !seq! ymldb:seq:e:426
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1010:
+
+...
+# @@
+# 428
+%TAG !seq! ymldb:seq:e:428
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1010:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 432
+%TAG !seq! ymldb:seq:e:432
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1010:
+    oper-status: down
+    last-change: 2018-08-08T18:56:13+09:00
+
+...
+# @@
+# 433
+%TAG !seq! ymldb:seq:e:433
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1010:
+    enabled: false
+
+...
+# @@
+# 434
+%TAG !seq! ymldb:seq:e:434
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1010:
+    admin-status: down
+    last-change: 2018-08-08T18:56:23+09:00
+
+...
+# @@
+# 435
+%TAG !seq! ymldb:seq:e:435
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1010:
+
+...
+# @@
+# 436
+%TAG !seq! ymldb:seq:e:436
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1010:
+
+...
+# @@
+# 437
+%TAG !seq! ymldb:seq:e:437
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1010:
+
+...
+# @@
+# 438
+%TAG !seq! ymldb:seq:e:438
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1011:
+    name: Vlan1011
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 439
+%TAG !seq! ymldb:seq:e:439
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1011:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:56:24+09:00
+    if-index: 26011
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 440
+%TAG !seq! ymldb:seq:e:440
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1011:
+
+...
+# @@
+# 442
+%TAG !seq! ymldb:seq:e:442
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1011:
+    oper-status: up
+    last-change: 2018-08-08T18:56:25+09:00
+    speed: 1000000000
+
+...
+# @@
+# 446
+%TAG !seq! ymldb:seq:e:446
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1011:
+    oper-status: down
+    last-change: 2018-08-08T18:56:44+09:00
+
+...
+# @@
+# 447
+%TAG !seq! ymldb:seq:e:447
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1011:
+    enabled: false
+
+...
+# @@
+# 448
+%TAG !seq! ymldb:seq:e:448
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1011:
+    admin-status: down
+    last-change: 2018-08-08T18:56:54+09:00
+
+...
+# @@
+# 449
+%TAG !seq! ymldb:seq:e:449
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1011:
+
+...
+# @@
+# 450
+%TAG !seq! ymldb:seq:e:450
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1011:
+
+...
+# @@
+# 451
+%TAG !seq! ymldb:seq:e:451
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1011:
+
+...
+# @@
+# 452
+%TAG !seq! ymldb:seq:e:452
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1012:
+    name: Vlan1012
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 453
+%TAG !seq! ymldb:seq:e:453
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1012:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:56:56+09:00
+    if-index: 26012
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 454
+%TAG !seq! ymldb:seq:e:454
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1012:
+
+...
+# @@
+# 456
+%TAG !seq! ymldb:seq:e:456
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1012:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 460
+%TAG !seq! ymldb:seq:e:460
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1012:
+    oper-status: down
+    last-change: 2018-08-08T18:57:15+09:00
+
+...
+# @@
+# 461
+%TAG !seq! ymldb:seq:e:461
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1012:
+    enabled: false
+
+...
+# @@
+# 462
+%TAG !seq! ymldb:seq:e:462
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1012:
+    admin-status: down
+    last-change: 2018-08-08T18:57:25+09:00
+
+...
+# @@
+# 463
+%TAG !seq! ymldb:seq:e:463
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1012:
+
+...
+# @@
+# 464
+%TAG !seq! ymldb:seq:e:464
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1012:
+
+...
+# @@
+# 465
+%TAG !seq! ymldb:seq:e:465
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1012:
+
+...
+# @@
+# 466
+%TAG !seq! ymldb:seq:e:466
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1013:
+    name: Vlan1013
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 467
+%TAG !seq! ymldb:seq:e:467
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1013:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:57:26+09:00
+    if-index: 26013
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 468
+%TAG !seq! ymldb:seq:e:468
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1013:
+
+...
+# @@
+# 470
+%TAG !seq! ymldb:seq:e:470
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1013:
+    oper-status: up
+    last-change: 2018-08-08T18:57:27+09:00
+    speed: 1000000000
+
+...
+# @@
+# 474
+%TAG !seq! ymldb:seq:e:474
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1013:
+    oper-status: down
+    last-change: 2018-08-08T18:57:46+09:00
+
+...
+# @@
+# 475
+%TAG !seq! ymldb:seq:e:475
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1013:
+    enabled: false
+
+...
+# @@
+# 477
+%TAG !seq! ymldb:seq:e:477
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1013:
+
+...
+# @@
+# 476
+%TAG !seq! ymldb:seq:e:476
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1013:
+    admin-status: down
+    last-change: 2018-08-08T18:57:56+09:00
+
+...
+# @@
+# 478
+%TAG !seq! ymldb:seq:e:478
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1013:
+
+...
+# @@
+# 479
+%TAG !seq! ymldb:seq:e:479
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1013:
+
+...
+# @@
+# 480
+%TAG !seq! ymldb:seq:e:480
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1014:
+    name: Vlan1014
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 481
+%TAG !seq! ymldb:seq:e:481
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1014:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:57:57+09:00
+    if-index: 26014
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 482
+%TAG !seq! ymldb:seq:e:482
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1014:
+
+...
+# @@
+# 484
+%TAG !seq! ymldb:seq:e:484
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1014:
+    oper-status: up
+    last-change: 2018-08-08T18:57:58+09:00
+    speed: 1000000000
+
+...
+# @@
+# 488
+%TAG !seq! ymldb:seq:e:488
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1014:
+    oper-status: down
+    last-change: 2018-08-08T18:58:16+09:00
+
+...
+# @@
+# 489
+%TAG !seq! ymldb:seq:e:489
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1014:
+    enabled: false
+
+...
+# @@
+# 491
+%TAG !seq! ymldb:seq:e:491
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1014:
+
+...
+# @@
+# 490
+%TAG !seq! ymldb:seq:e:490
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1014:
+    admin-status: down
+    last-change: 2018-08-08T18:58:26+09:00
+
+...
+# @@
+# 492
+%TAG !seq! ymldb:seq:e:492
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1014:
+
+...
+# @@
+# 493
+%TAG !seq! ymldb:seq:e:493
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1014:
+
+...
+# @@
+# 494
+%TAG !seq! ymldb:seq:e:494
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1015:
+    name: Vlan1015
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 495
+%TAG !seq! ymldb:seq:e:495
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1015:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:58:27+09:00
+    if-index: 26015
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 496
+%TAG !seq! ymldb:seq:e:496
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1015:
+
+...
+# @@
+# 498
+%TAG !seq! ymldb:seq:e:498
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1015:
+    oper-status: up
+    last-change: 2018-08-08T18:58:28+09:00
+    speed: 1000000000
+
+...
+# @@
+# 502
+%TAG !seq! ymldb:seq:e:502
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1015:
+    oper-status: down
+    last-change: 2018-08-08T18:58:47+09:00
+
+...
+# @@
+# 503
+%TAG !seq! ymldb:seq:e:503
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1015:
+    enabled: false
+
+...
+# @@
+# 505
+%TAG !seq! ymldb:seq:e:505
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1015:
+
+...
+# @@
+# 504
+%TAG !seq! ymldb:seq:e:504
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1015:
+    admin-status: down
+    last-change: 2018-08-08T18:58:57+09:00
+
+...
+# @@
+# 506
+%TAG !seq! ymldb:seq:e:506
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1015:
+
+...
+# @@
+# 507
+%TAG !seq! ymldb:seq:e:507
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1015:
+
+...
+# @@
+# 508
+%TAG !seq! ymldb:seq:e:508
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1016:
+    name: Vlan1016
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 509
+%TAG !seq! ymldb:seq:e:509
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1016:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:58:58+09:00
+    if-index: 26016
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 510
+%TAG !seq! ymldb:seq:e:510
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1016:
+
+...
+# @@
+# 512
+%TAG !seq! ymldb:seq:e:512
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1016:
+    oper-status: up
+    last-change: 2018-08-08T18:58:59+09:00
+    speed: 1000000000
+
+...
+# @@
+# 516
+%TAG !seq! ymldb:seq:e:516
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1016:
+    oper-status: down
+    last-change: 2018-08-08T18:59:18+09:00
+
+...
+# @@
+# 517
+%TAG !seq! ymldb:seq:e:517
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1016:
+    enabled: false
+
+...
+# @@
+# 519
+%TAG !seq! ymldb:seq:e:519
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1016:
+
+...
+# @@
+# 518
+%TAG !seq! ymldb:seq:e:518
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1016:
+    admin-status: down
+    last-change: 2018-08-08T18:59:27+09:00
+
+...
+# @@
+# 520
+%TAG !seq! ymldb:seq:e:520
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1016:
+
+...
+# @@
+# 521
+%TAG !seq! ymldb:seq:e:521
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1016:
+
+...
+# @@
+# 522
+%TAG !seq! ymldb:seq:e:522
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1017:
+    name: Vlan1017
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 523
+%TAG !seq! ymldb:seq:e:523
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1017:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:59:29+09:00
+    if-index: 26017
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 524
+%TAG !seq! ymldb:seq:e:524
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1017:
+
+...
+# @@
+# 526
+%TAG !seq! ymldb:seq:e:526
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1017:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 530
+%TAG !seq! ymldb:seq:e:530
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1017:
+    oper-status: down
+    last-change: 2018-08-08T18:59:48+09:00
+
+...
+# @@
+# 531
+%TAG !seq! ymldb:seq:e:531
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1017:
+    enabled: false
+
+...
+# @@
+# 533
+%TAG !seq! ymldb:seq:e:533
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1017:
+
+...
+# @@
+# 532
+%TAG !seq! ymldb:seq:e:532
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1017:
+    admin-status: down
+    last-change: 2018-08-08T18:59:58+09:00
+
+...
+# @@
+# 534
+%TAG !seq! ymldb:seq:e:534
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1017:
+
+...
+# @@
+# 535
+%TAG !seq! ymldb:seq:e:535
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1017:
+
+...
+# @@
+# 536
+%TAG !seq! ymldb:seq:e:536
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1018:
+    name: Vlan1018
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 537
+%TAG !seq! ymldb:seq:e:537
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1018:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T18:59:59+09:00
+    if-index: 26018
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 538
+%TAG !seq! ymldb:seq:e:538
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1018:
+
+...
+# @@
+# 540
+%TAG !seq! ymldb:seq:e:540
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1018:
+    oper-status: up
+    last-change: 2018-08-08T19:00:00+09:00
+    speed: 1000000000
+
+...
+# @@
+# 544
+%TAG !seq! ymldb:seq:e:544
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1018:
+    oper-status: down
+    last-change: 2018-08-08T19:00:19+09:00
+
+...
+# @@
+# 545
+%TAG !seq! ymldb:seq:e:545
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1018:
+    enabled: false
+
+...
+# @@
+# 547
+%TAG !seq! ymldb:seq:e:547
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1018:
+
+...
+# @@
+# 546
+%TAG !seq! ymldb:seq:e:546
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1018:
+    admin-status: down
+    last-change: 2018-08-08T19:00:29+09:00
+
+...
+# @@
+# 548
+%TAG !seq! ymldb:seq:e:548
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1018:
+
+...
+# @@
+# 549
+%TAG !seq! ymldb:seq:e:549
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1018:
+
+...
+# @@
+# 550
+%TAG !seq! ymldb:seq:e:550
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1019:
+    name: Vlan1019
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 551
+%TAG !seq! ymldb:seq:e:551
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1019:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:00:30+09:00
+    if-index: 26019
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 552
+%TAG !seq! ymldb:seq:e:552
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1019:
+
+...
+# @@
+# 554
+%TAG !seq! ymldb:seq:e:554
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1019:
+    oper-status: up
+    last-change: 2018-08-08T19:00:31+09:00
+    speed: 1000000000
+
+...
+# @@
+# 558
+%TAG !seq! ymldb:seq:e:558
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1019:
+    oper-status: down
+    last-change: 2018-08-08T19:00:49+09:00
+
+...
+# @@
+# 559
+%TAG !seq! ymldb:seq:e:559
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1019:
+    enabled: false
+
+...
+# @@
+# 561
+%TAG !seq! ymldb:seq:e:561
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1019:
+
+...
+# @@
+# 560
+%TAG !seq! ymldb:seq:e:560
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1019:
+    admin-status: down
+    last-change: 2018-08-08T19:00:59+09:00
+
+...
+# @@
+# 562
+%TAG !seq! ymldb:seq:e:562
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1019:
+
+...
+# @@
+# 563
+%TAG !seq! ymldb:seq:e:563
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1019:
+
+...
+# @@
+# 564
+%TAG !seq! ymldb:seq:e:564
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1020:
+    name: Vlan1020
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 565
+%TAG !seq! ymldb:seq:e:565
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1020:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:01:01+09:00
+    if-index: 26020
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 566
+%TAG !seq! ymldb:seq:e:566
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1020:
+
+...
+# @@
+# 568
+%TAG !seq! ymldb:seq:e:568
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1020:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 572
+%TAG !seq! ymldb:seq:e:572
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1020:
+    oper-status: down
+    last-change: 2018-08-08T19:01:20+09:00
+
+...
+# @@
+# 573
+%TAG !seq! ymldb:seq:e:573
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1020:
+    enabled: false
+
+...
+# @@
+# 575
+%TAG !seq! ymldb:seq:e:575
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1020:
+
+...
+# @@
+# 574
+%TAG !seq! ymldb:seq:e:574
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1020:
+    admin-status: down
+    last-change: 2018-08-08T19:01:30+09:00
+
+...
+# @@
+# 576
+%TAG !seq! ymldb:seq:e:576
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1020:
+
+...
+# @@
+# 577
+%TAG !seq! ymldb:seq:e:577
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1020:
+
+...
+# @@
+# 578
+%TAG !seq! ymldb:seq:e:578
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1021:
+    name: Vlan1021
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 579
+%TAG !seq! ymldb:seq:e:579
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1021:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:01:31+09:00
+    if-index: 26021
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 580
+%TAG !seq! ymldb:seq:e:580
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1021:
+
+...
+# @@
+# 582
+%TAG !seq! ymldb:seq:e:582
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1021:
+    oper-status: up
+    last-change: 2018-08-08T19:01:32+09:00
+    speed: 1000000000
+
+...
+# @@
+# 586
+%TAG !seq! ymldb:seq:e:586
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1021:
+    oper-status: down
+    last-change: 2018-08-08T19:01:51+09:00
+
+...
+# @@
+# 587
+%TAG !seq! ymldb:seq:e:587
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1021:
+    enabled: false
+
+...
+# @@
+# 589
+%TAG !seq! ymldb:seq:e:589
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1021:
+
+...
+# @@
+# 588
+%TAG !seq! ymldb:seq:e:588
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1021:
+    admin-status: down
+    last-change: 2018-08-08T19:02:01+09:00
+
+...
+# @@
+# 590
+%TAG !seq! ymldb:seq:e:590
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1021:
+
+...
+# @@
+# 591
+%TAG !seq! ymldb:seq:e:591
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1021:
+
+...
+# @@
+# 592
+%TAG !seq! ymldb:seq:e:592
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1022:
+    name: Vlan1022
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 593
+%TAG !seq! ymldb:seq:e:593
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1022:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:02:03+09:00
+    if-index: 26022
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 594
+%TAG !seq! ymldb:seq:e:594
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1022:
+
+...
+# @@
+# 596
+%TAG !seq! ymldb:seq:e:596
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1022:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 600
+%TAG !seq! ymldb:seq:e:600
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1022:
+    oper-status: down
+    last-change: 2018-08-08T19:02:22+09:00
+
+...
+# @@
+# 601
+%TAG !seq! ymldb:seq:e:601
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1022:
+    enabled: false
+
+...
+# @@
+# 602
+%TAG !seq! ymldb:seq:e:602
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1022:
+    admin-status: down
+    last-change: 2018-08-08T19:02:32+09:00
+
+...
+# @@
+# 603
+%TAG !seq! ymldb:seq:e:603
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1022:
+
+...
+# @@
+# 604
+%TAG !seq! ymldb:seq:e:604
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1022:
+
+...
+# @@
+# 605
+%TAG !seq! ymldb:seq:e:605
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1022:
+
+...
+# @@
+# 606
+%TAG !seq! ymldb:seq:e:606
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1023:
+    name: Vlan1023
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 607
+%TAG !seq! ymldb:seq:e:607
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1023:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:02:33+09:00
+    if-index: 26023
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 608
+%TAG !seq! ymldb:seq:e:608
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1023:
+
+...
+# @@
+# 610
+%TAG !seq! ymldb:seq:e:610
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1023:
+    oper-status: up
+    last-change: 2018-08-08T19:02:34+09:00
+    speed: 1000000000
+
+...
+# @@
+# 614
+%TAG !seq! ymldb:seq:e:614
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1023:
+    oper-status: down
+    last-change: 2018-08-08T19:02:53+09:00
+
+...
+# @@
+# 615
+%TAG !seq! ymldb:seq:e:615
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1023:
+    enabled: false
+
+...
+# @@
+# 617
+%TAG !seq! ymldb:seq:e:617
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1023:
+
+...
+# @@
+# 616
+%TAG !seq! ymldb:seq:e:616
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1023:
+    admin-status: down
+    last-change: 2018-08-08T19:03:03+09:00
+
+...
+# @@
+# 618
+%TAG !seq! ymldb:seq:e:618
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1023:
+
+...
+# @@
+# 619
+%TAG !seq! ymldb:seq:e:619
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1023:
+
+...
+# @@
+# 620
+%TAG !seq! ymldb:seq:e:620
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1024:
+    name: Vlan1024
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 621
+%TAG !seq! ymldb:seq:e:621
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1024:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:03:05+09:00
+    if-index: 26024
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 622
+%TAG !seq! ymldb:seq:e:622
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1024:
+
+...
+# @@
+# 624
+%TAG !seq! ymldb:seq:e:624
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1024:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 628
+%TAG !seq! ymldb:seq:e:628
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1024:
+    oper-status: down
+    last-change: 2018-08-08T19:03:24+09:00
+
+...
+# @@
+# 629
+%TAG !seq! ymldb:seq:e:629
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1024:
+    enabled: false
+
+...
+# @@
+# 630
+%TAG !seq! ymldb:seq:e:630
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1024:
+    admin-status: down
+    last-change: 2018-08-08T19:03:34+09:00
+
+...
+# @@
+# 631
+%TAG !seq! ymldb:seq:e:631
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1024:
+
+...
+# @@
+# 632
+%TAG !seq! ymldb:seq:e:632
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1024:
+
+...
+# @@
+# 633
+%TAG !seq! ymldb:seq:e:633
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1024:
+
+...
+# @@
+# 634
+%TAG !seq! ymldb:seq:e:634
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1025:
+    name: Vlan1025
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 635
+%TAG !seq! ymldb:seq:e:635
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1025:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:03:35+09:00
+    if-index: 26025
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 636
+%TAG !seq! ymldb:seq:e:636
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1025:
+
+...
+# @@
+# 638
+%TAG !seq! ymldb:seq:e:638
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1025:
+    oper-status: up
+    last-change: 2018-08-08T19:03:36+09:00
+    speed: 1000000000
+
+...
+# @@
+# 642
+%TAG !seq! ymldb:seq:e:642
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1025:
+    oper-status: down
+    last-change: 2018-08-08T19:03:55+09:00
+
+...
+# @@
+# 643
+%TAG !seq! ymldb:seq:e:643
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1025:
+    enabled: false
+
+...
+# @@
+# 645
+%TAG !seq! ymldb:seq:e:645
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1025:
+
+...
+# @@
+# 644
+%TAG !seq! ymldb:seq:e:644
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1025:
+    admin-status: down
+    last-change: 2018-08-08T19:04:05+09:00
+
+...
+# @@
+# 646
+%TAG !seq! ymldb:seq:e:646
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1025:
+
+...
+# @@
+# 647
+%TAG !seq! ymldb:seq:e:647
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1025:
+
+...
+# @@
+# 648
+%TAG !seq! ymldb:seq:e:648
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1026:
+    name: Vlan1026
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 649
+%TAG !seq! ymldb:seq:e:649
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1026:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:04:06+09:00
+    if-index: 26026
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 650
+%TAG !seq! ymldb:seq:e:650
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1026:
+
+...
+# @@
+# 652
+%TAG !seq! ymldb:seq:e:652
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1026:
+    oper-status: up
+    last-change: 2018-08-08T19:04:07+09:00
+    speed: 1000000000
+
+...
+# @@
+# 656
+%TAG !seq! ymldb:seq:e:656
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1026:
+    oper-status: down
+    last-change: 2018-08-08T19:04:25+09:00
+
+...
+# @@
+# 657
+%TAG !seq! ymldb:seq:e:657
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1026:
+    enabled: false
+
+...
+# @@
+# 659
+%TAG !seq! ymldb:seq:e:659
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1026:
+
+...
+# @@
+# 658
+%TAG !seq! ymldb:seq:e:658
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1026:
+    admin-status: down
+    last-change: 2018-08-08T19:04:35+09:00
+
+...
+# @@
+# 660
+%TAG !seq! ymldb:seq:e:660
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1026:
+
+...
+# @@
+# 661
+%TAG !seq! ymldb:seq:e:661
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1026:
+
+...
+# @@
+# 662
+%TAG !seq! ymldb:seq:e:662
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1027:
+    name: Vlan1027
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 663
+%TAG !seq! ymldb:seq:e:663
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1027:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:04:37+09:00
+    if-index: 26027
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 664
+%TAG !seq! ymldb:seq:e:664
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1027:
+
+...
+# @@
+# 666
+%TAG !seq! ymldb:seq:e:666
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1027:
+    oper-status: up
+    speed: 1000000000
+
+...
+# @@
+# 670
+%TAG !seq! ymldb:seq:e:670
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1027:
+    oper-status: down
+    last-change: 2018-08-08T19:04:57+09:00
+
+...
+# @@
+# 671
+%TAG !seq! ymldb:seq:e:671
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1027:
+    enabled: false
+
+...
+# @@
+# 672
+%TAG !seq! ymldb:seq:e:672
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1027:
+    admin-status: down
+    last-change: 2018-08-08T19:05:07+09:00
+
+...
+# @@
+# 673
+%TAG !seq! ymldb:seq:e:673
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1027:
+
+...
+# @@
+# 674
+%TAG !seq! ymldb:seq:e:674
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1027:
+
+...
+# @@
+# 675
+%TAG !seq! ymldb:seq:e:675
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1027:
+
+...
+# @@
+# 676
+%TAG !seq! ymldb:seq:e:676
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1028:
+    name: Vlan1028
+    description:
+    type: l2vlan
+    enabled: true
+    link-up-down-trap-enable: disabled
+
+...
+# @@
+# 677
+%TAG !seq! ymldb:seq:e:677
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1028:
+    type: l2vlan
+    admin-status: up
+    oper-status: down
+    last-change: 2018-08-08T19:05:08+09:00
+    if-index: 26028
+    phys-address: 00:00:00:00:00:00
+    speed: 0
+
+...
+# @@
+# 678
+%TAG !seq! ymldb:seq:e:678
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1028:
+
+...
+# @@
+# 680
+%TAG !seq! ymldb:seq:e:680
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1028:
+    oper-status: up
+    last-change: 2018-08-08T19:05:09+09:00
+    speed: 1000000000
+
+...
+# @@
+# 684
+%TAG !seq! ymldb:seq:e:684
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1028:
+    oper-status: down
+    last-change: 2018-08-08T19:05:27+09:00
+
+...
+# @@
+# 685
+%TAG !seq! ymldb:seq:e:685
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1028:
+    enabled: false
+
+...
+# @@
+# 687
+%TAG !seq! ymldb:seq:e:687
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1028:
+
+...
+# @@
+# 686
+%TAG !seq! ymldb:seq:e:686
+%TAG !merge! ymldb:op:merge
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1028:
+    admin-status: down
+    last-change: 2018-08-08T19:05:37+09:00
+
+...
+# @@
+# 688
+%TAG !seq! ymldb:seq:e:688
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+interface:
+  Vlan1028:
+
+...
+# @@
+# 689
+%TAG !seq! ymldb:seq:e:689
+%TAG !delete! ymldb:op:delete
+%TAG !publisher! ymldb:op:publisher
+---
+vlan:
+  1028:
