@@ -368,6 +368,75 @@ art_leaf* art_maximum(art_tree *t) {
     return maximum((art_node*)t->root);
 }
 
+
+/**
+ * Checks if a leaf matches
+ * @return 0 on success.
+ */
+static int leaf_matches_best(const art_leaf *n, const unsigned char *key, int key_len, int depth) {
+    (void)depth;
+    // Fail if the key lengths are different
+    if (n->key_len > (uint32_t)key_len) return 1;
+
+    // Compare the keys starting at the depth
+    return memcmp(n->key, key, n->key_len);
+}
+
+/**
+ * Searches a longest-prefix-matched value in the ART tree
+ * @arg t The tree
+ * @arg key The key
+ * @arg key_len The length of the key
+ * @arg matched_len The length the matched prefix
+ * @return NULL if the item was not found, otherwise
+ * the value pointer is returned.
+ */
+void* art_best_match(const art_tree *t, const unsigned char *key, int key_len, int *matched_len) {
+    art_node **child;
+    art_node *n = t->root;
+    int prefix_len, depth = 0;
+    art_leaf *best = NULL;
+    int best_depth = 0;
+    // printf("search key=%s key_len=%d\n", key, key_len);
+    while (n) {
+        // Might be a leaf
+        if (IS_LEAF(n)) {
+            n = (art_node*)LEAF_RAW(n);
+            // Check if the expanded path matches
+            if (!leaf_matches_best((art_leaf*)n, key, key_len, depth)) {
+                *matched_len = ((art_leaf*)n)->key_len;
+                return ((art_leaf*)n)->value;
+            }
+            goto done;
+        }
+
+        // Bail if the prefix does not match
+        if (n->partial_len) {
+            prefix_len = check_prefix(n, key, key_len, depth);
+            if (prefix_len != min(MAX_PREFIX_LEN, n->partial_len))
+                goto done;
+            depth = depth + n->partial_len;
+        }
+
+        // Recursively search
+        best = minimum(n);
+        best_depth = depth;
+        child = find_child(n, key[depth]);
+        n = (child) ? *child : NULL;
+        depth++;
+    }
+done:
+    if (best)
+    {
+        // printf("best->key=%s, key_len=%d, best_depth=%d\n", best->key, best->key_len, best_depth);
+        if (!leaf_matches_best(best, key, key_len, best_depth)) {
+            *matched_len = best->key_len;
+            return best->value;
+        }
+    }
+    return NULL;
+}
+
 static art_leaf* make_leaf(const unsigned char *key, int key_len, void *value) {
     art_leaf *l = (art_leaf*)calloc(1, sizeof(art_leaf)+key_len+1); // [neoul@actus] fixed search failure
     l->value = value;

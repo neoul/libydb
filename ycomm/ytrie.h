@@ -28,6 +28,9 @@ void *ytrie_delete(ytrie *trie, const void *key, int key_len);
 // return the value if found, otherwise return NULL
 void *ytrie_search(ytrie *trie, const void *key, int key_len);
 
+// return the best matched value if found, otherwise return NULL
+void *ytrie_best_match(ytrie *trie, const void *key, int key_len, int *matched_len);
+
 // callback function for ytrie *iteration
 typedef int(*ytrie_callback)(void *arg, const void *key, int key_len, void *value);
 
@@ -35,7 +38,7 @@ typedef int(*ytrie_callback)(void *arg, const void *key, int key_len, void *valu
 int ytrie_traverse(ytrie *trie, ytrie_callback cb, void *addition);
 
 // Iterates through the entries pairs in the map
-int ytrie_traverse_prefix(ytrie *trie, const void *prefix, int prefix_len, ytrie_callback cb, void *addition);
+int ytrie_traverse_prefix_match(ytrie *trie, const void *key, int key_len, ytrie_callback cb, void *addition);
 
 
 typedef struct ytrie_iter_s
@@ -45,7 +48,7 @@ typedef struct ytrie_iter_s
     ylist_iter *list_iter;
 } ytrie_iter;
 
-ytrie_iter* ytrie_iter_create(ytrie *trie, const void *prefix, int prefix_len);
+ytrie_iter* ytrie_iter_create(ytrie *trie, const void *key, int key_len);
 ytrie_iter* ytrie_iter_next(ytrie_iter *iter);
 int ytrie_iter_done(ytrie_iter *range);
 ytrie_iter* ytrie_iter_reset(ytrie_iter *iter);

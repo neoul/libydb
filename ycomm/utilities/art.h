@@ -164,6 +164,17 @@ void* art_delete(art_tree *t, const unsigned char *key, int key_len);
 void* art_search(const art_tree *t, const unsigned char *key, int key_len);
 
 /**
+ * Searches a longest-prefix-matched value in the ART tree
+ * @arg t The tree
+ * @arg key The key
+ * @arg key_len The length of the key
+ * @arg matched_len The length the matched prefix
+ * @return NULL if the item was not found, otherwise
+ * the value pointer is returned.
+ */
+void* art_best_match(const art_tree *t, const unsigned char *key, int key_len, int *matched_len);
+
+/**
  * Returns the minimum valued leaf
  * @return The minimum leaf or NULL
  */

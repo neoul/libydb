@@ -44,6 +44,14 @@ int traverse2(void *data, const void *key, int key_len, void *value)
     return 0;
 }
 
+int traverse_prefix(void *data, const void *key, int key_len, void *value)
+{
+    static int cnt = 0;
+    printf("[TRAVERSE] key=%s, len=%d\n", (char *)key, key_len);
+    cnt++;
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	// // Fixed length of key
@@ -105,7 +113,7 @@ int main(int argc, char *argv[])
 	// // TRAVERSE
 	// printf("TRAVERSE with prefix\n");
 	// sprintf(query.value, "VALUE1");
-	// ytrie_traverse_prefix(trie, query.value, strlen(query.value), traverse, "Callback_data");
+	// ytrie_traverse_matched(trie, query.value, strlen(query.value), traverse, "Callback_data");
 
 	// // TRAVERSE_IN_RANGE
 	// ytrie_iter* range = ytrie_iter_create(trie, query.value, strlen(query.value));
@@ -123,6 +131,7 @@ int main(int argc, char *argv[])
 
 	if(argc > 1)
 	{
+		char *searchvalue;
 		char buf[512], *line;
 		FILE *fp = fopen(argv[1], "r");
 		if(!fp)
@@ -161,18 +170,42 @@ int main(int argc, char *argv[])
 		// ytrie_traverse(trie, traverse2, "****");
 
 		// SEARCH
-		char *searchvalue = ytrie_search(trie, "auto", strlen("auto"));
-		if(searchvalue)
-			printf("[SEARCH] search value: %s\n", searchvalue);
-		else
-			printf("[SEARCH] -- failed\n");
+		// printf("SEARCH: au\n");
+		// printf("SEARCH: ytrie_search(au, 2)\n");
+		// char *searchvalue = ytrie_search(trie, "auto", strlen("auto"));
+		// if(searchvalue)
+		// 	printf("[SEARCH] search value: %s\n", searchvalue);
+		// else
+		// 	printf("[SEARCH] -- failed\n");
 
-		searchvalue = ytrie_search(trie, "auto-negotiation", strlen("auto-negotiation"));
-		if(searchvalue)
-			printf("[SEARCH] search value: %s\n", searchvalue);
-		else
-			printf("[SEARCH] -- failed\n");
-
+		// TRAVERSE
+		// printf("SEARCH: ytrie_traverse_matched(au, 2)\n");
+		// ytrie_traverse_prefix_match(trie, "au", strlen("au"), traverse_prefix, "Callback_data");
+		int i;
+		int matchlen = 0;
+		char *item[] = {
+			"auto",
+			"auto-",
+			"auto-b",
+			"aut",
+			"auto-ne",
+			"auto-negotiation-xx",
+			"ge",
+			"ge1",
+			"ge11",
+			"ge111",
+			"geX",
+			"ge24x"
+		};
+		for(i=0; i < (sizeof(item)/sizeof(char *)); i++)
+		{
+			printf("search : %s (%ld)\n", item[i], strlen(item[i]));
+			searchvalue = ytrie_best_match(trie, item[i], strlen(item[i]), &matchlen);
+			if(searchvalue)
+				printf("  [SEARCH] search value: %s, match_len %d\n", searchvalue, matchlen);
+			else
+				printf("  [SEARCH] -- failed\n");
+		}
 		ytrie_destroy_custom(trie, free);
 		fclose(fp);
 	}
