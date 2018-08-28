@@ -54,81 +54,6 @@ int traverse_prefix(void *data, const void *key, int key_len, void *value)
 
 int main(int argc, char *argv[])
 {
-	// // Fixed length of key
-	// // CREATE
-	// printf("CREATE\n");
-	// ytrie *trie = ytrie_create();
-
-	// // INSERT
-	// printf("INSERT\n");
-	// int count;
-	// for(count=0; count<10; count++)
-	// {
-	// 	struct user_data *data = user_data_new();
-	// 	data->key = count;
-	// 	snprintf(data->value, 16, "VALUE%d", (count*count));
-	// 	ytrie_insert(trie, (const void *) data, YDATA_KEY_SIZE, data);
-	// }
-
-	// // SIZE
-	// printf("[SIZE] %lu\n", ytrie_size(trie));
-
-	// // TRAVERSE
-	// ytrie_traverse(trie, traverse, "****");
-
-	// // SEARCH
-	// struct user_data query;
-	// struct user_data *qres;
-	// memset(&query, 0x0, sizeof(struct user_data));
-	// query.key = 5;
-	// qres = ytrie_search(trie, &query, YDATA_KEY_SIZE);
-	// if(qres)
-	// 	printf("[SEARCH]('%u')=%u,%s\n", query.key, qres->key, qres->value);
-	// else
-	// 	printf("[SEARCH] -- failed\n");
-
-	// // DELETE
-	// printf("DELETE\n");
-	// for(count=0; count<10; count++)
-	// {
-	// 	unsigned int key = count;
-	// 	void *deleted = ytrie_delete(trie, (const void *) &key, YDATA_KEY_SIZE);
-	// 	user_data_free((struct user_data *)deleted);
-	// }
-
-	// // Variable length of key
-	// // INSERT
-	// printf("INSERT\n");
-	// for(count=10; count<20; count++)
-	// {
-	// 	struct user_data *data = user_data_new();
-	// 	data->key = count;
-	// 	snprintf(data->value, 16, "VALUE%d", (count*count));
-	// 	ytrie_insert(trie, (const void *) data->value, sizeof(data->value), data);
-	// }
-
-	// // SIZE
-	// printf("[SIZE] %lu\n", ytrie_size(trie));
-
-	// // TRAVERSE
-	// printf("TRAVERSE with prefix\n");
-	// sprintf(query.value, "VALUE1");
-	// ytrie_traverse_matched(trie, query.value, strlen(query.value), traverse, "Callback_data");
-
-	// // TRAVERSE_IN_RANGE
-	// ytrie_iter* range = ytrie_iter_create(trie, query.value, strlen(query.value));
-	// for(; ytrie_iter_done(range); range=ytrie_iter_next(range))
-	// {
-	// 	struct user_data *udata = ytrie_iter_get_data(range);
-    // 	printf("[TRAVERSE_IN_RANGE] %u %s\n", udata->key, udata->value);
-	// }
-	// ytrie_iter_delete(range);
-
-	// // DESTROY
-	// printf("DESTROY\n");
-	// ytrie_destroy_custom(trie, (user_free) user_data_free);
-
-
 	if(argc > 1)
 	{
 		char *searchvalue;
@@ -153,7 +78,7 @@ int main(int argc, char *argv[])
 			char *old = ytrie_insert(trie, copy, strlen(copy), copy);
 			if(old)
 			{
-				printf("duplicated %s\n", old);
+				// printf("duplicated %s\n", old);
 				free(old);
 			}
 			else
@@ -161,26 +86,10 @@ int main(int argc, char *argv[])
 				printf("inserted %s\n", copy);
 			}
 		}
-
       	
 		// SIZE
 		printf("[SIZE] %lu\n", ytrie_size(trie));
 
-		// // TRAVERSE
-		// ytrie_traverse(trie, traverse2, "****");
-
-		// SEARCH
-		// printf("SEARCH: au\n");
-		// printf("SEARCH: ytrie_search(au, 2)\n");
-		// char *searchvalue = ytrie_search(trie, "auto", strlen("auto"));
-		// if(searchvalue)
-		// 	printf("[SEARCH] search value: %s\n", searchvalue);
-		// else
-		// 	printf("[SEARCH] -- failed\n");
-
-		// TRAVERSE
-		// printf("SEARCH: ytrie_traverse_matched(au, 2)\n");
-		// ytrie_traverse_prefix_match(trie, "au", strlen("au"), traverse_prefix, "Callback_data");
 		int i;
 		int matchlen = 0;
 		char *item[] = {
@@ -206,6 +115,12 @@ int main(int argc, char *argv[])
 			else
 				printf("  [SEARCH] -- failed\n");
 		}
+		ylist *search_range = ytrie_search_range(trie, "ge", strlen("ge"));
+		while(!ylist_empty(search_range))
+		{
+			printf(" + %s\n", (char *) ylist_pop_front(search_range));
+		}
+		ylist_destroy(search_range);
 		ytrie_destroy_custom(trie, free);
 		fclose(fp);
 	}

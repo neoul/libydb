@@ -29,6 +29,7 @@ autom4te.cache
 test/test/ymldb-file-rw
 ymldb-file.yml
 Makefile.in
+configure
 examples/agent/ymldb-tester
 examples/samples/ymldb-file-rw
 examples/samples/ymldb-test
@@ -36,10 +37,10 @@ examples/samples/ymldb-update-callback-example
 examples/samples/ymldb-push-pull
 examples/samples/ymldb-example2
 examples/agent/ymldb-agent
-configure
 examples/ycomm/ex-yalloc
 examples/ycomm/ex-yque
 examples/ycomm/ex-ytree
 examples/ycomm/ex-ytrie
 examples/ycomm/ex-ylist
+examples/ycomm/ex-ytrie2
 ycomm/utilities/.dirstamp

@@ -383,6 +383,7 @@ static int leaf_matches_best(const art_leaf *n, const unsigned char *key, int ke
 }
 
 /**
+ * [neoul@ymail.com] Search the longest matched value with the input key.
  * Searches a longest-prefix-matched value in the ART tree
  * @arg t The tree
  * @arg key The key
@@ -438,11 +439,11 @@ done:
 }
 
 static art_leaf* make_leaf(const unsigned char *key, int key_len, void *value) {
-    art_leaf *l = (art_leaf*)calloc(1, sizeof(art_leaf)+key_len+1); // [neoul@actus] fixed search failure
+    art_leaf *l = (art_leaf*)calloc(1, sizeof(art_leaf)+key_len+1); // [neoul@ymail.com] fixed search failure
     l->value = value;
     l->key_len = key_len;
     memcpy(l->key, key, key_len);
-    l->key[key_len]=0; // [neoul@actus] fixed search failure caused by out of range comparison.
+    l->key[key_len]=0; // [neoul@ymail.com] fixed search failure caused by out of range comparison.
     return l;
 }
 
@@ -889,6 +890,7 @@ static art_leaf* recursive_delete(art_node *n, art_node **ref, const unsigned ch
  * the value pointer is returned.
  */
 void* art_delete(art_tree *t, const unsigned char *key, int key_len) {
+    // printf("\nart_delete(%s %d)\n", key, key_len);
     art_leaf *l = recursive_delete(t->root, &t->root, key, key_len, 0);
     if (l) {
         t->size--;
@@ -1040,8 +1042,7 @@ int art_iter_prefix(art_tree *t, const unsigned char *key, int key_len, art_call
     return 0;
 }
 
-// neoul - add for iteration
-
+// neoul@ymail.com - search range
 
 // Recursively iterates over the tree
 static int recursive_iter_leaf(art_node *n, art_callback_leaf cb, void *data) {
