@@ -10,17 +10,17 @@
 #include <sys/un.h>
 
 // getpid()
-#include <sys/types.h>
-#include <unistd.h>
-#include <yaml.h>
-#include "ycomm.h"
-#include "inc.h"
+// #include <sys/types.h>
+// #include <unistd.h>
+// #include <yaml.h>
+// #include "ycomm.h"
+// #include "inc.h"
 
-void yipc_node_print(char *str, int level)
-{
-	if (level <= 50) // size of y_space_str
-		fprintf(stdout, "%.*s%s:\n", (level)*2, y_space_str, str);
-}
+// void yipc_node_print(char *str, int level)
+// {
+// 	if (level <= 50) // size of y_space_str
+// 		fprintf(stdout, "%.*s%s:\n", (level)*2, y_space_str, str);
+// }
 
 // yipc_node_t *yipc_node_create(char *key, char *value)
 // {

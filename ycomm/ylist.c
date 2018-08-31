@@ -280,14 +280,18 @@ void ylist_printf(ylist *list, ylist_print print, void *addition)
     }
 }
 
-void ylist_traverse(ylist *list, ylist_callback cb, void *addition)
+int ylist_traverse(ylist *list, ylist_callback cb, void *addition)
 {
+    int res = -1;
     struct _ylist_iter *iter;
     if (!list)
-        return;
+        return res;
     for (iter = list->head->next; iter != list->head; iter = iter->next)
     {
-        cb(iter->data, addition);
+        res = cb(iter->data, addition);
+        if(res)
+            return res;
     }
+    return res;
 }
 

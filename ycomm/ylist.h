@@ -74,7 +74,7 @@ ylist_iter *ylist_insert(ylist_iter *iter, void *data);
 
 void ylist_printf(ylist *list, ylist_print print, void *addition);
 
-void ylist_traverse(ylist *list, ylist_callback cb, void *addition);
+int ylist_traverse(ylist *list, ylist_callback cb, void *addition);
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif
