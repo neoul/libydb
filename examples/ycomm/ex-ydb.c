@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "ydb.h"
 
@@ -54,18 +55,25 @@ int test_ydb_push_pop()
 		}
 	}
 	
-	printf("\n[dump]\n");
 	ynode_dump(root, -1);
+	printf("\n\n");
 
 	char buf[300];
-	ynode_snprintf(buf, 300, root, 0);
+	ynode_snprintf(buf, 300, mylist, 0);
 	printf("%s", buf);
+	printf("\n\n");
+	ynode_fprintf(stdout, mylist, 0);
+	printf("\n\n");
+	ynode_write(STDOUT_FILENO, mylist, 0);
+	printf("\n\n");
+	ynode_printf(mylist, 0);
+	printf("\n\n");
+
+	ynode_dump_debug(root, 0);
 
 	ynode_detach(mylist);
 	ynode_free(mylist);
 
-	printf("\n[dump (for debug)]\n");
-	ynode_dump_debug(root, 0);
 
 
 	ynode_detach(root);

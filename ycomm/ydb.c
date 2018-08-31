@@ -470,8 +470,9 @@ void ynode_dump_debug(ynode *node, unsigned int level)
     dump = dump_ctrl_new_debug(NULL, 0, NULL, 0, level);
     if (!dump)
         return;
+    printf("\n[dump (for debug)]\n");
     dump_ctrl_dump_ynode(dump, node);
-    printf("\ndump len=%d\n", dump->len);
+    printf("[dump (len=%d)]\n", dump->len);
     dump_ctrl_free(dump);
 }
 
@@ -483,8 +484,9 @@ void ynode_dump(ynode *node, unsigned int level)
     dump = dump_ctrl_new(NULL, 0, NULL, 0, level);
     if (!dump)
         return;
+    printf("\n[dump]\n");
     dump_ctrl_dump_ynode(dump, node);
-    printf("\ndump len=%d\n", dump->len);
+    printf("[dump (len=%d)]\n", dump->len);
     dump_ctrl_free(dump);
 }
 
@@ -502,6 +504,42 @@ int ynode_snprintf(char *buf, int buflen, ynode *node, int level)
     dump_ctrl_free(dump);
     return len;
 }
+
+int ynode_fprintf(FILE *fp, ynode *node, int level)
+{
+    int len = -1;
+    struct dump_ctrl *dump;
+    if (!node)
+        return -1;
+    dump = dump_ctrl_new(fp, 0, NULL, 0, level);
+    if (!dump)
+        return -1;
+    dump_ctrl_dump_ynode(dump, node);
+    len = dump->len;
+    dump_ctrl_free(dump);
+    return len;
+}
+
+int ynode_write(int fd, ynode *node, int level)
+{
+    int len = -1;
+    struct dump_ctrl *dump;
+    if (!node)
+        return -1;
+    dump = dump_ctrl_new(NULL, fd, NULL, 0, level);
+    if (!dump)
+        return -1;
+    dump_ctrl_dump_ynode(dump, node);
+    len = dump->len;
+    dump_ctrl_free(dump);
+    return len;
+}
+
+int ynode_printf(ynode *node, int level)
+{
+    return ynode_fprintf(NULL, node, level);
+}
+
 
 // ynode_fprintf(FILE, ynode)
 // ynode_printf(stdout, ynode)

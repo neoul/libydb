@@ -12,7 +12,7 @@
 // getpid()
 // #include <sys/types.h>
 // #include <unistd.h>
-// #include <yaml.h>
+#include <yaml.h>
 // #include "ycomm.h"
 // #include "inc.h"
 

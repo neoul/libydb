@@ -46,5 +46,7 @@ void ynode_dump_debug(ynode *node, unsigned int level);
 void ynode_dump(ynode *node, unsigned int level);
 
 int ynode_snprintf(char *buf, int buflen, ynode *node, int level);
-
+int ynode_fprintf(FILE *fp, ynode *node, int level);
+int ynode_write(int fd, ynode *node, int level);
+int ynode_printf(ynode *node, int level);
 #endif // __YDB__
