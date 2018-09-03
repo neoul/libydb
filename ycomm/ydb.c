@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <yaml.h>
 
 #include "yalloc.h"
 #include "ytree.h"
@@ -537,6 +538,210 @@ int ynode_write(int fd, ynode *node, int level)
 int ynode_printf(ynode *node, int level)
 {
     return ynode_fprintf(NULL, node, level);
+}
+
+static ydb_log_func logger;
+int ydb_log_register( ydb_log_func func)
+{
+    logger = func;
+    return 0;
+}
+
+int ydb_log(int log_level, const char *format, ...)
+{
+    int res = -1;
+    va_list args;
+    va_start (args, format);
+    if (logger)
+        res = logger(log_level, format, args);
+    va_end (args);
+    return res;
+}
+
+int ydb_log_yaml(yaml_parser_t *parser)
+{
+	/* Display a parser error message. */
+	switch (parser->error)
+	{
+	case YAML_MEMORY_ERROR:
+		ydb_log(YDB_LOG_ERR, "mem err: not enough memory for parsing\n");
+		break;
+
+	case YAML_READER_ERROR:
+		if (parser->problem_value != -1)
+		{
+			ydb_log(YDB_LOG_ERR, "reader error: %s: #%X at %zd\n", parser->problem,
+					parser->problem_value, parser->problem_offset);
+		}
+		else
+		{
+			ydb_log(YDB_LOG_ERR, "reader error: %s at %zu\n", parser->problem,
+					parser->problem_offset);
+		}
+		break;
+
+	case YAML_SCANNER_ERROR:
+		if (parser->context)
+		{
+			ydb_log(YDB_LOG_ERR, "scanner error: %s at line %zu, column %zu\n",
+					parser->context,
+					parser->context_mark.line + 1, parser->context_mark.column + 1);
+			ydb_log(YDB_LOG_ERR, "%s at line %zu, column %zu\n",
+					parser->problem, parser->problem_mark.line + 1,
+					parser->problem_mark.column + 1);
+		}
+		else
+		{
+			ydb_log(YDB_LOG_ERR, "scanner error: %s at line %zu, column %zu\n",
+					parser->problem, parser->problem_mark.line + 1,
+					parser->problem_mark.column + 1);
+		}
+		break;
+
+	case YAML_PARSER_ERROR:
+		if (parser->context)
+		{
+			ydb_log(YDB_LOG_ERR, "parser error: %s at line %zu, column %zu\n",
+					parser->context,
+					parser->context_mark.line + 1, parser->context_mark.column + 1);
+			ydb_log(YDB_LOG_ERR, "%s at line %zu, column %zu\n",
+					parser->problem, parser->problem_mark.line + 1,
+					parser->problem_mark.column + 1);
+		}
+		else
+		{
+			ydb_log(YDB_LOG_ERR, "parser error: %s at line %zu, column %zu\n",
+					parser->problem, parser->problem_mark.line + 1,
+					parser->problem_mark.column + 1);
+		}
+		break;
+
+	case YAML_COMPOSER_ERROR:
+		if (parser->context)
+		{
+			ydb_log(YDB_LOG_ERR, "composer error: %s at line %zu, column %zu\n",
+					parser->context,
+					parser->context_mark.line + 1, parser->context_mark.column + 1);
+			ydb_log(YDB_LOG_ERR, "%s at line %zu, column %zu\n",
+					parser->problem, parser->problem_mark.line + 1,
+					parser->problem_mark.column + 1);
+			ydb_log(YDB_LOG_ERR, "\n");
+		}
+		else
+		{
+			ydb_log(YDB_LOG_ERR, "composer error: %s at line %zu, column %zu\n",
+					parser->problem, parser->problem_mark.line + 1,
+					parser->problem_mark.column + 1);
+		}
+		break;
+
+	default:
+		/* Couldn't happen. */
+		ydb_log(YDB_LOG_ERR, "internal error\n");
+		break;
+	}
+	return 0;
+}
+
+// yipc read data from a yaml file
+void *ydb_fscanf(FILE *fp)
+{
+	int level = 0;
+	yaml_parser_t parser;
+	yaml_token_t token; /* new variable */
+	if (!fp)
+	{
+        ydb_log(YDB_LOG_ERR, "no input\n");
+		return NULL;
+	}
+
+	/* Initialize parser */
+	if (!yaml_parser_initialize(&parser))
+	{
+		ydb_log_yaml(&parser);
+		yaml_parser_delete(&parser);
+		return NULL;
+	}
+
+	/* Set input file */
+	yaml_parser_set_input_file(&parser, fp);
+
+	/* BEGIN new code */
+	do
+	{
+		yaml_parser_scan(&parser, &token);
+		if (!token.type)
+		{
+			ydb_log_yaml(&parser);
+			break;
+		}
+		switch (token.type)
+		{
+		/* Stream start/end */
+		case YAML_STREAM_START_TOKEN:
+			ydb_log(YDB_LOG_DEBUG, "[stream start]", level);
+			// init top node
+			level = 0;
+			break;
+		case YAML_STREAM_END_TOKEN:
+			ydb_log(YDB_LOG_DEBUG, "[stream end]", level);
+			level = 0;
+			break;
+		case YAML_KEY_TOKEN:
+			ydb_log(YDB_LOG_DEBUG, "[key token]", level);
+			break;
+		case YAML_VALUE_TOKEN:
+			ydb_log(YDB_LOG_DEBUG, "[value token]", level);
+			break;
+			/* Block delimeters */
+		case YAML_BLOCK_SEQUENCE_START_TOKEN:
+			ydb_log(YDB_LOG_DEBUG, "[block sequence token]", level);
+			level++;
+			break;
+		case YAML_BLOCK_MAPPING_START_TOKEN:
+			ydb_log(YDB_LOG_DEBUG, "[block map token]", level);
+			level++;
+			break;
+		case YAML_BLOCK_ENTRY_TOKEN:
+			// level++;
+			// ydb_log(YDB_LOG_DEBUG, "[block entry token]", level);
+			break;
+		case YAML_BLOCK_END_TOKEN:
+			level--;
+			ydb_log(YDB_LOG_DEBUG, "[block end]", level);
+			break;
+		case YAML_SCALAR_TOKEN:
+		{
+			char *scalar = (char *)token.data.scalar.value;
+			ydb_log(YDB_LOG_DEBUG, scalar, level + 1);
+		}
+		break;
+		/* Others */
+		case YAML_FLOW_SEQUENCE_START_TOKEN:
+		case YAML_FLOW_SEQUENCE_END_TOKEN:
+		case YAML_FLOW_MAPPING_START_TOKEN:
+		case YAML_FLOW_MAPPING_END_TOKEN:
+		case YAML_FLOW_ENTRY_TOKEN:
+		case YAML_DOCUMENT_START_TOKEN:
+		case YAML_DOCUMENT_END_TOKEN:
+		case YAML_VERSION_DIRECTIVE_TOKEN:
+		case YAML_TAG_DIRECTIVE_TOKEN:
+		case YAML_TAG_TOKEN:
+		case YAML_ANCHOR_TOKEN:
+		case YAML_ALIAS_TOKEN:
+		default:
+			ydb_log(YDB_LOG_DEBUG, "ignored token", 0);
+			break;
+		}
+		if (token.type != YAML_STREAM_END_TOKEN)
+			yaml_token_delete(&token);
+	} while (token.type != YAML_STREAM_END_TOKEN);
+	yaml_token_delete(&token);
+	/* END new code */
+
+	/* Cleanup */
+	yaml_parser_delete(&parser);
+	return NULL;
 }
 
 // ynode = ynode_fscanf(FILE)

@@ -49,4 +49,12 @@ int ynode_snprintf(char *buf, int buflen, ynode *node, int level);
 int ynode_fprintf(FILE *fp, ynode *node, int level);
 int ynode_write(int fd, ynode *node, int level);
 int ynode_printf(ynode *node, int level);
+
+
+#define YDB_LOG_DEBUG   3
+#define YDB_LOG_INFO    2
+#define YDB_LOG_ERR     1
+#define YDB_LOG_CRI     0
+typedef int (*ydb_log_func) (int log_level, const char *format, ...);
+int ydb_log_register( ydb_log_func func);
 #endif // __YDB__
