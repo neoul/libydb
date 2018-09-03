@@ -27,10 +27,10 @@ int test_ydb_push_pop()
 {
 	int i;
 	char *item[] = {
-		"mtu", "100",
+		"mtu\n", "100",
 		"type", "mgmt",
 		"admin", "enabled",
-		"name", "ge1"
+		"name", "ge1\ngo\x07"
 	};
 	ynode *root = ynode_new(YNODE_TYPE_DICT, NULL);
 

@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <assert.h>
+#include <ctype.h>
+#include <stdarg.h>
 
 #include "yalloc.h"
 #include "ytree.h"
@@ -36,6 +38,73 @@ struct _ynode
 #define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
 #define UNSET_FLAG(flag, v) ((flag) = ((flag) & (~v)))
 #define IS_SET(flag, v) ((flag) & (v))
+
+static char *ystr_convert(char *str)
+{
+    int slen = 0;
+    unsigned int spacectrl = 0;
+    unsigned int space = 0;
+    unsigned int ctrl = 0;
+    
+    for (slen = 0; str[slen]; slen++)
+    {
+        if (!isgraph(str[slen]))
+        {
+            if (isspace(str[slen]))
+            {
+                if(str[slen] == ' ')
+                    space++;
+                else
+                    spacectrl++;
+            }
+            else
+                ctrl++;
+        }
+    }
+
+    if (space == 0 && ctrl ==0 && spacectrl == 0)
+        return NULL;
+    else
+    {
+        int len = 0;
+        char *newstr = malloc((slen+ spacectrl + (ctrl*3) + 4));
+        if(!newstr)
+            return NULL;
+        newstr[len] = '"';
+        len++;
+        for (slen = 0; str[slen]; slen++)
+        {
+            if (isprint(str[slen]))
+            {
+                newstr[len] = str[slen];
+                len++;
+            }
+            else if(isspace(str[slen]))
+            {
+                int n = sprintf(newstr+len, "\\%c", 
+                    (str[slen]==0x09)?'t':
+                    (str[slen]==0x0A)?'n':
+                    (str[slen]==0x0B)?'v':
+                    (str[slen]==0x0C)?'f':
+                    (str[slen]==0x0D)?'r':' ');
+                if (n <= 0)
+                    break;
+                len = len + n;
+            }
+            else 
+            {
+                int n = sprintf(newstr+len, "\\x%02X", str[slen]);
+                if (n <= 0)
+                    break;
+                len = len + n;
+            }
+        }
+        newstr[len] = '"';
+        len ++;
+        newstr[len] = 0;
+        return newstr;
+    }
+}
 
 // delete ynode regardless of the detachment of the parent
 void ynode_free(ynode *node)
@@ -222,200 +291,130 @@ void dump_ctrl_free(struct dump_ctrl *cb)
         free(cb);
 }
 
-static char *dump_ctrl_keystr_debug(ynode *node)
+int dump_ctrl_print (struct dump_ctrl *dump, const char *format, ...)
 {
-    static char keystr[256];
-    if (IS_SET(node->flags, YNODE_FLAG_KEY))
-        snprintf(keystr, 256, "key: %s", node->key);
-    else if (IS_SET(node->flags, YNODE_FLAG_ITER))
-        snprintf(keystr, 256, "iter: %p", node->iter);
-    else
-        snprintf(keystr, 256, "key: none");
-    keystr[255] = 0;
-    return keystr;
-}
-
-static char *dump_ctrl_keystr(ynode *node)
-{
-    static char keystr[256];
-    if (IS_SET(node->flags, YNODE_FLAG_KEY))
-        snprintf(keystr, 256, "%s:", node->key);
-    else if (IS_SET(node->flags, YNODE_FLAG_ITER))
-        snprintf(keystr, 256, "-");
-    else
-        snprintf(keystr, 256, "%s", "");
-    keystr[255] = 0;
-    return keystr;
-}
-
-static int dump_ctrl_debug_ynode(struct dump_ctrl *cb, ynode *node)
-{
-    int indent = cb->level * 2;
-    if(indent < 0)
-        return YDB_OK;
-    switch (node->type)
+    va_list args;
+    va_start (args, format);
+    switch (dump->type)
     {
-    case YNODE_TYPE_DICT:
-        switch (cb->type)
-        {
-        case DUMP_TYPE_FP:
-            cb->len += fprintf(cb->fp, "%.*sdict {ptr:%p, %s, dict(count): %d, parent: %p}\n",
-                               indent, space, node, dump_ctrl_keystr_debug(node), ytree_size(node->dict), node->parent);
-            break;
-        case DUMP_TYPE_FD:
-            cb->len += dprintf(cb->fd, "%.*sdict {ptr:%p, %s, dict(count): %d, parent: %p}\n",
-                               indent, space, node, dump_ctrl_keystr_debug(node), ytree_size(node->dict), node->parent);
-            break;
-        case DUMP_TYPE_STR:
-            cb->len += snprintf((cb->buf + cb->len), (cb->buflen - cb->len),
-                                "%.*sdict {ptr:%p, %s, dict(count): %d, parent: %p}\n",
-                                indent, space, node, dump_ctrl_keystr_debug(node), ytree_size(node->dict), node->parent);
-            if (cb->buflen <= cb->len)
-            {
-                cb->buf[cb->buflen - 1] = 0;
-                return YDB_E_FULL_BUF;
-            }
-            break;
-        default:
-            assert(!YDB_E_DUMP_CB);
-        }
+    case DUMP_TYPE_FP:
+        dump->len += vfprintf(dump->fp, format, args);
         break;
-    case YNODE_TYPE_LIST:
-        switch (cb->type)
-        {
-        case DUMP_TYPE_FP:
-            cb->len += fprintf(cb->fp, "%.*slist {ptr:%p, %s, list: %s, parent: %p}\n",
-                               indent, space, node, dump_ctrl_keystr_debug(node), (ylist_empty(node->list)) ? "empty" : "not-empty",
-                               node->parent);
-            break;
-        case DUMP_TYPE_FD:
-            cb->len += dprintf(cb->fd, "%.*slist {ptr:%p, %s, list: %s, parent: %p}\n",
-                               indent, space, node, dump_ctrl_keystr_debug(node), (ylist_empty(node->list)) ? "empty" : "not-empty",
-                               node->parent);
-            break;
-        case DUMP_TYPE_STR:
-            cb->len += snprintf((cb->buf + cb->len), (cb->buflen - cb->len),
-                                "%.*slist {ptr:%p, %s, list: %s, parent: %p}\n",
-                                indent, space, node, dump_ctrl_keystr_debug(node), (ylist_empty(node->list)) ? "empty" : "not-empty",
-                                node->parent);
-            if (cb->buflen <= cb->len)
-            {
-                cb->buf[cb->buflen - 1] = 0;
-                return YDB_E_FULL_BUF;
-            }
-            break;
-        default:
-            assert(!YDB_E_DUMP_CB);
-        }
+    case DUMP_TYPE_FD:
+        dump->len += vdprintf(dump->fd, format, args);
         break;
-    case YNODE_TYPE_VAL:
-        switch (cb->type)
+    case DUMP_TYPE_STR:
+        dump->len += vsnprintf((dump->buf + dump->len), (dump->buflen - dump->len), format, args);
+        if (dump->buflen <= dump->len)
         {
-        case DUMP_TYPE_FP:
-            cb->len += fprintf(cb->fp, "%.*sval {ptr:%p, %s, value: %s, parent: %p}\n",
-                               indent, space, node, dump_ctrl_keystr_debug(node), node->value, node->parent);
-            break;
-        case DUMP_TYPE_FD:
-            cb->len += dprintf(cb->fd, "%.*sval {ptr:%p, %s, value: %s, parent: %p}\n",
-                               indent, space, node, dump_ctrl_keystr_debug(node), node->value, node->parent);
-            break;
-        case DUMP_TYPE_STR:
-            cb->len += snprintf((cb->buf + cb->len), (cb->buflen - cb->len),
-                                "%.*sval {ptr:%p, %s, value: %s, parent: %p}\n",
-                                indent, space, node, dump_ctrl_keystr_debug(node), node->value, node->parent);
-            if (cb->buflen <= cb->len)
-            {
-                cb->buf[cb->buflen - 1] = 0;
-                return YDB_E_FULL_BUF;
-            }
-            break;
-        default:
-            assert(!YDB_E_DUMP_CB);
+            dump->buf[dump->buflen - 1] = 0;
+            return YDB_E_FULL_BUF;
         }
         break;
     default:
+        assert(!YDB_E_DUMP_CB);
+    }
+    va_end (args);
+    return YDB_OK;
+}
+
+static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
+{
+    ydb_res res;
+    int indent = dump->level * 2;
+    if (indent < 0)
+        return YDB_OK;
+        
+    // print indent
+    res = dump_ctrl_print(dump, "%.*s", indent, space);
+    if(res)
+        return res;
+    
+    res = dump_ctrl_print(dump, "%p ", node);
+    if(res)
+        return res;
+    
+    // print key
+    if (IS_SET(node->flags, YNODE_FLAG_KEY)) {
+        char *key = ystr_convert(node->key);
+        res = dump_ctrl_print(dump, "{key: %s,", key?key:node->key);
+        if (key)
+            free(key);
+    }
+    else if (IS_SET(node->flags, YNODE_FLAG_ITER))
+        res = dump_ctrl_print(dump, "{key: %p,", ylist_data(node->iter));
+    else
+        res = dump_ctrl_print(dump, "{key: none,");
+    if(res)
+        return res;
+
+    // print flags
+    switch (node->type)
+    {
+    case YNODE_TYPE_VAL:
+    {
+        char *value = ystr_convert(node->value);
+        res = dump_ctrl_print(dump, " value: %s,", value?value:node->value);
+        if (value)
+            free(value);
+        break;
+    }
+    case YNODE_TYPE_DICT:
+    {
+        res = dump_ctrl_print(dump, " count: %d,", ytree_size(node->dict));
+        break;
+    }
+    case YNODE_TYPE_LIST:
+    {
+        res = dump_ctrl_print(dump, " empty: %s,", ylist_empty(node->list)?"yes":"no");
+        break;
+    }
+    default:
         assert(!YDB_E_TYPE_ERR);
     }
-    return YDB_OK;
+    if(res)
+        return res;
+    res = dump_ctrl_print(dump, " parent: %p}\n", node->parent);
+    return res;
 }
 
 static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
 {
+    ydb_res res;
     int indent = dump->level * 2;
-    if(indent < 0)
+    if (indent < 0)
         return YDB_OK;
-    switch (node->type)
-    {
-    case YNODE_TYPE_DICT:
-        switch (dump->type)
-        {
-        case DUMP_TYPE_FP:
-            dump->len += fprintf(dump->fp, "%.*s%s\n", indent, space, dump_ctrl_keystr(node));
-            break;
-        case DUMP_TYPE_FD:
-            dump->len += dprintf(dump->fd, "%.*s%s\n", indent, space, dump_ctrl_keystr(node));
-            break;
-        case DUMP_TYPE_STR:
-            dump->len += snprintf((dump->buf + dump->len), (dump->buflen - dump->len),
-                                "%.*s%s\n", indent, space, dump_ctrl_keystr(node));
-            if (dump->buflen <= dump->len)
-            {
-                dump->buf[dump->buflen - 1] = 0;
-                return YDB_E_FULL_BUF;
-            }
-            break;
-        default:
-            assert(!YDB_E_DUMP_CB);
-        }
-        break;
-    case YNODE_TYPE_LIST:
-        switch (dump->type)
-        {
-        case DUMP_TYPE_FP:
-            dump->len += fprintf(dump->fp, "%.*s%s\n", indent, space, dump_ctrl_keystr(node));
-            break;
-        case DUMP_TYPE_FD:
-            dump->len += dprintf(dump->fd, "%.*s%s\n", indent, space, dump_ctrl_keystr(node));
-            break;
-        case DUMP_TYPE_STR:
-            dump->len += snprintf((dump->buf + dump->len), (dump->buflen - dump->len),
-                                "%.*s%s\n", indent, space, dump_ctrl_keystr(node));
-            if (dump->buflen <= dump->len)
-            {
-                dump->buf[dump->buflen - 1] = 0;
-                return YDB_E_FULL_BUF;
-            }
-            break;
-        default:
-            assert(!YDB_E_DUMP_CB);
-        }
-        break;
-    case YNODE_TYPE_VAL:
-        switch (dump->type)
-        {
-        case DUMP_TYPE_FP:
-            dump->len += fprintf(dump->fp, "%.*s%s %s\n", indent, space, dump_ctrl_keystr(node), node->value);
-            break;
-        case DUMP_TYPE_FD:
-            dump->len += dprintf(dump->fd, "%.*s%s %s\n", indent, space, dump_ctrl_keystr(node), node->value);
-            break;
-        case DUMP_TYPE_STR:
-            dump->len += snprintf((dump->buf + dump->len), (dump->buflen - dump->len),
-                                "%.*s%s %s\n", indent, space, dump_ctrl_keystr(node), node->value);
-            if (dump->buflen <= dump->len)
-            {
-                dump->buf[dump->buflen - 1] = 0;
-                return YDB_E_FULL_BUF;
-            }
-            break;
-        default:
-            assert(!YDB_E_DUMP_CB);
-        }
-        break;
-    default:
-        assert(!YDB_E_TYPE_ERR);
+
+    // print indent
+    res = dump_ctrl_print(dump, "%.*s", indent, space);
+    if(res)
+        return res;
+    
+    // print key
+    if (IS_SET(node->flags, YNODE_FLAG_KEY)) {
+        char *key = ystr_convert(node->key);
+        res = dump_ctrl_print(dump, "%s:", key?key:node->key);
+        if (key)
+            free(key);
     }
-    return YDB_OK;
+    else if (IS_SET(node->flags, YNODE_FLAG_ITER))
+        res = dump_ctrl_print(dump, "-");
+    if(res)
+        return res;
+
+    // print value
+    if (node->type == YNODE_TYPE_VAL)
+    {
+        char *value = ystr_convert(node->value);
+        res = dump_ctrl_print(dump, " %s\n", value?value:node->value);
+        if (value)
+            free(value);
+    }
+    else
+    {
+        res = dump_ctrl_print(dump, "\n");
+    }
+    return res;
 }
 
 static int dump_ctrl_dump_ynode(struct dump_ctrl *dump, ynode *node);
@@ -540,11 +539,6 @@ int ynode_printf(ynode *node, int level)
     return ynode_fprintf(NULL, node, level);
 }
 
-
-// ynode_fprintf(FILE, ynode)
-// ynode_printf(stdout, ynode)
-// ynode_write(fp, ynode)
-// ynode_sprintf(buffer, ynode)
 // ynode = ynode_fscanf(FILE)
 // ynode = ynode_scanf(stdout)
 // ynode = ynode_read(fp)

@@ -15,12 +15,12 @@
 #include <yaml.h>
 // #include "ycomm.h"
 // #include "inc.h"
-
-// void yipc_node_print(char *str, int level)
-// {
-// 	if (level <= 50) // size of y_space_str
-// 		fprintf(stdout, "%.*s%s:\n", (level)*2, y_space_str, str);
-// }
+char *y_space_str = "                                                         ";
+void yipc_node_print(char *str, int level)
+{
+	if (level <= 50) // size of y_space_str
+		fprintf(stdout, "%.*s%s\n", (level)*2, y_space_str, str);
+}
 
 // yipc_node_t *yipc_node_create(char *key, char *value)
 // {
@@ -170,7 +170,7 @@ int yipc_yaml_parser_error(yaml_parser_t *parser)
 }
 
 // yipc read data from a yaml file
-yipc_node_t *yipc_yaml_read_file(char *file)
+void *yipc_yaml_read_file(char *file)
 {
 	int level = 0;
 	FILE *fh = NULL;
@@ -211,41 +211,42 @@ yipc_node_t *yipc_yaml_read_file(char *file)
 		{
 		/* Stream start/end */
 		case YAML_STREAM_START_TOKEN:
-			yipc_node_print("stream start", level);
+			yipc_node_print("[stream start]", level);
 			// init top node
 			level = 0;
 			break;
 		case YAML_STREAM_END_TOKEN:
-			yipc_node_print("stream end", level);
+			yipc_node_print("[stream end]", level);
 			level = 0;
 			break;
 		case YAML_KEY_TOKEN:
-			yipc_node_print("key token", level);
+			yipc_node_print("[key token]", level);
 			break;
 		case YAML_VALUE_TOKEN:
-			yipc_node_print("value token", level);
+			yipc_node_print("[value token]", level);
 			break;
 			/* Block delimeters */
 		case YAML_BLOCK_SEQUENCE_START_TOKEN:
-			yipc_node_print("block sequence token", level);
+			yipc_node_print("[block sequence token]", level);
 			level++;
 			break;
 		case YAML_BLOCK_MAPPING_START_TOKEN:
-			yipc_node_print("block map token", level);
+			yipc_node_print("[block map token]", level);
 			level++;
 			break;
 		case YAML_BLOCK_ENTRY_TOKEN:
 			// level++;
-			// yipc_node_print("block entry token", level);
+			// yipc_node_print("[block entry token]", level);
 			break;
 		case YAML_BLOCK_END_TOKEN:
 			level--;
-			yipc_node_print("block end", level);
+			yipc_node_print("[block end]", level);
 			break;
 		case YAML_SCALAR_TOKEN:
 		{
 			char *scalar = (char *)token.data.scalar.value;
 			yipc_node_print(scalar, level + 1);
+			printf("scalar len=%d\n", strlen(scalar));
 		}
 		break;
 		/* Others */
@@ -275,4 +276,12 @@ yipc_node_t *yipc_yaml_read_file(char *file)
 	yaml_parser_delete(&parser);
 	fclose(fh);
 	return NULL;
+}
+
+int main(int argc, char *argv[])
+{
+	if(argc > 1)
+	{
+		yipc_yaml_read_file(argv[1]);
+	}
 }
