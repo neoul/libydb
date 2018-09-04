@@ -1,0 +1,54 @@
+
+# "go-hash \n,:": >
+#   folding newlines  a
+#   Wrapped text  
+#   will be folded
+#   into a single
+#   paragraph
+
+#   Blank lines denote
+#   paragraph breaks
+# go-hash2: |
+#   preserving newlines 
+#   There was a young fellow of Warwick 
+#   Who had reason for feeling euphoric
+#       For he could, by election
+#       Have triune erection
+#   Ionic, Corinthian, and Doric 11
+
+# - abc
+# # - efg
+# - hash1: data1
+
+
+# a1\tx  : "aa \x0A 511" #02
+# a2xxx : "go"
+
+---
+my-list:
+  - mtu
+  - 100
+  - type
+  - mgmt
+  - admin
+  - enabled
+  - name
+  # - "ge1\ngo\x07"
+hour: 13
+min: 57
+sec: 20
+flag: 
+  - 10
+  - 20
+  - 30
+...
+
+# ---
+# - LISTING
+# - START !!
+# ...
+
+---
+gok : boefm
+dia : a
+sec : 10
