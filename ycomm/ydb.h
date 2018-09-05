@@ -54,18 +54,24 @@ ynode *ynode_detach(ynode *node);
 
 // dump ydb
 void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int level);
-#define ynode_fp_dump(fp, node, level) ynode_dump_node(fp, 0, NULL, 0, node, level);
-#define ynode_sn_dump(buf, buflen, node, level) ynode_dump_node(NULL, 0, buf, buflen, node, level);
-#define ynode_fd_dump(fd, node, level) ynode_dump_node(NULL, fd, NULL, 0, node, level);
+#define ynode_dump_to_fp(fp, node, level) ynode_dump_node(fp, 0, NULL, 0, node, level);
+#define ynode_dump_to_buf(buf, buflen, node, level) ynode_dump_node(NULL, 0, buf, buflen, node, level);
+#define ynode_dump_to_fd(fd, node, level) ynode_dump_node(NULL, fd, NULL, 0, node, level);
 #define ynode_dump(node, level) ynode_dump_node(stdout, 0, NULL, 0, node, level);
 
+// write ynode data tree to buffer , fp, fd
 int ynode_snprintf(char *buf, int buflen, ynode *node, int level);
 int ynode_fprintf(FILE *fp, ynode *node, int level);
 int ynode_write(int fd, ynode *node, int level);
 int ynode_printf(ynode *node, int level);
 
+// read ynode data tree from buffer , fp, fd
 ynode *ynode_fscanf(FILE *fp);
 ynode *ynode_scanf();
 ynode *ynode_read(int fd);
+ynode *ynode_sscanf(char *buf, int buflen);
+
+// lookup the ynode in the path
+ynode *ynode_search(ynode *node, char *path);
 
 #endif // __YDB__

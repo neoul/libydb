@@ -32,6 +32,7 @@ int test_ynode_attach_detach()
 		"admin", "enabled",
 		"name", "ge1\ngo\x07"
 	};
+	printf("\n\n=== %s ===\n", __func__);
 	ynode *root = ynode_new(YNODE_TYPE_DICT, NULL);
 
 	for(i=0; i < (sizeof(item)/sizeof(char *)); i+=2)
@@ -61,17 +62,27 @@ int test_ynode_attach_detach()
 
 
 	char buf[300];
-	ynode_snprintf(buf, 300, mylist, 0);
+	printf("\n\n=== ynode_snprintf ===\n");
+	ynode_snprintf(buf, 300, root, 0);
 	printf("%s", buf);
 	printf("\n\n");
-	ynode_fprintf(stdout, mylist, 0);
-	printf("\n\n");
-	ynode_write(STDOUT_FILENO, mylist, 0);
-	printf("\n\n");
-	ynode_printf(mylist, 0);
+
+	printf("\n\n=== ynode_fprintf ===\n");
+	ynode_fprintf(stdout, root, 0);
 	printf("\n\n");
 
-	ynode_dump(root, 0);
+	printf("\n\n=== ynode_write ===\n");
+	ynode_write(STDOUT_FILENO, root, 0);
+	printf("\n\n");
+
+	printf("\n\n=== ynode_printf ===\n");
+	ynode_printf(root, 0);
+	printf("\n\n");
+
+	printf("\n\n=== ynode_search ===\n");
+	ynode *found = ynode_search(root, "/my-list/5");
+	ynode_printf(found, 0);
+	printf("\n\n");
 
 	ynode_detach(mylist);
 	ynode_free(mylist);
@@ -89,7 +100,7 @@ int test_ynode_fscanf(char *fname)
 		printf("fopen failed\n");
 		return -1;
 	}
-	printf("\n\n=== ynode_fscanf ===\n");
+	printf("\n\n=== %s ===\n", __func__);
 	ynode *top = ynode_fscanf(fp);
 	ynode_dump(top, 0);
 	ynode_free(top);
@@ -102,7 +113,7 @@ int test_ynode_fscanf(char *fname)
 int test_ynode_scanf()
 {
 	ynode *node = NULL;
-	printf("\n\n=== ynode_scanf ===\n");
+	printf("\n\n=== %s ===\n", __func__);
 	node = ynode_scanf();
 	ynode_dump(node, 0);
 	ynode_free(node);
@@ -124,12 +135,10 @@ int main(int argc, char *argv[])
 	{
 		printf("test_ynode_fscanf() failed.\n");
 	}
-	if(test_ynode_scanf("test.yaml"))
-	{
-		printf("test_ynode_scanf() failed.\n");
-	}
-
-	
+	// if(test_ynode_scanf("test.yaml"))
+	// {
+	// 	printf("test_ynode_scanf() failed.\n");
+	// }
 
 	return 0;
 }

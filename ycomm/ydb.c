@@ -13,36 +13,33 @@
 #include "ylist.h"
 #include "ydb.h"
 
-
 #define YDB_VNAME(NAME) #NAME
-char *ydb_err_str[] = 
-{
-    YDB_VNAME(YDB_OK),
-    YDB_VNAME(YDB_ERR),
-    YDB_VNAME(YDB_E_NO_ARGS),
-    YDB_VNAME(YDB_E_TYPE_ERR),
-    YDB_VNAME(YDB_E_INVALID_PARENT),
-    YDB_VNAME(YDB_E_NO_ENTRY),
-    YDB_VNAME(YDB_E_DUMP_CB),
-    YDB_VNAME(YDB_E_MEM),
-    YDB_VNAME(YDB_E_FULL_BUF),
-    YDB_VNAME(YDB_E_INVALID_YAML),
-    YDB_VNAME(YDB_E_INVALID_YAML_TOP),
-    YDB_VNAME(YDB_E_INVALID_YAML_KEY),
-    YDB_VNAME(YDB_E_INVALID_YAML_ENTRY),
+char *ydb_err_str[] =
+    {
+        YDB_VNAME(YDB_OK),
+        YDB_VNAME(YDB_ERR),
+        YDB_VNAME(YDB_E_NO_ARGS),
+        YDB_VNAME(YDB_E_TYPE_ERR),
+        YDB_VNAME(YDB_E_INVALID_PARENT),
+        YDB_VNAME(YDB_E_NO_ENTRY),
+        YDB_VNAME(YDB_E_DUMP_CB),
+        YDB_VNAME(YDB_E_MEM),
+        YDB_VNAME(YDB_E_FULL_BUF),
+        YDB_VNAME(YDB_E_INVALID_YAML),
+        YDB_VNAME(YDB_E_INVALID_YAML_TOP),
+        YDB_VNAME(YDB_E_INVALID_YAML_KEY),
+        YDB_VNAME(YDB_E_INVALID_YAML_ENTRY),
 };
 
 int ydb_log_func_example(int severity, const char *func, int line, const char *format, ...)
 {
     int len = -1;
     va_list args;
-    printf ("%s ",
-        (severity==YDB_LOG_ERR)?"** YDB::ERR":
-        (severity==YDB_LOG_INFO)?"** YDB::INFO":
-        (severity==YDB_LOG_DBG)?"** YDB::DEBUG":"** YDB::CRI");
-    va_start (args, format);
+    printf("%s ",
+           (severity == YDB_LOG_ERR) ? "** YDB::ERR" : (severity == YDB_LOG_INFO) ? "** YDB::INFO" : (severity == YDB_LOG_DBG) ? "** YDB::DEBUG" : "** YDB::CRI");
+    va_start(args, format);
     len = vprintf(format, args);
-    va_end (args);
+    va_end(args);
     return len;
 }
 
@@ -54,12 +51,14 @@ int ydb_log_register(ydb_log_func func)
     return 0;
 }
 
-#define ydb_log(severity, format, ...) \
-    do { \
-        if (ydb_log_severity < (severity)) break; \
-        if(ydb_logger) \
-            ydb_logger (severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
-    } while(0)
+#define ydb_log(severity, format, ...)                                               \
+    do                                                                               \
+    {                                                                                \
+        if (ydb_log_severity < (severity))                                           \
+            break;                                                                   \
+        if (ydb_logger)                                                              \
+            ydb_logger(severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
+    } while (0)
 
 #define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
 #define ydb_log_info(format, ...) ydb_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
@@ -602,7 +601,6 @@ int ynode_printf(ynode *node, int level)
     return ynode_fprintf(NULL, node, level);
 }
 
-
 int ydb_log_err_yaml(yaml_parser_t *parser)
 {
     /* Display a parser error message. */
@@ -616,12 +614,12 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         if (parser->problem_value != -1)
         {
             ydb_log_error("reader error: %s: #%X at %zd\n", parser->problem,
-                    parser->problem_value, parser->problem_offset);
+                          parser->problem_value, parser->problem_offset);
         }
         else
         {
             ydb_log_error("reader error: %s at %zu\n", parser->problem,
-                    parser->problem_offset);
+                          parser->problem_offset);
         }
         break;
 
@@ -629,17 +627,17 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         if (parser->context)
         {
             ydb_log_error("scanner error: %s at line %zu, column %zu\n",
-                    parser->context,
-                    parser->context_mark.line + 1, parser->context_mark.column + 1);
+                          parser->context,
+                          parser->context_mark.line + 1, parser->context_mark.column + 1);
             ydb_log_error("%s at line %zu, column %zu\n",
-                    parser->problem, parser->problem_mark.line + 1,
-                    parser->problem_mark.column + 1);
+                          parser->problem, parser->problem_mark.line + 1,
+                          parser->problem_mark.column + 1);
         }
         else
         {
             ydb_log_error("scanner error: %s at line %zu, column %zu\n",
-                    parser->problem, parser->problem_mark.line + 1,
-                    parser->problem_mark.column + 1);
+                          parser->problem, parser->problem_mark.line + 1,
+                          parser->problem_mark.column + 1);
         }
         break;
 
@@ -647,17 +645,17 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         if (parser->context)
         {
             ydb_log_error("parser error: %s at line %zu, column %zu\n",
-                    parser->context,
-                    parser->context_mark.line + 1, parser->context_mark.column + 1);
+                          parser->context,
+                          parser->context_mark.line + 1, parser->context_mark.column + 1);
             ydb_log_error("%s at line %zu, column %zu\n",
-                    parser->problem, parser->problem_mark.line + 1,
-                    parser->problem_mark.column + 1);
+                          parser->problem, parser->problem_mark.line + 1,
+                          parser->problem_mark.column + 1);
         }
         else
         {
             ydb_log_error("parser error: %s at line %zu, column %zu\n",
-                    parser->problem, parser->problem_mark.line + 1,
-                    parser->problem_mark.column + 1);
+                          parser->problem, parser->problem_mark.line + 1,
+                          parser->problem_mark.column + 1);
         }
         break;
 
@@ -665,18 +663,18 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         if (parser->context)
         {
             ydb_log_error("composer error: %s at line %zu, column %zu\n",
-                    parser->context,
-                    parser->context_mark.line + 1, parser->context_mark.column + 1);
+                          parser->context,
+                          parser->context_mark.line + 1, parser->context_mark.column + 1);
             ydb_log_error("%s at line %zu, column %zu\n",
-                    parser->problem, parser->problem_mark.line + 1,
-                    parser->problem_mark.column + 1);
+                          parser->problem, parser->problem_mark.line + 1,
+                          parser->problem_mark.column + 1);
             ydb_log_error("\n");
         }
         else
         {
             ydb_log_error("composer error: %s at line %zu, column %zu\n",
-                    parser->problem, parser->problem_mark.line + 1,
-                    parser->problem_mark.column + 1);
+                          parser->problem, parser->problem_mark.line + 1,
+                          parser->problem_mark.column + 1);
         }
         break;
 
@@ -793,7 +791,7 @@ ynode *ynode_fscanf(FILE *fp)
             }
             else
                 node = ynode_new(node_type, NULL);
-                
+
             if (node)
             {
                 ynode_attach(node, ylist_data(last), key);
@@ -866,7 +864,7 @@ ynode *ynode_fscanf(FILE *fp)
         if (res)
         {
             ydb_log_res(res);
-            if(!top)
+            if (!top)
                 top = ylist_front(stack);
             ynode_free(top);
             top = NULL;
@@ -905,12 +903,99 @@ ynode *ynode_read(int fd)
 
 ynode *ynode_sscanf(char *buf, int buflen)
 {
+    FILE *fp;
+    ynode *node;
+    if (!buf || buflen < 0)
+        return NULL;
+    fp = fmemopen(buf, buflen, "r");
+    node = ynode_fscanf(fp);
+    if (fp)
+        fclose(fp);
+    return node;
 }
 
-// ynode = ynode_fscanf(FILE)
-// ynode = ynode_scanf(stdout)
-// ynode = ynode_read(fd)
-// ynode = ynode_sscanf(buffer)
+static ynode *ynode_find_child(ynode *node, char *key)
+{
+    if (node->type == YNODE_TYPE_DICT)
+    {
+        return ytree_search(node->dict, key);
+    }
+    else if (node->type == YNODE_TYPE_LIST)
+    {
+        int count = 0;
+        ylist_iter *iter;
+        int index = 0;
+        if(strspn(key, "0123456789") != strlen(key))
+            return NULL;
+        index = atoi(key);
+        for (iter = ylist_first(node->list);
+             !ylist_done(iter);
+             iter = ylist_next(iter))
+        {
+            if (index == count)
+                return ylist_data(iter);
+            count++;
+        }
+        return NULL;
+    }
+    else
+        return NULL;
+}
+
+// lookup the ynode in the path
+ynode *ynode_search(ynode *node, char *path)
+{
+    int i, j;
+    int failcount;
+    char token[512];
+    ynode *found;
+
+    if (!path || !node)
+        return NULL;
+    if (node->type == YNODE_TYPE_VAL)
+        return NULL;
+    i = 0;
+    j = 0;
+    failcount = 0;
+    if(path[0] == '/') // ignore first '/'
+        i = 1;
+    for (; path[i]; i++)
+    {
+        if (path[i] == '/')
+        {
+            token[j] = 0;
+            printf("@@token: %s\n", token);
+            found = ynode_find_child(node, token);
+            if (found)
+            {
+                failcount = 0;
+                node = found;
+                j = 0;
+                continue;
+            }
+            else
+            {
+                if (failcount > 0)
+                    return NULL;
+                failcount++;
+            }
+        }
+        token[j] = path[i];
+        j++;
+    }
+    // lookup the last token of the path.
+    if (j > 0)
+    {
+        token[j] = 0;
+        printf("@@token: %s\n", token);
+        found = ynode_find_child(node, token);
+        if (found)
+            return found;
+        else
+            return NULL;
+    }
+    return node;
+}
 
 // ynode = ydb_search(/path/to/resource)
 // ynode = ydb_search("path", "to", "resource")
