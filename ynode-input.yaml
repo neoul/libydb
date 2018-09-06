@@ -1,5 +1,11 @@
 
 ---
+system:
+  ip-route:
+    - 172.17.0.0/16
+    - 172.18.0.0/16
+    - 172.19.0.0/16
+    - {"go": "bi"}
 interface:
   Vlan1:
     description:
@@ -40,105 +46,6 @@ interface:
     link-up-down-trap-enable: disabled
     name: ge10
     type: ethernetCsmacd
-  ge11:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge11
-    type: ethernetCsmacd
-  ge12:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge12
-    type: ethernetCsmacd
-  ge13:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge13
-    type: ethernetCsmacd
-  ge14:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge14
-    type: ethernetCsmacd
-  ge15:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge15
-    type: ethernetCsmacd
-  ge16:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge16
-    type: ethernetCsmacd
-  ge17:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge17
-    type: ethernetCsmacd
-  ge18:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge18
-    type: ethernetCsmacd
-  ge19:
-    description:
-    enabled: true
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge19
-    type: ethernetCsmacd
   ge2:
     description:
     enabled: true
@@ -149,61 +56,6 @@ interface:
       speed: 1.000
     link-up-down-trap-enable: disabled
     name: ge2
-    type: ethernetCsmacd
-  ge20:
-    description:
-    enabled: false
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge20
-    type: ethernetCsmacd
-  ge21:
-    description:
-    enabled: false
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge21
-    type: ethernetCsmacd
-  ge22:
-    description:
-    enabled: false
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge22
-    type: ethernetCsmacd
-  ge23:
-    description:
-    enabled: false
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge23
-    type: ethernetCsmacd
-  ge24:
-    description:
-    enabled: false
-    ethernet:
-      auto-negotiation:
-        enable: true
-      duplex: full
-      speed: 1.000
-    link-up-down-trap-enable: disabled
-    name: ge24
     type: ethernetCsmacd
   ge3:
     description:

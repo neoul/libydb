@@ -1069,10 +1069,14 @@ void *ytree_remove(ytree *tree, ytree_iter *n)
 
 void *ytree_data(ytree_iter *n)
 {
-    return n->data;
+    if(n)
+        return n->data;
+    return NULL;
 }
 
 void *ytree_key(ytree_iter *n)
 {
-    return n->key;
+    if(n)
+        return n->key;
+    return NULL;
 }

@@ -14,7 +14,7 @@ typedef enum _ydb_res
     YDB_E_DUMP_CB,
     YDB_E_MEM,
     YDB_E_FULL_BUF,
-    YDB_E_INVALID_YAML,
+    YDB_E_INVALID_YAML_INPUT,
     YDB_E_INVALID_YAML_TOP,
     YDB_E_INVALID_YAML_KEY,
     YDB_E_INVALID_YAML_ENTRY,
@@ -59,19 +59,42 @@ void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int l
 #define ynode_dump_to_fd(fd, node, level) ynode_dump_node(NULL, fd, NULL, 0, node, level);
 #define ynode_dump(node, level) ynode_dump_node(stdout, 0, NULL, 0, node, level);
 
-// write ynode data tree to buffer , fp, fd
+// write ynode db to buffer , fp, fd
 int ynode_snprintf(char *buf, int buflen, ynode *node, int level);
 int ynode_fprintf(FILE *fp, ynode *node, int level);
 int ynode_write(int fd, ynode *node, int level);
 int ynode_printf(ynode *node, int level);
 
-// read ynode data tree from buffer , fp, fd
+// read ynode db from buffer , fp, fd
 ynode *ynode_fscanf(FILE *fp);
 ynode *ynode_scanf();
 ynode *ynode_read(int fd);
 ynode *ynode_sscanf(char *buf, int buflen);
 
+// [ynode searching & traveling]
+
 // lookup the ynode in the path
 ynode *ynode_search(ynode *node, char *path);
+
+// return ynodes' value if that is a leaf.
+char *ynode_data(ynode *node);
+// return ynodes' key if that has a hash key. 
+char *ynode_key(ynode *node);
+// return ynodes' index if the nodes' parent is a list.
+int ynode_index(ynode *node);
+// return the top node of the ynode. 
+ynode *ynode_top(ynode *node);
+// return the parent node of the ynode. 
+ynode *ynode_up(ynode *node);
+// return the first child node of the ynode. 
+ynode *ynode_down(ynode *node);
+// return the previous sibling node of the ynode. 
+ynode *ynode_prev(ynode *node);
+// return the next sibling node of the ynode. 
+ynode *ynode_next(ynode *node);
+// return the first sibling node of the ynode. 
+ynode *ynode_first(ynode *node);
+// return the last sibling node of the ynode. 
+ynode *ynode_last(ynode *node);
 
 #endif // __YDB__

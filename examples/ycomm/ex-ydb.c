@@ -56,9 +56,11 @@ int test_ynode_attach_detach()
 		}
 	}
 	
-	ynode_dump(root, -1);
+	ynode_dump(root, 0);
 	printf("\n\n");
 
+	ynode_dump(root, -1);
+	printf("\n\n");
 
 
 	char buf[300];
@@ -106,7 +108,6 @@ int test_ynode_fscanf(char *fname)
 	ynode_free(top);
 
 	fclose(fp);
-
 	return 0;
 }
 
@@ -120,25 +121,69 @@ int test_ynode_scanf()
 	return 0;
 }
 
+int test_ynode_search_and_iterate(char *fname)
+{
+	FILE *fp = fopen(fname, "r");
+	if(!fp)
+	{
+		printf("fopen failed\n");
+		return -1;
+	}
+	printf("\n\n=== %s ===\n", __func__);
+	ynode *top = ynode_fscanf(fp);
+	ynode_printf(top, 0);
+
+	top = ynode_down(top);
+	top = ynode_next(top);
+	ynode_printf(top, 0);
+
+	top = ynode_prev(top);
+	top = ynode_down(top);
+	top = ynode_search(top, "name");
+	ynode_printf(top, 0);
+	top = ynode_top(top);
+	ynode_free(top);
+	fclose(fp);
+	return 0;
+}
+
+int test_ynode_sscanf()
+{
+	char *buf = "abc";
+	ynode *node = NULL;
+	printf("\n\n=== %s ===\n", __func__);
+	node = ynode_sscanf(buf, strlen(buf));
+	ynode_dump(node, 0);
+	ynode_free(node);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
-	// ydb_log_severity = YDB_LOG_DBG;
+	ydb_log_severity = YDB_LOG_DBG;
 	if(test_ydb_new_free())
 	{
 		printf("test_ydb_new_free() failed.\n");
 	}
+	
 	if(test_ynode_attach_detach())
 	{
 		printf("test_ynode_attach_detach() failed.\n");
 	}
+
 	if(test_ynode_fscanf("test.yaml"))
 	{
 		printf("test_ynode_fscanf() failed.\n");
 	}
-	// if(test_ynode_scanf("test.yaml"))
-	// {
-	// 	printf("test_ynode_scanf() failed.\n");
-	// }
 
+	if(test_ynode_sscanf())
+	{
+		printf("test_ynode_sscanf() failed.\n");
+	}
+	
+	if(test_ynode_search_and_iterate("ynode-input.yaml"))
+	{
+		printf("test_ynode_search_and_iterate() failed.\n");
+	}
 	return 0;
 }
