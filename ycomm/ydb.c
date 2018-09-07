@@ -1204,6 +1204,88 @@ ynode *ynode_last(ynode *node)
     return NULL;
 }
 
+int ynode_path_fprintf(FILE *fp, ynode *node, int depth)
+{
+    if (node && depth >= 0)
+    {
+        int len, curlen;
+        len = ynode_path_fprintf(fp, node->parent, depth - 1);
+        if (IS_SET(node->flags, YNODE_FLAG_KEY))
+        {
+            char *key = ystr_convert(node->key);
+            curlen = fprintf(fp, "/%s", key ? key : node->key);
+            if (key)
+                free(key);
+            if (curlen <= 0)
+                return len;
+            return len + curlen;
+        }
+        else if (IS_SET(node->flags, YNODE_FLAG_ITER))
+        {
+            int index = ynode_index(node);
+            if(index < 0)
+                return len;
+            curlen = fprintf(fp, "/%d", index);
+            if (curlen <= 0)
+                return len;
+            return len + curlen;
+        }
+        else
+        {
+            return len;
+        }
+    }
+    return 0;
+}
+
+char *ynode_path(ynode *node, int depth)
+{
+    char *buf = NULL;
+    size_t buflen = 0;
+    FILE *fp;
+    if (!node)
+        return NULL;
+    fp = open_memstream(&buf, &buflen);
+    ynode_path_fprintf(fp, node, depth);
+    if (fp)
+        fclose(fp);
+    if (buf && buflen > 0)
+        return buf;
+    if (buf)
+        free(buf);
+    return NULL;
+}
+
+char *ynode_path_and_val(ynode *node, int depth)
+{
+    char *buf = NULL;
+    size_t buflen = 0;
+    FILE *fp;
+    if (!node)
+        return NULL;
+    fp = open_memstream(&buf, &buflen);
+    ynode_path_fprintf(fp, node, depth);
+    if (node->type == YNODE_TYPE_VAL)
+    {
+        char *value = ystr_convert(node->value);
+        fprintf(fp, "=%s", value?value:node->value);
+        if (value)
+            free(value);
+    }
+    if (fp)
+        fclose(fp);
+    if (buf && buflen > 0)
+        return buf;
+    if (buf)
+        free(buf);
+    return NULL;
+}
+
+
+// new_path = ynode_path(node)
+// add the print level and range
+
+
 // ydb = ydb_top()
 // ydb = ydb_open()
 // ydb_close(ydb)

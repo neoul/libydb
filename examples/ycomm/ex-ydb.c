@@ -147,6 +147,45 @@ int test_ynode_search_and_iterate(char *fname)
 	return 0;
 }
 
+int test_ynode_path(char *fname)
+{
+	char *path;
+	FILE *fp = fopen(fname, "r");
+	if(!fp)
+	{
+		printf("fopen failed\n");
+		return -1;
+	}
+	printf("\n\n=== %s ===\n", __func__);
+	ynode *top = ynode_fscanf(fp);
+	ynode_printf(top, 0);
+
+	top = ynode_down(top);
+	top = ynode_down(top);
+	path = ynode_path(top, YDB_LEVEL_MAX);
+	printf("path=%s\n", path);
+	free(path);
+
+	top = ynode_up(top);
+	top = ynode_next(top);
+	top = ynode_down(top);
+	top = ynode_down(top);
+	// top = ynode_next(top);
+
+	path = ynode_path_and_val(top, YDB_LEVEL_MAX);
+	printf("path=%s\n", path);
+	free(path);
+
+	path = ynode_path_and_val(top, 0);
+	printf("path=%s\n", path);
+	free(path);
+	
+	top = ynode_top(top);
+	ynode_free(top);
+	fclose(fp);
+	return 0;
+}
+
 int test_ynode_sscanf()
 {
 	char *buf = "abc";
@@ -184,6 +223,11 @@ int main(int argc, char *argv[])
 	if(test_ynode_search_and_iterate("ynode-input.yaml"))
 	{
 		printf("test_ynode_search_and_iterate() failed.\n");
+	}
+
+	if(test_ynode_path("ynode-input.yaml"))
+	{
+		printf("test_ynode_path() failed.\n");
 	}
 	return 0;
 }

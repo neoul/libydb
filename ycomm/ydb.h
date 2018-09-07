@@ -97,4 +97,12 @@ ynode *ynode_first(ynode *node);
 // return the last sibling node of the ynode. 
 ynode *ynode_last(ynode *node);
 
+// create a new path string for the ydb
+// the depth is the number of the parent and ancestors to be printed.
+// the path returned should be free.
+char *ynode_path(ynode *node, int depth);
+
+// create a new path and value string for the ydb
+char *ynode_path_and_val(ynode *node, int depth);
+
 #endif // __YDB__
