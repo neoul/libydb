@@ -52,3 +52,14 @@ flag:
 gok : boefm
 dia : a
 sec : 10
+br1:
+  br1.1:
+    br1.1.1: x
+  br1.2:
+    br1.2.1: y
+br2:
+  br2.2:
+    br2.2.2: z
+  br2.3:
+    br2.3.1: y2
+    br2.3.2: x2

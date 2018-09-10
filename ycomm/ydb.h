@@ -31,7 +31,7 @@ extern unsigned int ydb_log_severity;
 typedef int (*ydb_log_func)(int severity, const char *func, int line, const char *format, ...);
 int ydb_log_register( ydb_log_func func);
 
-// low level function for ydb
+// low end_level function for ydb
 
 // ynode type
 #define YNODE_TYPE_VAL      0
@@ -53,17 +53,17 @@ ydb_res ynode_attach(ynode *node, ynode *parent, char *key);
 ynode *ynode_detach(ynode *node);
 
 // dump ydb
-void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int level);
-#define ynode_dump_to_fp(fp, node, level) ynode_dump_node(fp, 0, NULL, 0, node, level);
-#define ynode_dump_to_buf(buf, buflen, node, level) ynode_dump_node(NULL, 0, buf, buflen, node, level);
-#define ynode_dump_to_fd(fd, node, level) ynode_dump_node(NULL, fd, NULL, 0, node, level);
-#define ynode_dump(node, level) ynode_dump_node(stdout, 0, NULL, 0, node, level);
+void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int start_level, int end_level);
+#define ynode_dump_to_fp(fp, node, start_level, end_level) ynode_dump_node(fp, 0, NULL, 0, node, start_level, end_level);
+#define ynode_dump_to_buf(buf, buflen, node, start_level, end_level) ynode_dump_node(NULL, 0, buf, buflen, node, start_level, end_level);
+#define ynode_dump_to_fd(fd, node, start_level, end_level) ynode_dump_node(NULL, fd, NULL, 0, node, start_level, end_level);
+#define ynode_dump(node, start_level, end_level) ynode_dump_node(stdout, 0, NULL, 0, node, start_level, end_level);
 
 // write ynode db to buffer , fp, fd
-int ynode_snprintf(char *buf, int buflen, ynode *node, int level);
-int ynode_fprintf(FILE *fp, ynode *node, int level);
-int ynode_write(int fd, ynode *node, int level);
-int ynode_printf(ynode *node, int level);
+int ynode_snprintf(char *buf, int buflen, ynode *node, int start_level, int end_level);
+int ynode_fprintf(FILE *fp, ynode *node, int start_level, int end_level);
+int ynode_write(int fd, ynode *node, int start_level, int end_level);
+int ynode_printf(ynode *node, int start_level, int end_level);
 
 // read ynode db from buffer , fp, fd
 ynode *ynode_fscanf(FILE *fp);
@@ -98,11 +98,11 @@ ynode *ynode_first(ynode *node);
 ynode *ynode_last(ynode *node);
 
 // create a new path string for the ydb
-// the depth is the number of the parent and ancestors to be printed.
+// the start_level is the number of the parent and ancestors to be printed.
 // the path returned should be free.
-char *ynode_path(ynode *node, int depth);
+char *ynode_path(ynode *node, int start_level);
 
 // create a new path and value string for the ydb
-char *ynode_path_and_val(ynode *node, int depth);
+char *ynode_path_and_val(ynode *node, int start_level);
 
 #endif // __YDB__

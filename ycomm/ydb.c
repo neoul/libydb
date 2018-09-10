@@ -319,13 +319,15 @@ struct dump_ctrl
     int len;
 #define DUMP_FLAG_DEBUG 0x1
     unsigned int flags;
-    int level;
+    int end_level;
+    int start_level;
+    int indent;
 };
 
 #define S10 "          "
 static char *space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
-static struct dump_ctrl *dump_ctrl_new(FILE *fp, int fd, char *buf, int buflen, int level)
+static struct dump_ctrl *dump_ctrl_new(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level)
 {
     struct dump_ctrl *cb;
     cb = malloc(sizeof(struct dump_ctrl));
@@ -348,14 +350,16 @@ static struct dump_ctrl *dump_ctrl_new(FILE *fp, int fd, char *buf, int buflen, 
     cb->buflen = buflen;
     cb->len = 0;
     cb->flags = 0x0;
-    cb->level = level;
+    cb->end_level = end_level;
+    cb->start_level = start_level;
+    cb->indent = 0;
     return cb;
 }
 
-static struct dump_ctrl *dump_ctrl_new_debug(FILE *fp, int fd, char *buf, int buflen, int level)
+static struct dump_ctrl *dump_ctrl_new_debug(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level)
 {
     struct dump_ctrl *cb;
-    cb = dump_ctrl_new(fp, fd, buf, buflen, level);
+    cb = dump_ctrl_new(fp, fd, buf, buflen, start_level, end_level);
     if (!cb)
         return NULL;
     cb->flags = DUMP_FLAG_DEBUG;
@@ -398,7 +402,7 @@ int dump_ctrl_print(struct dump_ctrl *dump, const char *format, ...)
 static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
 {
     ydb_res res;
-    int indent = dump->level;
+    int indent = dump->indent;
     if (indent < 0)
         return YDB_OK;
 
@@ -459,7 +463,7 @@ static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
 static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
 {
     ydb_res res;
-    int indent = dump->level;
+    int indent = dump->indent;
     if (indent < 0)
         return YDB_OK;
 
@@ -496,23 +500,54 @@ static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
     return res;
 }
 
-static int dump_ctrl_dump_ynode(struct dump_ctrl *dump, ynode *node);
+static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node);
 static int dump_ctrl_traverse_dict(void *key, void *data, void *addition)
 {
     struct dump_ctrl *dump = addition;
     ynode *node = data;
     key = (void *)key;
-    return dump_ctrl_dump_ynode(dump, node);
+    return dump_ctrl_dump_childen(dump, node);
 }
 
 static int dump_ctrl_traverse_list(void *data, void *addition)
 {
     struct dump_ctrl *dump = addition;
     ynode *node = data;
-    return dump_ctrl_dump_ynode(dump, node);
+    return dump_ctrl_dump_childen(dump, node);
 }
 
-static int dump_ctrl_dump_ynode(struct dump_ctrl *dump, ynode *node)
+static int dump_ctrl_dump_parent(struct dump_ctrl *dump, ynode *node)
+{
+    ydb_res res = YDB_OK;
+    ylist *parents = ylist_create();
+    int start_level = dump->start_level;
+    node = node->parent;
+    start_level ++;
+    while (node && start_level <= 0)
+    {
+        ylist_push_back(parents, node);
+        node = node->parent;
+        start_level ++;
+    }
+   
+    while (!ylist_empty(parents))
+    {
+        node = ylist_pop_back(parents);
+        if (IS_SET(dump->flags, DUMP_FLAG_DEBUG))
+            res = dump_ctrl_debug_ynode(dump, node);
+        else
+            res = dump_ctrl_print_ynode(dump, node);
+        // printf("\ndump len=%d\n", dump->len);
+        if (res) {
+            break;
+        }
+        dump->indent++;
+    }
+    ylist_destroy(parents);
+    return res;
+}
+
+static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node)
 {
     ydb_res res = YDB_OK;
     if (IS_SET(dump->flags, DUMP_FLAG_DEBUG))
@@ -522,7 +557,13 @@ static int dump_ctrl_dump_ynode(struct dump_ctrl *dump, ynode *node)
     // printf("\ndump len=%d\n", dump->len);
     if (res)
         return res;
-    dump->level++;
+    // printf("\ndump end_level=%d\n", dump->end_level);
+    dump->end_level --;
+    if (dump->end_level < 0) {
+        dump->end_level ++;
+        return res;
+    }
+    dump->indent++;
     switch (node->type)
     {
     case YNODE_TYPE_DICT:
@@ -536,72 +577,85 @@ static int dump_ctrl_dump_ynode(struct dump_ctrl *dump, ynode *node)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
-    dump->level--;
+    dump->indent--;
+    dump->end_level ++;
     return res;
 }
 
-void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int level)
+void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int start_level, int end_level)
 {
     struct dump_ctrl *dump;
     if (!node)
         return;
-    dump = dump_ctrl_new_debug(fp, fd, buf, buflen, level);
+    if(start_level > end_level)
+        return;
+    dump = dump_ctrl_new_debug(fp, fd, buf, buflen, start_level, end_level);
     if (!dump)
         return;
-    dump_ctrl_print(dump, "\n[dump]\n");
-    dump_ctrl_dump_ynode(dump, node);
+    dump_ctrl_print(dump, "\n[dump (start_level=%d, end_level=%d)]\n", start_level, end_level);
+    dump_ctrl_dump_parent(dump, node);
+    dump_ctrl_dump_childen(dump, node);
     dump_ctrl_print(dump, "[dump (len=%d)]\n", dump->len);
     dump_ctrl_free(dump);
 }
 
-int ynode_snprintf(char *buf, int buflen, ynode *node, int level)
+int ynode_snprintf(char *buf, int buflen, ynode *node, int start_level, int end_level)
 {
     int len = -1;
     struct dump_ctrl *dump;
     if (!node)
         return -1;
-    dump = dump_ctrl_new(NULL, 0, buf, buflen, level);
+    if(start_level > end_level)
+        return 0;
+    dump = dump_ctrl_new(NULL, 0, buf, buflen, start_level, end_level);
     if (!dump)
         return -1;
-    dump_ctrl_dump_ynode(dump, node);
+    dump_ctrl_dump_parent(dump, node);
+    dump_ctrl_dump_childen(dump, node);
     len = dump->len;
     dump_ctrl_free(dump);
     return len;
 }
 
-int ynode_fprintf(FILE *fp, ynode *node, int level)
+int ynode_fprintf(FILE *fp, ynode *node, int start_level, int end_level)
 {
     int len = -1;
     struct dump_ctrl *dump;
     if (!node)
         return -1;
-    dump = dump_ctrl_new(fp, 0, NULL, 0, level);
+    if(start_level > end_level)
+        return 0;
+    dump = dump_ctrl_new(fp, 0, NULL, 0, start_level, end_level);
     if (!dump)
         return -1;
-    dump_ctrl_dump_ynode(dump, node);
+    dump_ctrl_dump_parent(dump, node);
+    dump_ctrl_dump_childen(dump, node);
     len = dump->len;
     dump_ctrl_free(dump);
     return len;
 }
 
-int ynode_write(int fd, ynode *node, int level)
+int ynode_write(int fd, ynode *node, int start_level, int end_level)
 {
     int len = -1;
     struct dump_ctrl *dump;
     if (!node)
         return -1;
-    dump = dump_ctrl_new(NULL, fd, NULL, 0, level);
+    if(start_level > end_level)
+        return 0;
+    dump = dump_ctrl_new(NULL, fd, NULL, 0, start_level, end_level);
     if (!dump)
         return -1;
-    dump_ctrl_dump_ynode(dump, node);
+    dump_ctrl_dump_parent(dump, node);
+    dump_ctrl_dump_childen(dump, node);
     len = dump->len;
     dump_ctrl_free(dump);
     return len;
 }
 
-int ynode_printf(ynode *node, int level)
+int ynode_printf(ynode *node, int start_level, int end_level)
 {
-    return ynode_fprintf(NULL, node, level);
+    return ynode_fprintf(NULL, node, start_level, end_level);
 }
 
 int ydb_log_err_yaml(yaml_parser_t *parser)
@@ -723,7 +777,7 @@ char *yaml_token_str[] = {
 ynode *ynode_fscanf(FILE *fp)
 {
     ydb_res res = YDB_OK;
-    int level = 0;
+    int end_level = 0;
     yaml_parser_t parser;
     yaml_token_t token; /* new variable */
     ylist *stack;
@@ -772,13 +826,13 @@ ynode *ynode_fscanf(FILE *fp)
             if (token.type == YAML_BLOCK_END_TOKEN ||
                 token.type == YAML_FLOW_MAPPING_END_TOKEN ||
                 token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
-                level--;
-            ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, yaml_token_str[token.type]);
+                end_level--;
+            ydb_log(YDB_LOG_DBG, "%.*s%s\n", end_level * 2, space, yaml_token_str[token.type]);
             if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
                 token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
                 token.type == YAML_FLOW_SEQUENCE_START_TOKEN ||
                 token.type == YAML_FLOW_MAPPING_START_TOKEN)
-                level++;
+                end_level++;
         }
 
         switch (token.type)
@@ -873,14 +927,14 @@ ynode *ynode_fscanf(FILE *fp)
             {
             case YAML_NEXT_MAPPING_KEY_SCALAR:
                 value = (char *)token.data.scalar.value;
-                ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
+                ydb_log(YDB_LOG_DBG, "%.*s%s\n", end_level * 2, space, value);
                 key = ystrdup(value);
                 break;
             case YAML_NEXT_MAPPING_VAL_SCALAR:
             case YAML_NEXT_SEQUENCE_ENTRY_SCALAR:
             case YAML_NEXT_NONE: // only have a scalar (leaf) node
                 value = (char *)token.data.scalar.value;
-                ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
+                ydb_log(YDB_LOG_DBG, "%.*s%s\n", end_level * 2, space, value);
                 node = ynode_new(YNODE_TYPE_VAL, value);
                 ynode_attach(node, ylist_back(stack), key);
                 if (key)
@@ -1204,12 +1258,12 @@ ynode *ynode_last(ynode *node)
     return NULL;
 }
 
-int ynode_path_fprintf(FILE *fp, ynode *node, int depth)
+int ynode_path_fprintf(FILE *fp, ynode *node, int start_level)
 {
-    if (node && depth >= 0)
+    if (node && start_level >= 0)
     {
         int len, curlen;
-        len = ynode_path_fprintf(fp, node->parent, depth - 1);
+        len = ynode_path_fprintf(fp, node->parent, start_level - 1);
         if (IS_SET(node->flags, YNODE_FLAG_KEY))
         {
             char *key = ystr_convert(node->key);
@@ -1238,7 +1292,7 @@ int ynode_path_fprintf(FILE *fp, ynode *node, int depth)
     return 0;
 }
 
-char *ynode_path(ynode *node, int depth)
+char *ynode_path(ynode *node, int start_level)
 {
     char *buf = NULL;
     size_t buflen = 0;
@@ -1246,7 +1300,7 @@ char *ynode_path(ynode *node, int depth)
     if (!node)
         return NULL;
     fp = open_memstream(&buf, &buflen);
-    ynode_path_fprintf(fp, node, depth);
+    ynode_path_fprintf(fp, node, start_level);
     if (fp)
         fclose(fp);
     if (buf && buflen > 0)
@@ -1256,7 +1310,7 @@ char *ynode_path(ynode *node, int depth)
     return NULL;
 }
 
-char *ynode_path_and_val(ynode *node, int depth)
+char *ynode_path_and_val(ynode *node, int start_level)
 {
     char *buf = NULL;
     size_t buflen = 0;
@@ -1264,7 +1318,7 @@ char *ynode_path_and_val(ynode *node, int depth)
     if (!node)
         return NULL;
     fp = open_memstream(&buf, &buflen);
-    ynode_path_fprintf(fp, node, depth);
+    ynode_path_fprintf(fp, node, start_level);
     if (node->type == YNODE_TYPE_VAL)
     {
         char *value = ystr_convert(node->value);
@@ -1282,8 +1336,7 @@ char *ynode_path_and_val(ynode *node, int depth)
 }
 
 
-// new_path = ynode_path(node)
-// add the print level and range
+// add the print end_level and range
 
 
 // ydb = ydb_top()
