@@ -321,6 +321,7 @@ struct dump_ctrl
     unsigned int flags;
     int end_level;
     int start_level;
+    int level;
     int indent;
 };
 
@@ -352,6 +353,7 @@ static struct dump_ctrl *dump_ctrl_new(FILE *fp, int fd, char *buf, int buflen, 
     cb->flags = 0x0;
     cb->end_level = end_level;
     cb->start_level = start_level;
+    cb->level = 0;
     cb->indent = 0;
     return cb;
 }
@@ -462,6 +464,7 @@ static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
 
 static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
 {
+    int only_val = 0;
     ydb_res res;
     int indent = dump->indent;
     if (indent < 0)
@@ -481,7 +484,14 @@ static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
             free(key);
     }
     else if (IS_SET(node->flags, YNODE_FLAG_ITER))
+    {
         res = dump_ctrl_print(dump, "-");
+    }
+    else
+    {
+        only_val = 1;
+    }
+
     if (res)
         return res;
 
@@ -489,7 +499,9 @@ static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
     if (node->type == YNODE_TYPE_VAL)
     {
         char *value = ystr_convert(node->value);
-        res = dump_ctrl_print(dump, " %s\n", value ? value : node->value);
+        res = dump_ctrl_print(dump, "%s%s\n",
+                              only_val ? "" : " ",
+                              value ? value : node->value);
         if (value)
             free(value);
     }
@@ -521,15 +533,16 @@ static int dump_ctrl_dump_parent(struct dump_ctrl *dump, ynode *node)
     ydb_res res = YDB_OK;
     ylist *parents = ylist_create();
     int start_level = dump->start_level;
+    int end_level = (dump->end_level < 0) ? dump->end_level : 0;
     node = node->parent;
-    start_level ++;
-    while (node && start_level <= 0)
+    start_level++;
+    while (node && start_level <= end_level)
     {
         ylist_push_back(parents, node);
         node = node->parent;
-        start_level ++;
+        start_level++;
     }
-   
+
     while (!ylist_empty(parents))
     {
         node = ylist_pop_back(parents);
@@ -538,11 +551,11 @@ static int dump_ctrl_dump_parent(struct dump_ctrl *dump, ynode *node)
         else
             res = dump_ctrl_print_ynode(dump, node);
         // printf("\ndump len=%d\n", dump->len);
-        if (res) {
+        if (res)
             break;
-        }
         dump->indent++;
     }
+    dump->start_level = (dump->start_level < 0) ? 0 : dump->start_level;
     ylist_destroy(parents);
     return res;
 }
@@ -550,20 +563,22 @@ static int dump_ctrl_dump_parent(struct dump_ctrl *dump, ynode *node)
 static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node)
 {
     ydb_res res = YDB_OK;
-    if (IS_SET(dump->flags, DUMP_FLAG_DEBUG))
-        res = dump_ctrl_debug_ynode(dump, node);
-    else
-        res = dump_ctrl_print_ynode(dump, node);
-    // printf("\ndump len=%d\n", dump->len);
-    if (res)
+    if (dump->end_level < 0)
         return res;
-    // printf("\ndump end_level=%d\n", dump->end_level);
-    dump->end_level --;
-    if (dump->end_level < 0) {
-        dump->end_level ++;
-        return res;
+    dump->end_level--;
+    // printf("dump->start_level %d, dump->level %d\n", dump->start_level, dump->level);
+    if (dump->start_level <= dump->level)
+    {
+        if (IS_SET(dump->flags, DUMP_FLAG_DEBUG))
+            res = dump_ctrl_debug_ynode(dump, node);
+        else
+            res = dump_ctrl_print_ynode(dump, node);
+        if (res)
+            return res;
+        dump->indent++;
     }
-    dump->indent++;
+
+    dump->level++;
     switch (node->type)
     {
     case YNODE_TYPE_DICT:
@@ -577,8 +592,10 @@ static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
-    dump->indent--;
-    dump->end_level ++;
+    dump->level--;
+    if (dump->start_level <= dump->level)
+        dump->indent--;
+    dump->end_level++;
     return res;
 }
 
@@ -587,7 +604,7 @@ void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int s
     struct dump_ctrl *dump;
     if (!node)
         return;
-    if(start_level > end_level)
+    if (start_level > end_level)
         return;
     dump = dump_ctrl_new_debug(fp, fd, buf, buflen, start_level, end_level);
     if (!dump)
@@ -605,7 +622,7 @@ int ynode_snprintf(char *buf, int buflen, ynode *node, int start_level, int end_
     struct dump_ctrl *dump;
     if (!node)
         return -1;
-    if(start_level > end_level)
+    if (start_level > end_level)
         return 0;
     dump = dump_ctrl_new(NULL, 0, buf, buflen, start_level, end_level);
     if (!dump)
@@ -623,7 +640,7 @@ int ynode_fprintf(FILE *fp, ynode *node, int start_level, int end_level)
     struct dump_ctrl *dump;
     if (!node)
         return -1;
-    if(start_level > end_level)
+    if (start_level > end_level)
         return 0;
     dump = dump_ctrl_new(fp, 0, NULL, 0, start_level, end_level);
     if (!dump)
@@ -641,7 +658,7 @@ int ynode_write(int fd, ynode *node, int start_level, int end_level)
     struct dump_ctrl *dump;
     if (!node)
         return -1;
-    if(start_level > end_level)
+    if (start_level > end_level)
         return 0;
     dump = dump_ctrl_new(NULL, fd, NULL, 0, start_level, end_level);
     if (!dump)
@@ -777,7 +794,7 @@ char *yaml_token_str[] = {
 ynode *ynode_fscanf(FILE *fp)
 {
     ydb_res res = YDB_OK;
-    int end_level = 0;
+    int level = 0;
     yaml_parser_t parser;
     yaml_token_t token; /* new variable */
     ylist *stack;
@@ -826,28 +843,32 @@ ynode *ynode_fscanf(FILE *fp)
             if (token.type == YAML_BLOCK_END_TOKEN ||
                 token.type == YAML_FLOW_MAPPING_END_TOKEN ||
                 token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
-                end_level--;
-            ydb_log(YDB_LOG_DBG, "%.*s%s\n", end_level * 2, space, yaml_token_str[token.type]);
+                level--;
+            ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, yaml_token_str[token.type]);
             if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
                 token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
                 token.type == YAML_FLOW_SEQUENCE_START_TOKEN ||
                 token.type == YAML_FLOW_MAPPING_START_TOKEN)
-                end_level++;
+                level++;
         }
 
         switch (token.type)
         {
         case YAML_KEY_TOKEN:
-            next = YAML_NEXT_MAPPING_KEY_SCALAR;
             node = ylist_back(stack);
             if (node && node->type != YNODE_TYPE_DICT)
             {
                 res = YDB_E_INVALID_YAML_KEY;
                 break;
             }
-            if (key)
+            if (key) {
+                ydb_log(YDB_LOG_DBG, "!!empty\n");
+                node = ynode_new(YNODE_TYPE_VAL, NULL);
+                ynode_attach(node, ylist_back(stack), key);
                 yfree(key);
-            key = NULL;
+                key = NULL;
+            }
+            next = YAML_NEXT_MAPPING_KEY_SCALAR;
             break;
         case YAML_VALUE_TOKEN:
             next = YAML_NEXT_MAPPING_VAL_SCALAR;
@@ -859,7 +880,8 @@ ynode *ynode_fscanf(FILE *fp)
         case YAML_FLOW_MAPPING_START_TOKEN:
         {
             int node_type;
-            if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN)
+            if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
+                token.type == YAML_FLOW_SEQUENCE_START_TOKEN)
                 node_type = YNODE_TYPE_LIST;
             else
                 node_type = YNODE_TYPE_DICT;
@@ -879,44 +901,36 @@ ynode *ynode_fscanf(FILE *fp)
             }
             else
                 node = ynode_new(node_type, NULL);
-
-            if (node)
+            if (!node)
             {
-                ynode_attach(node, ylist_back(stack), key);
-                ylist_push_back(stack, node);
+                res = YDB_E_MEM;
+                break;
             }
+            ynode_attach(node, ylist_back(stack), key);
+            ylist_push_back(stack, node);
+            yfree(key);
+            key = NULL;
             ydb_log(YDB_LOG_DBG, "last stack entry=%p\n", ylist_back(stack));
+            next = YAML_NEXT_NONE;
             break;
         }
         case YAML_BLOCK_ENTRY_TOKEN:
         case YAML_FLOW_ENTRY_TOKEN:
-            next = YAML_NEXT_SEQUENCE_ENTRY_SCALAR;
             node = ylist_back(stack);
             if (!node || (node && node->type != YNODE_TYPE_LIST))
                 res = YDB_E_INVALID_YAML_ENTRY;
+            next = YAML_NEXT_SEQUENCE_ENTRY_SCALAR;
             break;
         case YAML_BLOCK_END_TOKEN:
         case YAML_FLOW_MAPPING_END_TOKEN:
         case YAML_FLOW_SEQUENCE_END_TOKEN:
-            // check a remain value
-            switch (next)
+            if (key)
             {
-            case YAML_NEXT_NONE:
-            case YAML_NEXT_MAPPING_KEY_SCALAR:
-                break;
-            case YAML_NEXT_MAPPING_VAL_SCALAR:
-            case YAML_NEXT_SEQUENCE_ENTRY_SCALAR:
-                ydb_log(YDB_LOG_DBG, "!!empty\n");
+                ydb_log(YDB_LOG_DBG, "** empty ynode **\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
                 ynode_attach(node, ylist_back(stack), key);
-                if (key)
-                    yfree(key);
+                yfree(key);
                 key = NULL;
-                top = node;
-                break;
-            default:
-                res = YDB_E_INVALID_YAML_INPUT;
-                break;
             }
             top = ylist_pop_back(stack);
             ydb_log(YDB_LOG_DBG, "last stack entry=%p\n", ylist_back(stack));
@@ -927,14 +941,14 @@ ynode *ynode_fscanf(FILE *fp)
             {
             case YAML_NEXT_MAPPING_KEY_SCALAR:
                 value = (char *)token.data.scalar.value;
-                ydb_log(YDB_LOG_DBG, "%.*s%s\n", end_level * 2, space, value);
+                ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
                 key = ystrdup(value);
                 break;
             case YAML_NEXT_MAPPING_VAL_SCALAR:
             case YAML_NEXT_SEQUENCE_ENTRY_SCALAR:
             case YAML_NEXT_NONE: // only have a scalar (leaf) node
                 value = (char *)token.data.scalar.value;
-                ydb_log(YDB_LOG_DBG, "%.*s%s\n", end_level * 2, space, value);
+                ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
                 node = ynode_new(YNODE_TYPE_VAL, value);
                 ynode_attach(node, ylist_back(stack), key);
                 if (key)
@@ -956,10 +970,12 @@ ynode *ynode_fscanf(FILE *fp)
             break;
         case YAML_STREAM_END_TOKEN:
             break;
+        case YAML_TAG_TOKEN:
+            ydb_log(YDB_LOG_DBG, "handle=%s suffix=%s\n", token.data.tag.handle, token.data.tag.suffix);
+            break;
         /* Others */
         case YAML_VERSION_DIRECTIVE_TOKEN:
         case YAML_TAG_DIRECTIVE_TOKEN:
-        case YAML_TAG_TOKEN:
         case YAML_ANCHOR_TOKEN:
         case YAML_ALIAS_TOKEN:
         default:
@@ -1277,7 +1293,7 @@ int ynode_path_fprintf(FILE *fp, ynode *node, int start_level)
         else if (IS_SET(node->flags, YNODE_FLAG_ITER))
         {
             int index = ynode_index(node);
-            if(index < 0)
+            if (index < 0)
                 return len;
             curlen = fprintf(fp, "/%d", index);
             if (curlen <= 0)
@@ -1322,7 +1338,7 @@ char *ynode_path_and_val(ynode *node, int start_level)
     if (node->type == YNODE_TYPE_VAL)
     {
         char *value = ystr_convert(node->value);
-        fprintf(fp, "=%s", value?value:node->value);
+        fprintf(fp, "=%s", value ? value : node->value);
         if (value)
             free(value);
     }
@@ -1335,9 +1351,302 @@ char *ynode_path_and_val(ynode *node, int start_level)
     return NULL;
 }
 
+// create single ynode
+ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value)
+{
+    ynode *node = ynode_new(type, value);
+    if (ynode_attach(node, parent, key))
+    {
+        ynode_free(node);
+        return NULL;
+    }
+    return node;
+}
 
-// add the print end_level and range
+// create new ynode db (all sub nodes).
+// ynode_clone and ynode_copy return the same result. but, implemented with different logic.
+ynode *ynode_clone(ynode *src)
+{
+    char *buf = NULL;
+    size_t buflen = 0;
+    FILE *fp;
+    ynode *clone = NULL;
+    if (!src)
+        return NULL;
+    fp = open_memstream(&buf, &buflen);
+    if (src->type == YNODE_TYPE_VAL)
+        fprintf(fp, "%s", src->value);
+    else
+        ynode_fprintf(fp, src, 1, YDB_LEVEL_MAX);
+    if (fp)
+        fclose(fp);
+    clone = ynode_sscanf(buf, buflen);
+    if (buf)
+        free(buf);
+    return clone;
+}
 
+ynode *ynode_copy(ynode *src)
+{
+    ynode *dest;
+    if (!src)
+        return NULL;
+    dest = ynode_new(src->type, src->value);
+    if (!dest)
+        return NULL;
+
+    switch (src->type)
+    {
+    case YNODE_TYPE_DICT:
+    {
+        ytree_iter *iter = ytree_first(src->dict);
+        for (; iter != NULL; iter = ytree_next(src->dict, iter))
+        {
+            ynode *src_child = ytree_data(iter);
+            ynode *dest_child = ynode_copy(src_child);
+            if (!dest_child)
+                goto _fail;
+            if (ynode_attach(dest_child, dest, src_child->key))
+            {
+                ynode_free(dest_child);
+                goto _fail;
+            }
+        }
+    }
+    break;
+    case YNODE_TYPE_LIST:
+    {
+        ylist_iter *iter;
+        for (iter = ylist_first(src->list);
+             !ylist_done(iter);
+             iter = ylist_next(iter))
+        {
+            ynode *src_child = ylist_data(iter);
+            ynode *dest_child = ynode_copy(src_child);
+            if (!dest_child)
+                goto _fail;
+            if (ynode_attach(dest_child, dest, src_child->key))
+            {
+                ynode_free(dest_child);
+                goto _fail;
+            }
+        }
+    }
+    break;
+    case YNODE_TYPE_VAL:
+        // nothing to do
+        break;
+    default:
+        assert(!YDB_E_TYPE_ERR);
+    }
+    return dest;
+_fail:
+    if (dest)
+        ynode_free(dest);
+    return NULL;
+}
+
+// merge src ynode to dest node.
+// dest will be modified by the operation.
+// it returns new dest ynode if successful.
+// it returns NULL and removes the dest ynode if failed.
+ynode *ynode_overwrite(ynode *dest, ynode *src)
+{
+    if (!dest)
+    {
+        return ynode_copy(src);
+    }
+    else if (!src)
+        return dest;
+
+    if (dest->type != src->type)
+    {
+        ynode *node = ynode_copy(src);
+        if (ynode_attach(node, dest->parent, dest->key))
+        {
+            ynode_free(node);
+            return NULL;
+        }
+        return node;
+    }
+
+    // check children or value
+    switch (src->type)
+    {
+    case YNODE_TYPE_DICT:
+    {
+        ytree_iter *iter = ytree_first(src->dict);
+        for (; iter != NULL; iter = ytree_next(src->dict, iter))
+        {
+            ynode *src_child = ytree_data(iter);
+            ynode *dest_child = ytree_search(dest->dict, src_child->key);
+            ynode *overwritten = ynode_overwrite(dest_child, src_child);
+            if (!overwritten)
+                goto _fail;
+            if (!dest_child)
+            {
+                if (ynode_attach(overwritten, dest, src_child->key))
+                {
+                    ynode_free(overwritten);
+                    goto _fail;
+                }
+            }
+        }
+        break;
+    }
+
+    case YNODE_TYPE_LIST:
+    {
+        ylist_iter *iter;
+        for (iter = ylist_first(src->list);
+             !ylist_done(iter);
+             iter = ylist_next(iter))
+        {
+            ynode *src_child = ylist_data(iter);
+            ynode *overwritten = ynode_copy(src_child);
+            if (!overwritten)
+                goto _fail;
+            if (ynode_attach(overwritten, dest, src_child->key))
+            {
+                ynode_free(overwritten);
+                goto _fail;
+            }
+        }
+        break;
+    }
+    case YNODE_TYPE_VAL:
+        if (strcmp(dest->value, src->value) != 0)
+        {
+            yfree(dest->value);
+            dest->value = ystrdup(src->value);
+        }
+        break;
+    default:
+        assert(!YDB_E_TYPE_ERR);
+    }
+
+    return dest;
+_fail:
+    ynode_detach(dest);
+    ynode_free(dest);
+    return NULL;
+}
+
+// replace dest ynode db using src ynode.
+// only update the dest ynode value (leaf).
+ynode *ynode_replace(ynode *dest, ynode *src)
+{
+    if (!dest)
+        return NULL;
+    else if (!src)
+        return dest;
+
+    if (dest->type != src->type)
+    {
+        // ignore different type ynode
+        return dest;
+    }
+
+    // check children or value
+    switch (dest->type)
+    {
+    case YNODE_TYPE_DICT:
+    {
+        ytree_iter *iter = ytree_first(dest->dict);
+        for (; iter != NULL; iter = ytree_next(dest->dict, iter))
+        {
+            ynode *dest_child = ytree_data(iter);
+            ynode *src_child = ytree_search(src->dict, dest_child->key);
+            ynode *node = ynode_replace(dest_child, src_child);
+            if (!node)
+                goto _fail;
+        }
+        break;
+    }
+
+    case YNODE_TYPE_LIST:
+    { // remove dest children and then add src children.
+        ylist_iter *iter;
+        while (!ylist_empty(dest->list))
+        {
+            ynode *node = ylist_pop_front(dest->list);
+            ynode_free(node);
+        }
+        for (iter = ylist_first(src->list);
+             !ylist_done(iter);
+             iter = ylist_next(iter))
+        {
+            ynode *src_child = ylist_data(iter);
+            ynode *dest_child = ynode_copy(src_child);
+            if (!dest_child)
+                goto _fail;
+            if (ynode_attach(dest_child, dest, src_child->key))
+            {
+                ynode_free(dest_child);
+                goto _fail;
+            }
+        }
+        break;
+    }
+    case YNODE_TYPE_VAL:
+        if (strcmp(dest->value, src->value) != 0)
+        {
+            yfree(dest->value);
+            dest->value = ystrdup(src->value);
+        }
+        break;
+    default:
+        assert(!YDB_E_TYPE_ERR);
+    }
+
+    return dest;
+_fail:
+    ynode_detach(dest);
+    ynode_free(dest);
+    return NULL;
+}
+
+// merge src ynode to dest node.
+// dest and src ynodes will not be modified.
+// New ynode db will returned.
+ynode *ynode_merge(ynode *dest, ynode *src)
+{
+    char *buf = NULL;
+    size_t buflen = 0;
+    FILE *fp;
+    ynode *clone = NULL;
+    if (!dest && !src)
+        return NULL;
+    fp = open_memstream(&buf, &buflen);
+    if (dest->type == YNODE_TYPE_VAL)
+        fprintf(fp, "%s", dest->value);
+    else
+        ynode_fprintf(fp, dest, 0, YDB_LEVEL_MAX);
+    if (src->type == YNODE_TYPE_VAL)
+        fprintf(fp, "%s", src->value);
+    else
+        ynode_fprintf(fp, src, 0, YDB_LEVEL_MAX);
+    if (fp)
+        fclose(fp);
+    clone = ynode_sscanf(buf, buflen);
+    if (buf)
+        free(buf);
+    return clone;
+}
+
+// delete the ynode db (including all sub nodes).
+void ynode_delete(ynode *node)
+{
+    ynode_detach(node);
+    ynode_free(node);
+}
+
+// ynode crud
+// C: create (new + attach)
+//    copy
+// R: read (ok)
+// U: Update (Merge/Replace)
+// D: Delete (detach + free)
 
 // ydb = ydb_top()
 // ydb = ydb_open()

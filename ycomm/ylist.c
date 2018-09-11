@@ -186,6 +186,8 @@ ylist_iter *ylist_first(ylist *list)
 {
     if (!list)
         return NULL;
+    if (list->head->next == list->head)
+        return NULL;
     return list->head->next;
 }
 
@@ -193,19 +195,27 @@ ylist_iter *ylist_last(ylist *list)
 {
     if (!list)
         return NULL;
+    if (list->head->prev == list->head)
+        return NULL;
     return list->head->prev;
 }
 
 // return next iterator of the current iterator.
 ylist_iter *ylist_next(ylist_iter *iter)
 {
-    return iter ? (iter->next) : NULL;
+    iter = iter ? (iter->next) : NULL;
+    if (iter->data)
+        return iter;
+    return NULL;
 }
 
 // return previous iterator of the current iterator.
 ylist_iter *ylist_prev(ylist_iter *iter)
 {
-    return iter ? (iter->prev) : NULL;
+    iter = iter ? (iter->prev) : NULL;
+    if (iter->data)
+        return iter;
+    return NULL;
 }
 
 // true if the iterator ended

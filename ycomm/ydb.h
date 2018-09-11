@@ -105,4 +105,32 @@ char *ynode_path(ynode *node, int start_level);
 // create a new path and value string for the ydb
 char *ynode_path_and_val(ynode *node, int start_level);
 
+// ynode CRUD (Create, Read, Update(merge/replace/overwrite), Delete) operation API
+// create single ynode
+ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value);
+
+// create new ynode db (all sub nodes).
+// ynode_clone and ynode_copy return the same result. but, implemented with different logic.
+ynode *ynode_clone(ynode *src);
+ynode *ynode_copy(ynode *src);
+
+// merge src ynode to dest node.
+// dest will be modified by the operation.
+// it returns new dest ynode if successful.
+// it returns NULL and removes the dest ynode if failed.
+ynode *ynode_overwrite(ynode *dest, ynode *src);
+
+// replace dest ynode db using src ynode.
+// only update the dest ynode value (leaf).
+ynode *ynode_replace(ynode *dest, ynode *src);
+
+// merge src ynode to dest node.
+// dest and src ynodes will not be modified.
+// New ynode db will returned.
+ynode *ynode_merge(ynode *dest, ynode *src);
+
+
+// delete the ynode db (including all sub nodes).
+void ynode_delete(ynode *node);
+
 #endif // __YDB__

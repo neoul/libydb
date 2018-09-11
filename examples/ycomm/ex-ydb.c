@@ -9,7 +9,7 @@ char *example_yaml =
 "system:\n"
 " monitor:\n"
 " stats:\n"
-"  rx-cnt: 2000\n"
+"  rx-cnt: !!int 2000\n"
 "  tx-cnt: 2010\n"
 "  rmon:\n"
 "    rx-frame: 1343\n"
@@ -22,6 +22,12 @@ char *example_yaml =
 "  - eth0\n"
 "  - eth1\n"
 "  - eth3\n";
+
+char *example_yaml2 = 
+"monitor:\n"
+" mem: 10\n"
+" cpu: amd64\n";
+
 
 int test_ydb_new_free()
 {
@@ -206,9 +212,71 @@ int test_ynode_sscanf()
 	return 0;
 }
 
+int test_ynode_crud()
+{
+	printf("\n\n=== %s ===\n", __func__);
+	
+	ynode *node, *clone;
+	ynode *a, *b, *c;
+	ynode *top = ynode_sscanf(example_yaml, strlen(example_yaml));
+	printf("== top ==\n");
+	ynode_printf(top, 0, 6);
+	
+	printf("== ynode_create ==\n");
+	node = ynode_create(top, YNODE_TYPE_VAL, "create", "first");
+	ynode_printf(top, 0, 1);
+
+	printf("== node ==\n");
+	node = ynode_next(node);
+	ynode_printf(node, 0, 2);
+
+	printf("== ynode_clone (node) ==\n");
+	clone = ynode_clone(node);
+	ynode_printf(clone, 0, 2);
+	ynode_free(clone);
+
+	printf("== ynode_clone (node) ==\n");
+	clone = ynode_copy(node);
+	ynode_printf(clone, 0, 5);
+	ynode_free(clone);
+
+	printf("== a ==\n");
+	a = ynode_search(top, "system");
+	ynode_printf(a, 0, 3);
+	printf("== b ==\n");
+	b = ynode_sscanf(example_yaml2, strlen(example_yaml2));
+	ynode_printf(b, 0, 3);
+
+	printf("== ynode_overwrite (b to a) ==\n");
+	c = ynode_overwrite(a, b);
+	ynode_printf(c, -2, 5);
+	
+	ynode_create(ynode_down(b), YNODE_TYPE_VAL, "io", "100");
+	ynode_create(ynode_down(b), YNODE_TYPE_VAL, "cpu", "x86");
+
+	printf("== b ==\n");
+	ynode_printf(b, -2, 5);
+
+	// only copy the existent ynode's data
+	printf("== ynode_merge (b to a) ==\n");	
+	c = ynode_merge(a, b);
+	ynode_printf(c, -2, 5);
+	ynode_free(c);
+
+	// only copy the existent ynode's data
+	printf("== ynode_replace (b to a) ==\n");
+	c = ynode_replace(a, b);
+	ynode_printf(c, -2, 5);
+
+	printf("== top ==\n");
+	ynode_printf(top, 0, 10);
+	ynode_free(b);
+	ynode_free(top);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
-	// ydb_log_severity = YDB_LOG_DBG;
 	if(test_ydb_new_free())
 	{
 		printf("test_ydb_new_free() failed.\n");
@@ -237,6 +305,12 @@ int main(int argc, char *argv[])
 	if(test_ynode_path("ynode-input.yaml"))
 	{
 		printf("test_ynode_path() failed.\n");
+	}
+
+	ydb_log_severity = YDB_LOG_DBG;
+	if(test_ynode_crud())
+	{
+		printf("test_ynode_crud() failed.\n");
 	}
 	return 0;
 }
