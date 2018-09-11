@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "ydb.h"
+#include "ynode.h"
 
 char *example_yaml = 
 "system:\n"

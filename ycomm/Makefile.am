@@ -7,6 +7,7 @@ libycomm_la_SOURCES = \
     ytrie.c \
     ytree.c \
     yalloc.c \
+    ynode.c \
     ydb.c
 libycomm_la_CPPFLAGS = -Iutilities
 libycomm_la_CFLAGS = -g -Wall -std=c99 -D_GNU_SOURCE
