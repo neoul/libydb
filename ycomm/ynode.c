@@ -808,7 +808,8 @@ ynode *ynode_fscanf(FILE *fp)
                 res = YDB_E_INVALID_YAML_KEY;
                 break;
             }
-            if (key) {
+            if (key)
+            {
                 ydb_log(YDB_LOG_DBG, "!!empty\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
                 ynode_attach(node, ylist_back(stack), key);
@@ -1310,6 +1311,82 @@ ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value)
     return node;
 }
 
+// create ynode db using path
+// return the last created ynode.
+ynode *ynode_create_path(ynode *parent, char *path)
+{
+    int i, j;
+    char token[512];
+    ynode *node = NULL;
+    ynode *created = NULL;
+    char *valkey = NULL;
+    if (!path)
+        return NULL;
+    i = 0;
+    j = 0;
+
+    if (path[0] == '/') // ignore first '/'
+        i = 1;
+    for (; path[i]; i++)
+    {
+        if (path[i] == '/')
+        {
+            token[j] = 0;
+            ydb_log_debug("@@token: %s\n", token);
+            node = ynode_find_child(parent, token);
+            if (!node) {
+                node = ynode_create(parent, YNODE_TYPE_DICT, token, NULL);
+                if (!node)
+                    goto _fail;
+                if (!created)
+                    created = node;
+            }
+            parent = node;
+            j = 0;
+        }
+        else if (path[i] == '=')
+        {
+            token[j] = 0;
+            ydb_log_debug("@@token: %s\n", token);
+            valkey = ystrdup(token);
+            if (!valkey)
+                goto _fail;
+            j = 0;
+        }
+        else
+        {
+            token[j] = path[i];
+            j++;
+        }
+    }
+    // lookup the last token of the path.
+    if (j > 0)
+    {
+        token[j] = 0;
+        ydb_log_debug("@@token: %s, valkey %s\n", token, valkey);
+        if (valkey) {
+            node = ynode_find_child(parent, token);
+            if (!node)
+                node = ynode_create(parent, YNODE_TYPE_VAL, valkey, token);
+        }
+        else
+        {
+            node = ynode_find_child(parent, token);
+            if (!node)
+                node = ynode_create(parent, YNODE_TYPE_DICT, token, NULL);
+        }
+        if (!node)
+            goto _fail;
+        parent = node;
+    }
+    return node;
+_fail:
+    if (valkey)
+        yfree(valkey);
+    ynode_free(created);
+    return NULL;
+}
+
 // create new ynode db (all sub nodes).
 // ynode_clone and ynode_copy return the same result. but, implemented with different logic.
 ynode *ynode_clone(ynode *src)
@@ -1395,8 +1472,6 @@ _fail:
 
 // merge src ynode to dest node.
 // dest will be modified by the operation.
-// it returns new dest ynode if successful.
-// it returns NULL and removes the dest ynode if failed.
 ynode *ynode_overwrite(ynode *dest, ynode *src)
 {
     if (!dest)
@@ -1474,8 +1549,6 @@ ynode *ynode_overwrite(ynode *dest, ynode *src)
 
     return dest;
 _fail:
-    ynode_detach(dest);
-    ynode_free(dest);
     return NULL;
 }
 
@@ -1548,8 +1621,8 @@ ynode *ynode_replace(ynode *dest, ynode *src)
 
     return dest;
 _fail:
-    ynode_detach(dest);
-    ynode_free(dest);
+    // ynode_detach(dest);
+    // ynode_free(dest);
     return NULL;
 }
 
@@ -1587,43 +1660,3 @@ void ynode_delete(ynode *node)
     ynode_detach(node);
     ynode_free(node);
 }
-
-// ynode crud
-// C: create (new + attach)
-//    copy
-// R: read (ok)
-// U: Update (Merge/Replace)
-// D: Delete (detach + free)
-
-// ydb = ydb_top()
-// ydb = ydb_open()
-// ydb_close(ydb)
-// ydb_connect(/path/to/resource) open communication channel
-//   - permission requested: ro/wo/rw
-// ydb_close(/path/to/resource)
-// ydb_bind(/path/to/resource)
-//   - permission: set the permssion of the client (r/w request)
-//     - r(ead): true, w(rite): false // accept only read for the client
-//   - change-publishing (to others): true, false
-// ydb_fprintf(FILE)
-// ydb_printf(stdout)
-// ydb_write(fp)
-// ydb_sprintf(buffer)
-// ydb_fscanf(FILE)
-// ydb_scanf(stdout)
-// ydb_read(fp)
-// ydb_sscanf(buffer)
-// ydb_attach(ynode)
-
-// callback_type = {pre,post}
-// ydb_hook_add(node, callback, callback_type)
-// ydb_hook_delete(node, callback, callback_type)
-
-// ydb communication
-// Operation (crud): Create, Read, Update, Delete
-// Server - Client
-// @META
-//   id: uuid
-//   operation: c/r/u/d
-//   sequence: 00001-0 (sequence-subsequence, if 0, it means this seq is done.)
-// meta: (control-block for communication)

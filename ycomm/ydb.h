@@ -1,6 +1,8 @@
 #ifndef __YDB__
 #define __YDB__
 
+#include <stdio.h>
+
 #define YDB_LEVEL_MAX 32
 
 typedef enum _ydb_res
@@ -14,6 +16,7 @@ typedef enum _ydb_res
     YDB_E_DUMP_CB,
     YDB_E_MEM,
     YDB_E_FULL_BUF,
+    YDB_E_PERSISTENCY_ERR,
     YDB_E_INVALID_YAML_INPUT,
     YDB_E_INVALID_YAML_TOP,
     YDB_E_INVALID_YAML_KEY,
@@ -51,4 +54,15 @@ extern ydb_log_func ydb_logger;
 #define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
 #define YDB_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
 
+#include "ynode.h"
+// yaml data block
+typedef struct _ydb ydb;
+
+// open local ydb (yaml data block)
+ydb *ydb_open(char *path);
+// close local ydb
+void ydb_close(ydb *datablock);
+
+// get the ydb top
+ynode *ydb_top();
 #endif // __YDB__

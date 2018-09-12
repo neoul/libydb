@@ -1,4 +1,4 @@
-bin_PROGRAMS = ex-ytree ex-ytrie ex-yalloc ex-ylist ex-ytrie2 ex-ydb
+bin_PROGRAMS = ex-ytree ex-ytrie ex-yalloc ex-ylist ex-ytrie2 ex-ynode ex-ydb
 
 ex_ytree_SOURCES = ex-ytree.c
 ex_ytree_CPPFLAGS = -I $(top_srcdir)/ycomm
@@ -29,6 +29,12 @@ ex_ytrie2_CPPFLAGS = -I $(top_srcdir)/ycomm
 ex_ytrie2_LDFLAGS = -L$(top_srcdir)/ycomm/.libs \
     -lycomm -lyaml
 ex_ytrie2_CFLAGS = -g -Wall
+
+ex_ynode_SOURCES = ex-ynode.c
+ex_ynode_CPPFLAGS = -I $(top_srcdir)/ycomm
+ex_ynode_LDFLAGS = -L$(top_srcdir)/ycomm/.libs \
+    -lycomm -lyaml
+ex_ynode_CFLAGS = -g -Wall
 
 ex_ydb_SOURCES = ex-ydb.c
 ex_ydb_CPPFLAGS = -I $(top_srcdir)/ycomm
