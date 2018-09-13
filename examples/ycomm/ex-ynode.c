@@ -207,9 +207,10 @@ int test_ynode_crud()
 	c = ynode_replace(a, b);
 	ynode_printf(c, -2, 5);
 
+	ynode_delete(b);
+
 	printf("== top ==\n");
 	ynode_printf(top, 0, 10);
-	ynode_delete(b);
 	ynode_delete(top);
 	return 0;
 }

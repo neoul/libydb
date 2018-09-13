@@ -827,6 +827,7 @@ ynode *ynode_fscanf(FILE *fp)
     ylist *stack;
     ynode *top = NULL;
     ynode *node = NULL;
+    ynode *old = NULL;
     char *key = NULL;
     char *value = NULL;
     enum YAML_NEXT_TOKEN
@@ -892,8 +893,8 @@ ynode *ynode_fscanf(FILE *fp)
             {
                 ydb_log(YDB_LOG_DBG, "!!empty\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
-                node = ynode_attach(node, ylist_back(stack), key);
-                ynode_free(node);
+                old = ynode_attach(node, ylist_back(stack), key);
+                ynode_free(old);
                 yfree(key);
                 key = NULL;
             }
@@ -935,8 +936,8 @@ ynode *ynode_fscanf(FILE *fp)
                 res = YDB_E_MEM;
                 break;
             }
-            node = ynode_attach(node, ylist_back(stack), key);
-            ynode_free(node);
+            old = ynode_attach(node, ylist_back(stack), key);
+            ynode_free(old);
             ylist_push_back(stack, node);
             yfree(key);
             key = NULL;
@@ -958,8 +959,8 @@ ynode *ynode_fscanf(FILE *fp)
             {
                 ydb_log(YDB_LOG_DBG, "** empty ynode **\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
-                node = ynode_attach(node, ylist_back(stack), key);
-                ynode_free(node);
+                old = ynode_attach(node, ylist_back(stack), key);
+                ynode_free(old);
                 yfree(key);
                 key = NULL;
             }
@@ -981,8 +982,8 @@ ynode *ynode_fscanf(FILE *fp)
                 value = (char *)token.data.scalar.value;
                 ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
                 node = ynode_new(YNODE_TYPE_VAL, value);
-                node = ynode_attach(node, ylist_back(stack), key);
-                ynode_free(node);
+                old = ynode_attach(node, ylist_back(stack), key);
+                ynode_free(old);
                 if (key)
                     yfree(key);
                 key = NULL;
@@ -1397,8 +1398,11 @@ ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value)
     {
         ynode *cur;
         cur = ytree_search(parent->dict, key);
+        ynode_dump(new, 0, 24);
         cur = ynode_merge(cur, new);
-        return cur;
+        ynode_dump(cur, 0, 24);
+        ynode_free(new);
+        new = cur;
     }
     old = ynode_attach(new, parent, key);
     ynode_free(old);

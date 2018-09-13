@@ -45,16 +45,16 @@ int ydb_log_func_example(int severity, const char *func, int line, const char *f
     switch (severity)
     {
     case YDB_LOG_DBG:
-        printf("** YDB::DBG::%20s:%4d: ", func, line);
+        printf("** ydb::dbg::%20s:%4d: ", func, line);
         break;
     case YDB_LOG_INFO:
-        printf("** YDB::INFO:%20s:%4d: ", func, line);
+        printf("** ydb::info:%20s:%4d: ", func, line);
         break;
     case YDB_LOG_ERR:
-        printf("** YDB::ERR: ");
+        printf("** ydb::err:%20s:%4d: ", func, line);
         break;
     case YDB_LOG_CRI:
-        printf("** YDB::CRI: ");
+        printf("** ydb::cri:%20s:%4d: ", func, line);
         break;
     default:
         return 0;
