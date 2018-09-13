@@ -45,18 +45,13 @@ int test_ydb_open_close()
 	return 0;
 }
 
-int test_ydb_hook()
+int test_ydb_read_write()
 {
 	printf("\n\n=== %s ===\n", __func__);
 	ydb *block1, *block2, *block3;
 	block1 = ydb_open("/path/to/datablock1");
+	ydb_write(block1, "system: {temporature: 100c}");
 	ynode_printf(ydb_top(block1), 1, YDB_LEVEL_MAX);
-	block2 = ydb_open("/path/to/datablock2");
-	ynode_printf(ydb_top(block2), 1, YDB_LEVEL_MAX);
-	block3 = ydb_open("/path/to/datablock3");
-	ynode_printf(ydb_top(block3), 1, YDB_LEVEL_MAX);
-	ydb_close(block3);
-	ydb_close(block2);
 	ydb_close(block1);
 	printf("\n");
 	return 0;
@@ -67,7 +62,8 @@ int test_ydb_hook()
 
 int main(int argc, char *argv[])
 {
-	// ydb_log_severity = YDB_LOG_DBG;
+	ydb_log_severity = YDB_LOG_DBG;
 	TEST_FUNC(test_ydb_open_close);
+	TEST_FUNC(test_ydb_read_write);
 	return 0;
 }

@@ -10,18 +10,6 @@
 
 typedef struct _ynode ynode;
 
-// create ynode
-ynode *ynode_new(unsigned char type, char *value);
-
-// delete ynode regardless of the detachment of the parent
-void ynode_free(ynode *node);
-
-// insert the node to the parent, the key will be used for dict node.
-ydb_res ynode_attach(ynode *node, ynode *parent, char *key);
-
-// return parent after remove the node from the parent node.
-ynode *ynode_detach(ynode *node);
-
 // dump ydb
 void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int start_level, int end_level);
 #define ynode_dump_to_fp(fp, node, start_level, end_level) ynode_dump_node(fp, 0, NULL, 0, node, start_level, end_level);
@@ -29,13 +17,13 @@ void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int s
 #define ynode_dump_to_fd(fd, node, start_level, end_level) ynode_dump_node(NULL, fd, NULL, 0, node, start_level, end_level);
 #define ynode_dump(node, start_level, end_level) ynode_dump_node(stdout, 0, NULL, 0, node, start_level, end_level);
 
-// write ynode db to buffer , fp, fd
+// write ynode db to buffer, fp, fd and stdout
 int ynode_snprintf(char *buf, int buflen, ynode *node, int start_level, int end_level);
 int ynode_fprintf(FILE *fp, ynode *node, int start_level, int end_level);
 int ynode_write(int fd, ynode *node, int start_level, int end_level);
 int ynode_printf(ynode *node, int start_level, int end_level);
 
-// read ynode db from buffer , fp, fd
+// read ynode db from buffer, fp, fd and stdin
 ynode *ynode_fscanf(FILE *fp);
 ynode *ynode_scanf();
 ynode *ynode_read(int fd);
@@ -43,7 +31,7 @@ ynode *ynode_sscanf(char *buf, int buflen);
 
 // [ynode searching & traveling]
 
-// lookup the ynode in the path
+// lookup an ynode in the path
 ynode *ynode_search(ynode *node, char *path);
 
 // return ynodes' value if that is a leaf.
@@ -90,7 +78,7 @@ ynode *ynode_copy(ynode *src);
 
 // merge src ynode to dest node.
 // dest will be modified by the operation.
-ynode *ynode_overwrite(ynode *dest, ynode *src);
+ynode *ynode_merge(ynode *dest, ynode *src);
 
 // replace dest ynode db using src ynode.
 // only update the dest ynode value (leaf).
@@ -99,12 +87,23 @@ ynode *ynode_replace(ynode *dest, ynode *src);
 // merge src ynode to dest node.
 // dest and src ynodes will not be modified.
 // New ynode db will returned.
-ynode *ynode_merge(ynode *dest, ynode *src);
+ynode *ynode_merge_new(ynode *dest, ynode *src);
 
 // delete the ynode db (including all sub nodes).
 void ynode_delete(ynode *node);
 
+
+
 // ynode callback for hooking some change in ynode db.
+typedef void (*yhook_pre)(ynode *cur, ynode *new, void *user);
+typedef void (*yhook_post)(ynode *cur, void *user);
 
-
+// register the pre hook func to the target ynode.
+ydb_res yhook_pre_register(ynode *node, yhook_pre hook, void *user);
+// register the post hook func to the target ynode.
+ydb_res yhook_post_register(ynode *node, yhook_post hook, void *user);
+// unregister the pre hook func from the target ynode.
+void yhook_pre_unregister(ynode *node);
+// unregister the post hook func from the target ynode.
+void yhook_post_unregister(ynode *node);
 #endif // __YNODE__

@@ -48,7 +48,7 @@ extern ydb_log_func ydb_logger;
 
 #define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
 #define ydb_log_info(format, ...) ydb_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
-#define ydb_log_error(format, ...) ydb_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
+#define ydb_log_error(format, ...) ydb_log(YDB_LOG_ERR, format, ##__VA_ARGS__)
 #define ydb_log_res(res) ydb_log(YDB_LOG_ERR, "%s\n", ydb_err_str[res])
 
 #define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
@@ -65,4 +65,8 @@ void ydb_close(ydb *datablock);
 
 // get the ydb top
 ynode *ydb_top();
+
+// update ydb using the input string
+int ydb_write(ydb *datablock, const char *format, ...);
+
 #endif // __YDB__

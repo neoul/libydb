@@ -15,6 +15,16 @@
 #include "ydb.h"
 #include "ynode.h"
 
+struct _yhook
+{
+    ynode *node;
+    yhook_pre pre_func;
+    yhook_post post_func;
+    void *pre_user;
+    void *post_user;
+};
+typedef struct _yhook yhook;
+
 // ynode flags
 #define YNODE_FLAG_KEY 0x1
 #define YNODE_FLAG_ITER 0x2
@@ -36,6 +46,7 @@ struct _ynode
     unsigned char rsvd2;
     unsigned char type;
     struct _ynode *parent;
+    struct _yhook *hook;
 };
 
 #define IS_LAEF(x) ((x)->type == YNODE_TYPE_VAL)
@@ -129,7 +140,7 @@ static char *ystr_convert(char *str)
 }
 
 // delete ynode regardless of the detachment of the parent
-void ynode_free(ynode *node)
+static void ynode_free(ynode *node)
 {
     if (!node)
         return;
@@ -152,7 +163,7 @@ void ynode_free(ynode *node)
 }
 
 // create ynode
-ynode *ynode_new(unsigned char type, char *value)
+static ynode *ynode_new(unsigned char type, char *value)
 {
     ynode *node = malloc(sizeof(ynode));
     if (!node)
@@ -186,7 +197,7 @@ _error:
 }
 
 // return parent after remove the node from the parent node.
-ynode *ynode_detach(ynode *node)
+static ynode *ynode_detach(ynode *node)
 {
     ynode *parent;
     ynode *searched_node;
@@ -220,7 +231,7 @@ ynode *ynode_detach(ynode *node)
 }
 
 // insert the node to the parent, the key will be used for dict node.
-ydb_res ynode_attach(ynode *node, ynode *parent, char *key)
+static ydb_res ynode_attach(ynode *node, ynode *parent, char *key)
 {
     ynode *old;
     if (!node || !parent)
@@ -250,6 +261,77 @@ ydb_res ynode_attach(ynode *node, ynode *parent, char *key)
     node->parent = parent;
     return YDB_OK;
 }
+
+// register the pre hook func to the target ynode.
+ydb_res yhook_pre_register(ynode *node, yhook_pre func, void *user)
+{
+    yhook *hook;
+    if (!node || !func)
+        return YDB_E_NO_ARGS;
+    if (node->hook)
+        hook = node->hook;
+    else {
+        hook = malloc(sizeof(yhook));
+        memset(hook, 0x0, sizeof(yhook));
+    }
+    if (!hook)
+        return YDB_E_MEM;
+    hook->pre_func = func;
+    hook->pre_user = user;
+    hook->node = node;
+    node->hook = hook;
+    return YDB_OK;
+}
+
+// register the post hook func to the target ynode.
+ydb_res yhook_post_register(ynode *node, yhook_post func, void *user)
+{
+    yhook *hook;
+    if (!node || !func)
+        return YDB_E_NO_ARGS;
+    if (node->hook)
+        hook = node->hook;
+    else {
+        hook = malloc(sizeof(yhook));
+        memset(hook, 0x0, sizeof(yhook));
+    }
+    if (!hook)
+        return YDB_E_MEM;
+    hook->post_func = func;
+    hook->post_user = user;
+    hook->node = node;
+    node->hook = hook;
+    return YDB_OK;
+}
+
+// unregister the pre hook func from the target ynode.
+void yhook_pre_unregister(ynode *node)
+{
+    yhook *hook;
+    if (!node || !node->hook)
+        return;
+    hook = node->hook;
+    hook->pre_func = NULL;
+    hook->pre_user = NULL;
+    if (!hook->post_func)
+        free(hook);
+}
+
+// unregister the post hook func from the target ynode.
+void yhook_post_unregister(ynode *node)
+{
+    yhook *hook;
+    if (!node || !node->hook)
+        return;
+    hook = node->hook;
+    hook->post_func = NULL;
+    hook->post_user = NULL;
+    if (!hook->pre_func)
+        free(hook);
+}
+
+
+
 
 struct dump_ctrl
 {
@@ -1472,7 +1554,7 @@ _fail:
 
 // merge src ynode to dest node.
 // dest will be modified by the operation.
-ynode *ynode_overwrite(ynode *dest, ynode *src)
+ynode *ynode_merge(ynode *dest, ynode *src)
 {
     if (!dest)
     {
@@ -1502,7 +1584,7 @@ ynode *ynode_overwrite(ynode *dest, ynode *src)
         {
             ynode *src_child = ytree_data(iter);
             ynode *dest_child = ytree_search(dest->dict, src_child->key);
-            ynode *overwritten = ynode_overwrite(dest_child, src_child);
+            ynode *overwritten = ynode_merge(dest_child, src_child);
             if (!overwritten)
                 goto _fail;
             if (!dest_child)
@@ -1629,7 +1711,7 @@ _fail:
 // merge src ynode to dest node.
 // dest and src ynodes will not be modified.
 // New ynode db will returned.
-ynode *ynode_merge(ynode *dest, ynode *src)
+ynode *ynode_merge_new(ynode *dest, ynode *src)
 {
     char *buf = NULL;
     size_t buflen = 0;
