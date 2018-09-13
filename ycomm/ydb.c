@@ -42,8 +42,23 @@ int ydb_log_func_example(int severity, const char *func, int line, const char *f
 {
     int len = -1;
     va_list args;
-    printf("%s ",
-           (severity == YDB_LOG_ERR) ? "** YDB::ERR" : (severity == YDB_LOG_INFO) ? "** YDB::INFO" : (severity == YDB_LOG_DBG) ? "** YDB::DEBUG" : "** YDB::CRI");
+    switch(severity)
+    {
+        case YDB_LOG_DBG:
+            printf("** YDB::DBG::%20s:%4d", func, line);
+            break;
+        case YDB_LOG_INFO:
+        printf("** YDB::INFO:%20s:%4d", func, line);
+            break;
+        case YDB_LOG_ERR:
+        printf("** YDB::ERR");
+            break;
+        case YDB_LOG_CRI:
+        printf("** YDB::CRI");
+            break;
+        default:
+            return 0;
+    }
     va_start(args, format);
     len = vprintf(format, args);
     va_end(args);

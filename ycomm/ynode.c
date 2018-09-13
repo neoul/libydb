@@ -230,12 +230,13 @@ static ynode *ynode_detach(ynode *node)
     return parent;
 }
 
-// insert the node to the parent, the key will be used for dict node.
-static ydb_res ynode_attach(ynode *node, ynode *parent, char *key)
+// insert the ynode to the parent, the key is used for dict type.
+// return old ynode that was being attached to the parent.
+static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
 {
-    ynode *old;
+    ynode *old = NULL;
     if (!node || !parent)
-        return YDB_E_NO_ARGS;
+        return NULL;
     if (parent->type == YNODE_TYPE_VAL)
         assert(!YDB_E_INVALID_PARENT);
     if (node->parent)
@@ -246,8 +247,6 @@ static ydb_res ynode_attach(ynode *node, ynode *parent, char *key)
         SET_FLAG(node->flags, YNODE_FLAG_KEY);
         node->key = ystrdup(key);
         old = ytree_insert(parent->dict, node->key, node);
-        if (old)
-            ynode_free(old);
         break;
     case YNODE_TYPE_LIST:
         // ignore key.
@@ -259,7 +258,7 @@ static ydb_res ynode_attach(ynode *node, ynode *parent, char *key)
         assert(!YDB_E_TYPE_ERR);
     }
     node->parent = parent;
-    return YDB_OK;
+    return old;
 }
 
 // register the pre hook func to the target ynode.
@@ -894,7 +893,8 @@ ynode *ynode_fscanf(FILE *fp)
             {
                 ydb_log(YDB_LOG_DBG, "!!empty\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
-                ynode_attach(node, ylist_back(stack), key);
+                node = ynode_attach(node, ylist_back(stack), key);
+                ynode_free(node);
                 yfree(key);
                 key = NULL;
             }
@@ -936,7 +936,8 @@ ynode *ynode_fscanf(FILE *fp)
                 res = YDB_E_MEM;
                 break;
             }
-            ynode_attach(node, ylist_back(stack), key);
+            node = ynode_attach(node, ylist_back(stack), key);
+            ynode_free(node);
             ylist_push_back(stack, node);
             yfree(key);
             key = NULL;
@@ -958,7 +959,8 @@ ynode *ynode_fscanf(FILE *fp)
             {
                 ydb_log(YDB_LOG_DBG, "** empty ynode **\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
-                ynode_attach(node, ylist_back(stack), key);
+                node = ynode_attach(node, ylist_back(stack), key);
+                ynode_free(node);
                 yfree(key);
                 key = NULL;
             }
@@ -980,7 +982,8 @@ ynode *ynode_fscanf(FILE *fp)
                 value = (char *)token.data.scalar.value;
                 ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
                 node = ynode_new(YNODE_TYPE_VAL, value);
-                ynode_attach(node, ylist_back(stack), key);
+                node = ynode_attach(node, ylist_back(stack), key);
+                ynode_free(node);
                 if (key)
                     yfree(key);
                 key = NULL;
@@ -1384,13 +1387,23 @@ char *ynode_path_and_val(ynode *node, int start_level)
 // create single ynode
 ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value)
 {
-    ynode *node = ynode_new(type, value);
-    if (ynode_attach(node, parent, key))
-    {
-        ynode_free(node);
+    ynode *new, *old;
+    if (type >= YNODE_TYPE_MAX)
         return NULL;
+    new = ynode_new(type, value);
+    if (!parent)
+        return new;
+    
+    if (parent->type == YNODE_TYPE_DICT)
+    {
+        ynode *cur;
+        cur = ytree_search(parent->dict, key);
+        cur = ynode_merge(cur, new);
+        return cur;
     }
-    return node;
+    old = ynode_attach(new, parent, key);
+    ynode_free(old);
+    return new;
 }
 
 // create ynode db using path
@@ -1400,34 +1413,36 @@ ynode *ynode_create_path(ynode *parent, char *path)
     int i, j;
     char token[512];
     ynode *node = NULL;
-    ynode *created = NULL;
+    ynode *new = NULL;
     char *valkey = NULL;
     if (!path)
         return NULL;
     i = 0;
     j = 0;
-
+    if (parent)
+        new = ynode_new(parent->type, NULL);
+    else
+        new = ynode_new(YNODE_TYPE_DICT, NULL);
+    if (!new)
+        return NULL;
+    
     if (path[0] == '/') // ignore first '/'
         i = 1;
     for (; path[i]; i++)
     {
-        if (path[i] == '/')
+        if (path[i] == '/') // '/' is working as delimiter
         {
             token[j] = 0;
             ydb_log_debug("@@token: %s\n", token);
-            node = ynode_find_child(parent, token);
-            if (!node) {
-                node = ynode_create(parent, YNODE_TYPE_DICT, token, NULL);
-                if (!node)
-                    goto _fail;
-                if (!created)
-                    created = node;
-            }
-            parent = node;
+            node = ynode_new(YNODE_TYPE_DICT, NULL);
+            ynode_attach(node, new, token);
+            new = node;
             j = 0;
         }
         else if (path[i] == '=')
         {
+            if (valkey) // '=' is represented twice.
+                goto _fail;
             token[j] = 0;
             ydb_log_debug("@@token: %s\n", token);
             valkey = ystrdup(token);
@@ -1446,26 +1461,30 @@ ynode *ynode_create_path(ynode *parent, char *path)
     {
         token[j] = 0;
         ydb_log_debug("@@token: %s, valkey %s\n", token, valkey);
+
         if (valkey) {
-            node = ynode_find_child(parent, token);
-            if (!node)
-                node = ynode_create(parent, YNODE_TYPE_VAL, valkey, token);
+            node = ynode_new(YNODE_TYPE_VAL, token);
+            ynode_attach(node, new, valkey);
+            yfree(valkey);
         }
         else
         {
-            node = ynode_find_child(parent, token);
-            if (!node)
-                node = ynode_create(parent, YNODE_TYPE_DICT, token, NULL);
+            node = ynode_new(YNODE_TYPE_DICT, NULL);
+            ynode_attach(node, new, token);
         }
-        if (!node)
-            goto _fail;
-        parent = node;
+        new = node;
     }
-    return node;
+    if (parent) {
+        new = ynode_top(new);
+        parent = ynode_merge(parent, new);
+        ynode_free(new);
+        return ynode_search(parent, path);
+    }
+    return new;
 _fail:
     if (valkey)
         yfree(valkey);
-    ynode_free(created);
+    ynode_free(ynode_top(new));
     return NULL;
 }
 
@@ -1512,11 +1531,7 @@ ynode *ynode_copy(ynode *src)
             ynode *dest_child = ynode_copy(src_child);
             if (!dest_child)
                 goto _fail;
-            if (ynode_attach(dest_child, dest, src_child->key))
-            {
-                ynode_free(dest_child);
-                goto _fail;
-            }
+            ynode_attach(dest_child, dest, src_child->key);
         }
     }
     break;
@@ -1531,11 +1546,7 @@ ynode *ynode_copy(ynode *src)
             ynode *dest_child = ynode_copy(src_child);
             if (!dest_child)
                 goto _fail;
-            if (ynode_attach(dest_child, dest, src_child->key))
-            {
-                ynode_free(dest_child);
-                goto _fail;
-            }
+            ynode_attach(dest_child, dest, src_child->key);
         }
     }
     break;
@@ -1557,19 +1568,17 @@ _fail:
 ynode *ynode_merge(ynode *dest, ynode *src)
 {
     if (!dest)
-    {
         return ynode_copy(src);
-    }
     else if (!src)
         return dest;
 
     if (dest->type != src->type)
     {
         ynode *node = ynode_copy(src);
-        if (ynode_attach(node, dest->parent, dest->key))
+        if (node && dest->parent)
         {
-            ynode_free(node);
-            return NULL;
+            ynode *old = ynode_attach(node, dest->parent, dest->key);
+            ynode_free(old);
         }
         return node;
     }
@@ -1588,13 +1597,7 @@ ynode *ynode_merge(ynode *dest, ynode *src)
             if (!overwritten)
                 goto _fail;
             if (!dest_child)
-            {
-                if (ynode_attach(overwritten, dest, src_child->key))
-                {
-                    ynode_free(overwritten);
-                    goto _fail;
-                }
-            }
+                ynode_attach(overwritten, dest, src_child->key);
         }
         break;
     }
@@ -1610,11 +1613,7 @@ ynode *ynode_merge(ynode *dest, ynode *src)
             ynode *overwritten = ynode_copy(src_child);
             if (!overwritten)
                 goto _fail;
-            if (ynode_attach(overwritten, dest, src_child->key))
-            {
-                ynode_free(overwritten);
-                goto _fail;
-            }
+            ynode_attach(overwritten, dest, src_child->key);
         }
         break;
     }
@@ -1682,11 +1681,7 @@ ynode *ynode_replace(ynode *dest, ynode *src)
             ynode *dest_child = ynode_copy(src_child);
             if (!dest_child)
                 goto _fail;
-            if (ynode_attach(dest_child, dest, src_child->key))
-            {
-                ynode_free(dest_child);
-                goto _fail;
-            }
+            ynode_attach(dest_child, dest, src_child->key);
         }
         break;
     }

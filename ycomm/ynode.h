@@ -1,14 +1,44 @@
 #ifndef __YNODE__
 #define __YNODE__
 
-// low end_level function for ydb
-
 // ynode type
 #define YNODE_TYPE_VAL      0
 #define YNODE_TYPE_DICT     1
 #define YNODE_TYPE_LIST     2
+#define YNODE_TYPE_MAX      3
+
 
 typedef struct _ynode ynode;
+
+// ynode CRUD (Create, Read, Update(merge/replace/overwrite), Delete) operation API
+// create single ynode
+ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value);
+
+// create ynode db using path
+// return the last created ynode.
+ynode *ynode_create_path(ynode *parent, char *path);
+
+// create new ynode db (all sub nodes).
+// ynode_clone and ynode_copy return the same result. but, implemented with different logic.
+ynode *ynode_clone(ynode *src);
+ynode *ynode_copy(ynode *src);
+
+// merge src ynode to dest node.
+// dest will be modified by the operation.
+ynode *ynode_merge(ynode *dest, ynode *src);
+
+// replace dest ynode db using src ynode.
+// only update the dest ynode value (leaf).
+ynode *ynode_replace(ynode *dest, ynode *src);
+
+// merge src ynode to dest node.
+// dest and src ynodes will not be modified.
+// New ynode db will returned.
+ynode *ynode_merge_new(ynode *dest, ynode *src);
+
+// delete the ynode db (including all sub nodes).
+void ynode_delete(ynode *node);
+
 
 // dump ydb
 void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int start_level, int end_level);
@@ -62,37 +92,6 @@ char *ynode_path(ynode *node, int start_level);
 
 // create a new path and value string for the ydb
 char *ynode_path_and_val(ynode *node, int start_level);
-
-// ynode CRUD (Create, Read, Update(merge/replace/overwrite), Delete) operation API
-// create single ynode
-ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value);
-
-// create ynode db using path
-// return the last created ynode.
-ynode *ynode_create_path(ynode *parent, char *path);
-
-// create new ynode db (all sub nodes).
-// ynode_clone and ynode_copy return the same result. but, implemented with different logic.
-ynode *ynode_clone(ynode *src);
-ynode *ynode_copy(ynode *src);
-
-// merge src ynode to dest node.
-// dest will be modified by the operation.
-ynode *ynode_merge(ynode *dest, ynode *src);
-
-// replace dest ynode db using src ynode.
-// only update the dest ynode value (leaf).
-ynode *ynode_replace(ynode *dest, ynode *src);
-
-// merge src ynode to dest node.
-// dest and src ynodes will not be modified.
-// New ynode db will returned.
-ynode *ynode_merge_new(ynode *dest, ynode *src);
-
-// delete the ynode db (including all sub nodes).
-void ynode_delete(ynode *node);
-
-
 
 // ynode callback for hooking some change in ynode db.
 typedef void (*yhook_pre)(ynode *cur, ynode *new, void *user);
