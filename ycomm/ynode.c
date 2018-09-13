@@ -269,7 +269,8 @@ ydb_res yhook_pre_register(ynode *node, yhook_pre func, void *user)
         return YDB_E_NO_ARGS;
     if (node->hook)
         hook = node->hook;
-    else {
+    else
+    {
         hook = malloc(sizeof(yhook));
         memset(hook, 0x0, sizeof(yhook));
     }
@@ -290,7 +291,8 @@ ydb_res yhook_post_register(ynode *node, yhook_post func, void *user)
         return YDB_E_NO_ARGS;
     if (node->hook)
         hook = node->hook;
-    else {
+    else
+    {
         hook = malloc(sizeof(yhook));
         memset(hook, 0x0, sizeof(yhook));
     }
@@ -328,9 +330,6 @@ void yhook_post_unregister(ynode *node)
     if (!hook->pre_func)
         free(hook);
 }
-
-
-
 
 struct dump_ctrl
 {
@@ -1117,7 +1116,7 @@ ynode *ynode_search(ynode *node, char *path)
         if (path[i] == '/')
         {
             token[j] = 0;
-            ydb_log_debug("@@token: %s\n", token);
+            ydb_log_debug("token: %s\n", token);
             found = ynode_find_child(node, token);
             if (found)
             {
@@ -1140,7 +1139,7 @@ ynode *ynode_search(ynode *node, char *path)
     if (j > 0)
     {
         token[j] = 0;
-        ydb_log_debug("@@token: %s\n", token);
+        ydb_log_debug("token: %s\n", token);
         found = ynode_find_child(node, token);
         if (found)
             return found;
@@ -1393,7 +1392,7 @@ ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value)
     new = ynode_new(type, value);
     if (!parent)
         return new;
-    
+
     if (parent->type == YNODE_TYPE_DICT)
     {
         ynode *cur;
@@ -1414,7 +1413,7 @@ ynode *ynode_create_path(ynode *parent, char *path)
     char token[512];
     ynode *node = NULL;
     ynode *new = NULL;
-    char *valkey = NULL;
+    char *key = NULL;
     if (!path)
         return NULL;
     i = 0;
@@ -1425,7 +1424,7 @@ ynode *ynode_create_path(ynode *parent, char *path)
         new = ynode_new(YNODE_TYPE_DICT, NULL);
     if (!new)
         return NULL;
-    
+
     if (path[0] == '/') // ignore first '/'
         i = 1;
     for (; path[i]; i++)
@@ -1433,7 +1432,7 @@ ynode *ynode_create_path(ynode *parent, char *path)
         if (path[i] == '/') // '/' is working as delimiter
         {
             token[j] = 0;
-            ydb_log_debug("@@token: %s\n", token);
+            ydb_log_debug("token: %s\n", token);
             node = ynode_new(YNODE_TYPE_DICT, NULL);
             ynode_attach(node, new, token);
             new = node;
@@ -1441,12 +1440,12 @@ ynode *ynode_create_path(ynode *parent, char *path)
         }
         else if (path[i] == '=')
         {
-            if (valkey) // '=' is represented twice.
+            if (key) // '=' is represented twice.
                 goto _fail;
             token[j] = 0;
-            ydb_log_debug("@@token: %s\n", token);
-            valkey = ystrdup(token);
-            if (!valkey)
+            ydb_log_debug("token: %s\n", token);
+            key = ystrdup(token);
+            if (!key)
                 goto _fail;
             j = 0;
         }
@@ -1460,21 +1459,23 @@ ynode *ynode_create_path(ynode *parent, char *path)
     if (j > 0)
     {
         token[j] = 0;
-        ydb_log_debug("@@token: %s, valkey %s\n", token, valkey);
-
-        if (valkey) {
+        if (key)
+        {
+            ydb_log_debug("key: %s, token: %s\n", key, token);
             node = ynode_new(YNODE_TYPE_VAL, token);
-            ynode_attach(node, new, valkey);
-            yfree(valkey);
+            ynode_attach(node, new, key);
+            yfree(key);
         }
         else
         {
+            ydb_log_debug("token: %s\n", token);
             node = ynode_new(YNODE_TYPE_DICT, NULL);
             ynode_attach(node, new, token);
         }
         new = node;
     }
-    if (parent) {
+    if (parent)
+    {
         new = ynode_top(new);
         parent = ynode_merge(parent, new);
         ynode_free(new);
@@ -1482,8 +1483,8 @@ ynode *ynode_create_path(ynode *parent, char *path)
     }
     return new;
 _fail:
-    if (valkey)
-        yfree(valkey);
+    if (key)
+        yfree(key);
     ynode_free(ynode_top(new));
     return NULL;
 }

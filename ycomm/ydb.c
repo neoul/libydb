@@ -42,22 +42,22 @@ int ydb_log_func_example(int severity, const char *func, int line, const char *f
 {
     int len = -1;
     va_list args;
-    switch(severity)
+    switch (severity)
     {
-        case YDB_LOG_DBG:
-            printf("** YDB::DBG::%20s:%4d", func, line);
-            break;
-        case YDB_LOG_INFO:
-        printf("** YDB::INFO:%20s:%4d", func, line);
-            break;
-        case YDB_LOG_ERR:
-        printf("** YDB::ERR");
-            break;
-        case YDB_LOG_CRI:
-        printf("** YDB::CRI");
-            break;
-        default:
-            return 0;
+    case YDB_LOG_DBG:
+        printf("** YDB::DBG::%20s:%4d: ", func, line);
+        break;
+    case YDB_LOG_INFO:
+        printf("** YDB::INFO:%20s:%4d: ", func, line);
+        break;
+    case YDB_LOG_ERR:
+        printf("** YDB::ERR: ");
+        break;
+    case YDB_LOG_CRI:
+        printf("** YDB::CRI: ");
+        break;
+    default:
+        return 0;
     }
     va_start(args, format);
     len = vprintf(format, args);
@@ -203,7 +203,8 @@ int ydb_write(ydb *datablock, const char *format, ...)
     if (!datablock)
         return 0;
     fp = open_memstream(&buf, &buflen);
-    if (fp) {
+    if (fp)
+    {
         ynode *src;
         ynode *res;
         va_list args;
