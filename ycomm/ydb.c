@@ -107,7 +107,7 @@ ydb_res ydb_pool_create()
 {
     if (!ydb_root)
     {
-        ydb_root = ynode_create(NULL, YNODE_TYPE_DICT, NULL, NULL);
+        ydb_root = ynode_create(YNODE_TYPE_DICT, NULL, NULL, NULL);
         if (!ydb_root)
             return YDB_E_MEM;
     }
@@ -162,7 +162,7 @@ ydb *ydb_open(char *path)
     memset(datablock, 0x0, sizeof(ydb));
 
     datablock->path = ystrdup(path);
-    datablock->node = ynode_create_path(ydb_root, path);
+    datablock->node = ynode_create_path(path, ydb_root);
     if (!datablock->node)
         assert(!YDB_E_MEM);
 

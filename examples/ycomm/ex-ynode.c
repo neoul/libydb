@@ -162,19 +162,14 @@ int test_ynode_crud()
 	ynode_printf(top, 0, 6);
 	
 	printf("== ynode_create ==\n");
-	node = ynode_create(top, YNODE_TYPE_VAL, "create", "first");
+	node = ynode_create(YNODE_TYPE_VAL, "create", "first", top);
 	ynode_printf(top, 0, 1);
 
 	printf("== node ==\n");
 	node = ynode_next(node);
 	ynode_printf(node, 0, 2);
 
-	printf("== ynode_clone (node) ==\n");
-	clone = ynode_clone(node);
-	ynode_printf(clone, 0, 2);
-	ynode_delete(clone);
-
-	printf("== ynode_clone (node) ==\n");
+	printf("== ynode_copy (node) ==\n");
 	clone = ynode_copy(node);
 	ynode_printf(clone, 0, 5);
 	ynode_delete(clone);
@@ -182,6 +177,7 @@ int test_ynode_crud()
 	printf("== a ==\n");
 	a = ynode_search(top, "system");
 	ynode_printf(a, 0, 3);
+
 	printf("== b ==\n");
 	b = ynode_sscanf(example_yaml2, strlen(example_yaml2));
 	ynode_printf(b, 0, 3);
@@ -190,8 +186,8 @@ int test_ynode_crud()
 	c = ynode_merge(a, b);
 	ynode_printf(c, -2, 5);
 	
-	ynode_create(ynode_down(b), YNODE_TYPE_VAL, "io", "100");
-	ynode_create(ynode_down(b), YNODE_TYPE_VAL, "cpu", "x86");
+	ynode_create(YNODE_TYPE_VAL, "io", "100", ynode_down(b));
+	ynode_create(YNODE_TYPE_VAL, "cpu", "x86", ynode_down(b));
 
 	printf("== b ==\n");
 	ynode_printf(b, -2, 5);
@@ -202,15 +198,64 @@ int test_ynode_crud()
 	ynode_printf(c, -2, 5);
 	ynode_delete(c);
 
-	// only copy the existent ynode's data
-	printf("== ynode_replace (b to a) ==\n");
-	c = ynode_replace(a, b);
-	ynode_printf(c, -2, 5);
 
 	ynode_delete(b);
 
 	printf("== top ==\n");
 	ynode_printf(top, 0, 10);
+	ynode_delete(top);
+	return 0;
+}
+
+void pre_hook(yhook_op_type op, ynode *cur, ynode *new, void *user)
+{
+	printf("== %s: %s ==\n", __func__, yhook_op_str[op]);
+	if (op == YHOOK_OP_CREATE || op == YHOOK_OP_REPLACE)
+		ynode_dump(new, 0, 0);
+	else
+		ynode_dump(cur, 0, 0);
+}
+
+int test_yhook()
+{
+	char *sample = 
+		"1:\n"
+		"  1-1:\n"
+		"   1-1-1: v1\n"
+		"   1-1-2: v2\n"
+		"   1-1-3: v3\n"
+		"  1-2:\n"
+		"   1-2-1: v4\n"
+		"   1-2-2: v5\n"
+		"   1-2-3: v6\n"
+		"2:\n"
+		"  2-1:\n"
+		"   2-1-1: v7\n"
+		"   2-1-2: v8\n"
+		"   2-1-3: v9\n"
+		"  2-2:\n"
+		"   2-2-1: v10\n"
+		"   2-2-2: v11\n"
+		"   2-2-3: v12\n";
+
+	printf("\n\n=== %s ===\n", __func__);
+	
+	ynode *top = ynode_sscanf(sample, strlen(sample));
+	
+	ynode_dump(top, 1, YDB_LEVEL_MAX);
+
+	// move to 1-2 node
+	top = ynode_search(top, "1/1-2");
+	ynode_dump(top, 0, 0);
+	yhook_register(top, YHOOK_DEPTH_FIRST, pre_hook, NULL);
+
+	printf("== ynode_create to check yhook ==\n");
+	ynode_create(YNODE_TYPE_VAL, "1-2-4", "v13", top);
+	// yhook_unregister(top);
+
+	printf("== top ==\n");
+	top = ynode_top(top);
+	ynode_printf(top, 1, YDB_LEVEL_MAX);
 	ynode_delete(top);
 	return 0;
 }
@@ -237,10 +282,15 @@ int main(int argc, char *argv[])
 		printf("test_ynode_path() failed.\n");
 	}
 
-	ydb_log_severity = YDB_LOG_DBG;
 	if(test_ynode_crud())
 	{
 		printf("test_ynode_crud() failed.\n");
+	}
+
+	ydb_log_severity = YDB_LOG_DBG;
+	if(test_yhook())
+	{
+		printf("test_yhook() failed.\n");
 	}
 	return 0;
 }

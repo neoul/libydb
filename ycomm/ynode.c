@@ -18,10 +18,9 @@
 struct _yhook
 {
     ynode *node;
-    yhook_pre pre_func;
-    yhook_post post_func;
-    void *pre_user;
-    void *post_user;
+    yhook_func func;
+    void *user;
+    unsigned int flags;
 };
 typedef struct _yhook yhook;
 
@@ -139,6 +138,8 @@ static char *ystr_convert(char *str)
     }
 }
 
+static void yhook_delete(ynode *cur);
+
 // delete ynode regardless of the detachment of the parent
 static void ynode_free(ynode *node)
 {
@@ -159,6 +160,7 @@ static void ynode_free(ynode *node)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
+    yhook_delete(node);
     free(node);
 }
 
@@ -261,8 +263,8 @@ static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
     return old;
 }
 
-// register the pre hook func to the target ynode.
-ydb_res yhook_pre_register(ynode *node, yhook_pre func, void *user)
+// register the hook func to the target ynode.
+ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *user)
 {
     yhook *hook;
     if (!node || !func)
@@ -276,59 +278,150 @@ ydb_res yhook_pre_register(ynode *node, yhook_pre func, void *user)
     }
     if (!hook)
         return YDB_E_MEM;
-    hook->pre_func = func;
-    hook->pre_user = user;
-    hook->node = node;
-    node->hook = hook;
-    return YDB_OK;
-}
-
-// register the post hook func to the target ynode.
-ydb_res yhook_post_register(ynode *node, yhook_post func, void *user)
-{
-    yhook *hook;
-    if (!node || !func)
-        return YDB_E_NO_ARGS;
-    if (node->hook)
-        hook = node->hook;
+    if (IS_SET(flags, YHOOK_DEPTH_FIRST))
+        SET_FLAG(hook->flags, YHOOK_DEPTH_FIRST);
     else
-    {
-        hook = malloc(sizeof(yhook));
-        memset(hook, 0x0, sizeof(yhook));
-    }
-    if (!hook)
-        return YDB_E_MEM;
-    hook->post_func = func;
-    hook->post_user = user;
+        UNSET_FLAG(hook->flags, YHOOK_DEPTH_FIRST);
+    hook->func = func;
+    hook->user = user;
     hook->node = node;
     node->hook = hook;
     return YDB_OK;
 }
 
-// unregister the pre hook func from the target ynode.
-void yhook_pre_unregister(ynode *node)
+// unregister the hook func from the target ynode.
+void yhook_unregister(ynode *node)
 {
-    yhook *hook;
     if (!node || !node->hook)
         return;
-    hook = node->hook;
-    hook->pre_func = NULL;
-    hook->pre_user = NULL;
-    if (!hook->post_func)
-        free(hook);
+    free(node->hook);
+    node->hook = NULL;
 }
 
-// unregister the post hook func from the target ynode.
-void yhook_post_unregister(ynode *node)
+static int yhook_pre_run_for_delete(ynode *cur);
+static int yhook_pre_run_for_delete_dict(void *key, void *data, void *addition)
+{
+    ynode *cur = data;
+    key = (void *)key;
+    addition = (void *)addition;
+    return yhook_pre_run_for_delete(cur);
+}
+
+static int yhook_pre_run_for_delete_list(void *data, void *addition)
+{
+    ynode *cur = data;
+    addition = (void *)addition;
+    return yhook_pre_run_for_delete(cur);
+}
+
+// call the pre / post hook for deleting cur ynode.
+static int yhook_pre_run_for_delete(ynode *cur)
+{
+    ydb_res res;
+    ynode *node = cur;
+    if (!cur)
+        return YDB_E_NO_ENTRY;
+    while (node)
+    {
+        yhook *hook = node->hook;
+        if (hook && !(IS_SET(hook->flags, YHOOK_DEPTH_FIRST)))
+        {
+            hook->func(YHOOK_OP_DELETE, cur, NULL, hook->user);
+            break;
+        }
+        node = node->parent;
+    }
+    switch (cur->type)
+    {
+    case YNODE_TYPE_DICT:
+        res = ytree_traverse(cur->dict, yhook_pre_run_for_delete_dict, NULL);
+        break;
+    case YNODE_TYPE_LIST:
+        res = ylist_traverse(cur->list, yhook_pre_run_for_delete_list, NULL);
+        break;
+    case YNODE_TYPE_VAL:
+        res = YDB_OK;
+        break;
+    default:
+        assert(!YDB_E_TYPE_ERR);
+    }
+    node = cur;
+    while (node)
+    {
+        yhook *hook = node->hook;
+        if (hook && IS_SET(hook->flags, YHOOK_DEPTH_FIRST))
+        {
+            hook->func(YHOOK_OP_DELETE, cur, NULL, hook->user);
+            break;
+        }
+        node = node->parent;
+    }
+    return res;
+}
+
+// return ynode is changed or not.
+static void yhook_pre_run(yhook_op_type op, ynode *parent, ynode *cur, ynode *new)
 {
     yhook *hook;
-    if (!node || !node->hook)
+    if (cur)
+    {
+        hook = cur->hook;
+        if (hook && !(IS_SET(hook->flags, YHOOK_DEPTH_FIRST)))
+            hook->func(op, cur, new, hook->user);
+    }
+    while (parent)
+    {
+        hook = parent->hook;
+        if (hook && !(IS_SET(hook->flags, YHOOK_DEPTH_FIRST)))
+        {
+            hook->func(op, cur, new, hook->user);
+            break;
+        }
+        parent = parent->parent;
+    }
+}
+
+static void yhook_post_run(yhook_op_type op, ynode *parent, ynode *cur, ynode *new)
+{
+    yhook *hook;
+    if (cur)
+    {
+        hook = cur->hook;
+        if (hook && IS_SET(hook->flags, YHOOK_DEPTH_FIRST))
+            hook->func(op, cur, new, hook->user);
+    }
+    while (parent)
+    {
+        hook = parent->hook;
+        if (hook && IS_SET(hook->flags, YHOOK_DEPTH_FIRST))
+        {
+            hook->func(op, cur, new, hook->user);
+            break;
+        }
+        parent = parent->parent;
+    }
+}
+
+static void yhook_copy(ynode *dest, ynode *src)
+{
+    yhook *hook;
+    if (!dest || !src)
         return;
-    hook = node->hook;
-    hook->post_func = NULL;
-    hook->post_user = NULL;
-    if (!hook->pre_func)
-        free(hook);
+    if (dest->hook || !src->hook)
+        return;
+    hook = malloc(sizeof(yhook));
+    hook->func = src->hook->func;
+    hook->user = src->hook->user;
+    hook->node = dest;
+    dest->hook = hook;
+}
+
+static void yhook_delete(ynode *cur)
+{
+    if (!cur || !cur->hook)
+        return;
+    free(cur->hook);
+    cur->hook = NULL;
 }
 
 struct dump_ctrl
@@ -636,10 +729,12 @@ void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int s
     dump = dump_ctrl_new_debug(fp, fd, buf, buflen, start_level, end_level);
     if (!dump)
         return;
-    dump_ctrl_print(dump, "\n[dump (start_level=%d, end_level=%d)]\n", start_level, end_level);
+    if (start_level < end_level)
+        dump_ctrl_print(dump, "\n[dump (start_level=%d, end_level=%d)]\n", start_level, end_level);
     dump_ctrl_dump_parent(dump, node);
     dump_ctrl_dump_childen(dump, node);
-    dump_ctrl_print(dump, "[dump (len=%d)]\n", dump->len);
+    if (start_level < end_level)
+        dump_ctrl_print(dump, "[dump (len=%d)]\n", dump->len);
     dump_ctrl_free(dump);
 }
 
@@ -1384,40 +1479,195 @@ char *ynode_path_and_val(ynode *node, int start_level)
     return NULL;
 }
 
-// create single ynode
-ynode *ynode_create(ynode *parent, unsigned char type, char *key, char *value)
+static yhook_op_type ynode_op_get(ynode *cur, ynode *new)
 {
-    ynode *new, *old;
-    if (type >= YNODE_TYPE_MAX)
-        return NULL;
-    new = ynode_new(type, value);
-    if (!parent)
-        return new;
-
-    if (parent->type == YNODE_TYPE_DICT)
+    if (!cur && !new)
+        return YHOOK_OP_NONE;
+    else if (!cur && new)
+        return YHOOK_OP_CREATE;
+    else if (cur && !new)
+        return YHOOK_OP_DELETE;
+    else
     {
-        ynode *cur;
-        cur = ytree_search(parent->dict, key);
-        ynode_dump(new, 0, 24);
-        cur = ynode_merge(cur, new);
-        ynode_dump(cur, 0, 24);
-        ynode_free(new);
-        new = cur;
+        if (cur->type == new->type)
+        {
+            if (cur->type == YNODE_TYPE_VAL)
+            {
+                if (strcmp(cur->value, new->value) == 0)
+                    return YHOOK_OP_NONE;
+                return YHOOK_OP_REPLACE;
+            }
+            return YHOOK_OP_NONE;
+        }
+        return YHOOK_OP_REPLACE;
     }
-    old = ynode_attach(new, parent, key);
-    ynode_free(old);
+}
+
+char *yhook_op_str[] =
+    {
+        "yhook_op_none",
+        "yhook_op_create",
+        "yhook_op_replace",
+        "yhook_op_delete",
+};
+
+static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
+{
+    ynode *new = NULL;
+    yhook_op_type op;
+    if (parent)
+    {
+        if (cur && cur->parent != parent)
+            assert(!YDB_E_INVALID_PARENT);
+        switch (parent->type)
+        {
+        case YNODE_TYPE_LIST:
+            break;
+        case YNODE_TYPE_DICT:
+            if (!cur && key)
+                cur = ytree_search(parent->dict, key);
+            break;
+        case YNODE_TYPE_VAL:
+            return NULL;
+        default:
+            assert(!YDB_E_TYPE_ERR);
+        }
+    }
+
+    op = ynode_op_get(cur, src);
+
+    if (op == YHOOK_OP_CREATE || op == YHOOK_OP_REPLACE)
+    {
+        new = ynode_new(src->type, src->value);
+        if (!new)
+            return NULL;
+    }
+    else if (op == YHOOK_OP_NONE)
+        new = cur;
+
+    ydb_log_debug("op = %s\n", yhook_op_str[op]);
+    if (YDB_LOGGING_DEBUG)
+    {
+        char buf[256];
+        if (cur)
+        {
+            ynode_dump_to_buf(buf, sizeof(buf), cur, 0, 0);
+            ydb_log_debug("cur = %s", buf);
+        }
+        else
+            ydb_log_debug("cur = \n");
+        if (new)
+        {
+            ynode_dump_to_buf(buf, sizeof(buf), new, 0, 0);
+            ydb_log_debug("new = %s, %s", key, buf);
+        }
+        else
+            ydb_log_debug("new = \n");
+    }
+
+    switch (op)
+    {
+    case YHOOK_OP_CREATE:
+        ynode_attach(new, parent, key);
+        yhook_pre_run(op, parent, cur, new);
+        break;
+    case YHOOK_OP_REPLACE:
+        ynode_attach(new, parent, key);
+        yhook_pre_run(op, parent, cur, new);
+        break;
+    case YHOOK_OP_DELETE:
+        yhook_pre_run_for_delete(cur);
+        break;
+    case YHOOK_OP_NONE:
+    default:
+        break;
+    }
+
+    if (src)
+    {
+        switch (src->type)
+        {
+        case YNODE_TYPE_DICT:
+        {
+            ytree_iter *iter = ytree_first(src->dict);
+            for (; iter != NULL; iter = ytree_next(src->dict, iter))
+            {
+                ynode *src_child = ytree_data(iter);
+                ynode *cur_child = ynode_find_child(new, src_child->key);
+                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key);
+                if (!new_child)
+                    ydb_log_error("unable to add child node (src_child->key: %s)\n");
+            }
+            break;
+        }
+        case YNODE_TYPE_LIST:
+        {
+            ylist_iter *iter;
+            for (iter = ylist_first(src->list);
+                 !ylist_done(iter);
+                 iter = ylist_next(iter))
+            {
+                ynode *src_child = ylist_data(iter);
+                ynode *new_child = ynode_control(NULL, src_child, new, NULL);
+                if (!new_child)
+                    ydb_log_error("unable to add child node (src_child->key: %s)\n");
+            }
+            break;
+        }
+        case YNODE_TYPE_VAL:
+            break;
+        default:
+            assert(!YDB_E_TYPE_ERR);
+        }
+    }
+
+    switch (op)
+    {
+    case YHOOK_OP_CREATE:
+        yhook_post_run(op, parent, cur, new);
+        break;
+    case YHOOK_OP_REPLACE:
+        yhook_post_run(op, parent, cur, new);
+        ynode_free(cur);
+        break;
+    case YHOOK_OP_DELETE:
+        ynode_detach(cur);
+        ynode_free(cur);
+        break;
+    case YHOOK_OP_NONE:
+    default:
+        break;
+    }
     return new;
 }
 
-// create ynode db using path
+// create single ynode and attach to parent
+// return created ynode
+ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent)
+{
+    ynode *cur, *new;
+    new = ynode_new(type, value);
+    cur = ynode_control(NULL, new, parent, key);
+    ynode_free(new);
+    return cur;
+}
+
+// create new ynodes to parent using src
+// return created ynode top
+ynode *ynode_create_copy(ynode *src, ynode *parent, char *key)
+{
+    return ynode_control(NULL, src, parent, key);
+}
+
+// create new ynodes using path
 // return the last created ynode.
-ynode *ynode_create_path(ynode *parent, char *path)
+ynode *ynode_create_path(char *path, ynode *parent)
 {
     int i, j;
-    char token[512];
-    ynode *node = NULL;
-    ynode *new = NULL;
     char *key = NULL;
+    ynode *new = NULL;
+    ynode *node = NULL;
+    char token[512];
     if (!path)
         return NULL;
     i = 0;
@@ -1469,6 +1719,7 @@ ynode *ynode_create_path(ynode *parent, char *path)
             node = ynode_new(YNODE_TYPE_VAL, token);
             ynode_attach(node, new, key);
             yfree(key);
+            key = NULL;
         }
         else
         {
@@ -1481,8 +1732,10 @@ ynode *ynode_create_path(ynode *parent, char *path)
     if (parent)
     {
         new = ynode_top(new);
-        parent = ynode_merge(parent, new);
+        ynode_merge(parent, new);
         ynode_free(new);
+        if (key)
+            yfree(key);
         return ynode_search(parent, path);
     }
     return new;
@@ -1493,29 +1746,7 @@ _fail:
     return NULL;
 }
 
-// create new ynode db (all sub nodes).
-// ynode_clone and ynode_copy return the same result. but, implemented with different logic.
-ynode *ynode_clone(ynode *src)
-{
-    char *buf = NULL;
-    size_t buflen = 0;
-    FILE *fp;
-    ynode *clone = NULL;
-    if (!src)
-        return NULL;
-    fp = open_memstream(&buf, &buflen);
-    if (src->type == YNODE_TYPE_VAL)
-        fprintf(fp, "%s", src->value);
-    else
-        ynode_fprintf(fp, src, 1, YDB_LEVEL_MAX);
-    if (fp)
-        fclose(fp);
-    clone = ynode_sscanf(buf, buflen);
-    if (buf)
-        free(buf);
-    return clone;
-}
-
+// copy src ynodes (including all sub ynodes)
 ynode *ynode_copy(ynode *src)
 {
     ynode *dest;
@@ -1524,6 +1755,8 @@ ynode *ynode_copy(ynode *src)
     dest = ynode_new(src->type, src->value);
     if (!dest)
         return NULL;
+
+    yhook_copy(dest, src);
 
     switch (src->type)
     {
@@ -1538,8 +1771,8 @@ ynode *ynode_copy(ynode *src)
                 goto _fail;
             ynode_attach(dest_child, dest, src_child->key);
         }
+        break;
     }
-    break;
     case YNODE_TYPE_LIST:
     {
         ylist_iter *iter;
@@ -1553,8 +1786,8 @@ ynode *ynode_copy(ynode *src)
                 goto _fail;
             ynode_attach(dest_child, dest, src_child->key);
         }
+        break;
     }
-    break;
     case YNODE_TYPE_VAL:
         // nothing to do
         break;
@@ -1568,149 +1801,22 @@ _fail:
     return NULL;
 }
 
-// merge src ynode to dest node.
-// dest will be modified by the operation.
+// merge src ynode to dest.
+// dest is modified by the operation.
+// return modified dest.
 ynode *ynode_merge(ynode *dest, ynode *src)
 {
+    ynode *parent;
     if (!dest)
         return ynode_copy(src);
-    else if (!src)
-        return dest;
-
-    if (dest->type != src->type)
-    {
-        ynode *node = ynode_copy(src);
-        if (node && dest->parent)
-        {
-            ynode *old = ynode_attach(node, dest->parent, dest->key);
-            ynode_free(old);
-        }
-        return node;
-    }
-
-    // check children or value
-    switch (src->type)
-    {
-    case YNODE_TYPE_DICT:
-    {
-        ytree_iter *iter = ytree_first(src->dict);
-        for (; iter != NULL; iter = ytree_next(src->dict, iter))
-        {
-            ynode *src_child = ytree_data(iter);
-            ynode *dest_child = ytree_search(dest->dict, src_child->key);
-            ynode *overwritten = ynode_merge(dest_child, src_child);
-            if (!overwritten)
-                goto _fail;
-            if (!dest_child)
-                ynode_attach(overwritten, dest, src_child->key);
-        }
-        break;
-    }
-
-    case YNODE_TYPE_LIST:
-    {
-        ylist_iter *iter;
-        for (iter = ylist_first(src->list);
-             !ylist_done(iter);
-             iter = ylist_next(iter))
-        {
-            ynode *src_child = ylist_data(iter);
-            ynode *overwritten = ynode_copy(src_child);
-            if (!overwritten)
-                goto _fail;
-            ynode_attach(overwritten, dest, src_child->key);
-        }
-        break;
-    }
-    case YNODE_TYPE_VAL:
-        if (strcmp(dest->value, src->value) != 0)
-        {
-            yfree(dest->value);
-            dest->value = ystrdup(src->value);
-        }
-        break;
-    default:
-        assert(!YDB_E_TYPE_ERR);
-    }
-
-    return dest;
-_fail:
-    return NULL;
+    parent = dest->parent;
+    parent = ynode_control(dest, src, parent, dest->key);
+    return parent;
 }
 
-// replace dest ynode db using src ynode.
-// only update the dest ynode value (leaf).
-ynode *ynode_replace(ynode *dest, ynode *src)
-{
-    if (!dest)
-        return NULL;
-    else if (!src)
-        return dest;
-
-    if (dest->type != src->type)
-    {
-        // ignore different type ynode
-        return dest;
-    }
-
-    // check children or value
-    switch (dest->type)
-    {
-    case YNODE_TYPE_DICT:
-    {
-        ytree_iter *iter = ytree_first(dest->dict);
-        for (; iter != NULL; iter = ytree_next(dest->dict, iter))
-        {
-            ynode *dest_child = ytree_data(iter);
-            ynode *src_child = ytree_search(src->dict, dest_child->key);
-            ynode *node = ynode_replace(dest_child, src_child);
-            if (!node)
-                goto _fail;
-        }
-        break;
-    }
-
-    case YNODE_TYPE_LIST:
-    { // remove dest children and then add src children.
-        ylist_iter *iter;
-        while (!ylist_empty(dest->list))
-        {
-            ynode *node = ylist_pop_front(dest->list);
-            ynode_free(node);
-        }
-        for (iter = ylist_first(src->list);
-             !ylist_done(iter);
-             iter = ylist_next(iter))
-        {
-            ynode *src_child = ylist_data(iter);
-            ynode *dest_child = ynode_copy(src_child);
-            if (!dest_child)
-                goto _fail;
-            ynode_attach(dest_child, dest, src_child->key);
-        }
-        break;
-    }
-    case YNODE_TYPE_VAL:
-        if (strcmp(dest->value, src->value) != 0)
-        {
-            yfree(dest->value);
-            dest->value = ystrdup(src->value);
-        }
-        break;
-    default:
-        assert(!YDB_E_TYPE_ERR);
-    }
-
-    return dest;
-_fail:
-    // ynode_detach(dest);
-    // ynode_free(dest);
-    return NULL;
-}
-
-// merge src ynode to dest node.
-// dest and src ynodes will not be modified.
-// New ynode db will returned.
+// merge src ynode to dest.
+// dest and src is not modified.
+// New ynode is returned.
 ynode *ynode_merge_new(ynode *dest, ynode *src)
 {
     char *buf = NULL;
@@ -1736,9 +1842,9 @@ ynode *ynode_merge_new(ynode *dest, ynode *src)
     return clone;
 }
 
-// delete the ynode db (including all sub nodes).
-void ynode_delete(ynode *node)
+// deleted cur ynode (including all sub ynodes).
+void ynode_delete(ynode *cur)
 {
-    ynode_detach(node);
-    ynode_free(node);
+    if (cur)
+        ynode_control(cur, NULL, cur->parent, cur->key);
 }
