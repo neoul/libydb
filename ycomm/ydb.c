@@ -32,10 +32,14 @@ char *ydb_err_str[] =
         YDB_VNAME(YDB_E_DUMP_CB),
         YDB_VNAME(YDB_E_MEM),
         YDB_VNAME(YDB_E_FULL_BUF),
+        YDB_VNAME(YDB_E_PERSISTENCY_ERR),
         YDB_VNAME(YDB_E_INVALID_YAML_INPUT),
         YDB_VNAME(YDB_E_INVALID_YAML_TOP),
         YDB_VNAME(YDB_E_INVALID_YAML_KEY),
         YDB_VNAME(YDB_E_INVALID_YAML_ENTRY),
+        YDB_VNAME(YDB_E_YAML_INIT),
+        YDB_VNAME(YDB_E_YAML_EMPTY_TOKEN),
+        YDB_VNAME(YDB_E_MERGE_FAILED),
 };
 
 int ydb_log_func_example(int severity, const char *func, int line, const char *format, ...)
@@ -93,8 +97,6 @@ struct _ydb
 {
     char *path;
     ynode *node;
-    ytrie *pre_hooks;
-    ytrie *post_hooks;
     // struct _conn *conn;
     // ytree *remotes;
 };
@@ -195,36 +197,38 @@ ynode *ydb_top()
 }
 
 // update ydb using the input string
-int ydb_write(ydb *datablock, const char *format, ...)
+ydb_res ydb_write(ydb *datablock, const char *format, ...)
 {
     FILE *fp;
     char *buf = NULL;
     size_t buflen = 0;
     if (!datablock)
-        return 0;
+        return YDB_E_NO_ARGS;
     fp = open_memstream(&buf, &buflen);
     if (fp)
     {
-        ynode *src;
-        ynode *res;
+        ydb_res res;
+        ynode *top;
+        ynode *src = NULL;
         va_list args;
         va_start(args, format);
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        src = ynode_sscanf(buf, buflen);
+        res = ynode_sscanf(buf, buflen, &src);
         if (buf)
             free(buf);
-        // update datablock
-        // pre hook
-        res = ynode_merge(datablock->node, src);
-        if (res)
-        {
-            // failed
+        if (res) {
+            ynode_delete(src);
+            return res;
         }
-        // post hook
-        // ynode_printf(src, 0, YDB_LEVEL_MAX);
+            
+        if (!src)
+            return 0;
+        top = ynode_merge(datablock->node, src);
         ynode_delete(src);
+        if (!top)
+            return YDB_E_MERGE_FAILED;
     }
     return buflen;
 }

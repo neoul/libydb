@@ -54,10 +54,10 @@ int ynode_write(int fd, ynode *node, int start_level, int end_level);
 int ynode_printf(ynode *node, int start_level, int end_level);
 
 // read ynode db from buffer, fp, fd and stdin
-ynode *ynode_fscanf(FILE *fp);
-ynode *ynode_scanf();
-ynode *ynode_read(int fd);
-ynode *ynode_sscanf(char *buf, int buflen);
+ydb_res ynode_fscanf(FILE *fp, ynode **n);
+ydb_res ynode_scanf(ynode **n);
+ydb_res ynode_read(int fd, ynode **n);
+ydb_res ynode_sscanf(char *buf, int buflen, ynode **n);
 
 // [ynode searching & traveling]
 

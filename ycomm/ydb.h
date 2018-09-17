@@ -21,6 +21,9 @@ typedef enum _ydb_res
     YDB_E_INVALID_YAML_TOP,
     YDB_E_INVALID_YAML_KEY,
     YDB_E_INVALID_YAML_ENTRY,
+    YDB_E_YAML_INIT,
+    YDB_E_YAML_EMPTY_TOKEN,
+    YDB_E_MERGE_FAILED,
 } ydb_res;
 
 #define YDB_VNAME(NAME) #NAME
@@ -67,6 +70,6 @@ void ydb_close(ydb *datablock);
 ynode *ydb_top();
 
 // update ydb using the input string
-int ydb_write(ydb *datablock, const char *format, ...);
+ydb_res ydb_write(ydb *datablock, const char *format, ...);
 
 #endif // __YDB__

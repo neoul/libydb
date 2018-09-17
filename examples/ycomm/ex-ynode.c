@@ -39,7 +39,8 @@ int test_ynode_fscanf(char *fname)
 		return -1;
 	}
 	printf("\n\n=== %s ===\n", __func__);
-	ynode *top = ynode_fscanf(fp);
+	ynode *top = NULL;
+	ynode_fscanf(fp, &top);
 	ynode_printf(top, 0, 5);
 
 	top = ynode_down(top);
@@ -69,7 +70,7 @@ int test_ynode_scanf()
 {
 	ynode *node = NULL;
 	printf("\n\n=== %s ===\n", __func__);
-	node = ynode_scanf();
+	ynode_scanf(&node);
 	ynode_dump(node, 0, 0);
 	ynode_delete(node);
 	return 0;
@@ -84,7 +85,8 @@ int test_ynode_search_and_iterate(char *fname)
 		return -1;
 	}
 	printf("\n\n=== %s ===\n", __func__);
-	ynode *top = ynode_fscanf(fp);
+	ynode *top = NULL;
+	ynode_fscanf(fp, &top);
 	ynode_printf(top, 0, 0);
 
 	top = ynode_down(top);
@@ -111,7 +113,8 @@ int test_ynode_path(char *fname)
 		return -1;
 	}
 	printf("\n\n=== %s ===\n", __func__);
-	ynode *top = ynode_fscanf(fp);
+	ynode *top = NULL;
+	ynode_fscanf(fp, &top);
 	ynode_printf(top, 0, 5);
 	printf("==\n");
 
@@ -145,7 +148,7 @@ int test_ynode_sscanf()
 	char *buf = "abc";
 	ynode *node = NULL;
 	printf("\n\n=== %s ===\n", __func__);
-	node = ynode_sscanf(buf, strlen(buf));
+	ynode_sscanf(buf, strlen(buf), &node);
 	ynode_dump(node, 0, 0);
 	ynode_delete(node);
 	return 0;
@@ -157,7 +160,8 @@ int test_ynode_crud()
 	
 	ynode *node, *clone;
 	ynode *a, *b, *c;
-	ynode *top = ynode_sscanf(example_yaml, strlen(example_yaml));
+	ynode *top = NULL;
+	ynode_sscanf(example_yaml, strlen(example_yaml), &top);
 	printf("== top ==\n");
 	ynode_printf(top, 0, 6);
 	
@@ -179,7 +183,7 @@ int test_ynode_crud()
 	ynode_printf(a, 0, 3);
 
 	printf("== b ==\n");
-	b = ynode_sscanf(example_yaml2, strlen(example_yaml2));
+	ynode_sscanf(example_yaml2, strlen(example_yaml2), &b);
 	ynode_printf(b, 0, 3);
 
 	printf("== ynode_merge (b to a) ==\n");
@@ -240,8 +244,8 @@ int test_yhook()
 
 	printf("\n\n=== %s ===\n", __func__);
 	
-	ynode *top = ynode_sscanf(sample, strlen(sample));
-	
+	ynode *top = NULL;
+	ynode_sscanf(sample, strlen(sample), &top);
 	ynode_dump(top, 1, YDB_LEVEL_MAX);
 
 	// move to 1-2 node

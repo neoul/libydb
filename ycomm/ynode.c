@@ -913,7 +913,7 @@ char *yaml_token_str[] = {
     YDB_VNAME(YAML_SCALAR_TOKEN),
 };
 
-ynode *ynode_fscanf(FILE *fp)
+ydb_res ynode_fscanf(FILE *fp, ynode **n)
 {
     ydb_res res = YDB_OK;
     int level = 0;
@@ -933,10 +933,19 @@ ynode *ynode_fscanf(FILE *fp)
         YAML_NEXT_SEQUENCE_ENTRY_SCALAR,
     } next = YAML_NEXT_NONE;
 
-    if (!fp)
+    if (!fp || !n)
     {
-        ydb_log(YDB_LOG_ERR, "no input\n");
-        return NULL;
+        res = YDB_E_NO_ARGS;
+        ydb_log_res(res);
+        return res;
+    }
+
+    stack = ylist_create();
+    if (!stack)
+    {
+        res = YDB_E_MEM;
+        ydb_log_res(res);
+        return res;
     }
 
     /* Initialize parser */
@@ -944,13 +953,13 @@ ynode *ynode_fscanf(FILE *fp)
     {
         ydb_log_err_yaml(&parser);
         yaml_parser_delete(&parser);
-        return NULL;
+        res = YDB_E_YAML_INIT;
+        ydb_log_res(res);
+        return res;
     }
 
     /* Set input file */
     yaml_parser_set_input_file(&parser, fp);
-
-    stack = ylist_create();
 
     /* BEGIN new code */
     do
@@ -959,6 +968,7 @@ ynode *ynode_fscanf(FILE *fp)
         if (!token.type)
         {
             ydb_log_err_yaml(&parser);
+            res = YDB_E_YAML_EMPTY_TOKEN;
             break;
         }
         if (YDB_LOGGING_DEBUG)
@@ -1036,7 +1046,7 @@ ynode *ynode_fscanf(FILE *fp)
             ylist_push_back(stack, node);
             yfree(key);
             key = NULL;
-            ydb_log(YDB_LOG_DBG, "last stack entry=%p\n", ylist_back(stack));
+            ydb_log(YDB_LOG_DBG, "(last stack entry=%p)\n", ylist_back(stack));
             next = YAML_NEXT_NONE;
             break;
         }
@@ -1060,7 +1070,7 @@ ynode *ynode_fscanf(FILE *fp)
                 key = NULL;
             }
             top = ylist_pop_back(stack);
-            ydb_log(YDB_LOG_DBG, "last stack entry=%p\n", ylist_back(stack));
+            ydb_log(YDB_LOG_DBG, "(last stack entry=%p)\n", ylist_back(stack));
             next = YAML_NEXT_NONE;
             break;
         case YAML_SCALAR_TOKEN:
@@ -1110,56 +1120,66 @@ ynode *ynode_fscanf(FILE *fp)
             break;
         }
         if (res)
-        {
-            ydb_log_res(res);
-            if (!top)
-                top = ylist_front(stack);
-            ynode_free(top);
-            top = NULL;
             break;
-        }
+
         if (token.type != YAML_STREAM_END_TOKEN)
         {
             yaml_token_delete(&token);
         }
     } while (token.type != YAML_STREAM_END_TOKEN);
+
     yaml_token_delete(&token);
     /* END new code */
 
     /* Cleanup */
     yaml_parser_delete(&parser);
+
+    if (!ylist_empty(stack) && !res)
+        res = YDB_E_INVALID_YAML_INPUT;
+
+    if (res)
+    {
+        ydb_log_res(res);
+        if (!top)
+            top = ylist_front(stack);
+        while (!ylist_empty(stack))
+            ylist_pop_back(stack);
+        ynode_free(ynode_top(top));
+        top = NULL;
+    }
     ylist_destroy(stack);
     if (key)
         yfree(key);
-    return top;
+    *n = top;
+    return res;
 }
 
-ynode *ynode_scanf()
+ydb_res ynode_scanf(ynode **n)
 {
-    return ynode_fscanf(stdin);
+    return ynode_fscanf(stdin, n);
 }
 
-ynode *ynode_read(int fd)
+ydb_res ynode_read(int fd, ynode **n)
 {
     int dup_fd = dup(fd);
     FILE *fp = fdopen(dup_fd, "r");
-    ynode *node = ynode_fscanf(fp);
+    ydb_res res = ynode_fscanf(fp, n);
     if (fp)
         fclose(fp);
-    return node;
+    return res;
 }
 
-ynode *ynode_sscanf(char *buf, int buflen)
+ydb_res ynode_sscanf(char *buf, int buflen, ynode **n)
 {
     FILE *fp;
-    ynode *node;
+    ydb_res res;
     if (!buf || buflen < 0)
-        return NULL;
+        return YDB_E_NO_ARGS;
     fp = fmemopen(buf, buflen, "r");
-    node = ynode_fscanf(fp);
+    res = ynode_fscanf(fp, n);
     if (fp)
         fclose(fp);
-    return node;
+    return res;
 }
 
 static ynode *ynode_find_child(ynode *node, char *key)
@@ -1836,7 +1856,7 @@ ynode *ynode_merge_new(ynode *dest, ynode *src)
         ynode_fprintf(fp, src, 0, YDB_LEVEL_MAX);
     if (fp)
         fclose(fp);
-    clone = ynode_sscanf(buf, buflen);
+    ynode_sscanf(buf, buflen, &clone);
     if (buf)
         free(buf);
     return clone;
