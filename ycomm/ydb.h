@@ -71,5 +71,7 @@ ynode *ydb_top();
 
 // update ydb using the input string
 ydb_res ydb_write(ydb *datablock, const char *format, ...);
+// read the date from ydb as the scanf()
+int ydb_read(ydb *datablock, const char *format, ...);
 
 #endif // __YDB__

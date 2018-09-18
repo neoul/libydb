@@ -64,8 +64,11 @@ ydb_res ynode_sscanf(char *buf, int buflen, ynode **n);
 // lookup an ynode in the path
 ynode *ynode_search(ynode *node, char *path);
 
+// find the ref ynode on the same position in target ynode grapes.
+ynode *ynode_lookup(ynode *target, ynode *ref);
+
 // return ynodes' value if that is a leaf.
-char *ynode_data(ynode *node);
+char *ynode_value(ynode *node);
 // return ynodes' key if that has a hash key. 
 char *ynode_key(ynode *node);
 // return ynodes' index if the nodes' parent is a list.
@@ -86,12 +89,12 @@ ynode *ynode_first(ynode *node);
 ynode *ynode_last(ynode *node);
 
 // create a new path string for the ydb
-// the start_level is the number of the parent and ancestors to be printed.
+// the level is the number of the parent and ancestors to be printed.
 // the path returned should be free.
-char *ynode_path(ynode *node, int start_level);
+char *ynode_path(ynode *node, int level);
 
 // create a new path and value string for the ydb
-char *ynode_path_and_val(ynode *node, int start_level);
+char *ynode_path_and_val(ynode *node, int level);
 
 // ynode callback for hooking some change in ynode db.
 typedef enum _yhook_op_type {
@@ -111,4 +114,17 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *u
 
 // unregister the hook func from the target ynode.
 void yhook_unregister(ynode *node);
+
+
+typedef ydb_res(*ynode_callback)(ynode *cur, void *addition);
+#define YNODE_TRV_LEAF_FIRST 0x1
+#define YNODE_TRV_LEAF_ONLY 0x2
+struct ynode_traverse_data {
+    ynode_callback cb;
+    void *addition;
+    unsigned int flags;
+};
+
+ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *addition, unsigned int flags);
+
 #endif // __YNODE__

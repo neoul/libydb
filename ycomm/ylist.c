@@ -218,6 +218,25 @@ ylist_iter *ylist_prev(ylist_iter *iter)
     return NULL;
 }
 
+// return Xth iterator in the list.
+ylist_iter *ylist_index(ylist *list, int index)
+{
+    int count = 0;
+    ylist_iter *iter;
+    if (!list)
+        return NULL;
+    if (list->head->next == list->head)
+        return NULL;
+    iter = list->head->next; // 0th
+    while (iter) {
+        if (count == index)
+            return iter;
+        iter = ylist_next(iter);
+        count++;
+    }
+    return iter;
+}
+
 // true if the iterator ended
 int ylist_done(ylist_iter *iter)
 {

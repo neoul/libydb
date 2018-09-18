@@ -913,7 +913,119 @@ char *yaml_token_str[] = {
     YDB_VNAME(YAML_SCALAR_TOKEN),
 };
 
-ydb_res ynode_fscanf(FILE *fp, ynode **n)
+static char *ynode_strpbrk(char *src, char *src_end, char *stop)
+{
+    char *delimiter;
+    if (strlen(stop) == 1)
+    {
+        for (; src != src_end; src++)
+            if (*src == stop[0])
+                return src;
+        return NULL;
+    }
+
+    for (; src != src_end; src++)
+    {
+        for (delimiter = stop; *delimiter != 0; delimiter++)
+        {
+            if (*src == *delimiter)
+                return src;
+        }
+    }
+    return NULL;
+}
+
+struct ynod_query_data {
+    yaml_parser_t *parser;
+    int num_of_query;
+};
+
+static int ynod_yaml_query_handler(void *data, unsigned char *buffer, size_t size,
+                             size_t *size_read)
+{
+    int len;
+    char *start, *cur, *end, *buf;
+    struct ynod_query_data *qd = data;
+    yaml_parser_t *parser = (yaml_parser_t *)qd->parser;
+
+    if (parser->input.string.current == parser->input.string.end)
+    {
+        *size_read = 0;
+        return 1;
+    }
+    start = (char *)parser->input.string.start;
+    cur = (char *)parser->input.string.current;
+    end = (char *)parser->input.string.end;
+    buf = (char *)buffer;
+
+    char *specifier = ynode_strpbrk(cur, end, "%");
+    while (specifier)
+    {
+        char *pre = specifier - 1;
+        len = specifier - cur;
+        if (size <= (size_t)len)
+            break;
+        memcpy(buf, cur, len);
+        cur += len;
+        size -= len;
+        buf += len;
+
+        if (specifier == start || isspace(*pre))
+        {
+            // add ""
+            char *s_end = ynode_strpbrk(specifier, end, " \n:,}]\r\t\f\v");
+            len = s_end - cur;
+            if (size <= (len + 3) || len <= 0)
+                goto _done;
+            // copy
+            sprintf(buf, "+%03d", qd->num_of_query);
+            buf += 4;
+            size -= 4;
+            qd->num_of_query++;
+            // *buf = '"';
+            // buf++;
+            // size--;
+
+            memcpy(buf, cur, len);
+            cur += len;
+            buf += len;
+            size -= len;
+
+            // *buf = '"';
+            // buf++;
+            // size--;
+        }
+        else
+        {
+            if (size <= 1)
+                break;
+            *buf = *cur;
+            cur++;
+            buf++;
+            size--;
+        }
+
+        specifier = ynode_strpbrk(cur, end, "%");
+    }
+
+    len = end - cur;
+    if (len <= 0)
+        goto _done;
+    if (size <= (size_t)len)
+        len = size;
+    memcpy(buf, cur, len);
+    cur += len;
+    buf += len;
+    size -= len;
+
+_done:
+    // printf("buff='%s'\n", buffer);
+    *size_read = buf - ((char *)buffer);
+    parser->input.string.current = (const unsigned char *)cur;
+    return 1;
+}
+
+ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
 {
     ydb_res res = YDB_OK;
     int level = 0;
@@ -925,6 +1037,7 @@ ydb_res ynode_fscanf(FILE *fp, ynode **n)
     ynode *old = NULL;
     char *key = NULL;
     char *value = NULL;
+    struct ynod_query_data qdata;
     enum YAML_NEXT_TOKEN
     {
         YAML_NEXT_NONE,
@@ -933,7 +1046,7 @@ ydb_res ynode_fscanf(FILE *fp, ynode **n)
         YAML_NEXT_SEQUENCE_ENTRY_SCALAR,
     } next = YAML_NEXT_NONE;
 
-    if (!fp || !n)
+    if ((!fp && !buf) || !n)
     {
         res = YDB_E_NO_ARGS;
         ydb_log_res(res);
@@ -958,8 +1071,24 @@ ydb_res ynode_fscanf(FILE *fp, ynode **n)
         return res;
     }
 
-    /* Set input file */
-    yaml_parser_set_input_file(&parser, fp);
+    if (queryform)
+    {
+        /* Set input buf and handler */
+        parser.input.string.start = (const unsigned char *)buf;
+        parser.input.string.current = (const unsigned char *)buf;
+        parser.input.string.end = (const unsigned char *)buf + buflen;
+        qdata.parser = &parser;
+        qdata.num_of_query = 0;
+        yaml_parser_set_input(&parser, ynod_yaml_query_handler, &qdata);
+    }
+    else
+    {
+        if (fp)
+            yaml_parser_set_input_file(&parser, fp);
+        else
+            yaml_parser_set_input_string(&parser,
+                                         (const unsigned char *)buf, (size_t)buflen);
+    }
 
     /* BEGIN new code */
     do
@@ -1151,19 +1280,26 @@ ydb_res ynode_fscanf(FILE *fp, ynode **n)
     if (key)
         yfree(key);
     *n = top;
+    if (queryform)
+        *queryform = qdata.num_of_query;
     return res;
+}
+
+ydb_res ynode_fscanf(FILE *fp, ynode **n)
+{
+    return ynode_scan(fp, NULL, 0, n, 0);
 }
 
 ydb_res ynode_scanf(ynode **n)
 {
-    return ynode_fscanf(stdin, n);
+    return ynode_scan(stdin, NULL, 0, n, 0);
 }
 
 ydb_res ynode_read(int fd, ynode **n)
 {
     int dup_fd = dup(fd);
     FILE *fp = fdopen(dup_fd, "r");
-    ydb_res res = ynode_fscanf(fp, n);
+    ydb_res res = ynode_scan(fp, NULL, 0, n, 0);
     if (fp)
         fclose(fp);
     return res;
@@ -1171,16 +1307,18 @@ ydb_res ynode_read(int fd, ynode **n)
 
 ydb_res ynode_sscanf(char *buf, int buflen, ynode **n)
 {
-    FILE *fp;
+    // FILE *fp;
     ydb_res res;
     if (!buf || buflen < 0)
         return YDB_E_NO_ARGS;
-    fp = fmemopen(buf, buflen, "r");
-    res = ynode_fscanf(fp, n);
-    if (fp)
-        fclose(fp);
+    // fp = fmemopen(buf, buflen, "r");
+    res = ynode_scan(NULL, buf, buflen, n, 0);
+    // if (fp)
+    //     fclose(fp);
     return res;
 }
+
+
 
 static ynode *ynode_find_child(ynode *node, char *key)
 {
@@ -1266,7 +1404,7 @@ ynode *ynode_search(ynode *node, char *path)
 }
 
 // return ynodes' value if that is a leaf.
-char *ynode_data(ynode *node)
+char *ynode_value(ynode *node)
 {
     if (node && node->type == YNODE_TYPE_VAL)
         return node->value;
@@ -1422,12 +1560,12 @@ ynode *ynode_last(ynode *node)
     return NULL;
 }
 
-int ynode_path_fprintf(FILE *fp, ynode *node, int start_level)
+int ynode_path_fprintf(FILE *fp, ynode *node, int level)
 {
-    if (node && start_level >= 0)
+    if (node && level >= 0)
     {
         int len, curlen;
-        len = ynode_path_fprintf(fp, node->parent, start_level - 1);
+        len = ynode_path_fprintf(fp, node->parent, level - 1);
         if (IS_SET(node->flags, YNODE_FLAG_KEY))
         {
             char *key = ystr_convert(node->key);
@@ -1456,7 +1594,7 @@ int ynode_path_fprintf(FILE *fp, ynode *node, int start_level)
     return 0;
 }
 
-char *ynode_path(ynode *node, int start_level)
+char *ynode_path(ynode *node, int level)
 {
     char *buf = NULL;
     size_t buflen = 0;
@@ -1464,7 +1602,7 @@ char *ynode_path(ynode *node, int start_level)
     if (!node)
         return NULL;
     fp = open_memstream(&buf, &buflen);
-    ynode_path_fprintf(fp, node, start_level);
+    ynode_path_fprintf(fp, node, level);
     if (fp)
         fclose(fp);
     if (buf && buflen > 0)
@@ -1474,7 +1612,7 @@ char *ynode_path(ynode *node, int start_level)
     return NULL;
 }
 
-char *ynode_path_and_val(ynode *node, int start_level)
+char *ynode_path_and_val(ynode *node, int level)
 {
     char *buf = NULL;
     size_t buflen = 0;
@@ -1482,7 +1620,7 @@ char *ynode_path_and_val(ynode *node, int start_level)
     if (!node)
         return NULL;
     fp = open_memstream(&buf, &buflen);
-    ynode_path_fprintf(fp, node, start_level);
+    ynode_path_fprintf(fp, node, level);
     if (node->type == YNODE_TYPE_VAL)
     {
         char *value = ystr_convert(node->value);
@@ -1867,4 +2005,107 @@ void ynode_delete(ynode *cur)
 {
     if (cur)
         ynode_control(cur, NULL, cur->parent, cur->key);
+}
+
+
+static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata);
+static int ynode_traverse_dict(void *key, void *data, void *addition)
+{
+    ynode *cur = data;
+    struct ynode_traverse_data *tdata = addition;
+    key = (void *)key;
+    return ynode_traverse_sub(cur, tdata);
+}
+
+static int ynode_traverse_list(void *data, void *addition)
+{
+    ynode *cur = data;
+    struct ynode_traverse_data *tdata = addition;
+    return ynode_traverse_sub(cur, tdata);
+}
+
+static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
+{
+    ydb_res res = YDB_OK;
+    if (!IS_SET(tdata->flags, YNODE_TRV_LEAF_FIRST))
+    {
+        if (cur->type == YNODE_TYPE_VAL)
+        {
+            res = tdata->cb(cur, tdata->addition);
+        }
+        else
+        {
+            if (!IS_SET(tdata->flags, YNODE_TRV_LEAF_ONLY))
+                res = tdata->cb(cur, tdata->addition);
+        }
+    }
+    if (res)
+        return res;
+
+    switch (cur->type)
+    {
+    case YNODE_TYPE_DICT:
+        res = ytree_traverse(cur->dict, ynode_traverse_dict, tdata);
+        break;
+    case YNODE_TYPE_LIST:
+        res = ylist_traverse(cur->list, ynode_traverse_list, tdata);
+        break;
+    case YNODE_TYPE_VAL:
+        res = YDB_OK;
+        break;
+    default:
+       assert(!YDB_E_TYPE_ERR);
+    }
+    if (res)
+        return res;
+
+    if (IS_SET(tdata->flags, YNODE_TRV_LEAF_FIRST))
+    {
+        if (cur->type == YNODE_TYPE_VAL)
+        {
+            res = tdata->cb(cur, tdata->addition);
+        }
+        else
+        {
+            if (!IS_SET(tdata->flags, YNODE_TRV_LEAF_ONLY))
+                res = tdata->cb(cur, tdata->addition);
+        }
+    }
+    return res;
+}
+
+ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *addition, unsigned int flags)
+{
+    struct ynode_traverse_data tdata;
+    if (!cur || !cb)
+        return YDB_E_NO_ARGS;
+    tdata.cb = cb;
+    tdata.addition = addition;
+    tdata.flags = flags;
+    return ynode_traverse_sub(cur, &tdata);
+}
+
+// find the ref ynode on the same position in target ynode grapes.
+ynode *ynode_lookup(ynode *target, ynode *ref)
+{
+    ylist *parents;
+    if (!target || !ref)
+        return NULL;
+    parents = ylist_create();
+    if (!parents)
+        return NULL;
+    
+    while (ref->parent) {
+        ylist_push_front(parents, ref);
+        ref = ref->parent;
+    };
+
+    while (!ylist_empty(parents) && target) {
+        ref = ylist_pop_front(parents);
+        // FIXME (for list)
+        target = ynode_find_child(target, ref->key);
+        // ynode_dump(target, 0, 0);
+    }
+    ylist_destroy(parents);
+    return target;
 }

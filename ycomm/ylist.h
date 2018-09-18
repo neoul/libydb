@@ -59,6 +59,9 @@ ylist_iter *ylist_next(ylist_iter *iter);
 // return previous iterator of the current iterator.
 ylist_iter *ylist_prev(ylist_iter *iter);
 
+// return Xth iterator in the list.
+ylist_iter *ylist_index(ylist *list, int index);
+
 // true if the iterator ended
 int ylist_done(ylist_iter *iter);
 

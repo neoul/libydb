@@ -196,6 +196,14 @@ ynode *ydb_top()
     return ydb_root;
 }
 
+ynode *ydb_get(ydb *datablock, char *path)
+{
+    if (!datablock)
+        return ynode_search(ydb_root, path);
+    else
+        return ynode_search(datablock->node, path);
+}
+
 // update ydb using the input string
 ydb_res ydb_write(ydb *datablock, const char *format, ...)
 {
@@ -218,19 +226,115 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         res = ynode_sscanf(buf, buflen, &src);
         if (buf)
             free(buf);
-        if (res) {
+        if (res)
+        {
             ynode_delete(src);
             return res;
         }
-            
+
         if (!src)
             return 0;
         top = ynode_merge(datablock->node, src);
         ynode_delete(src);
         if (!top)
             return YDB_E_MERGE_FAILED;
+        return YDB_OK;
     }
-    return buflen;
+    return YDB_E_MEM;
+}
+
+struct ydb_read_data
+{
+    ydb *datablock;
+    ylist *varlist;
+    int vartotal;
+    int varnum;
+};
+
+ydb_res ydb_ynode_traverse(ynode *cur, void *addition)
+{
+    struct ydb_read_data *data = addition;
+    char *value = ynode_value(cur);
+    // printf("value = %s\n", value);
+    if (value && strncmp(value, "+", 1) == 0)
+    {
+        ynode *n = ynode_lookup(data->datablock->node, cur);
+        if (n)
+        {
+            int index = atoi(value);
+            void *p = ylist_data(ylist_index(data->varlist, index));
+            // printf("index=%d p=%p\n", index, p);
+            if (YDB_LOGGING_DEBUG)
+            {
+                char buf[512];
+                ynode_dump_to_buf(buf, sizeof(buf), n, 0, 0);
+                ydb_log_debug("%s", buf);
+                ynode_dump_to_buf(buf, sizeof(buf), cur, 0, 0);
+                ydb_log_debug("%s", buf);
+            }
+            sscanf(ynode_value(n), &(value[4]), p);
+            data->varnum++;
+        }
+        else
+        {
+            if (YDB_LOGGING_DEBUG)
+            {
+                char *path = ynode_path(cur, YDB_LEVEL_MAX);
+                ydb_log_debug("no data for (%s)\n", path);
+                free(path);
+            }
+        }
+    }
+    return YDB_OK;
+}
+
+ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform);
+
+// read the date from ydb as the scanf()
+int ydb_read(ydb *datablock, const char *format, ...)
+{
+    ydb_res res;
+    struct ydb_read_data data;
+    ynode *node = NULL;
+    unsigned int flags;
+    va_list ap;
+    int ap_num = 0;
+    if (!datablock)
+        return -1;
+    res = ynode_scan(NULL, (char *)format, strlen(format), &node, &ap_num);
+    if (res)
+    {
+        ynode_delete(node);
+        return -1;
+    }
+    if (ap_num <= 0)
+    {
+        ynode_delete(node);
+        return 0;
+    }
+    data.varlist = ylist_create();
+    data.vartotal = ap_num;
+    data.varnum = 0;
+    data.datablock = datablock;
+    va_start(ap, format);
+    ydb_log_debug("ap_num = %d\n", ap_num);
+    do {
+        void *p = va_arg(ap, void *);
+        ylist_push_back(data.varlist, p);
+        ydb_log_debug("p=%p\n", p);
+        ap_num --;
+    } while (ap_num > 0);
+    va_end(ap);
+    flags = YNODE_TRV_LEAF_FIRST | YNODE_TRV_LEAF_ONLY;
+    res = ynode_traverse(node, ydb_ynode_traverse, &data, flags);
+    ylist_destroy(data.varlist);
+    if (res)
+    {
+        ynode_delete(node);
+        return -1;
+    }
+    ynode_delete(node);
+    return data.varnum;
 }
 
 // ydb = ydb_top()
