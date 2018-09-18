@@ -27,7 +27,7 @@ int main()
     data = malloc(sizeof(struct user_data));
     data->id = 1000;
     sprintf(data->str, "user[%d]", data->id);
-    ylist_insert(iter, data);
+    ylist_insert(list, iter, data);
 
     for (i = 0; i < 10; i++)
     {
@@ -41,6 +41,8 @@ int main()
         }
     }
     ylist_printf(list, user_print, NULL);
+
+    printf("ylist size %d\n", ylist_size(list));
 
     for (i = 0; i < 3; i++)
     {
@@ -81,12 +83,12 @@ int main()
     }
 
     // iter = ylist_prev(iter);
-    iter = ylist_next(iter);
+    iter = ylist_prev(ylist_last(list));
 
     data = malloc(sizeof(struct user_data));
     data->id = 100;
     sprintf(data->str, "user[%d]", data->id);
-    ylist_insert(iter, data);
+    ylist_insert(list, iter, data);
     printf("INSERT user[%d]\n", data->id);
 
     for (iter = ylist_last(list);
@@ -97,13 +99,28 @@ int main()
         printf("LIST user[%d]\n", data->id);
     }
 
+    printf("========================\n");
     for (iter = ylist_first(list);
          !ylist_done(iter);
          iter = ylist_next(iter))
     {
         data = ylist_data(iter);
-        if (data->id > 10)
+        printf("LIST user[%d]\n", data->id);
+    }
+
+
+    for (iter = ylist_first(list);
+         !ylist_done(iter);
+         iter = ylist_next(iter))
+    {
+        data = ylist_data(iter);
+        if (data)
+            printf("id=%d\n", data->id);
+        if (data->id > 10) {
+            printf("@@id=%d\n", data->id);
             iter = ylist_erase(iter, free);
+            printf("@@p=%p\n", iter);
+        }
     }
     printf("After ERASE!!\n");
     for (iter = ylist_last(list);
@@ -113,7 +130,7 @@ int main()
         data = ylist_data(iter);
         printf("LIST user[%d]\n", data->id);
     }
-
+    printf("ylist size %d\n", ylist_size(list));
     ylist_destroy_custom(list, free);
     return 0;
 }

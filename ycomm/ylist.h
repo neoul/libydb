@@ -41,6 +41,9 @@ void *ylist_pop_back(ylist *list);
 // true if it is empty.
 int ylist_empty(ylist *list);
 
+// return the number of entries in the list.
+int ylist_size(ylist *list);
+
 // return the data of the first entry
 void *ylist_front(ylist *list);
 
@@ -73,7 +76,7 @@ ylist_iter *ylist_erase(ylist_iter *iter, user_free ufree);
 
 // insert the data ahead of the iterator and then return new iterator for the data
 // return NULL if it failed.
-ylist_iter *ylist_insert(ylist_iter *iter, void *data);
+ylist_iter *ylist_insert(ylist *list, ylist_iter *iter, void *data);
 
 void ylist_printf(ylist *list, ylist_print print, void *addition);
 

@@ -12,8 +12,10 @@ struct _ylist_iter
 
 struct _ylist
 {
+    struct _ylist_iter _head;
     struct _ylist_iter *head;
     ylist_cmp comp;
+    size_t size;
 };
 
 // create a list
@@ -22,16 +24,17 @@ ylist *ylist_create()
     struct _ylist *list = malloc(sizeof(struct _ylist));
     if (list)
     {
-        list->head = malloc(sizeof(struct _ylist_iter));
+        list->head = &(list->_head); // malloc(sizeof(struct _ylist_iter));
         if (!list->head)
         {
-            free(list);
+            // free(list);
             return NULL;
         }
         list->head->next = list->head;
         list->head->prev = list->head;
         list->head->data = NULL;
         list->comp = NULL;
+        list->size = 0;
     }
     return list;
 }
@@ -46,7 +49,7 @@ void ylist_destroy(ylist *list)
         {
             data = ylist_pop_front(list);
         } while (data);
-        free(list->head);
+        // free(list->head);
         free(list);
     }
 }
@@ -63,7 +66,7 @@ void ylist_destroy_custom(ylist *list, user_free ufree)
             if (data && ufree)
                 ufree(data);
         } while (data);
-        free(list->head);
+        // free(list->head);
         free(list);
     }
 }
@@ -82,6 +85,7 @@ ylist_iter *ylist_push_front(ylist *list, void *data)
         iter->prev = list->head;
         list->head->next->prev = iter;
         list->head->next = iter;
+        list->size++;
     }
     return iter;
 }
@@ -100,6 +104,7 @@ ylist_iter *ylist_push_back(ylist *list, void *data)
         iter->prev = list->head->prev;
         list->head->prev->next = iter;
         list->head->prev = iter;
+        list->size++;
     }
     return iter;
 }
@@ -118,6 +123,7 @@ void *ylist_pop_front(ylist *list)
         void *data = iter->data;
         iter->next->prev = list->head;
         list->head->next = iter->next;
+        list->size--;
         free(iter);
         return data;
     }
@@ -137,6 +143,7 @@ void *ylist_pop_back(ylist *list)
         void *data = iter->data;
         iter->prev->next = list->head;
         list->head->prev = iter->prev;
+        list->size--;
         free(iter);
         return data;
     }
@@ -154,6 +161,14 @@ int ylist_empty(ylist *list)
         return 0;
     }
     return 1;
+}
+
+// return the number of entries in the list.
+int ylist_size(ylist *list)
+{
+    if (list)
+        return list->size;
+    return 0;
 }
 
 // return the data of the first entry
@@ -204,7 +219,7 @@ ylist_iter *ylist_last(ylist *list)
 ylist_iter *ylist_next(ylist_iter *iter)
 {
     iter = iter ? (iter->next) : NULL;
-    if (iter->data)
+    if (iter && iter->data)
         return iter;
     return NULL;
 }
@@ -257,43 +272,72 @@ void *ylist_data(ylist_iter *iter)
     return NULL;
 }
 
-// delete the data of the iterator and then return next iterator.
+// delete the data of the iterator and then return prev iterator.
 ylist_iter *ylist_erase(ylist_iter *iter, user_free ufree)
 {
     if (!iter)
-        return iter;
+        return NULL;
     if (iter->data)
     {
-        struct _ylist_iter *next;
+        struct _ylist_iter *prev;
+        prev = iter->prev;
         if (ufree)
             ufree(iter->data);
         iter->prev->next = iter->next;
         iter->next->prev = iter->prev;
-        next = iter->next;
         free(iter);
-        return next;
+        iter = prev->next;
+        while (iter && iter->data) {
+            iter = iter->next;
+        }
+        if (iter && iter->data == NULL)
+        { // head
+            ylist *list = (ylist *) iter;
+            list->size--;
+        }
+        if (prev->data == NULL) // head
+            return NULL;
+        return prev;
     }
     else
     {
-        return iter;
+        return NULL;
     }
 }
 
-// insert the data ahead of the iterator and then return new iterator for the data
+// insert the data the next of the iterator and then return new iterator for the data
 // return NULL if it failed.
-ylist_iter *ylist_insert(ylist_iter *iter, void *data)
+ylist_iter *ylist_insert(ylist *list, ylist_iter *iter, void *data)
 {
     struct _ylist_iter *new_iter;
-    if (!iter || !data)
+    if (!data || (!list && !iter))
         return NULL;
+    if (!iter)
+        return ylist_push_back(list, data);
+
     new_iter = malloc(sizeof(struct _ylist_iter));
     if (new_iter)
     {
         new_iter->data = data;
-        new_iter->next = iter;
-        new_iter->prev = iter->prev;
-        iter->prev->next = new_iter;
-        iter->prev = new_iter;
+        new_iter->next = iter->next;
+        new_iter->prev = iter;
+        iter->next->prev = new_iter;
+        iter->next = new_iter;
+    
+        if (list)
+            list->size++;
+        else
+        {
+            iter = new_iter->next;
+            while (iter && iter->data) {
+                iter = iter->next;
+            }
+            if (iter && iter->data == NULL)
+            { // head
+                ylist *list = (ylist *) iter;
+                list->size++;
+            }
+        }
     }
     return new_iter;
 }
