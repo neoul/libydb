@@ -1403,6 +1403,14 @@ ynode *ynode_search(ynode *node, char *path)
     return node;
 }
 
+// return ynodes' type
+unsigned char ynode_type(ynode *node)
+{
+    if (node)
+        return node->type;
+    return 0;
+}
+
 // return ynodes' value if that is a leaf.
 char *ynode_value(ynode *node)
 {

@@ -66,12 +66,22 @@ ydb *ydb_open(char *path);
 // close local ydb
 void ydb_close(ydb *datablock);
 
-// get the ydb top
-ynode *ydb_top();
+// get the ydb
+ydb *ydb_get(char *path);
 
-// update ydb using the input string
+// return the top ynode of ydb or the global root ynode of all ydb.
+ynode *ydb_top(ydb *datablock);
+
+// update ydb using the input string (yaml format)
 ydb_res ydb_write(ydb *datablock, const char *format, ...);
-// read the date from ydb as the scanf()
+// read the date from ydb as the scanf() (yaml format)
 int ydb_read(ydb *datablock, const char *format, ...);
+
+// update the ydb using input path and value
+// ydb_path_write(datablock, "/path/to/update=%d", value)
+ydb_res ydb_path_write(ydb *datablock, const char *format, ...);
+// read the value from ydb using input path
+// char *value = ydb_path_read(datablock, "/path/to/update")
+char *ydb_path_read(ydb *datablock, const char *format, ...);
 
 #endif // __YDB__

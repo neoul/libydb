@@ -67,6 +67,8 @@ ynode *ynode_search(ynode *node, char *path);
 // find the ref ynode on the same position in target ynode grapes.
 ynode *ynode_lookup(ynode *target, ynode *ref);
 
+// return ynodes' type
+unsigned char ynode_type(ynode *node);
 // return ynodes' value if that is a leaf.
 char *ynode_value(ynode *node);
 // return ynodes' key if that has a hash key. 
@@ -107,7 +109,7 @@ extern char *yhook_op_str[];
 
 #define YHOOK_NO_FLAG 0x0
 #define YHOOK_DEPTH_FIRST 0x1
-typedef void (*yhook_func)(yhook_op_type op, ynode *cur, ynode *new, void *user);
+typedef void (*yhook_func)(yhook_op_type op, ynode *cur, ynode *_new, void *user);
 
 // register the hook func to the target ynode.
 ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *user);

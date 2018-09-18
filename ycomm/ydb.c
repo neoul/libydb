@@ -190,18 +190,18 @@ void ydb_close(ydb *datablock)
     ydb_pool_destroy();
 }
 
-// get the ydb top
-ynode *ydb_top()
+// get the ydb
+ydb *ydb_get(char *path)
 {
-    return ydb_root;
+    return ytree_search(ydb_pool, path);
 }
 
-ynode *ydb_get(ydb *datablock, char *path)
+// return the top ynode of ydb or the global root ynode of all ydb.
+ynode *ydb_top(ydb *datablock)
 {
-    if (!datablock)
-        return ynode_search(ydb_root, path);
-    else
-        return ynode_search(datablock->node, path);
+    if (datablock)
+        return datablock->node;
+    return ydb_root;
 }
 
 // update ydb using the input string
@@ -337,9 +337,61 @@ int ydb_read(ydb *datablock, const char *format, ...)
     return data.varnum;
 }
 
-// ydb = ydb_top()
-// ydb = ydb_open()
-// ydb_close(ydb)
+// update the ydb using input path and value
+// ydb_path_write(datablock, "/path/to/update=%d", value)
+ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
+{
+    FILE *fp;
+    char *buf = NULL;
+    size_t buflen = 0;
+    if (!datablock)
+        return YDB_E_NO_ARGS;
+    fp = open_memstream(&buf, &buflen);
+    if (fp)
+    {
+        ynode *src = NULL;
+        va_list args;
+        va_start(args, format);
+        vfprintf(fp, format, args);
+        va_end(args);
+        fclose(fp);
+        src = ynode_create_path(buf, datablock->node);
+        if (buf)
+            free(buf);
+        if (src)
+            return YDB_OK;
+        return YDB_E_MERGE_FAILED;
+    }
+    return YDB_E_MEM;
+}
+
+// read the value from ydb using input path
+// char *value = ydb_path_read(datablock, "/path/to/update")
+char *ydb_path_read(ydb *datablock, const char *format, ...)
+{
+    FILE *fp;
+    char *buf = NULL;
+    size_t buflen = 0;
+    if (!datablock)
+        return NULL;
+    fp = open_memstream(&buf, &buflen);
+    if (fp)
+    {
+        ynode *src = NULL;
+        va_list args;
+        va_start(args, format);
+        vfprintf(fp, format, args);
+        va_end(args);
+        fclose(fp);
+        src = ynode_search(datablock->node, buf);
+        if (buf)
+            free(buf);
+        if (src && ynode_type(src) == YNODE_TYPE_VAL)
+            return ynode_value(src);
+    }
+    return NULL;
+}
+
 // ydb_connect(/path/to/connect) open communication channel - client
 //   - permission requested: ro/wo/rw
 // ydb_close(/path/to/resource)
@@ -347,19 +399,6 @@ int ydb_read(ydb *datablock, const char *format, ...)
 //   - permission: set the permssion of the client (r/w request)
 //     - r(ead): true, w(rite): false // accept only read for the client
 //   - change-publishing (to others): true, false
-// ydb_fprintf(FILE)
-// ydb_printf(stdout)
-// ydb_write(fp)
-// ydb_sprintf(buffer)
-// ydb_fscanf(FILE)
-// ydb_scanf(stdout)
-// ydb_read(fp)
-// ydb_sscanf(buffer)
-// ydb_attach(ynode)
-
-// callback_type = {pre,post}
-// ydb_hook_add(node, callback, callback_type)
-// ydb_hook_delete(node, callback, callback_type)
 
 // ydb communication
 // Operation (crud): Create, Read, Update, Delete
