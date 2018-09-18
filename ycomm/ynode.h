@@ -119,11 +119,6 @@ void yhook_unregister(ynode *node);
 typedef ydb_res(*ynode_callback)(ynode *cur, void *addition);
 #define YNODE_TRV_LEAF_FIRST 0x1
 #define YNODE_TRV_LEAF_ONLY 0x2
-struct ynode_traverse_data {
-    ynode_callback cb;
-    void *addition;
-    unsigned int flags;
-};
 
 ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *addition, unsigned int flags);
 

@@ -2007,6 +2007,11 @@ void ynode_delete(ynode *cur)
         ynode_control(cur, NULL, cur->parent, cur->key);
 }
 
+struct ynode_traverse_data {
+    ynode_callback cb;
+    void *addition;
+    unsigned int flags;
+};
 
 static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata);
 static int ynode_traverse_dict(void *key, void *data, void *addition)
