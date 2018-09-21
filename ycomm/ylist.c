@@ -14,7 +14,6 @@ struct _ylist
 {
     struct _ylist_iter _head;
     struct _ylist_iter *head;
-    ylist_cmp comp;
     size_t size;
 };
 
@@ -33,7 +32,6 @@ ylist *ylist_create()
         list->head->next = list->head;
         list->head->prev = list->head;
         list->head->data = NULL;
-        list->comp = NULL;
         list->size = 0;
     }
     return list;

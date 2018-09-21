@@ -1,6 +1,10 @@
 #ifndef __YDB__
 #define __YDB__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 
 #define YDB_LEVEL_MAX 32
@@ -83,5 +87,9 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...);
 // read the value from ydb using input path
 // char *value = ydb_path_read(datablock, "/path/to/update")
 char *ydb_path_read(ydb *datablock, const char *format, ...);
+
+#ifdef __cplusplus
+} // closing brace for extern "C"
+#endif
 
 #endif // __YDB__

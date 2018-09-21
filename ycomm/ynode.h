@@ -1,6 +1,10 @@
 #ifndef __YNODE__
 #define __YNODE__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // ynode type
 #define YNODE_TYPE_VAL      0
 #define YNODE_TYPE_DICT     1
@@ -123,5 +127,9 @@ typedef ydb_res(*ynode_callback)(ynode *cur, void *addition);
 #define YNODE_TRV_LEAF_ONLY 0x2
 
 ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *addition, unsigned int flags);
+
+#ifdef __cplusplus
+} // closing brace for extern "C"
+#endif
 
 #endif // __YNODE__

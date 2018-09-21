@@ -15,7 +15,6 @@ typedef void (*user_free)(void *);
 
 typedef int(*ylist_callback)(void *data, void *addition);
 typedef void (*ylist_print)(void *data, void *addition);
-typedef int (*ylist_cmp)(void *, void *);
 
 // create a list
 ylist *ylist_create();
@@ -71,10 +70,10 @@ int ylist_done(ylist_iter *iter);
 // get data of the iterator
 void *ylist_data(ylist_iter *iter);
 
-// delete the data of the iterator and then return next iterator.
+// delete the data of the iterator and then return prev iterator.
 ylist_iter *ylist_erase(ylist_iter *iter, user_free ufree);
 
-// insert the data ahead of the iterator and then return new iterator for the data
+// insert the data the next of the iterator and then return new iterator for the data
 // return NULL if it failed.
 ylist_iter *ylist_insert(ylist *list, ylist_iter *iter, void *data);
 

@@ -392,6 +392,21 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
     return NULL;
 }
 
+// ydb_conn_open(ydb, "unixsock://ydb-path", char *permission, unsigned int flags)
+// ydb_conn_open(ydb, "tcp://0.0.0.0:80")
+// ydb_conn_send(ydb, msg-head, meta, ynode)
+// ydb_conn_recv(ydb, msg-head, meta, ynode)
+// ydb_conn_close(ydb, "unixsock://ydb-path")
+// fd, read/write
+// fd_set
+
+// request -> response (CRUD)
+// notification (CRUD)
+// share option each info.
+// +meta: (control-block for communication)
+
+
+
 // ydb_connect(/path/to/connect) open communication channel - client
 //   - permission requested: ro/wo/rw
 // ydb_close(/path/to/resource)
