@@ -111,8 +111,11 @@ typedef enum _yhook_op_type {
 } yhook_op_type;
 extern char *yhook_op_str[];
 
-#define YHOOK_NO_FLAG 0x0
-#define YHOOK_DEPTH_FIRST 0x1
+// flags for ynode hook and traverse func
+#define YNODE_NO_FLAG 0x0
+#define YNODE_LEAF_FIRST 0x1
+#define YNODE_LEAF_ONLY 0x2
+
 typedef void (*yhook_func)(yhook_op_type op, ynode *cur, ynode *_new, void *user);
 
 // register the hook func to the target ynode.
@@ -123,8 +126,6 @@ void yhook_unregister(ynode *node);
 
 
 typedef ydb_res(*ynode_callback)(ynode *cur, void *addition);
-#define YNODE_TRV_LEAF_FIRST 0x1
-#define YNODE_TRV_LEAF_ONLY 0x2
 
 ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *addition, unsigned int flags);
 

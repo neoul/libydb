@@ -76,14 +76,18 @@ ydb *ydb_get(char *path);
 // return the top ynode of ydb or the global root ynode of all ydb.
 ynode *ydb_top(ydb *datablock);
 
-// update ydb using the input string (yaml format)
+// update delete ydb using the input string (yaml format)
 ydb_res ydb_write(ydb *datablock, const char *format, ...);
+ydb_res ydb_delete(ydb *datablock, const char *format, ...);
+
 // read the date from ydb as the scanf() (yaml format)
 int ydb_read(ydb *datablock, const char *format, ...);
 
-// update the ydb using input path and value
+// update & delete the ydb using input path and value
 // ydb_path_write(datablock, "/path/to/update=%d", value)
 ydb_res ydb_path_write(ydb *datablock, const char *format, ...);
+ydb_res ydb_path_delete(ydb *datablock, const char *format, ...);
+
 // read the value from ydb using input path
 // char *value = ydb_path_read(datablock, "/path/to/update")
 char *ydb_path_read(ydb *datablock, const char *format, ...);

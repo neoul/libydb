@@ -379,7 +379,7 @@ int yarray_size(yarray *array)
     return 0;
 }
 
-void *yarray_index(yarray *array, int index)
+void *yarray_data(yarray *array, int index)
 {
     int offset = 0;
     yfragment *fra = yfragment_get(array, index, &offset);
@@ -494,4 +494,29 @@ void yarray_fprintf(FILE *fp, yarray *array)
             fprintf(fp, " %s,", fra->data[i]?"O":" ");
         fprintf(fp, "] }\n");
     }
+}
+
+int yarray_traverse(yarray *array, yarray_callback cb, void *addition)
+{
+    int res = -1;
+    int index;
+    ylist_iter *iter;
+    yfragment *fra;
+    if (!array)
+        return res;
+    index = 0;
+    for (iter = ylist_first(array->fragments);
+         !ylist_done(iter); iter = ylist_next(iter))
+    {
+        int i;
+        fra = ylist_data(iter);
+        for (i=0; i < fra->n; i++)
+        {
+            res = cb(index, fra->data[i], addition);
+            if(res)
+                return res;
+            index += 1;
+        }
+    }
+    return res;
 }

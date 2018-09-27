@@ -81,13 +81,16 @@ int test_ydb_read_write()
 					"system:\n"
 					" hostname: %s\n"
 					" fan-speed: %d\n"
-					" fan-enable: %s\n",
+					" fan-enable: %s\n"
+					" os: linux\n",
 					"my-machine",
 					100,
 					"True");
-
 	if (res)
 		goto _done;
+	
+	ydb_delete(db, "system: {fan-enable: , }");
+
 	int speed = 0;
 	char hostname[128] = {
 		0,
@@ -105,7 +108,10 @@ int test_ydb_read_write()
 	ydb_path_write(db, "system/running=%s", "2 hours");
 
 	char *temp = ydb_path_read(db, "system/temporature");
-	printf("temporature=%d", atoi(temp));
+	printf("temporature=%d\n", atoi(temp));
+
+	ydb_path_delete(db, "system/os");
+
 	ynode_dump(ydb_top(db), 0, YDB_LEVEL_MAX);
 _done:
 	ydb_close(db);

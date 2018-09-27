@@ -231,15 +231,62 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
             ynode_delete(src);
             return res;
         }
-
         if (!src)
-            return 0;
+            return YDB_OK;
         top = ynode_merge(datablock->node, src);
         ynode_delete(src);
         if (!top)
             return YDB_E_MERGE_FAILED;
         datablock->node = top;
         return YDB_OK;
+    }
+    return YDB_E_MEM;
+}
+
+
+static ydb_res ydb_delete_sub(ynode *cur, void *addition)
+{
+    ydb *datablock = (void *) addition;
+    ynode *n = ynode_lookup(datablock->node, cur);
+    if (n)
+        ynode_delete(n);
+    return YDB_OK;
+}
+
+// delete ydb using the input string
+ydb_res ydb_delete(ydb *datablock, const char *format, ...)
+{
+    FILE *fp;
+    char *buf = NULL;
+    size_t buflen = 0;
+    if (!datablock)
+        return YDB_E_NO_ARGS;
+    fp = open_memstream(&buf, &buflen);
+    if (fp)
+    {
+        ydb_res res;
+        ynode *src = NULL;
+        unsigned int flags;
+        va_list args;
+        va_start(args, format);
+        vfprintf(fp, format, args);
+        va_end(args);
+        fclose(fp);
+        res = ynode_sscanf(buf, buflen, &src);
+        if (buf)
+            free(buf);
+        if (res)
+        {
+            ynode_delete(src);
+            return res;
+        }
+        if (!src)
+            return YDB_OK;
+        ynode_dump(src, 0, 4);
+        flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY;
+        res = ynode_traverse(src, ydb_delete_sub, datablock, flags);
+        ynode_delete(src);
+        return res;
     }
     return YDB_E_MEM;
 }
@@ -252,7 +299,7 @@ struct ydb_read_data
     int varnum;
 };
 
-ydb_res ydb_ynode_traverse(ynode *cur, void *addition)
+static ydb_res ydb_ynode_traverse(ynode *cur, void *addition)
 {
     struct ydb_read_data *data = addition;
     char *value = ynode_value(cur);
@@ -325,7 +372,7 @@ int ydb_read(ydb *datablock, const char *format, ...)
         ap_num --;
     } while (ap_num > 0);
     va_end(ap);
-    flags = YNODE_TRV_LEAF_FIRST | YNODE_TRV_LEAF_ONLY;
+    flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY;
     res = ynode_traverse(node, ydb_ynode_traverse, &data, flags);
     ylist_destroy(data.varlist);
     if (res)
@@ -361,6 +408,35 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
         if (src)
             return YDB_OK;
         return YDB_E_MERGE_FAILED;
+    }
+    return YDB_E_MEM;
+}
+
+
+// delete the ydb using input path
+// ydb_path_delete(datablock, "/path/to/update\n")
+ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
+{
+    FILE *fp;
+    char *buf = NULL;
+    size_t buflen = 0;
+    if (!datablock)
+        return YDB_E_NO_ARGS;
+    fp = open_memstream(&buf, &buflen);
+    if (fp)
+    {
+        ynode *src = NULL;
+        va_list args;
+        va_start(args, format);
+        vfprintf(fp, format, args);
+        va_end(args);
+        fclose(fp);
+        src = ynode_search(datablock->node, buf);
+        if (buf)
+            free(buf);
+        if (src)
+            ynode_delete(src);
+        return YDB_OK;
     }
     return YDB_E_MEM;
 }

@@ -214,7 +214,7 @@ int test_ynode_crud()
 	return 0;
 }
 
-void pre_hook(yhook_op_type op, ynode *cur, ynode *new, void *user)
+void ynode_hooker(yhook_op_type op, ynode *cur, ynode *new, void *user)
 {
 	printf("== %s: %s ==\n", __func__, yhook_op_str[op]);
 	if (op == YHOOK_OP_CREATE || op == YHOOK_OP_REPLACE)
@@ -254,7 +254,7 @@ int test_yhook()
 	// move to 1-2 node
 	top = ynode_search(top, "1/1-2");
 	ynode_dump(top, 0, 0);
-	yhook_register(top, YHOOK_DEPTH_FIRST, pre_hook, NULL);
+	yhook_register(top, YNODE_LEAF_FIRST, ynode_hooker, NULL);
 
 	printf("== ynode_create to check yhook ==\n");
 	ynode_create(YNODE_TYPE_VAL, "1-2-4", "v13", top);
