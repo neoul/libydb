@@ -20,6 +20,7 @@ void *yarray_pop_back(yarray *array);
 void *yarray_pop_front(yarray *array);
 void *yarray_data(yarray *array, int index);
 int yarray_empty(yarray *array);
+int yarray_size(yarray *array);
 int yarray_insert(yarray *array, int index, void *data);
 void *yarray_delete(yarray *array, int index);
 void yarray_delete_custom(yarray *array, int index, user_free ufree);

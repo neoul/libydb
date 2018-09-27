@@ -4,6 +4,13 @@
 
 #include "yarray.h"
 
+int callback(int index, void *data, void *addition)
+{
+    int *value = (int *) data;
+    printf("index=%d data=%d (%p)\n", index, *value, data);
+    return 0;
+}
+
 int main()
 {
     int count;
@@ -31,12 +38,21 @@ int main()
         *data = count + 1000;
         yarray_insert(a, count, data);
     }
+
+    yarray_traverse(a, callback, NULL);
     yarray_fprintf(stdout, a);
 
     for (count=0; count<20; count++)
         yarray_delete_custom(a, count, free);
 
-    for (count = 0; count < 40; count++)
+
+    for (count = 0; count < yarray_size(a); count++)
+    {
+        int *data = yarray_data(a, count);
+        printf("index loop: data[%d]=%d\n", count, *data);
+    }
+
+    for (count = 0; count < 10; count++)
     {
         int *data = yarray_pop_front(a);
         if (data)
@@ -45,6 +61,7 @@ int main()
             free(data);
         }
     }
+
 
     yarray_destroy_custom(a, free);
     return 0;

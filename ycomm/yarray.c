@@ -512,7 +512,8 @@ int yarray_traverse(yarray *array, yarray_callback cb, void *addition)
         fra = ylist_data(iter);
         for (i=0; i < fra->n; i++)
         {
-            res = cb(index, fra->data[i], addition);
+            int local_index = YINDEX(fra, i);
+            res = cb(index, fra->data[local_index], addition);
             if(res)
                 return res;
             index += 1;
