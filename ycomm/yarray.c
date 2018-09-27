@@ -177,6 +177,7 @@ int yfragment_merge_next(yarray *array, yfragment *fra)
                 fra->data[YINDEX(fra, fra->n + n)] = tar_fra->data[YINDEX(tar_fra, n)];
             fra->n = fra->n + max;
             ylist_erase(tar_fra->iter, free);
+            return 1;
         }
         else if (((tar_fra->fsize - tar_fra->n) >= fra->n) && tar_fra->n >= fra->n)
         {
@@ -189,6 +190,7 @@ int yfragment_merge_next(yarray *array, yfragment *fra)
             }
             tar_fra->n = tar_fra->n + max;
             ylist_erase(fra->iter, free);
+            return 1;
         }
     }
     return 0;
@@ -389,6 +391,7 @@ void *yarray_delete(yarray *array, int index)
 {
     int n;
     int pos;
+    int merged;
     int local_index = 0;
     yfragment *fra;
     void *data = NULL;
@@ -417,8 +420,10 @@ void *yarray_delete(yarray *array, int index)
     }
     fra->n--;
     array->n--;
-    yfragment_merge_next(array, fra);
-    yfragment_merge_prev(array, fra);
+
+    merged = yfragment_merge_next(array, fra);
+    if (!merged)
+        yfragment_merge_prev(array, fra);
     yarray_fprintf(stdout, array);
     return data;
 }

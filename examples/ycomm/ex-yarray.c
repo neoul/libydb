@@ -14,7 +14,7 @@ int callback(int index, void *data, void *addition)
 int main()
 {
     int count;
-    yarray *a = yarray_create(8);
+    yarray *a = yarray_create(16);
     int *data;
 
     for (count=0; count<10; count++)
@@ -50,7 +50,7 @@ int main()
 
     for (count=0; count<20; count++)
         yarray_delete_custom(a, count, free);
-
+    printf("===============\n");
 
     for (count = 0; count < yarray_size(a); count++)
     {

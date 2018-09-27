@@ -226,7 +226,7 @@ ylist_iter *ylist_next(ylist_iter *iter)
 ylist_iter *ylist_prev(ylist_iter *iter)
 {
     iter = iter ? (iter->prev) : NULL;
-    if (iter->data)
+    if (iter && iter->data)
         return iter;
     return NULL;
 }
