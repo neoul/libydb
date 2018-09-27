@@ -24,6 +24,9 @@ int yarray_insert(yarray *array, int index, void *data);
 void *yarray_delete(yarray *array, int index);
 void yarray_delete_custom(yarray *array, int index, user_free ufree);
 void yarray_fprintf(FILE *fp, yarray *array);
+
+// yarray_iter
+
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif

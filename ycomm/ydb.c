@@ -49,16 +49,16 @@ int ydb_log_func_example(int severity, const char *func, int line, const char *f
     switch (severity)
     {
     case YDB_LOG_DBG:
-        printf("** ydb::dbg::%20s:%4d: ", func, line);
+        printf("** ydb::dbg::%s:%d: ", func, line);
         break;
     case YDB_LOG_INFO:
-        printf("** ydb::info:%20s:%4d: ", func, line);
+        printf("** ydb::info:%s:%d: ", func, line);
         break;
     case YDB_LOG_ERR:
-        printf("** ydb::err:%20s:%4d: ", func, line);
+        printf("** ydb::err:%s:%d: ", func, line);
         break;
     case YDB_LOG_CRI:
-        printf("** ydb::cri:%20s:%4d: ", func, line);
+        printf("** ydb::cri:%s:%d: ", func, line);
         break;
     default:
         return 0;
@@ -238,6 +238,7 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         ynode_delete(src);
         if (!top)
             return YDB_E_MERGE_FAILED;
+        datablock->node = top;
         return YDB_OK;
     }
     return YDB_E_MEM;
@@ -255,7 +256,6 @@ ydb_res ydb_ynode_traverse(ynode *cur, void *addition)
 {
     struct ydb_read_data *data = addition;
     char *value = ynode_value(cur);
-    // printf("value = %s\n", value);
     if (value && strncmp(value, "+", 1) == 0)
     {
         ynode *n = ynode_lookup(data->datablock->node, cur);

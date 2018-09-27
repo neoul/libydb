@@ -1179,12 +1179,17 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
             next = YAML_NEXT_NONE;
             break;
         }
-        case YAML_BLOCK_ENTRY_TOKEN:
-        case YAML_FLOW_ENTRY_TOKEN:
+        case YAML_BLOCK_ENTRY_TOKEN: // ,
             node = ylist_back(stack);
             if (!node || (node && node->type != YNODE_TYPE_LIST))
                 res = YDB_E_INVALID_YAML_ENTRY;
             next = YAML_NEXT_SEQUENCE_ENTRY_SCALAR;
+            break;
+        case YAML_FLOW_ENTRY_TOKEN: // ,
+            node = ylist_back(stack);
+            if (!node || (node && node->type != YNODE_TYPE_DICT))
+                res = YDB_E_INVALID_YAML_ENTRY;
+            next = YAML_NEXT_MAPPING_KEY_SCALAR;
             break;
         case YAML_BLOCK_END_TOKEN:
         case YAML_FLOW_MAPPING_END_TOKEN:
@@ -2116,7 +2121,17 @@ ynode *ynode_lookup(ynode *target, ynode *ref)
     while (!ylist_empty(parents) && target) {
         ref = ylist_pop_front(parents);
         // FIXME (for list)
-        target = ynode_find_child(target, ref->key);
+        int index = ynode_index(ref);
+        if (index >= 0)
+        {
+            char key[64];
+            sprintf(key, "%d", index);
+            target = ynode_find_child(target, key);
+        }
+        else
+        {
+            target = ynode_find_child(target, ref->key);
+        }
         // ynode_dump(target, 0, 0);
     }
     ylist_destroy(parents);

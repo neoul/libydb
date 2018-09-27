@@ -48,40 +48,67 @@ int test_ydb_read_write()
 	int num;
 	ydb_res res = YDB_OK;
 	printf("\n\n=== %s ===\n", __func__);
-	ydb *block1, *block2, *block3;
-	block1 = ydb_open("/path/to/datablock1");
-	block2 = ydb_open("/path/to/datablock2");
-	block3 = ydb_open("/path/to/datablock3");
+	ydb *db;
+	db = ydb_open("/path/to/data");
 
-	ydb_write(block1, "system: {hostname: 100c}");
-	res = ydb_write(block1, "system: {fan-speed: 20}");
+	// inserting one value
+	res = ydb_write(db, "VALUE");
 	if (res)
 		goto _done;
-	char hostname[129] = {0,};
-	int speed = 0;
+	char value[128] = {0};
+	num = ydb_read(db, "%s\n", value);
+	printf("num %d, value=%s\n", num, value);
 
-	// ydb_read(block1, "system: {hostname: %s} \n", temp);
-	// ydb_read(block1, "system: {fan-speed: %d} \n", &speed);
-	num = ydb_read(block1,
+	// insert a list.
+	res = ydb_write(db,
+	"- list-entry1\n"
+	"- list-entry2\n"
+	"- list-entry3\n");
+	if (res)
+		goto _done;
+	char entry[3][64];
+	num = ydb_read(db, 
+		"- %s\n"
+		"- %s\n"
+		"- %s\n", 
+		entry[0],
+		entry[1],
+		entry[2]);
+
+	printf("num %d, list-entry=%s\n", num, entry[2]);
+
+	res = ydb_write(db,
+					"system:\n"
+					" hostname: %s\n"
+					" fan-speed: %d\n"
+					" fan-enable: %s\n",
+					"my-machine",
+					100,
+					"True");
+
+	if (res)
+		goto _done;
+	int speed = 0;
+	char hostname[128] = {
+		0,
+	};
+	num = ydb_read(db,
 				   "system:\n"
 				   " hostname: %s\n"
 				   " fan-speed: %d\n",
 				   hostname, &speed);
-	printf("read num=%d hostname=%s, fan-speed=%d\n", num, hostname, speed);
+	printf("num=%d hostname=%s, fan-speed=%d\n", num, hostname, speed);
 	if (num < 0)
 		goto _done;
+	
+	ydb_path_write(db, "system/temporature=%d", 60);
+	ydb_path_write(db, "system/running=%s", "2 hours");
 
-	ydb_path_write(block1, "system/temporature=%d", 60);
-	ydb_path_write(block1, "system/running=%s", "2 hours");
-
-
-	char *temp = ydb_path_read(block1, "system/temporature");
+	char *temp = ydb_path_read(db, "system/temporature");
 	printf("temporature=%d", atoi(temp));
-	ynode_dump(ydb_top(block1), 0, YDB_LEVEL_MAX);
+	ynode_dump(ydb_top(db), 0, YDB_LEVEL_MAX);
 _done:
-	ydb_close(block1);
-	ydb_close(block2);
-	ydb_close(block3);
+	ydb_close(db);
 	printf("\n");
 	return res;
 }

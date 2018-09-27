@@ -38,27 +38,10 @@ int test_ynode_fscanf(char *fname)
 		printf("fopen failed\n");
 		return -1;
 	}
-	printf("\n\n=== %s ===\n", __func__);
+	printf("\n\n=== %s (%s) ===\n", __func__, fname);
 	ynode *top = NULL;
 	ynode_fscanf(fp, &top);
-	ynode_printf(top, 0, 5);
-
-	top = ynode_down(top);
-	printf("==\n");
-	ynode_printf(top, 0, 5);
-
-	top = ynode_down(top);
-	printf("==\n");
-
-	ynode_printf(top, 0, 5);
-	printf("==\n");
-	ynode_printf(top, 0, 0);
-	printf("==\n");
-	ynode_printf(top, 0, 1);
-	printf("==\n");
-	ynode_printf(top, -1, 0);
-	printf("==\n");
-	ynode_printf(top, -1, 1);
+	ynode_dump(top, 0, YDB_LEVEL_MAX);
 	
 	ynode_delete(ynode_top(top));
 
@@ -87,19 +70,39 @@ int test_ynode_search_and_iterate(char *fname)
 	printf("\n\n=== %s ===\n", __func__);
 	ynode *top = NULL;
 	ynode_fscanf(fp, &top);
+	ynode_dump(top, 0, YDB_LEVEL_MAX);
+
+	printf("ynode_down()\n");
+	printf("==\n");
+	top = ynode_down(top);
 	ynode_printf(top, 0, 0);
 
-	top = ynode_down(top);
+	printf("ynode_next()\n");
+	printf("==\n");
 	top = ynode_next(top);
 	ynode_printf(top, 0, 0);
 
+	printf("ynode_prev()\n");
+	printf("==\n");
 	top = ynode_prev(top);
+	ynode_printf(top, 0, 0);
+
+	printf("ynode_down()\n");
+	printf("==\n");
 	top = ynode_down(top);
+	ynode_printf(top, 0, 0);
+
+	printf("ynode_search(%s)\n", "name");
+	printf("==\n");
 	top = ynode_search(top, "name");
 	ynode_printf(top, 0, 0);
+
+	printf("ynode_delete()\n");
+	printf("==\n");
 	top = ynode_top(top);
 	ynode_delete(top);
 	fclose(fp);
+	printf("==\n");
 	return 0;
 }
 
@@ -116,7 +119,7 @@ int test_ynode_path(char *fname)
 	ynode *top = NULL;
 	ynode_fscanf(fp, &top);
 	ynode_printf(top, 0, 5);
-	printf("==\n");
+	printf("==\n\n");
 
 	top = ynode_down(top);
 	top = ynode_down(top);
@@ -266,7 +269,17 @@ int test_yhook()
 
 int main(int argc, char *argv[])
 {
-	if(test_ynode_fscanf("test.yaml"))
+	if(test_ynode_fscanf("ynode-value.yaml"))
+	{
+		printf("test_ynode_fscanf() failed.\n");
+	}
+	
+	if(test_ynode_fscanf("ynode-list.yaml"))
+	{
+		printf("test_ynode_fscanf() failed.\n");
+	}
+
+	if(test_ynode_fscanf("ynode-dict.yaml"))
 	{
 		printf("test_ynode_fscanf() failed.\n");
 	}

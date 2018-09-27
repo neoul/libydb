@@ -175,7 +175,6 @@ int yfragment_merge_next(yarray *array, yfragment *fra)
         // merge it to fra
         if (((fra->fsize - fra->n) >= tar_fra->n) && fra->n >= tar_fra->n)
         {
-            printf("%s\n", __func__);
             int max = tar_fra->n;
             for (n = 0; n < max; n++)
                 fra->data[YINDEX(fra, fra->n + n)] = tar_fra->data[YINDEX(tar_fra, n)];
@@ -184,7 +183,6 @@ int yfragment_merge_next(yarray *array, yfragment *fra)
         }
         else if (((tar_fra->fsize - tar_fra->n) >= fra->n) && tar_fra->n >= fra->n)
         {
-            printf("%s\n", __func__);
             int max = fra->n;
             tar_fra->front = (tar_fra->fsize + tar_fra->front - max) % tar_fra->fsize;
             for (n = 0; n < max; n++)
@@ -404,7 +402,6 @@ void *yarray_delete(yarray *array, int index)
     fra = yfragment_get(array, index, &local_index);
     if (!fra)
         return NULL;
-    printf("local_index = %d\n", local_index);
     pos = YINDEX(fra, local_index);
     data = fra->data[pos];
     if (local_index <= fra->n / 2)
