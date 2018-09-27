@@ -7,8 +7,6 @@
 
 #include "yarray.h"
 
-#define YARRAY_MAX_ENTRY 16
-
 struct _yfragment
 {
     int n;
@@ -164,7 +162,6 @@ yfragment *yfragment_shift_prev(yarray *array, yfragment *fra, int *local_index)
     *local_index = tar_fra->n;
     return tar_fra;
 }
-
 
 int yfragment_merge_next(yarray *array, yfragment *fra)
 {
@@ -381,10 +378,10 @@ int yarray_size(yarray *array)
 
 void *yarray_data(yarray *array, int index)
 {
-    int offset = 0;
-    yfragment *fra = yfragment_get(array, index, &offset);
+    int local_index = 0;
+    yfragment *fra = yfragment_get(array, index, &local_index);
     if (fra)
-        return fra->data[YINDEX(fra, offset)];
+        return fra->data[YINDEX(fra, local_index)];
     return NULL;
 }
 
@@ -407,15 +404,15 @@ void *yarray_delete(yarray *array, int index)
     if (local_index <= fra->n / 2)
     {
         for (n = local_index - 1; n >= 0; n--)
-            fra->data[YINDEX(fra, n+1)] = fra->data[YINDEX(fra, n)];
+            fra->data[YINDEX(fra, n + 1)] = fra->data[YINDEX(fra, n)];
         fra->data[YINDEX(fra, 0)] = NULL;
         fra->front = (fra->front + 1) % fra->fsize;
     }
     else
     {
-        int max = fra->n - local_index -1;
+        int max = fra->n - local_index - 1;
         for (n = 0; n < max; n++)
-            fra->data[YINDEX(fra, local_index+n)] = fra->data[YINDEX(fra, local_index+n+1)];
+            fra->data[YINDEX(fra, local_index + n)] = fra->data[YINDEX(fra, local_index + n + 1)];
         fra->data[YINDEX(fra, fra->n - 1)] = NULL;
     }
     fra->n--;
@@ -491,7 +488,7 @@ void yarray_fprintf(FILE *fp, yarray *array)
                 fra, fra->fsize, fra->front, fra->n);
         fprintf(fp, " data: [");
         for (i = 0; i < fra->fsize; i++)
-            fprintf(fp, " %s,", fra->data[i]?"O":" ");
+            fprintf(fp, " %s,", fra->data[i] ? "O" : " ");
         fprintf(fp, "] }\n");
     }
 }
@@ -508,16 +505,107 @@ int yarray_traverse(yarray *array, yarray_callback cb, void *addition)
     for (iter = ylist_first(array->fragments);
          !ylist_done(iter); iter = ylist_next(iter))
     {
-        int i;
+        int local_index;
         fra = ylist_data(iter);
-        for (i=0; i < fra->n; i++)
+        for (local_index = 0; local_index < fra->n; local_index++)
         {
-            int local_index = YINDEX(fra, i);
-            res = cb(index, fra->data[local_index], addition);
-            if(res)
+            int pos = YINDEX(fra, local_index);
+            res = cb(index, fra->data[pos], addition);
+            if (res)
                 return res;
             index += 1;
         }
     }
     return res;
+}
+
+static int yarray_search_local(yfragment *fra, void *data)
+{
+    int local_index = 0;
+
+    for (; local_index < fra->n; local_index++)
+    {
+        int pos = YINDEX(fra, local_index);
+        if (fra->data[pos] == data)
+            return local_index;
+    }
+    return -1;
+}
+
+int yarray_search_around(yarray *array, int around, void *data)
+{
+    int index = -1;
+    int local_index = 0;
+    yfragment *fra;
+    if (!array || !data)
+        return -1;
+    fra = yfragment_get(array, around, &local_index);
+    // printf("fra=%p local_index=%d\n", fra, local_index);
+    if (!fra)
+    {
+        ylist_iter *iter;
+        index = 0;
+        for (iter = ylist_first(array->fragments);
+             !ylist_done(iter); iter = ylist_next(iter))
+        {
+            fra = ylist_data(iter);
+            local_index = yarray_search_local(fra, data);
+            // printf("fra=%p local_index=%d\n", fra, local_index);
+            if (local_index < 0)
+                index += fra->n;
+            else
+                return index + local_index;
+        }
+    }
+    else
+    {
+        index = 0;
+        ylist_iter *_next = fra->iter;
+        ylist_iter *_prev = ylist_prev(fra->iter);
+        while (_next || _prev)
+        {
+            if (_next)
+            {
+                fra = ylist_data(_next);
+                local_index = yarray_search_local(fra, data);
+                // printf("_next fra=%p local_index=%d\n", fra, local_index);
+                if (local_index >= 0)
+                {
+                    ylist_iter *iter;
+                    for (iter = ylist_first(array->fragments);
+                         !ylist_done(iter); iter = ylist_next(iter))
+                    {
+                        fra = ylist_data(iter);
+                        if (_next == iter)
+                            break;
+                        index += fra->n;
+                    }
+                    return index + local_index;
+                }
+                _next = ylist_next(_next);
+            }
+
+            if (_prev)
+            {
+                fra = ylist_data(_prev);
+                local_index = yarray_search_local(fra, data);
+                // printf("_prev fra=%p local_index=%d\n", fra, local_index);
+                if (local_index > 0)
+                {
+                    ylist_iter *iter;
+                    for (iter = ylist_first(array->fragments);
+                         !ylist_done(iter); iter = ylist_next(iter))
+                    {
+                        fra = ylist_data(iter);
+                        if (_prev == iter)
+                            break;
+                        index += fra->n;
+                    }
+                    return index + local_index;
+                }
+                _prev = ylist_prev(_prev);
+            }
+        }
+    }
+    return -1;
 }

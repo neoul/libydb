@@ -29,6 +29,8 @@ void yarray_fprintf(FILE *fp, yarray *array);
 typedef int(*yarray_callback)(int index, void *data, void *addition);
 int yarray_traverse(yarray *array, yarray_callback cb, void *addition);
 
+int yarray_search_around(yarray *array, int around, void *data);
+
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif
