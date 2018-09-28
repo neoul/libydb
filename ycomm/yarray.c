@@ -384,7 +384,10 @@ int yarray_size(yarray *array)
 void *yarray_data(yarray *array, int index)
 {
     int local_index = 0;
-    yfragment *fra = yfragment_get(array, index, &local_index);
+    yfragment *fra;
+    if (!array)
+        return NULL;
+    fra = yfragment_get(array, index, &local_index);
     if (fra)
         return fra->data[YINDEX(fra, local_index)];
     return NULL;
