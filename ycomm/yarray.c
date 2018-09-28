@@ -248,40 +248,43 @@ void yarray_destroy(yarray *array)
     yarray_destroy_custom(array, NULL);
 }
 
-// return 0 if success
+// return index if success otherwise return -1
 int yarray_push_back(yarray *array, void *data)
 {
+    int index = -1;
     yfragment *fra;
     if (!array || !data)
-        return -1;
+        return index;
     fra = ylist_back(array->fragments);
     if (fra)
     {
         if (fra->n < fra->fsize)
         {
+            index = array->n;
             fra->data[YINDEX(fra, fra->n)] = data;
             fra->n++;
             array->n++;
-            return 0;
+            return index;
         }
     }
 
     fra = yfragment_new(array->fsize);
     if (!fra)
-        return -1;
+        return index;
     fra->iter = ylist_push_back(array->fragments, fra);
     if (!fra->iter)
     {
         free(fra);
-        return -1;
+        return index;
     }
+    index = array->n;
     fra->data[0] = data;
     fra->n++;
     array->n++;
-    return 0;
+    return index;
 }
 
-// return 0 if success
+// return index if success otherwise return -1
 int yarray_push_front(yarray *array, void *data)
 {
     yfragment *fra;
@@ -435,6 +438,7 @@ void yarray_delete_custom(yarray *array, int index, user_free ufree)
         ufree(data);
 }
 
+// return index if success otherwise return -1 or -2
 int yarray_insert(yarray *array, int index, void *data)
 {
     int n;
@@ -473,7 +477,7 @@ int yarray_insert(yarray *array, int index, void *data)
     fra->n++;
     array->n++;
     yarray_fprintf(stdout, array);
-    return 0;
+    return index;
 }
 
 void yarray_fprintf(FILE *fp, yarray *array)
