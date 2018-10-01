@@ -96,7 +96,7 @@ struct _hook
 struct _ydb
 {
     char *path;
-    ynode *node;
+    ynode *top;
     // struct _conn *conn;
     // ytree *remotes;
 };
@@ -150,7 +150,7 @@ void ydb_pool_destroy()
 ydb *ydb_open(char *path)
 {
     ydb *datablock = NULL;
-    ynode *node = NULL;
+    ynode *top = NULL;
     if (ydb_pool_create())
         assert(!YDB_E_MEM);
 
@@ -164,12 +164,12 @@ ydb *ydb_open(char *path)
     memset(datablock, 0x0, sizeof(ydb));
 
     datablock->path = ystrdup(path);
-    datablock->node = ynode_create_path(path, ydb_root);
-    if (!datablock->node)
+    datablock->top = ynode_create_path(path, ydb_root);
+    if (!datablock->top)
         assert(!YDB_E_MEM);
 
-    node = ytree_insert(ydb_pool, datablock->path, datablock);
-    if (node)
+    top = ytree_insert(ydb_pool, datablock->path, datablock);
+    if (top)
         assert(!YDB_E_PERSISTENCY_ERR);
 
     return datablock;
@@ -181,8 +181,8 @@ void ydb_close(ydb *datablock)
     if (!datablock)
         return;
     ytree_delete(ydb_pool, datablock->path);
-    if (datablock->node)
-        ynode_delete(datablock->node);
+    if (datablock->top)
+        ynode_delete(datablock->top);
     if (datablock->path)
         yfree(datablock->path);
     if (datablock)
@@ -200,7 +200,7 @@ ydb *ydb_get(char *path)
 ynode *ydb_top(ydb *datablock)
 {
     if (datablock)
-        return datablock->node;
+        return datablock->top;
     return ydb_root;
 }
 
@@ -233,11 +233,11 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         }
         if (!src)
             return YDB_OK;
-        top = ynode_merge(datablock->node, src);
+        top = ynode_merge(datablock->top, src);
         ynode_delete(src);
         if (!top)
             return YDB_E_MERGE_FAILED;
-        datablock->node = top;
+        datablock->top = top;
         return YDB_OK;
     }
     return YDB_E_MEM;
@@ -247,7 +247,7 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
 static ydb_res ydb_delete_sub(ynode *cur, void *addition)
 {
     ydb *datablock = (void *) addition;
-    ynode *n = ynode_lookup(datablock->node, cur);
+    ynode *n = ynode_lookup(datablock->top, cur);
     if (n)
         ynode_delete(n);
     return YDB_OK;
@@ -305,7 +305,7 @@ static ydb_res ydb_ynode_traverse(ynode *cur, void *addition)
     char *value = ynode_value(cur);
     if (value && strncmp(value, "+", 1) == 0)
     {
-        ynode *n = ynode_lookup(data->datablock->node, cur);
+        ynode *n = ynode_lookup(data->datablock->top, cur);
         if (n)
         {
             int index = atoi(value);
@@ -342,21 +342,21 @@ int ydb_read(ydb *datablock, const char *format, ...)
 {
     ydb_res res;
     struct ydb_read_data data;
-    ynode *node = NULL;
+    ynode *top = NULL;
     unsigned int flags;
     va_list ap;
     int ap_num = 0;
     if (!datablock)
         return -1;
-    res = ynode_scan(NULL, (char *)format, strlen(format), &node, &ap_num);
+    res = ynode_scan(NULL, (char *)format, strlen(format), &top, &ap_num);
     if (res)
     {
-        ynode_delete(node);
+        ynode_delete(top);
         return -1;
     }
     if (ap_num <= 0)
     {
-        ynode_delete(node);
+        ynode_delete(top);
         return 0;
     }
     data.varlist = ylist_create();
@@ -373,14 +373,14 @@ int ydb_read(ydb *datablock, const char *format, ...)
     } while (ap_num > 0);
     va_end(ap);
     flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY;
-    res = ynode_traverse(node, ydb_ynode_traverse, &data, flags);
+    res = ynode_traverse(top, ydb_ynode_traverse, &data, flags);
     ylist_destroy(data.varlist);
     if (res)
     {
-        ynode_delete(node);
+        ynode_delete(top);
         return -1;
     }
-    ynode_delete(node);
+    ynode_delete(top);
     return data.varnum;
 }
 
@@ -402,7 +402,7 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        src = ynode_create_path(buf, datablock->node);
+        src = ynode_create_path(buf, datablock->top);
         if (buf)
             free(buf);
         if (src)
@@ -431,7 +431,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        src = ynode_search(datablock->node, buf);
+        src = ynode_search(datablock->top, buf);
         if (buf)
             free(buf);
         if (src)
@@ -459,7 +459,7 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        src = ynode_search(datablock->node, buf);
+        src = ynode_search(datablock->top, buf);
         if (buf)
             free(buf);
         if (src && ynode_type(src) == YNODE_TYPE_VAL)
@@ -468,34 +468,62 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
     return NULL;
 }
 
-// ydb_conn_open(ydb, "unixsock://ydb-path", char *permission, unsigned int flags)
-// ydb_conn_open(ydb, "tcp://0.0.0.0:80")
-// ydb_conn_send(ydb, msg-head, meta, ynode)
-// ydb_conn_recv(ydb, msg-head, meta, ynode)
-// ydb_conn_close(ydb, "unixsock://ydb-path")
-// fd, read/write
-// fd_set
+// +META:
+//  uuid: uuid
+//  operation: crud
+//  sequence: 00001-0 (sequence-subsequence, if 0, it means this seq is done.)
+//  
+// fd = ydb_conn_open(ydb, "wss://0.0.0.0:80")
+// fd = ydb_conn_open(ydb, "ws://0.0.0.0:80")
+// fd = ydb_conn_open(ydb, "tcp://0.0.0.0:80")
+// fd = ydb_conn_open(ydb, "us://ydb-path", char *flags)
+//  - permission: ro/wo/rw (client)
+//  - update-rule: subscribe/not-subscribe (client)
+//  - role: server/client/local
+// ydb_conn_close(ydb)
+// fd = ydb_conn_fd(ydb)
+// fd = ydb_conn_fd_first(ydb)
+// fd = ydb_conn_fd_next(ydb)
+// max_fd = ydb_conn_fd_set(ydb, &fd_set)
+// fd = ydb_conn_recv(ydb, meta, timeout) // blocking i/o
+// msg = ydb_conn_msg_builder(ydb, op, meta, ynode)
+// ydb_conn_msg_parser(ydb, msg, &op, &meta, &ynode)
+// ydb_conn_message(ydb, ydb_conn_msg_builder, ydb_conn_msg_parser)
 
-// request -> response (CRUD)
-// notification (CRUD)
-// share option each info.
-// +meta: (control-block for communication)
+// op (Operation): MRD (Merge (Create/Update), Read, Delete)
+// ydb_conn_request(ydb, meta, op, ynode)
+// ydb_conn_response(ydb, meta, op, ynode)
+// ydb_conn_publish(ydb, meta, op, ynode)
+
+// ydb_update_hook_add(ydb, path, callback, user)
+// ydb_update_hook_delete(ydb, path)
+// ydb_change_hook_add(ydb, path, callback, user, flag)
+// ydb_change_hook_delete(ydb, path)
+//
+// add the publisher id to ynode.
 
 
 
-// ydb_connect(/path/to/connect) open communication channel - client
-//   - permission requested: ro/wo/rw
-// ydb_close(/path/to/resource)
-// ydb_listen(/path/to/bind) - server
-//   - permission: set the permssion of the client (r/w request)
-//     - r(ead): true, w(rite): false // accept only read for the client
-//   - change-publishing (to others): true, false
+// client
+// ydb_read(ydb, format, ...)
+//  - if wo, read is failed.
+//  - if subscribe flag is off, read the server ydb using ydb_conn_request()
+//  - if subscribe flag is on, read the local ydb.
+//
+//
+// ydb_write(ydb, format, ...)
+//  - if wo and rw, write input yaml to the server ydb.
+//  - if ro, read is failed.
 
-// ydb communication
-// Operation (crud): Create, Read, Update, Delete
-// Server - Client
-// @META
-//   id: uuid
-//   operation: c/r/u/d
-//   sequence: 00001-0 (sequence-subsequence, if 0, it means this seq is done.)
-// meta: (control-block for communication)
+// server
+// ydb_write(ydb, format, ...)
+//  - ydb_conn_publish()
+// ydb_read()
+//  - check ydb update callback
+//  - if that exist, call the registered callback
+
+
+// hook
+// hooker is called in some change in ydb by MRD operation.
+// ydb_hook_register(ydb, path, hooker, user, flag)
+// ydb_hook_unregister(ydb, path)
