@@ -965,13 +965,14 @@ static char *ynode_strpbrk(char *src, char *src_end, char *stop)
     return NULL;
 }
 
-struct ynod_query_data {
+struct ynod_query_data
+{
     yaml_parser_t *parser;
     int num_of_query;
 };
 
 static int ynod_yaml_query_handler(void *data, unsigned char *buffer, size_t size,
-                             size_t *size_read)
+                                   size_t *size_read)
 {
     int len;
     char *start, *cur, *end, *buf;
@@ -1352,8 +1353,6 @@ ydb_res ynode_sscanf(char *buf, int buflen, ynode **n)
     //     fclose(fp);
     return res;
 }
-
-
 
 static ynode *ynode_find_child(ynode *node, char *key)
 {
@@ -1748,14 +1747,24 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
 
     if (YDB_LOGGING_DEBUG)
     {
-        char *path;
-        ydb_log_debug("op (%s)\n", yhook_op_str[op]);
-        path = ynode_path_and_val(cur, YDB_LEVEL_MAX);
-        ydb_log_debug("cur: %s\n", path?path:"null");
-        if (path)
-            free(path);
-        path = ynode_path_and_val(new, YDB_LEVEL_MAX);
-        ydb_log_debug("new: %s\n", path?path:"null");
+        char *path = NULL;
+        switch (op)
+        {
+        case YHOOK_OP_CREATE:
+            path = ynode_path_and_val(new, YDB_LEVEL_MAX);
+            ydb_log_debug("create %s in %s\n", key?key:"null", path?path:"null");
+            break;
+        case YHOOK_OP_REPLACE:
+            path = ynode_path_and_val(new, YDB_LEVEL_MAX);
+            ydb_log_debug("replace %s in %s\n", key?key:"null", path?path:"null");
+            break;
+        case YHOOK_OP_DELETE:
+            path = ynode_path_and_val(cur, YDB_LEVEL_MAX);
+            ydb_log_debug("delete %s in %s\n", key?key:"null", path?path:"null");
+            break;
+        default:
+            break;
+        }
         if (path)
             free(path);
     }
@@ -2044,7 +2053,8 @@ void ynode_delete(ynode *cur)
         ynode_control(cur, NULL, cur->parent, cur->key);
 }
 
-struct ynode_traverse_data {
+struct ynode_traverse_data
+{
     ynode_callback cb;
     void *addition;
     unsigned int flags;
@@ -2096,7 +2106,7 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
         res = YDB_OK;
         break;
     default:
-       assert(!YDB_E_TYPE_ERR);
+        assert(!YDB_E_TYPE_ERR);
     }
     if (res)
         return res;
@@ -2136,13 +2146,15 @@ ynode *ynode_lookup(ynode *target, ynode *ref)
     parents = ylist_create();
     if (!parents)
         return NULL;
-    
-    while (ref->parent) {
+
+    while (ref->parent)
+    {
         ylist_push_front(parents, ref);
         ref = ref->parent;
     };
 
-    while (!ylist_empty(parents) && target) {
+    while (!ylist_empty(parents) && target)
+    {
         ref = ylist_pop_front(parents);
         int index = ynode_index(ref);
         if (index >= 0)

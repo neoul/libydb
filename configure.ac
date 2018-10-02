@@ -38,6 +38,7 @@ AC_CONFIG_FILES([Makefile
                  examples/agent/Makefile
 				 examples/samples/Makefile
                  examples/ycomm/Makefile
+                 tools/ydb/Makefile
 				 tools/monitor/Makefile
                  ymldb/Makefile
                  ycomm/Makefile])

@@ -8,6 +8,7 @@ extern "C" {
 #include <stdio.h>
 
 #define YDB_LEVEL_MAX 32
+#define YDB_CONN_MAX 32
 
 typedef enum _ydb_res
 {
@@ -28,6 +29,9 @@ typedef enum _ydb_res
     YDB_E_YAML_INIT,
     YDB_E_YAML_EMPTY_TOKEN,
     YDB_E_MERGE_FAILED,
+    YDB_E_SYSTEM_FAILED,
+    YDB_E_CONN_FAILED,
+    YDB_E_CONN_CLOSED,
 } ydb_res;
 
 #define YDB_VNAME(NAME) #NAME
@@ -91,6 +95,17 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...);
 // read the value from ydb using input path
 // char *value = ydb_path_read(datablock, "/path/to/update")
 char *ydb_path_read(ydb *datablock, const char *format, ...);
+
+// internal func for ydb communication
+typedef struct _yconn yconn;
+yconn *yconn_open(char *address, char *flags);
+void yconn_close(yconn *conn);
+ydb_res yconn_attach(yconn *conn, ydb *datablock);
+ydb_res yconn_detach(yconn *conn);
+ydb_res yconn_recv(yconn *conn, char **data, size_t *datalen);
+ydb_res yconn_send(yconn *conn, char *data, size_t datalen);
+void yconn_print(yconn *conn);
+int ydb_serve(ydb *datablock, int timeout);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"
