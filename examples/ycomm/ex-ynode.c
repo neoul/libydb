@@ -30,7 +30,7 @@ char *example_yaml2 =
 " cpu: amd64\n";
 
 
-int test_ynode_fscanf(char *fname)
+int test_ynode_scanf_from_fp(char *fname)
 {
 	FILE *fp = fopen(fname, "r");
 	if(!fp)
@@ -40,7 +40,7 @@ int test_ynode_fscanf(char *fname)
 	}
 	printf("\n\n=== %s (%s) ===\n", __func__, fname);
 	ynode *top = NULL;
-	ynode_fscanf(fp, &top);
+	ynode_scanf_from_fp(fp, &top);
 	ynode_dump(top, 0, YDB_LEVEL_MAX);
 	
 	ynode_delete(ynode_top(top));
@@ -69,7 +69,7 @@ int test_ynode_search_and_iterate(char *fname)
 	}
 	printf("\n\n=== %s ===\n", __func__);
 	ynode *top = NULL;
-	ynode_fscanf(fp, &top);
+	ynode_scanf_from_fp(fp, &top);
 	ynode_dump(top, 0, YDB_LEVEL_MAX);
 
 	printf("ynode_down()\n");
@@ -117,7 +117,7 @@ int test_ynode_path(char *fname)
 	}
 	printf("\n\n=== %s ===\n", __func__);
 	ynode *top = NULL;
-	ynode_fscanf(fp, &top);
+	ynode_scanf_from_fp(fp, &top);
 	ynode_printf(top, 0, 5);
 	printf("==\n\n");
 
@@ -146,12 +146,12 @@ int test_ynode_path(char *fname)
 	return 0;
 }
 
-int test_ynode_sscanf()
+int test_ynode_scanf_from_buf()
 {
 	char *buf = "abc";
 	ynode *node = NULL;
 	printf("\n\n=== %s ===\n", __func__);
-	ynode_sscanf(buf, strlen(buf), &node);
+	ynode_scanf_from_buf(buf, strlen(buf), &node);
 	ynode_dump(node, 0, 0);
 	ynode_delete(node);
 	return 0;
@@ -164,7 +164,7 @@ int test_ynode_crud()
 	ynode *node, *clone;
 	ynode *a, *b, *c;
 	ynode *top = NULL;
-	ynode_sscanf(example_yaml, strlen(example_yaml), &top);
+	ynode_scanf_from_buf(example_yaml, strlen(example_yaml), &top);
 	printf("== top ==\n");
 	ynode_printf(top, 0, 6);
 	
@@ -186,7 +186,7 @@ int test_ynode_crud()
 	ynode_printf(a, 0, 3);
 
 	printf("== b ==\n");
-	ynode_sscanf(example_yaml2, strlen(example_yaml2), &b);
+	ynode_scanf_from_buf(example_yaml2, strlen(example_yaml2), &b);
 	ynode_printf(b, 0, 3);
 
 	printf("== ynode_merge (b to a) ==\n");
@@ -248,7 +248,7 @@ int test_yhook()
 	printf("\n\n=== %s ===\n", __func__);
 	
 	ynode *top = NULL;
-	ynode_sscanf(sample, strlen(sample), &top);
+	ynode_scanf_from_buf(sample, strlen(sample), &top);
 	ynode_dump(top, 1, YDB_LEVEL_MAX);
 
 	// move to 1-2 node
@@ -263,30 +263,58 @@ int test_yhook()
 	printf("== top ==\n");
 	top = ynode_top(top);
 	ynode_printf(top, 1, YDB_LEVEL_MAX);
+
+	ynode_write(&top, 
+		"3:\n"
+		" 3-1: v14\n"
+		"2:\n"
+		" 2-1:\n"
+		"  2-1-4: v14\n"
+		" 2-3:\n"
+		"  2-3-1: v14\n"
+		" 2-4: v14\n"
+		"1:\n"
+		" 1-2:\n"
+		"  1-2-5: check-hook\n"
+		);
+	ynode_printf(top, 1, YDB_LEVEL_MAX);
+	ynode_erase(&top, 
+		"3:\n"
+		" 3-1: v14\n"
+		);
+	ynode_printf(top, 1, YDB_LEVEL_MAX);
+
+	char s2_2_3[32];
+	ynode_read(top, 
+		"2:\n"
+		" 2-2:\n"
+		"  2-2-3: %s\n", s2_2_3
+		);
+	printf("2-2-3: %s\n", s2_2_3);
 	ynode_delete(top);
 	return 0;
 }
 
 int main(int argc, char *argv[])
 {
-	if(test_ynode_fscanf("ynode-value.yaml"))
+	if(test_ynode_scanf_from_fp("ynode-value.yaml"))
 	{
-		printf("test_ynode_fscanf() failed.\n");
+		printf("test_ynode_scanf_from_fp() failed.\n");
 	}
 	
-	if(test_ynode_fscanf("ynode-list.yaml"))
+	if(test_ynode_scanf_from_fp("ynode-list.yaml"))
 	{
-		printf("test_ynode_fscanf() failed.\n");
+		printf("test_ynode_scanf_from_fp() failed.\n");
 	}
 
-	if(test_ynode_fscanf("ynode-dict.yaml"))
+	if(test_ynode_scanf_from_fp("ynode-dict.yaml"))
 	{
-		printf("test_ynode_fscanf() failed.\n");
+		printf("test_ynode_scanf_from_fp() failed.\n");
 	}
 
-	// if(test_ynode_sscanf())
+	// if(test_ynode_scanf_from_buf())
 	// {
-	// 	printf("test_ynode_sscanf() failed.\n");
+	// 	printf("test_ynode_scanf_from_buf() failed.\n");
 	// }
 	
 	if(test_ynode_search_and_iterate("ynode-input.yaml"))

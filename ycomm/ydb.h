@@ -32,6 +32,7 @@ typedef enum _ydb_res
     YDB_E_SYSTEM_FAILED,
     YDB_E_CONN_FAILED,
     YDB_E_CONN_CLOSED,
+    YDB_E_CONN_DENIED,
 } ydb_res;
 
 #define YDB_VNAME(NAME) #NAME
@@ -69,8 +70,8 @@ extern ydb_log_func ydb_logger;
 // yaml data block
 typedef struct _ydb ydb;
 
-// open local ydb (yaml data block)
-ydb *ydb_open(char *path);
+// open ydb (yaml data block)
+ydb *ydb_open(char *path, char *addr, char *flags);
 // close local ydb
 void ydb_close(ydb *datablock);
 
@@ -96,15 +97,6 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...);
 // char *value = ydb_path_read(datablock, "/path/to/update")
 char *ydb_path_read(ydb *datablock, const char *format, ...);
 
-// internal func for ydb communication
-typedef struct _yconn yconn;
-yconn *yconn_open(char *address, char *flags);
-void yconn_close(yconn *conn);
-ydb_res yconn_attach(yconn *conn, ydb *datablock);
-ydb_res yconn_detach(yconn *conn);
-ydb_res yconn_recv(yconn *conn, char **data, size_t *datalen);
-ydb_res yconn_send(yconn *conn, char *data, size_t datalen);
-void yconn_print(yconn *conn);
 int ydb_serve(ydb *datablock, int timeout);
 
 #ifdef __cplusplus

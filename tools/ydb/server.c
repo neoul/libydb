@@ -22,12 +22,7 @@ int main(int argc, char *argv[])
 	ydb_log_severity = YDB_LOG_DBG;
 
 	ydb *db;
-	yconn *conn;
-	db = ydb_open("/system/ipc");
-	conn = yconn_open("uss:///system/ipc", "s");
-	yconn_attach(conn, db);
-	yconn_print(conn);
-	
+	db = ydb_open("/system/ipc", NULL, "s");
 	while (!res)
 		res = ydb_serve(db, 1000);
 

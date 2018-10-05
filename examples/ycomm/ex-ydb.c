@@ -32,9 +32,9 @@ int test_ydb_open_close()
 {
 	printf("\n\n=== %s ===\n", __func__);
 	ydb *block1, *block2, *block3;
-	block1 = ydb_open("/path/to/datablock1");
-	block2 = ydb_open("/path/to/datablock2");
-	block3 = ydb_open("/path/to/datablock3");
+	block1 = ydb_open("/path/to/datablock1", NULL, NULL);
+	block2 = ydb_open("/path/to/datablock2", NULL, NULL);
+	block3 = ydb_open("/path/to/datablock3", NULL, NULL);
 
 	ydb_close(block3);
 	ydb_close(block2);
@@ -49,7 +49,7 @@ int test_ydb_read_write()
 	ydb_res res = YDB_OK;
 	printf("\n\n=== %s ===\n", __func__);
 	ydb *db;
-	db = ydb_open("/path/to/data");
+	db = ydb_open("/path/to/data", NULL, NULL);
 
 	// inserting one value
 	res = ydb_write(db, "VALUE");

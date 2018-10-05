@@ -43,7 +43,6 @@ ynode *ynode_merge_new(ynode *dest, ynode *src);
 // deleted cur ynode (including all sub ynodes).
 void ynode_delete(ynode *node);
 
-
 // dump ydb
 void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int start_level, int end_level);
 #define ynode_dump_to_fp(fp, node, start_level, end_level) ynode_dump_node(fp, 0, NULL, 0, node, start_level, end_level)
@@ -52,16 +51,28 @@ void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int s
 #define ynode_dump(node, start_level, end_level) ynode_dump_node(stdout, 0, NULL, 0, node, start_level, end_level)
 
 // write ynode db to buffer, fp, fd and stdout
-int ynode_snprintf(char *buf, int buflen, ynode *node, int start_level, int end_level);
-int ynode_fprintf(FILE *fp, ynode *node, int start_level, int end_level);
-int ynode_write(int fd, ynode *node, int start_level, int end_level);
+int ynode_printf_to_buf(char *buf, int buflen, ynode *node, int start_level, int end_level);
+int ynode_printf_to_fp(FILE *fp, ynode *node, int start_level, int end_level);
+int ynode_printf_to_fd(int fd, ynode *node, int start_level, int end_level);
 int ynode_printf(ynode *node, int start_level, int end_level);
 
 // read ynode db from buffer, fp, fd and stdin
-ydb_res ynode_fscanf(FILE *fp, ynode **n);
+ydb_res ynode_scanf_from_fp(FILE *fp, ynode **n);
+ydb_res ynode_scanf_from_fd(int fd, ynode **n);
+ydb_res ynode_scanf_from_buf(char *buf, int buflen, ynode **n);
 ydb_res ynode_scanf(ynode **n);
-ydb_res ynode_read(int fd, ynode **n);
-ydb_res ynode_sscanf(char *buf, int buflen, ynode **n);
+
+// detach and free ynode
+void ynode_remove(ynode *n);
+
+// high level interfaces to manage the ynode grapes
+// update or create ynode n using the input string
+ydb_res ynode_write(ynode **n, const char *format, ...);
+// delete sub ynodes using the input string
+ydb_res ynode_erase(ynode **n, const char *format, ...);
+// read the date from ynode grapes as the scanf()
+int ynode_read(ynode *n, const char *format, ...);
+
 
 // [ynode searching & traveling]
 
