@@ -25,7 +25,6 @@ int main(int argc, char *argv[])
 	db = ydb_open("/system/ipc", NULL, "s");
 	while (!res)
 		res = ydb_serve(db, 1000);
-
 	ydb_close(db);
     return 0;
 }

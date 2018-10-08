@@ -13,6 +13,7 @@ void HANDLER_SIGINT(int param)
 
 int main(int argc, char *argv[])
 {
+    ydb_res res = YDB_OK;
     // MUST ignore SIGPIPE.
     // signal(SIGPIPE, SIG_IGN);
     // add a signal handler to quit this program.
@@ -22,6 +23,8 @@ int main(int argc, char *argv[])
 
 	ydb *db;
 	db = ydb_open("/system/ipc", NULL, "c");
+    while (!res)
+		res = ydb_serve(db, 1000);
 	ydb_close(db);
     return 0;
 }
