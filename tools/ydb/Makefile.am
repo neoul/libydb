@@ -1,12 +1,12 @@
-bin_PROGRAMS=ydb-server ydb-client
-ydb_server_SOURCES = server.c
-ydb_server_CPPFLAGS = -I $(top_srcdir)/ycomm
-ydb_server_LDFLAGS = -L$(top_srcdir)/ycomm/.libs \
+bin_PROGRAMS=ydb-publisher ydb-subscriber
+ydb_publisher_SOURCES = publisher.c
+ydb_publisher_CPPFLAGS = -I $(top_srcdir)/ycomm
+ydb_publisher_LDFLAGS = -L$(top_srcdir)/ycomm/.libs \
                   -lycomm -lyaml -lm
-ydb_server_CFLAGS = -g -Wall
+ydb_publisher_CFLAGS = -g -Wall
 
-ydb_client_SOURCES = client.c
-ydb_client_CPPFLAGS = -I $(top_srcdir)/ycomm
-ydb_client_LDFLAGS = -L$(top_srcdir)/ycomm/.libs \
+ydb_subscriber_SOURCES = subscriber.c
+ydb_subscriber_CPPFLAGS = -I $(top_srcdir)/ycomm
+ydb_subscriber_LDFLAGS = -L$(top_srcdir)/ycomm/.libs \
                   -lycomm -lyaml -lm
-ydb_client_CFLAGS = -g -Wall
+ydb_subscriber_CFLAGS = -g -Wall

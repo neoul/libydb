@@ -45,3 +45,5 @@ examples/ycomm/ex-ylist
 examples/ycomm/ex-ytrie2
 examples/ycomm/ex-ydb
 ycomm/utilities/.dirstamp
+tools/ydb/ydb-publisher
+tools/ydb/ydb-subscriber
