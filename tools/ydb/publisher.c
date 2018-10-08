@@ -24,7 +24,12 @@ int main(int argc, char *argv[])
 	ydb *db;
 	db = ydb_open("/system/ipc", NULL, "p");
 	while (!res)
-		res = ydb_serve(db, 1000);
+	{
+		static int count;
+		res = ydb_serve(db, 5000);
+		ydb_write(db, "count-%d: %d\n", count, count);
+		count++;
+	}
 	ydb_close(db);
     return 0;
 }
