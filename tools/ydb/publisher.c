@@ -15,15 +15,14 @@ int main(int argc, char *argv[])
 {
 	ydb_res res = YDB_OK;
     // MUST ignore SIGPIPE.
-    // signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN);
     // add a signal handler to quit this program.
     signal(SIGINT, HANDLER_SIGINT);
 
 	ydb_log_severity = YDB_LOG_DBG;
-
 	ydb *db;
 	db = ydb_open("/system/ipc", NULL, "p");
-	while (!res)
+	while (!res || !done)
 	{
 		static int count;
 		res = ydb_serve(db, 5000);

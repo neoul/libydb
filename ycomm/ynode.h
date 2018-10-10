@@ -16,8 +16,6 @@ typedef struct _ynode ynode;
 typedef struct _ynode_record ynode_record;
 ynode_record *ynode_record_new(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level);
 void ynode_record_free(ynode_record *cb);
-void ynode_record_indent_up(struct _ynode_record *record);
-void ynode_record_indent_down(struct _ynode_record *record);
 
 // ynode operation (Create, Merge, Delete) interfaces
 // create single ynode and attach to parent.
