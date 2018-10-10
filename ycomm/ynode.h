@@ -13,19 +13,24 @@ extern "C" {
 
 
 typedef struct _ynode ynode;
+typedef struct _ynode_record ynode_record;
+ynode_record *ynode_record_new(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level);
+void ynode_record_free(ynode_record *cb);
+void ynode_record_indent_up(struct _ynode_record *record);
+void ynode_record_indent_down(struct _ynode_record *record);
 
 // ynode operation (Create, Merge, Delete) interfaces
 // create single ynode and attach to parent.
 // return created ynode.
-ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent);
+ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_record *record);
 
 // create new ynodes to parent using src.
 // return created ynode top.
-ynode *ynode_create_copy(ynode *src, ynode *parent, char *key);
+ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_record *record);
 
 // create new ynodes using path.
 // return the last created ynode.
-ynode *ynode_create_path(char *path, ynode *parent);
+ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record);
 
 // copy src ynodes (including all sub ynodes).
 ynode *ynode_copy(ynode *src);
@@ -33,7 +38,7 @@ ynode *ynode_copy(ynode *src);
 // merge src ynode to dest.
 // dest is modified by the operation.
 // return modified dest.
-ynode *ynode_merge(ynode *dest, ynode *src);
+ynode *ynode_merge(ynode *dest, ynode *src, ynode_record *record);
 
 // merge src ynode to dest.
 // dest and src is not modified.
@@ -41,7 +46,7 @@ ynode *ynode_merge(ynode *dest, ynode *src);
 ynode *ynode_merge_new(ynode *dest, ynode *src);
 
 // deleted cur ynode (including all sub ynodes).
-void ynode_delete(ynode *node);
+void ynode_delete(ynode *node, ynode_record *record);
 
 // dump ydb
 void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int start_level, int end_level);

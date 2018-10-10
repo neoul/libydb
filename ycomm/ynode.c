@@ -453,13 +453,13 @@ static void yhook_delete(ynode *cur)
     cur->hook = NULL;
 }
 
-struct dump_ctrl
+struct _ynode_record
 {
     enum
     {
-        DUMP_TYPE_FP,
-        DUMP_TYPE_FD,
-        DUMP_TYPE_STR,
+        RECORD_TYPE_FP,
+        RECORD_TYPE_FD,
+        RECORD_TYPE_STR,
     } type;
     FILE *fp;
     int fd;
@@ -477,65 +477,77 @@ struct dump_ctrl
 #define S10 "          "
 static char *space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
 
-static struct dump_ctrl *dump_ctrl_new(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level)
+struct _ynode_record *ynode_record_new(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level)
 {
-    struct dump_ctrl *cb;
-    cb = malloc(sizeof(struct dump_ctrl));
-    if (!cb)
+    struct _ynode_record *record;
+    record = malloc(sizeof(struct _ynode_record));
+    if (!record)
         return NULL;
     if (fp)
-        cb->type = DUMP_TYPE_FP;
+        record->type = RECORD_TYPE_FP;
     else if (fd)
-        cb->type = DUMP_TYPE_FD;
+        record->type = RECORD_TYPE_FD;
     else if (buf && buflen > 0)
-        cb->type = DUMP_TYPE_STR;
+        record->type = RECORD_TYPE_STR;
     else
     {
-        cb->type = DUMP_TYPE_FP;
+        record->type = RECORD_TYPE_FP;
         fp = stdout;
     }
-    cb->fp = fp;
-    cb->fd = fd;
-    cb->buf = buf;
-    cb->buflen = buflen;
-    cb->len = 0;
-    cb->flags = 0x0;
-    cb->end_level = end_level;
-    cb->start_level = start_level;
-    cb->level = 0;
-    cb->indent = 0;
-    return cb;
+    record->fp = fp;
+    record->fd = fd;
+    record->buf = buf;
+    record->buflen = buflen;
+    record->len = 0;
+    record->flags = 0x0;
+    record->end_level = end_level;
+    record->start_level = start_level;
+    record->level = 0;
+    record->indent = 0;
+    return record;
 }
 
-static struct dump_ctrl *dump_ctrl_new_debug(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level)
+struct _ynode_record *ynode_record_new_debug(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level)
 {
-    struct dump_ctrl *cb;
-    cb = dump_ctrl_new(fp, fd, buf, buflen, start_level, end_level);
-    if (!cb)
+    struct _ynode_record *record;
+    record = ynode_record_new(fp, fd, buf, buflen, start_level, end_level);
+    if (!record)
         return NULL;
-    cb->flags = DUMP_FLAG_DEBUG;
-    return cb;
+    record->flags = DUMP_FLAG_DEBUG;
+    return record;
 }
 
-void dump_ctrl_free(struct dump_ctrl *cb)
+void ynode_record_free(struct _ynode_record *record)
 {
-    if (cb)
-        free(cb);
+    if (record)
+        free(record);
 }
 
-int dump_ctrl_print(struct dump_ctrl *dump, const char *format, ...)
+void ynode_record_indent_up(struct _ynode_record *record)
+{
+    if (record)
+        record->indent++;
+}
+
+void ynode_record_indent_down(struct _ynode_record *record)
+{
+if (record)
+        record->indent--;
+}
+
+int _ynode_record_print(struct _ynode_record *dump, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
     switch (dump->type)
     {
-    case DUMP_TYPE_FP:
+    case RECORD_TYPE_FP:
         dump->len += vfprintf(dump->fp, format, args);
         break;
-    case DUMP_TYPE_FD:
+    case RECORD_TYPE_FD:
         dump->len += vdprintf(dump->fd, format, args);
         break;
-    case DUMP_TYPE_STR:
+    case RECORD_TYPE_STR:
         dump->len += vsnprintf((dump->buf + dump->len), (dump->buflen - dump->len), format, args);
         if (dump->buflen <= dump->len)
         {
@@ -550,7 +562,7 @@ int dump_ctrl_print(struct dump_ctrl *dump, const char *format, ...)
     return YDB_OK;
 }
 
-static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
+static int _ynode_record_debug_ynode(struct _ynode_record *dump, ynode *node)
 {
     ydb_res res;
     int indent = dump->indent;
@@ -558,11 +570,11 @@ static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
         return YDB_OK;
 
     // print indent
-    res = dump_ctrl_print(dump, "%.*s", indent, space);
+    res = _ynode_record_print(dump, "%.*s", indent, space);
     if (res)
         return res;
 
-    res = dump_ctrl_print(dump, "%p ", node);
+    res = _ynode_record_print(dump, "%p ", node);
     if (res)
         return res;
 
@@ -570,14 +582,14 @@ static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
     if (IS_SET(node->flags, YNODE_FLAG_KEY))
     {
         char *key = ystr_convert(node->key);
-        res = dump_ctrl_print(dump, "{key: %s,", key ? key : node->key);
+        res = _ynode_record_print(dump, "{key: %s,", key ? key : node->key);
         if (key)
             free(key);
     }
     else if (IS_SET(node->flags, YNODE_FLAG_ITER))
-        res = dump_ctrl_print(dump, "{key: %p,", ylist_data(node->iter));
+        res = _ynode_record_print(dump, "{key: %p,", ylist_data(node->iter));
     else
-        res = dump_ctrl_print(dump, "{key: none,");
+        res = _ynode_record_print(dump, "{key: none,");
     if (res)
         return res;
 
@@ -587,19 +599,19 @@ static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
     case YNODE_TYPE_VAL:
     {
         char *value = ystr_convert(node->value);
-        res = dump_ctrl_print(dump, " value: %s,", value ? value : node->value);
+        res = _ynode_record_print(dump, " value: %s,", value ? value : node->value);
         if (value)
             free(value);
         break;
     }
     case YNODE_TYPE_DICT:
     {
-        res = dump_ctrl_print(dump, " dict: num=%d,", ytree_size(node->dict));
+        res = _ynode_record_print(dump, " dict: num=%d,", ytree_size(node->dict));
         break;
     }
     case YNODE_TYPE_LIST:
     {
-        res = dump_ctrl_print(dump, " list: %s,", ylist_empty(node->list) ? "empty" : "not-empty");
+        res = _ynode_record_print(dump, " list: %s,", ylist_empty(node->list) ? "empty" : "not-empty");
         break;
     }
     default:
@@ -607,34 +619,36 @@ static int dump_ctrl_debug_ynode(struct dump_ctrl *dump, ynode *node)
     }
     if (res)
         return res;
-    res = dump_ctrl_print(dump, " parent: %p}\n", node->parent);
+    res = _ynode_record_print(dump, " parent: %p}\n", node->parent);
     return res;
 }
 
-static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
+static int _ynode_record_print_ynode(struct _ynode_record *dump, ynode *node)
 {
     int only_val = 0;
     ydb_res res;
-    int indent = dump->indent;
+    int indent;
+    if (!dump)
+        return YDB_OK;
+    indent = dump->indent;
     if (indent < 0)
         return YDB_OK;
 
     // print indent
-    res = dump_ctrl_print(dump, "%.*s", indent, space);
+    res = _ynode_record_print(dump, "%.*s", indent, space);
     if (res)
         return res;
-
     // print key
     if (IS_SET(node->flags, YNODE_FLAG_KEY))
     {
         char *key = ystr_convert(node->key);
-        res = dump_ctrl_print(dump, "%s:", key ? key : node->key);
+        res = _ynode_record_print(dump, "%s:", key ? key : node->key);
         if (key)
             free(key);
     }
     else if (IS_SET(node->flags, YNODE_FLAG_ITER))
     {
-        res = dump_ctrl_print(dump, "-");
+        res = _ynode_record_print(dump, "-");
     }
     else
     {
@@ -648,7 +662,7 @@ static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
     if (node->type == YNODE_TYPE_VAL)
     {
         char *value = ystr_convert(node->value);
-        res = dump_ctrl_print(dump, "%s%s\n",
+        res = _ynode_record_print(dump, "%s%s\n",
                               only_val ? "" : " ",
                               value ? value : node->value);
         if (value)
@@ -656,28 +670,28 @@ static int dump_ctrl_print_ynode(struct dump_ctrl *dump, ynode *node)
     }
     else
     {
-        res = dump_ctrl_print(dump, "\n");
+        res = _ynode_record_print(dump, "\n");
     }
     return res;
 }
 
-static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node);
-static int dump_ctrl_traverse_dict(void *key, void *data, void *addition)
+static int _ynode_record_dump_childen(struct _ynode_record *dump, ynode *node);
+static int _ynode_record_traverse_dict(void *key, void *data, void *addition)
 {
-    struct dump_ctrl *dump = addition;
+    struct _ynode_record *dump = addition;
     ynode *node = data;
     key = (void *)key;
-    return dump_ctrl_dump_childen(dump, node);
+    return _ynode_record_dump_childen(dump, node);
 }
 
-static int dump_ctrl_traverse_list(void *data, void *addition)
+static int _ynode_record_traverse_list(void *data, void *addition)
 {
-    struct dump_ctrl *dump = addition;
+    struct _ynode_record *dump = addition;
     ynode *node = data;
-    return dump_ctrl_dump_childen(dump, node);
+    return _ynode_record_dump_childen(dump, node);
 }
 
-static int dump_ctrl_dump_parent(struct dump_ctrl *dump, ynode *node)
+static int _ynode_record_dump_parent(struct _ynode_record *dump, ynode *node)
 {
     ydb_res res = YDB_OK;
     ylist *parents = ylist_create();
@@ -696,9 +710,9 @@ static int dump_ctrl_dump_parent(struct dump_ctrl *dump, ynode *node)
     {
         node = ylist_pop_back(parents);
         if (IS_SET(dump->flags, DUMP_FLAG_DEBUG))
-            res = dump_ctrl_debug_ynode(dump, node);
+            res = _ynode_record_debug_ynode(dump, node);
         else
-            res = dump_ctrl_print_ynode(dump, node);
+            res = _ynode_record_print_ynode(dump, node);
         // printf("\ndump len=%d\n", dump->len);
         if (res)
             break;
@@ -709,7 +723,7 @@ static int dump_ctrl_dump_parent(struct dump_ctrl *dump, ynode *node)
     return res;
 }
 
-static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node)
+static int _ynode_record_dump_childen(struct _ynode_record *dump, ynode *node)
 {
     ydb_res res = YDB_OK;
     if (dump->end_level < 0)
@@ -719,9 +733,9 @@ static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node)
     if (dump->start_level <= dump->level)
     {
         if (IS_SET(dump->flags, DUMP_FLAG_DEBUG))
-            res = dump_ctrl_debug_ynode(dump, node);
+            res = _ynode_record_debug_ynode(dump, node);
         else
-            res = dump_ctrl_print_ynode(dump, node);
+            res = _ynode_record_print_ynode(dump, node);
         if (res)
             return res;
         dump->indent++;
@@ -731,10 +745,10 @@ static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node)
     switch (node->type)
     {
     case YNODE_TYPE_DICT:
-        res = ytree_traverse(node->dict, dump_ctrl_traverse_dict, dump);
+        res = ytree_traverse(node->dict, _ynode_record_traverse_dict, dump);
         break;
     case YNODE_TYPE_LIST:
-        res = ylist_traverse(node->list, dump_ctrl_traverse_list, dump);
+        res = ylist_traverse(node->list, _ynode_record_traverse_list, dump);
         break;
     case YNODE_TYPE_VAL:
         break;
@@ -750,74 +764,74 @@ static int dump_ctrl_dump_childen(struct dump_ctrl *dump, ynode *node)
 
 void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int start_level, int end_level)
 {
-    struct dump_ctrl *dump;
+    struct _ynode_record *dump;
     if (!node)
         return;
     if (start_level > end_level)
         return;
-    dump = dump_ctrl_new_debug(fp, fd, buf, buflen, start_level, end_level);
+    dump = ynode_record_new_debug(fp, fd, buf, buflen, start_level, end_level);
     if (!dump)
         return;
     if (start_level < end_level)
-        dump_ctrl_print(dump, "\n[dump (start_level=%d, end_level=%d)]\n", start_level, end_level);
-    dump_ctrl_dump_parent(dump, node);
-    dump_ctrl_dump_childen(dump, node);
+        _ynode_record_print(dump, "\n[dump (start_level=%d, end_level=%d)]\n", start_level, end_level);
+    _ynode_record_dump_parent(dump, node);
+    _ynode_record_dump_childen(dump, node);
     if (start_level < end_level)
-        dump_ctrl_print(dump, "[dump (len=%d)]\n", dump->len);
-    dump_ctrl_free(dump);
+        _ynode_record_print(dump, "[dump (len=%d)]\n", dump->len);
+    ynode_record_free(dump);
 }
 
 int ynode_printf_to_buf(char *buf, int buflen, ynode *node, int start_level, int end_level)
 {
     int len = -1;
-    struct dump_ctrl *dump;
+    struct _ynode_record *dump;
     if (!node)
         return -1;
     if (start_level > end_level)
         return 0;
-    dump = dump_ctrl_new(NULL, 0, buf, buflen, start_level, end_level);
+    dump = ynode_record_new(NULL, 0, buf, buflen, start_level, end_level);
     if (!dump)
         return -1;
-    dump_ctrl_dump_parent(dump, node);
-    dump_ctrl_dump_childen(dump, node);
+    _ynode_record_dump_parent(dump, node);
+    _ynode_record_dump_childen(dump, node);
     len = dump->len;
-    dump_ctrl_free(dump);
+    ynode_record_free(dump);
     return len;
 }
 
 int ynode_printf_to_fp(FILE *fp, ynode *node, int start_level, int end_level)
 {
     int len = -1;
-    struct dump_ctrl *dump;
+    struct _ynode_record *dump;
     if (!node)
         return -1;
     if (start_level > end_level)
         return 0;
-    dump = dump_ctrl_new(fp, 0, NULL, 0, start_level, end_level);
+    dump = ynode_record_new(fp, 0, NULL, 0, start_level, end_level);
     if (!dump)
         return -1;
-    dump_ctrl_dump_parent(dump, node);
-    dump_ctrl_dump_childen(dump, node);
+    _ynode_record_dump_parent(dump, node);
+    _ynode_record_dump_childen(dump, node);
     len = dump->len;
-    dump_ctrl_free(dump);
+    ynode_record_free(dump);
     return len;
 }
 
 int ynode_printf_to_fd(int fd, ynode *node, int start_level, int end_level)
 {
     int len = -1;
-    struct dump_ctrl *dump;
+    struct _ynode_record *dump;
     if (!node)
         return -1;
     if (start_level > end_level)
         return 0;
-    dump = dump_ctrl_new(NULL, fd, NULL, 0, start_level, end_level);
+    dump = ynode_record_new(NULL, fd, NULL, 0, start_level, end_level);
     if (!dump)
         return -1;
-    dump_ctrl_dump_parent(dump, node);
-    dump_ctrl_dump_childen(dump, node);
+    _ynode_record_dump_parent(dump, node);
+    _ynode_record_dump_childen(dump, node);
     len = dump->len;
-    dump_ctrl_free(dump);
+    ynode_record_free(dump);
     return len;
 }
 
@@ -1716,7 +1730,7 @@ char *yhook_op_str[] =
         "yhook_op_delete",
 };
 
-static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
+static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ynode_record *record)
 {
     ynode *new = NULL;
     yhook_op_type op;
@@ -1780,13 +1794,16 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
     case YHOOK_OP_CREATE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
+        _ynode_record_print_ynode(record, new);
         break;
     case YHOOK_OP_REPLACE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
+        _ynode_record_print_ynode(record, new);
         break;
     case YHOOK_OP_DELETE:
         yhook_pre_run_for_delete(cur);
+        _ynode_record_print_ynode(record, cur);
         break;
     case YHOOK_OP_NONE:
     default:
@@ -1795,6 +1812,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
 
     if (src)
     {
+        ynode_record_indent_up(record);
         switch (src->type)
         {
         case YNODE_TYPE_DICT:
@@ -1804,7 +1822,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
             {
                 ynode *src_child = ytree_data(iter);
                 ynode *cur_child = ynode_find_child(new, src_child->key);
-                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key);
+                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, record);
                 if (!new_child)
                     ydb_log_error("unable to add child node (src_child->key: %s)\n");
             }
@@ -1818,7 +1836,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
                  iter = ylist_next(iter))
             {
                 ynode *src_child = ylist_data(iter);
-                ynode *new_child = ynode_control(NULL, src_child, new, NULL);
+                ynode *new_child = ynode_control(NULL, src_child, new, NULL, record);
                 if (!new_child)
                     ydb_log_error("unable to add child node (src_child->key: %s)\n");
             }
@@ -1829,6 +1847,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
         default:
             assert(!YDB_E_TYPE_ERR);
         }
+        ynode_record_indent_down(record);
     }
 
     switch (op)
@@ -1853,25 +1872,25 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key)
 
 // create single ynode and attach to parent
 // return created ynode
-ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent)
+ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_record *record)
 {
     ynode *cur, *new;
     new = ynode_new(type, value);
-    cur = ynode_control(NULL, new, parent, key);
+    cur = ynode_control(NULL, new, parent, key, record);
     ynode_free(new);
     return cur;
 }
 
 // create new ynodes to parent using src
 // return created ynode top
-ynode *ynode_create_copy(ynode *src, ynode *parent, char *key)
+ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_record *record)
 {
-    return ynode_control(NULL, src, parent, key);
+    return ynode_control(NULL, src, parent, key, record);
 }
 
 // create new ynodes using path
 // return the last created ynode.
-ynode *ynode_create_path(char *path, ynode *parent)
+ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record)
 {
     int i, j;
     char *key = NULL;
@@ -1942,7 +1961,7 @@ ynode *ynode_create_path(char *path, ynode *parent)
     if (parent)
     {
         new = ynode_top(new);
-        ynode_merge(parent, new);
+        ynode_merge(parent, new, record);
         ynode_free(new);
         if (key)
             yfree(key);
@@ -2016,13 +2035,21 @@ _fail:
 // merge src ynode to dest.
 // dest is modified by the operation.
 // return modified dest.
-ynode *ynode_merge(ynode *dest, ynode *src)
+ynode *ynode_merge(ynode *dest, ynode *src, ynode_record *record)
 {
     ynode *parent;
-    if (!dest)
-        return ynode_copy(src);
+    if (!dest) {
+        dest = ynode_copy(src);
+        if (record)
+        {
+            _ynode_record_dump_parent(record, dest);
+            _ynode_record_dump_childen(record, dest);
+        }
+        return dest;
+    }
+        
     parent = dest->parent;
-    parent = ynode_control(dest, src, parent, dest->key);
+    parent = ynode_control(dest, src, parent, dest->key, record);
     return parent;
 }
 
@@ -2038,27 +2065,29 @@ ynode *ynode_merge_new(ynode *dest, ynode *src)
     if (!dest && !src)
         return NULL;
     fp = open_memstream(&buf, &buflen);
-    if (dest->type == YNODE_TYPE_VAL)
-        fprintf(fp, "%s", dest->value);
-    else
-        ynode_printf_to_fp(fp, dest, 0, YDB_LEVEL_MAX);
-    if (src->type == YNODE_TYPE_VAL)
-        fprintf(fp, "%s", src->value);
-    else
-        ynode_printf_to_fp(fp, src, 0, YDB_LEVEL_MAX);
     if (fp)
+    {
+        if (dest->type == YNODE_TYPE_VAL)
+            fprintf(fp, "%s", dest->value);
+        else
+            ynode_printf_to_fp(fp, dest, 0, YDB_LEVEL_MAX);
+        if (src->type == YNODE_TYPE_VAL)
+            fprintf(fp, "%s", src->value);
+        else
+            ynode_printf_to_fp(fp, src, 0, YDB_LEVEL_MAX);
         fclose(fp);
-    ynode_scanf_from_buf(buf, buflen, &clone);
-    if (buf)
-        free(buf);
+        ynode_scanf_from_buf(buf, buflen, &clone);
+        if (buf)
+            free(buf);        
+    }
     return clone;
 }
 
 // deleted cur ynode (including all sub ynodes).
-void ynode_delete(ynode *cur)
+void ynode_delete(ynode *cur, ynode_record *record)
 {
     if (cur)
-        ynode_control(cur, NULL, cur->parent, cur->key);
+        ynode_control(cur, NULL, cur->parent, cur->key, record);
 }
 
 struct ynode_traverse_data
@@ -2212,7 +2241,7 @@ ydb_res ynode_write(ynode **n, const char *format, ...)
             return YDB_OK;
         if (*n)
         {
-            ynode *top = ynode_merge(*n, src);
+            ynode *top = ynode_merge(*n, src, NULL);
             ynode_remove(src);
             if (!top)
                 return YDB_E_MERGE_FAILED;
@@ -2233,7 +2262,7 @@ ydb_res ynode_erase_sub(ynode *cur, void *addition)
     ynode *n = (void *)addition;
     ynode *target = ynode_lookup(n, cur);
     if (target)
-        ynode_delete(target);
+        ynode_delete(target, NULL);
     return YDB_OK;
 }
 

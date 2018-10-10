@@ -168,7 +168,7 @@ ydb_res ydb_pool_create()
 {
     if (!ydb_root)
     {
-        ydb_root = ynode_create(YNODE_TYPE_DICT, NULL, NULL, NULL);
+        ydb_root = ynode_create(YNODE_TYPE_DICT, NULL, NULL, NULL, NULL);
         if (!ydb_root)
             return YDB_E_MEM;
     }
@@ -178,7 +178,7 @@ ydb_res ydb_pool_create()
         ydb_pool = ytree_create((ytree_cmp)strcmp, NULL);
         if (!ydb_pool)
         {
-            ynode_delete(ydb_root);
+            ynode_delete(ydb_root, NULL);
             ydb_root = NULL;
             return YDB_E_MEM;
         }
@@ -199,7 +199,7 @@ void ydb_pool_destroy()
     {
         if (!ydb_pool || ytree_size(ydb_pool) < 0)
         {
-            ynode_delete(ydb_root);
+            ynode_delete(ydb_root, NULL);
             ydb_root = NULL;
         }
     }
@@ -255,7 +255,7 @@ ydb *ydb_open(char *path, char *addr, char *flags)
         free(datablock);
         return NULL;
     }
-    datablock->top = ynode_create_path(path, ydb_root);
+    datablock->top = ynode_create_path(path, ydb_root, NULL);
     if (!datablock->top)
     {
         ytree_destroy(datablock->conn);
@@ -307,7 +307,7 @@ void ydb_close(ydb *datablock)
         ytree_destroy_custom(datablock->conn, (user_free)yconn_close);
     ytree_delete(ydb_pool, datablock->path);
     if (datablock->top)
-        ynode_delete(datablock->top);
+        ynode_delete(datablock->top, NULL);
     if (datablock->path)
         yfree(datablock->path);
     if (datablock->epollfd >= 0)
@@ -363,7 +363,7 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         }
         if (!src)
             return YDB_OK;
-        top = ynode_merge(datablock->top, src);
+        top = ynode_merge(datablock->top, src, NULL);
         ynode_remove(src);
         if (!top)
             return YDB_E_MERGE_FAILED;
@@ -524,7 +524,7 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        src = ynode_create_path(buf, datablock->top);
+        src = ynode_create_path(buf, datablock->top, NULL);
         if (buf)
             free(buf);
         if (src)
@@ -556,7 +556,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
         if (buf)
             free(buf);
         if (target)
-            ynode_delete(target);
+            ynode_delete(target, NULL);
         return YDB_OK;
     }
     return YDB_E_MEM;
