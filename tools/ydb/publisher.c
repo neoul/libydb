@@ -13,16 +13,16 @@ void HANDLER_SIGINT(int param)
 
 int main(int argc, char *argv[])
 {
-	ydb_res res = YDB_OK;
+	ydb *db;
+	int res = 0;
     // MUST ignore SIGPIPE.
     signal(SIGPIPE, SIG_IGN);
     // add a signal handler to quit this program.
     signal(SIGINT, HANDLER_SIGINT);
 
-	ydb_log_severity = YDB_LOG_DBG;
-	ydb *db;
+	ydb_log_severity = YDB_LOG_INOUT;
 	db = ydb_open("/system/ipc", NULL, "p");
-	while (!res || !done)
+	while (res >= 0 || !done)
 	{
 		static int count;
 		res = ydb_serve(db, 5000);

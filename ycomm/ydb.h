@@ -33,13 +33,16 @@ typedef enum _ydb_res
     YDB_E_CONN_FAILED,
     YDB_E_CONN_CLOSED,
     YDB_E_CONN_DENIED,
+    YDB_E_INVALID_MSG,
 } ydb_res;
 
 #define YDB_VNAME(NAME) #NAME
 extern char *ydb_err_str[];
 
-#define YDB_LOG_DBG     3
-#define YDB_LOG_INFO    2
+#define YDB_LOG_DBG     5
+#define YDB_LOG_INOUT   4
+#define YDB_LOG_INFO    3
+#define YDB_LOG_WARN    2
 #define YDB_LOG_ERR     1
 #define YDB_LOG_CRI     0
 
@@ -59,7 +62,11 @@ extern ydb_log_func ydb_logger;
     } while (0)
 
 #define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
+#define ydb_log_inout() ydb_log(YDB_LOG_INOUT, "\n")
+#define ydb_log_in() ydb_log(YDB_LOG_INOUT, "{{------\n")
+#define ydb_log_out() ydb_log(YDB_LOG_INOUT, " ------}}\n")
 #define ydb_log_info(format, ...) ydb_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
+#define ydb_log_warn(format, ...) ydb_log(YDB_LOG_WARN, format, ##__VA_ARGS__)
 #define ydb_log_error(format, ...) ydb_log(YDB_LOG_ERR, format, ##__VA_ARGS__)
 #define ydb_log_res(res) ydb_log(YDB_LOG_ERR, "%s\n", ydb_err_str[res])
 
