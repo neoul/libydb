@@ -1081,7 +1081,6 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
     if ((!fp && !buf) || !n)
     {
         res = YDB_E_NO_ARGS;
-        ydb_log_res(res);
         return res;
     }
 
@@ -1089,7 +1088,6 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
     if (!stack)
     {
         res = YDB_E_MEM;
-        ydb_log_res(res);
         return res;
     }
 
@@ -1099,7 +1097,6 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
         ydb_log_err_yaml(&parser);
         yaml_parser_delete(&parser);
         res = YDB_E_YAML_INIT;
-        ydb_log_res(res);
         return res;
     }
 
@@ -1305,7 +1302,6 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
 
     if (res)
     {
-        ydb_log_res(res);
         if (!top)
             top = ylist_front(stack);
         while (!ylist_empty(stack))

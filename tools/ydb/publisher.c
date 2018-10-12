@@ -9,6 +9,7 @@ int done = 0;
 void HANDLER_SIGINT(int param)
 {
     done = 1;
+	printf("set done\n");
 }
 
 int main(int argc, char *argv[])
@@ -20,14 +21,15 @@ int main(int argc, char *argv[])
     // add a signal handler to quit this program.
     signal(SIGINT, HANDLER_SIGINT);
 
-	ydb_log_severity = YDB_LOG_INOUT;
+	ydb_log_severity = YDB_LOG_DBG;
 	db = ydb_open("/system/ipc", NULL, "p");
-	while (res >= 0 || !done)
+	while (res >= 0 && !done)
 	{
-		static int count;
+		// static int count;
 		res = ydb_serve(db, 5000);
-		ydb_write(db, "count-%d: %d\n", count, count);
-		count++;
+		printf("done = %d, res = %d\n", done, res);
+		// ydb_write(db, "count-%d: %d\n", count, count);
+		// count++;
 	}
 	ydb_close(db);
     return 0;

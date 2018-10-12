@@ -63,12 +63,11 @@ extern ydb_log_func ydb_logger;
 
 #define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
 #define ydb_log_inout() ydb_log(YDB_LOG_INOUT, "\n")
-#define ydb_log_in() ydb_log(YDB_LOG_INOUT, "{{------\n")
-#define ydb_log_out() ydb_log(YDB_LOG_INOUT, " ------}}\n")
+#define ydb_log_in() ydb_log(YDB_LOG_INOUT, "{{ ------\n")
+#define ydb_log_out() ydb_log(YDB_LOG_INOUT, "}}\n")
 #define ydb_log_info(format, ...) ydb_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
 #define ydb_log_warn(format, ...) ydb_log(YDB_LOG_WARN, format, ##__VA_ARGS__)
 #define ydb_log_error(format, ...) ydb_log(YDB_LOG_ERR, format, ##__VA_ARGS__)
-#define ydb_log_res(res) ydb_log(YDB_LOG_ERR, "%s\n", ydb_err_str[res])
 
 #define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
 #define YDB_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
