@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "ydb.h"
+#include "ynode.h"
 
 char *example_yaml =
 	"system:\n"
@@ -32,9 +33,9 @@ int test_ydb_open_close()
 {
 	printf("\n\n=== %s ===\n", __func__);
 	ydb *block1, *block2, *block3;
-	block1 = ydb_open("/path/to/datablock1", NULL, NULL);
-	block2 = ydb_open("/path/to/datablock2", NULL, NULL);
-	block3 = ydb_open("/path/to/datablock3", NULL, NULL);
+	block1 = ydb_open("/path/to/datablock1");
+	block2 = ydb_open("/path/to/datablock2");
+	block3 = ydb_open("/path/to/datablock3");
 
 	ydb_close(block3);
 	ydb_close(block2);
@@ -49,7 +50,7 @@ int test_ydb_read_write()
 	ydb_res res = YDB_OK;
 	printf("\n\n=== %s ===\n", __func__);
 	ydb *db;
-	db = ydb_open("/path/to/data", NULL, NULL);
+	db = ydb_open("/path/to/data");
 
 	// inserting one value
 	res = ydb_write(db, "VALUE");

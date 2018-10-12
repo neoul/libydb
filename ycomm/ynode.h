@@ -11,8 +11,11 @@ extern "C" {
 #define YNODE_TYPE_LIST     2
 #define YNODE_TYPE_MAX      3
 
-
+#ifndef STRUCT_YNODE
+#define STRUCT_YNODE
 typedef struct _ynode ynode;
+#endif
+
 typedef struct _ynode_record ynode_record;
 ynode_record *ynode_record_new(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level);
 void ynode_record_free(ynode_record *cb);

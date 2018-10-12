@@ -22,7 +22,8 @@ int main(int argc, char *argv[])
     signal(SIGINT, HANDLER_SIGINT);
 
 	ydb_log_severity = YDB_LOG_DBG;
-	db = ydb_open("/system/ipc", NULL, "p");
+	db = ydb_open("/system/ipc");
+	ydb_connect(db, NULL, "p");
 	while (res >= 0 && !done)
 	{
 		static int count;

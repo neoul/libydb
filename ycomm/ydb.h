@@ -14,7 +14,7 @@ typedef enum _ydb_res
 {
     YDB_OK = 0,
     YDB_ERR,
-	YDB_E_NO_ARGS,
+	YDB_E_INVALID_ARGS,
 	YDB_E_TYPE_ERR,
     YDB_E_INVALID_PARENT,
     YDB_E_NO_ENTRY,
@@ -73,12 +73,20 @@ extern ydb_log_func ydb_logger;
 #define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
 #define YDB_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
 
-#include "ynode.h"
 // yaml data block
 typedef struct _ydb ydb;
 
+#ifndef STRUCT_YNODE
+#define STRUCT_YNODE
+typedef struct _ynode ynode;
+#endif
+
 // open ydb (yaml data block)
-ydb *ydb_open(char *path, char *addr, char *flags);
+ydb *ydb_open(char *path);
+
+ydb_res ydb_connect(ydb *datablock, char *addr, char *flags);
+ydb_res ydb_disconnect(ydb *datablock, char *addr);
+
 // close local ydb
 void ydb_close(ydb *datablock);
 
@@ -88,7 +96,13 @@ ydb *ydb_get(char *path);
 // return the top ynode of ydb or the global root ynode of all ydb.
 ynode *ydb_top(ydb *datablock);
 
-// update delete ydb using the input string (yaml format)
+// update the data in the ydb using file stream
+ydb_res ydb_parse(ydb *datablock, FILE *fp);
+
+// print the data in the ydb into the file stream
+ydb_res ydb_dump(ydb *datablock, FILE *fp);
+
+// update and delete data in ydb using the input string (yaml format)
 ydb_res ydb_write(ydb *datablock, const char *format, ...);
 ydb_res ydb_delete(ydb *datablock, const char *format, ...);
 

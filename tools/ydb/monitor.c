@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdlib.h>
 
 // mkfifo()
 #include <sys/types.h>
@@ -17,7 +18,7 @@
 int done = 0;
 void HANDLER_SIGINT(int param)
 {
-    done = 1;
+	done = 1;
 	printf("set done\n");
 }
 
@@ -25,13 +26,20 @@ int main(int argc, char *argv[])
 {
 	ydb *db;
 	int res = 0;
-    // MUST ignore SIGPIPE.
-    signal(SIGPIPE, SIG_IGN);
-    // add a signal handler to quit this program.
-    signal(SIGINT, HANDLER_SIGINT);
+	// MUST ignore SIGPIPE.
+	signal(SIGPIPE, SIG_IGN);
+	// add a signal handler to quit this program.
+	signal(SIGINT, HANDLER_SIGINT);
 
 	ydb_log_severity = YDB_LOG_DBG;
-	db = ydb_open("/system/ipc", NULL, "p");
+	db = ydb_open("/system/ipc");
+	if (!db)
+	{
+		printf("ydb open failed\n");
+		exit(EXIT_FAILURE);
+	}
+	ydb_connect(db, NULL, "s");
+
 	fd_set read_set;
 	struct timeval tv;
 
@@ -52,5 +60,5 @@ int main(int argc, char *argv[])
 	} while (!done);
 
 	ydb_close(db);
-    return 0;
+	return 0;
 }

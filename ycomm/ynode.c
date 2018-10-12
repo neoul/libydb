@@ -267,7 +267,7 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *u
 {
     yhook *hook;
     if (!node || !func)
-        return YDB_E_NO_ARGS;
+        return YDB_E_INVALID_ARGS;
     if (node->hook)
         hook = node->hook;
     else
@@ -1080,7 +1080,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
 
     if ((!fp && !buf) || !n)
     {
-        res = YDB_E_NO_ARGS;
+        res = YDB_E_INVALID_ARGS;
         return res;
     }
 
@@ -1343,7 +1343,7 @@ ydb_res ynode_scanf_from_buf(char *buf, int buflen, ynode **n)
     // FILE *fp;
     ydb_res res;
     if (!buf || buflen < 0)
-        return YDB_E_NO_ARGS;
+        return YDB_E_INVALID_ARGS;
     // fp = fmemopen(buf, buflen, "r");
     res = ynode_scan(NULL, buf, buflen, n, 0);
     // if (fp)
@@ -2169,7 +2169,7 @@ ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *addition, unsigned i
 {
     struct ynode_traverse_data tdata;
     if (!cur || !cb)
-        return YDB_E_NO_ARGS;
+        return YDB_E_INVALID_ARGS;
     tdata.cb = cb;
     tdata.addition = addition;
     tdata.flags = flags;
@@ -2219,7 +2219,7 @@ ydb_res ynode_write(ynode **n, const char *format, ...)
     char *buf = NULL;
     size_t buflen = 0;
     if (!n)
-        return YDB_E_NO_ARGS;
+        return YDB_E_INVALID_ARGS;
     fp = open_memstream(&buf, &buflen);
     if (fp)
     {
@@ -2273,7 +2273,7 @@ ydb_res ynode_erase(ynode **n, const char *format, ...)
     char *buf = NULL;
     size_t buflen = 0;
     if (!n)
-        return YDB_E_NO_ARGS;
+        return YDB_E_INVALID_ARGS;
     fp = open_memstream(&buf, &buflen);
     if (fp)
     {
