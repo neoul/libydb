@@ -105,6 +105,8 @@ char *ydb_path_read(ydb *datablock, const char *format, ...);
 
 int ydb_serve(ydb *datablock, int timeout);
 
+int ydb_fd(ydb *datablock);
+
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif

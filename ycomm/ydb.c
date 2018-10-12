@@ -1264,12 +1264,12 @@ void yconn_print(yconn *conn, int add)
     else
         n = sprintf(flagstr, "LOCAL");
     n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, STATUS_DISCONNECT) ? "disconn" : "-");
-    n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, STATUS_SERVER) ? "server" : "-");
+    n += sprintf(flagstr + n, "%s", IS_SET(conn->flags, STATUS_SERVER) ? "server" : "-");
     n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, STATUS_CLIENT) ? "client" : "-");
-    n += sprintf(flagstr + n, "/%s)", IS_SET(conn->flags, STATUS_COND_CLIENT) ? "conn-client" : "-");
+    n += sprintf(flagstr + n, "/%s, ", IS_SET(conn->flags, STATUS_COND_CLIENT) ? "conn-client" : "-");
     n += sprintf(flagstr + n, "%s", IS_SET(conn->flags, YCONN_PERMIT_RO) ? "r" : "-");
     n += sprintf(flagstr + n, "%s", IS_SET(conn->flags, YCONN_PERMIT_WO) ? "w" : "-");
-    n += sprintf(flagstr + n, "%s", IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsubscribe" : "-");
+    n += sprintf(flagstr + n, "%s)", IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsubscribe" : "-");
     ydb_log_info(" flags: %s\n", flagstr);
     ydb_log_info(" ydb: %s\n", (conn->db) ? (conn->db->path) : "null");
     ydb_log_info(" ydb->epollfd: %d\n", (conn->db) ? (conn->db->epollfd) : -1);
@@ -1530,6 +1530,13 @@ successful:
     return newfd;
 failed:
     ydb_log_out();
+    return -1;
+}
+
+int ydb_fd(ydb *datablock)
+{
+    if (datablock)
+        return datablock->epollfd;
     return -1;
 }
 
