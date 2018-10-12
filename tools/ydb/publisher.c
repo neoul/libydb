@@ -25,11 +25,11 @@ int main(int argc, char *argv[])
 	db = ydb_open("/system/ipc", NULL, "p");
 	while (res >= 0 && !done)
 	{
-		// static int count;
+		static int count;
 		res = ydb_serve(db, 5000);
 		printf("done = %d, res = %d\n", done, res);
-		// ydb_write(db, "count-%d: %d\n", count, count);
-		// count++;
+		ydb_write(db, "count-%d: %d\n", count, count);
+		count++;
 	}
 	ydb_close(db);
     return 0;

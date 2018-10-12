@@ -34,6 +34,7 @@ typedef enum _ydb_res
     YDB_E_CONN_CLOSED,
     YDB_E_CONN_DENIED,
     YDB_E_INVALID_MSG,
+    YDB_E_RECV_REQUIRED,
 } ydb_res;
 
 #define YDB_VNAME(NAME) #NAME
