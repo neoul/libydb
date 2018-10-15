@@ -64,9 +64,9 @@ int ynode_printf(ynode *node, int start_level, int end_level);
 
 // read ynode db from buffer, fp, fd and stdin
 ydb_res ynode_scanf_from_fp(FILE *fp, ynode **n);
-ydb_res ynode_scanf_from_fd(int fd, ynode **n);
-ydb_res ynode_scanf_from_buf(char *buf, int buflen, ynode **n);
 ydb_res ynode_scanf(ynode **n);
+ydb_res ynode_scanf_from_fd(int fd, ynode **n);
+ydb_res ynode_scanf_from_buf(char *buf, int buflen, int origin, ynode **n);
 
 // detach and free ynode
 void ynode_remove(ynode *n);

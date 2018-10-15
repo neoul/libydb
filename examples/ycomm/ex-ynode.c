@@ -151,7 +151,7 @@ int test_ynode_scanf_from_buf()
 	char *buf = "abc";
 	ynode *node = NULL;
 	printf("\n\n=== %s ===\n", __func__);
-	ynode_scanf_from_buf(buf, strlen(buf), &node);
+	ynode_scanf_from_buf(buf, strlen(buf), 0, &node);
 	ynode_dump(node, 0, 0);
 	ynode_remove(node);
 	return 0;
@@ -164,7 +164,7 @@ int test_ynode_crud()
 	ynode *a, *b, *c;
 	ynode *top = NULL;
 	ynode_record *record = ynode_record_new(stdout, 0, NULL, 0, 0, 24);
-	ynode_scanf_from_buf(example_yaml, strlen(example_yaml), &top);
+	ynode_scanf_from_buf(example_yaml, strlen(example_yaml), 0, &top);
 	printf("== top ==\n");
 	ynode_printf(top, 1, 6);
 	
@@ -182,7 +182,7 @@ int test_ynode_crud()
 	ynode_printf(a, 1, 3);
 
 	printf("== b ==\n");
-	ynode_scanf_from_buf(example_yaml2, strlen(example_yaml2), &b);
+	ynode_scanf_from_buf(example_yaml2, strlen(example_yaml2), 0, &b);
 	ynode_printf(b, 1, 3);
 
 	printf("== ynode_merge (b to a) ==\n");
@@ -244,7 +244,7 @@ int test_yhook()
 	printf("\n\n=== %s ===\n", __func__);
 	
 	ynode *top = NULL;
-	ynode_scanf_from_buf(sample, strlen(sample), &top);
+	ynode_scanf_from_buf(sample, strlen(sample), 0, &top);
 	ynode_dump(top, 1, YDB_LEVEL_MAX);
 
 	// move to 1-2 node

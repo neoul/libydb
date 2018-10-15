@@ -599,7 +599,7 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
     }
     case YNODE_TYPE_LIST:
     {
-        res = _ynode_record_print(record, " list: %s,", ylist_empty(node->list) ? "empty" : "not-empty");
+        res = _ynode_record_print(record, " list: num=%d,", ylist_size(node->list));
         break;
     }
     default:
@@ -607,7 +607,7 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
     }
     if (res)
         return res;
-    res = _ynode_record_print(record, " parent: %p}\n", node->parent);
+    res = _ynode_record_print(record, " parent: %p, origin: %d}\n", node->parent, node->origin);
     return res;
 }
 
@@ -1057,7 +1057,7 @@ _done:
     return 1;
 }
 
-ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
+ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform)
 {
     ydb_res res = YDB_OK;
     int level = 0;
@@ -1156,6 +1156,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
             {
                 ydb_log(YDB_LOG_DBG, "!!empty\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
+                node->origin = origin;
                 old = ynode_attach(node, ylist_back(stack), key);
                 ynode_free(old);
                 yfree(key);
@@ -1190,10 +1191,16 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
                     node = top;
                 }
                 else
+                {
                     node = ynode_new(node_type, NULL);
+                    node->origin = origin;
+                }
             }
             else
+            {
                 node = ynode_new(node_type, NULL);
+                node->origin = origin;
+            }
             if (!node)
             {
                 res = YDB_E_MEM;
@@ -1227,6 +1234,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
             {
                 ydb_log(YDB_LOG_DBG, "** empty ynode **\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
+                node->origin = origin;
                 old = ynode_attach(node, ylist_back(stack), key);
                 ynode_free(old);
                 yfree(key);
@@ -1250,6 +1258,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
                 value = (char *)token.data.scalar.value;
                 ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
                 node = ynode_new(YNODE_TYPE_VAL, value);
+                node->origin = origin;
                 old = ynode_attach(node, ylist_back(stack), key);
                 ynode_free(old);
                 if (key)
@@ -1320,32 +1329,32 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, ynode **n, int *queryform)
 
 ydb_res ynode_scanf_from_fp(FILE *fp, ynode **n)
 {
-    return ynode_scan(fp, NULL, 0, n, 0);
+    return ynode_scan(fp, NULL, 0, fileno(fp), n, 0);
 }
 
 ydb_res ynode_scanf(ynode **n)
 {
-    return ynode_scan(stdin, NULL, 0, n, 0);
+    return ynode_scan(stdin, NULL, 0, STDIN_FILENO, n, 0);
 }
 
 ydb_res ynode_scanf_from_fd(int fd, ynode **n)
 {
     int dup_fd = dup(fd);
     FILE *fp = fdopen(dup_fd, "r");
-    ydb_res res = ynode_scan(fp, NULL, 0, n, 0);
+    ydb_res res = ynode_scan(fp, NULL, 0, fd, n, 0);
     if (fp)
         fclose(fp);
     return res;
 }
 
-ydb_res ynode_scanf_from_buf(char *buf, int buflen, ynode **n)
+ydb_res ynode_scanf_from_buf(char *buf, int buflen, int origin, ynode **n)
 {
     // FILE *fp;
     ydb_res res;
     if (!buf || buflen < 0)
         return YDB_E_INVALID_ARGS;
     // fp = fmemopen(buf, buflen, "r");
-    res = ynode_scan(NULL, buf, buflen, n, 0);
+    res = ynode_scan(NULL, buf, buflen, origin, n, 0);
     // if (fp)
     //     fclose(fp);
     return res;
@@ -2078,7 +2087,7 @@ ynode *ynode_merge_new(ynode *dest, ynode *src)
         else
             ynode_printf_to_fp(fp, src, 0, YDB_LEVEL_MAX);
         fclose(fp);
-        ynode_scanf_from_buf(buf, buflen, &clone);
+        ynode_scanf_from_buf(buf, buflen, 0, &clone);
         if (buf)
             free(buf);
     }
@@ -2230,7 +2239,7 @@ ydb_res ynode_write(ynode **n, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        res = ynode_scanf_from_buf(buf, buflen, &src);
+        res = ynode_scanf_from_buf(buf, buflen, (*n)?(*n)->origin:0, &src);
         if (buf)
             free(buf);
         if (res)
@@ -2285,7 +2294,7 @@ ydb_res ynode_erase(ynode **n, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        res = ynode_scanf_from_buf(buf, buflen, &src);
+        res = ynode_scanf_from_buf(buf, buflen, (*n)?(*n)->origin:0, &src);
         if (buf)
             free(buf);
         if (res)
@@ -2359,7 +2368,7 @@ int ynode_read(ynode *n, const char *format, ...)
     int ap_num = 0;
     if (!n)
         return -1;
-    res = ynode_scan(NULL, (char *)format, strlen(format), &src, &ap_num);
+    res = ynode_scan(NULL, (char *)format, strlen(format), 0, &src, &ap_num);
     if (res)
     {
         ynode_remove(src);
