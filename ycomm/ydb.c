@@ -102,7 +102,7 @@ int ydb_log_register(ydb_log_func func)
     return 0;
 }
 
-#define YDB_FAIL_ERRNO(state, caused_res, error)                             \
+#define YDB_FAIL_ERRNO(state, caused_res, error)                               \
     do                                                                         \
     {                                                                          \
         if (state)                                                             \
@@ -117,7 +117,7 @@ int ydb_log_register(ydb_log_func func)
         }                                                                      \
     } while (0)
 
-#define YDB_FAIL(state, caused_res)                                     \
+#define YDB_FAIL(state, caused_res)                                       \
     do                                                                    \
     {                                                                     \
         if (state)                                                        \
@@ -289,7 +289,7 @@ ydb *ydb_open(char *path)
     ydb_res res = YDB_OK;
     ydb *datablock = NULL;
     ydb_log_inout();
-    res = (ydb_res) res;
+    res = (ydb_res)res;
     YDB_FAIL(!path, YDB_E_INVALID_ARGS);
     YDB_FAIL(ydb_pool_create(), YDB_E_SYSTEM_FAILED);
     datablock = ytree_search(ydb_pool, path);
@@ -688,51 +688,6 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
     return res;
 }
 
-struct ydb_read_data
-{
-    ydb *datablock;
-    yarray *vararray;
-    int vartotal;
-    int varnum;
-};
-
-static ydb_res ydb_read_sub(ynode *cur, void *addition)
-{
-    struct ydb_read_data *data = addition;
-    char *value = ynode_value(cur);
-    if (value && strncmp(value, "+", 1) == 0)
-    {
-        ynode *n = ynode_lookup(data->datablock->top, cur);
-        if (n)
-        {
-            int index = atoi(value);
-            void *p = yarray_data(data->vararray, index);
-            ydb_log_debug("index=%d p=%p\n", index, p);
-            if (YDB_LOGGING_DEBUG)
-            {
-                char buf[512];
-                ynode_dump_to_buf(buf, sizeof(buf), n, 0, 0);
-                ydb_log_debug("%s", buf);
-                ynode_dump_to_buf(buf, sizeof(buf), cur, 0, 0);
-                ydb_log_debug("%s", buf);
-            }
-            sscanf(ynode_value(n), &(value[4]), p);
-            data->varnum++;
-        }
-        else
-        {
-            if (YDB_LOGGING_DEBUG)
-            {
-                char *path = ynode_path(cur, YDB_LEVEL_MAX);
-                ydb_log_debug("no data for (%s)\n", path);
-                free(path);
-            }
-        }
-    }
-    return YDB_OK;
-}
-
-
 struct update_hook
 {
     ydb_update_hook hook;
@@ -749,12 +704,12 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
 
     ydb_log_inout();
     key = ynode_path_and_pathlen(cur, YDB_LEVEL_MAX, &keylen);
-    if (key && keylen>0)
+    if (key && keylen > 0)
     {
         // int matched_len = 0;
         // hook = ytrie_best_match(datablock->updater, key, keylen, &matched_len);
         uphook = ytrie_search(datablock->updater, key, keylen);
-        ydb_log_debug("hook %s %s (%d)\n", uphook?"found":"not found", key, keylen);
+        ydb_log_debug("hook %s %s (%d)\n", uphook ? "found" : "not found", key, keylen);
     }
     if (key)
         free(key);
@@ -809,9 +764,10 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
 
 ydb_res ydb_update(ydb *datablock, ynode *target)
 {
+    ydb_res res = YDB_OK;
     if (datablock && ytrie_size(datablock->updater))
-        return ynode_traverse(target, ydb_update_sub, datablock, YNODE_VAL_NODE_FIRST);
-    return YDB_OK;
+        res = ynode_traverse(target, ydb_update_sub, datablock, YNODE_VAL_NODE_FIRST);
+    return res;
 }
 
 ydb_res ydb_update_hook_add(ydb *datablock, char *path, ydb_update_hook hook, void *user)
@@ -824,7 +780,7 @@ ydb_res ydb_update_hook_add(ydb *datablock, char *path, ydb_update_hook hook, vo
     pathlen = strlen(path);
     uphook = ytrie_search(datablock->updater, path, pathlen);
     YDB_FAIL(uphook, YDB_E_ENTRY_EXISTS);
-    uphook = malloc(sizeof (struct update_hook));
+    uphook = malloc(sizeof(struct update_hook));
     YDB_FAIL(!uphook, YDB_E_INVALID_ARGS);
     uphook->hook = hook;
     uphook->user = user;
@@ -854,6 +810,50 @@ void *ydb_update_hook_delete(ydb *datablock, char *path)
 }
 
 
+struct ydb_read_data
+{
+    ydb *datablock;
+    yarray *vararray;
+    int vartotal;
+    int varnum;
+};
+
+static ydb_res ydb_read_sub(ynode *cur, void *addition)
+{
+    struct ydb_read_data *data = addition;
+    char *value = ynode_value(cur);
+    if (value && strncmp(value, "+", 1) == 0)
+    {
+        ynode *n = ynode_lookup(data->datablock->top, cur);
+        if (n)
+        {
+            int index = atoi(value);
+            void *p = yarray_data(data->vararray, index);
+            ydb_log_debug("index=%d p=%p\n", index, p);
+            if (YDB_LOGGING_DEBUG)
+            {
+                char buf[512];
+                ynode_dump_to_buf(buf, sizeof(buf), n, 0, 0);
+                ydb_log_debug("%s", buf);
+                ynode_dump_to_buf(buf, sizeof(buf), cur, 0, 0);
+                ydb_log_debug("%s", buf);
+            }
+            sscanf(ynode_value(n), &(value[4]), p);
+            data->varnum++;
+        }
+        else
+        {
+            if (YDB_LOGGING_DEBUG)
+            {
+                char *path = ynode_path(cur, YDB_LEVEL_MAX);
+                ydb_log_debug("no data for (%s)\n", path);
+                free(path);
+            }
+        }
+    }
+    return YDB_OK;
+}
+
 ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform);
 
 // read the date from ydb as the scanf()
@@ -873,13 +873,13 @@ int ydb_read(ydb *datablock, const char *format, ...)
         ynode_remove(src);
         return -1;
     }
-    if (ap_num <= 0)
+    if (ap_num <= 0 || src)
     {
         ynode_remove(src);
         return 0;
     }
-    if (src)
-        ydb_update(datablock, src);
+    
+    ydb_update(datablock, src);
 
     data.vararray = yarray_create(16);
     data.vartotal = ap_num;
@@ -896,7 +896,6 @@ int ydb_read(ydb *datablock, const char *format, ...)
     } while (ap_num > 0);
     va_end(ap);
     flags = YNODE_VAL_NODE_FIRST | YNODE_VAL_NODE_ONLY;
-
     res = ynode_traverse(src, ydb_read_sub, &data, flags);
     yarray_destroy(data.vararray);
     if (res)
