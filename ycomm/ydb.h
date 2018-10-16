@@ -35,6 +35,8 @@ typedef enum _ydb_res
     YDB_E_CONN_DENIED,
     YDB_E_INVALID_MSG,
     YDB_E_RECV_REQUIRED,
+    YDB_E_INVALID_FLAGS,
+    YDB_E_ENTRY_EXISTS,
 } ydb_res;
 
 #define YDB_VNAME(NAME) #NAME
@@ -75,11 +77,7 @@ extern ydb_log_func ydb_logger;
 
 // yaml data block
 typedef struct _ydb ydb;
-
-#ifndef STRUCT_YNODE
-#define STRUCT_YNODE
-typedef struct _ynode ynode;
-#endif
+typedef struct _ynode ydb_iter; // ynode
 
 // open ydb (yaml data block)
 ydb *ydb_open(char *path);
@@ -93,8 +91,28 @@ void ydb_close(ydb *datablock);
 // get the ydb
 ydb *ydb_get(char *path);
 
-// return the top ynode of ydb or the global root ynode of all ydb.
-ynode *ydb_top(ydb *datablock);
+// return the top node of the yaml data block.
+ydb_iter *ydb_top(ydb *datablock);
+// return the parent node of the node.
+ydb_iter *ydb_up(ydb_iter *node);
+// return the first child node of the node.
+ydb_iter *ydb_down(ydb_iter *node);
+// return the previous sibling node of the node.
+ydb_iter *ydb_prev(ydb_iter *node);
+// return the next sibling node of the node.
+ydb_iter *ydb_next(ydb_iter *node);
+// return the first sibling node of the node.
+ydb_iter *ydb_first(ydb_iter *node);
+// return the last sibling node of the node.
+ydb_iter *ydb_last(ydb_iter *node);
+// return node type
+unsigned char ydb_type(ydb_iter *node);
+// return node value if that is a leaf.
+char *ydb_value(ydb_iter *node);
+// return node key if that has a hash key.
+char *ydb_key(ydb_iter *node);
+// return node index if the nodes' parent is a list.
+int ydb_index(ydb_iter *node);
 
 // update the data in the ydb using file stream
 ydb_res ydb_parse(ydb *datablock, FILE *fp);
@@ -108,6 +126,11 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...);
 
 // read the date from ydb as the scanf() (yaml format)
 int ydb_read(ydb *datablock, const char *format, ...);
+
+// ydb_update_hook is a callback function executed by ydb_read() to update ydb at reading.
+typedef ydb_res (*ydb_update_hook)(FILE *fp, ydb_iter *target, void *user);
+ydb_res ydb_update_hook_add(ydb *datablock, char *path, ydb_update_hook hook, void *user);
+void *ydb_update_hook_delete(ydb *datablock, char *path);
 
 // ydb_res ydb_sync(ydb *datablock);
 ydb_res ydb_request(ydb *datablock, const char *format, ...);
@@ -125,6 +148,8 @@ char *ydb_path_read(ydb *datablock, const char *format, ...);
 ydb_res ydb_serve(ydb *datablock, int timeout);
 
 int ydb_fd(ydb *datablock);
+
+
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

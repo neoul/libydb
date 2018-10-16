@@ -11,11 +11,7 @@ extern "C" {
 #define YNODE_TYPE_LIST     2
 #define YNODE_TYPE_MAX      3
 
-#ifndef STRUCT_YNODE
-#define STRUCT_YNODE
 typedef struct _ynode ynode;
-#endif
-
 typedef struct _ynode_record ynode_record;
 ynode_record *ynode_record_new(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level);
 void ynode_record_free(ynode_record *cb);
@@ -85,7 +81,7 @@ int ynode_read(ynode *n, const char *format, ...);
 // lookup an ynode in the path
 ynode *ynode_search(ynode *node, char *path);
 
-// find the ref ynode on the same position in target ynode grapes.
+// find the ref ynode on the same path in target ynode grapes.
 ynode *ynode_lookup(ynode *target, ynode *ref);
 
 // return ynodes' type
@@ -115,6 +111,7 @@ ynode *ynode_last(ynode *node);
 // the level is the number of the parent and ancestors to be printed.
 // the path returned should be free.
 char *ynode_path(ynode *node, int level);
+char *ynode_path_and_pathlen(ynode *node, int level, int *pathlen);
 
 // create a new path and value string for the ydb
 char *ynode_path_and_val(ynode *node, int level);
@@ -130,8 +127,9 @@ extern char *yhook_op_str[];
 
 // flags for ynode hook and traverse func
 #define YNODE_NO_FLAG 0x0
-#define YNODE_LEAF_FIRST 0x1
-#define YNODE_LEAF_ONLY 0x2
+#define YNODE_VAL_NODE_FIRST 0x1
+#define YNODE_VAL_NODE_ONLY 0x2
+#define YNODE_LEAF_ONLY 0x4
 
 typedef void (*yhook_func)(yhook_op_type op, ynode *cur, ynode *_new, void *user);
 

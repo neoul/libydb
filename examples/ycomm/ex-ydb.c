@@ -44,6 +44,15 @@ int test_ydb_open_close()
 	return 0;
 }
 
+ydb_res update_hook(FILE *fp, ynode *target, void *user)
+{
+	fprintf(fp, 
+		"system:\n"
+		" hostname: my-pc\n"
+		);
+	return YDB_OK;
+}
+
 int test_ydb_read_write()
 {
 	int num;
@@ -91,6 +100,8 @@ int test_ydb_read_write()
 		goto _done;
 	
 	ydb_delete(db, "system: {fan-enable: , }");
+
+	ydb_update_hook_add(db, "/system/hostname", update_hook, NULL);
 
 	int speed = 0;
 	char hostname[128] = {
