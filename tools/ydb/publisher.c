@@ -134,8 +134,8 @@ int main(int argc, char *argv[])
 		{
 			fd = ydb_serve(datablock, 5000);
 			printf("done = %d, fd = %d\n", done, fd);
-			ydb_write(datablock, "hello: world\n");
-			ydb_delete(datablock, "hello: world\n");
+			// ydb_write(datablock, "hello: world\n");
+			// ydb_delete(datablock, "hello: world\n");
 		} while (fd >= 0 && !done);
 		ydb_close(datablock);
 	}

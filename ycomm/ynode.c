@@ -1504,6 +1504,14 @@ int ynode_index(ynode *node)
     return -1;
 }
 
+// return ynodes' origin
+int ynode_origin(ynode *node)
+{
+    if (!node)
+        return 0;
+    return node->origin;
+}
+
 // return the top node of the ynode.
 ynode *ynode_top(ynode *node)
 {

@@ -92,6 +92,9 @@ char *ynode_value(ynode *node);
 char *ynode_key(ynode *node);
 // return ynodes' index if the nodes' parent is a list.
 int ynode_index(ynode *node);
+// return ynodes' origin
+int ynode_origin(ynode *node);
+
 // return the top node of the ynode. 
 ynode *ynode_top(ynode *node);
 // return the parent node of the ynode. 

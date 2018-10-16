@@ -118,7 +118,8 @@ int ydb_index(ydb_iter *node);
 ydb_res ydb_parse(ydb *datablock, FILE *fp);
 
 // print the data in the ydb into the file stream
-ydb_res ydb_dump(ydb *datablock, FILE *fp);
+int ydb_dump(ydb *datablock, FILE *fp);
+int ydb_dumps(ydb *datablock, char **buf, size_t *buflen);
 
 // update and delete data in ydb using the input string (yaml format)
 ydb_res ydb_write(ydb *datablock, const char *format, ...);

@@ -132,8 +132,14 @@ int main(int argc, char *argv[])
 
 		do
 		{
+			char buf[512] = {0};
 			fd = ydb_serve(datablock, 5000);
 			printf("done = %d, fd = %d\n", done, fd);
+			ydb_read(datablock, 
+				"interface:\n"
+				" ge1:\n"
+				"  enabled: %s\n", buf
+				);
 		} while (fd >= 0 && !done);
 		ydb_close(datablock);
 	}
