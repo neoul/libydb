@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -20,6 +21,7 @@
 #include "yalloc.h"
 #include "ytree.h"
 #include "ylist.h"
+#include "yarray.h"
 #include "ytrie.h"
 
 #include "ydb.h"
@@ -98,24 +100,35 @@ int ydb_log_register(ydb_log_func func)
     return 0;
 }
 
-#define ydb_check_errno(state, caused_res, error)                              \
+#define YDB_ASSERT_ERRNO(state, caused_res, error)                             \
     do                                                                         \
     {                                                                          \
         if (state)                                                             \
         {                                                                      \
-            if (ydb_log_severity < (YDB_LOG_ERR))                              \
-                break;                                                         \
-            if (error && ydb_logger)                                           \
+            res = caused_res;                                                  \
+            if (ydb_log_severity >= (YDB_LOG_ERR) && ydb_logger)               \
+            {                                                                  \
                 ydb_logger(YDB_LOG_ERR, __func__, __LINE__, "'%s': %s (%s)\n", \
                            #state, ydb_err_str[caused_res], strerror(errno));  \
-            else if (ydb_logger)                                               \
-                ydb_logger(YDB_LOG_ERR, __func__, __LINE__, "'%s': %s\n",      \
-                           #state, ydb_err_str[caused_res]);                   \
+            }                                                                  \
             goto failed;                                                       \
         }                                                                      \
     } while (0)
 
-#define ydb_check(state, caused_res) ydb_check_errno(state, caused_res, 0)
+#define YDB_ASSERT(state, caused_res)                                     \
+    do                                                                    \
+    {                                                                     \
+        if (state)                                                        \
+        {                                                                 \
+            res = caused_res;                                             \
+            if (ydb_log_severity >= (YDB_LOG_ERR) && ydb_logger)          \
+            {                                                             \
+                ydb_logger(YDB_LOG_ERR, __func__, __LINE__, "'%s': %s\n", \
+                           #state, ydb_err_str[caused_res]);              \
+            }                                                             \
+            goto failed;                                                  \
+        }                                                                 \
+    } while (0)
 
 typedef struct _yconn yconn;
 
@@ -142,7 +155,7 @@ typedef enum
     OP_INIT,
     OP_MERGE,
     OP_DELETE,
-    OP_READ,
+    OP_SYNC,
 } yconn_op;
 
 char *yconn_op_str[] = {
@@ -150,7 +163,7 @@ char *yconn_op_str[] = {
     "init",
     "merge",
     "delete",
-    "read"};
+    "sync"};
 
 typedef enum
 {
@@ -202,7 +215,7 @@ int yconn_accept(yconn *conn);
 ydb_res yconn_request(yconn *dest, yconn_op op, char *buf, size_t buflen);
 ydb_res yconn_response(yconn *conn, yconn_op op, bool done, char *buf, size_t buflen);
 ydb_res yconn_publish(yconn *src, ydb *datablock, yconn_op op, char *buf, size_t buflen);
-int yconn_recv(yconn *conn, int next);
+ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next);
 
 void yconn_socket_deinit(yconn *conn);
 ydb_res yconn_socket_init(yconn *conn);
@@ -271,24 +284,26 @@ void ydb_pool_destroy()
 // open local ydb (yaml data block)
 ydb *ydb_open(char *path)
 {
+    ydb_res res = YDB_OK;
     ydb *datablock = NULL;
     ydb_log_inout();
-    ydb_check(!path, YDB_E_INVALID_ARGS);
-    ydb_check(ydb_pool_create(), YDB_E_SYSTEM_FAILED);
+    res = (ydb_res) res;
+    YDB_ASSERT(!path, YDB_E_INVALID_ARGS);
+    YDB_ASSERT(ydb_pool_create(), YDB_E_SYSTEM_FAILED);
     datablock = ytree_search(ydb_pool, path);
     if (datablock)
         return datablock;
     ydb_log_in();
     datablock = malloc(sizeof(ydb));
-    ydb_check(!datablock, YDB_E_SYSTEM_FAILED);
+    YDB_ASSERT(!datablock, YDB_E_SYSTEM_FAILED);
     memset(datablock, 0x0, sizeof(ydb));
     datablock->path = ystrdup(path);
-    ydb_check(!datablock->path, YDB_E_SYSTEM_FAILED);
+    YDB_ASSERT(!datablock->path, YDB_E_SYSTEM_FAILED);
     datablock->conn = ytree_create((ytree_cmp)yconn_cmp, NULL);
-    ydb_check(!datablock->conn, YDB_E_SYSTEM_FAILED);
+    YDB_ASSERT(!datablock->conn, YDB_E_SYSTEM_FAILED);
 
     datablock->top = ynode_create_path(path, NULL, NULL);
-    ydb_check(!datablock->top, YDB_E_SYSTEM_FAILED);
+    YDB_ASSERT(!datablock->top, YDB_E_SYSTEM_FAILED);
 
     datablock->epollfd = -1;
     if (ytree_insert(ydb_pool, datablock->path, datablock))
@@ -375,18 +390,18 @@ ydb_res ydb_connect(ydb *datablock, char *addr, char *flags)
     char _addr[256];
     unsigned int conn_flags = 0;
     ydb_log_in();
-    ydb_check(!datablock || !flags, YDB_E_INVALID_ARGS);
+    YDB_ASSERT(!datablock || !flags, YDB_E_INVALID_ARGS);
     if (!addr)
     {
         snprintf(_addr, sizeof(_addr), "uss://%s", datablock->path);
         addr = _addr;
     }
     conn_flags = ydb_connect_flags(addr, flags);
-    ydb_check(!conn_flags, YDB_E_INVALID_ARGS);
+    YDB_ASSERT(!conn_flags, YDB_E_INVALID_ARGS);
     conn = yconn_open(addr, conn_flags);
-    ydb_check(!conn, YDB_E_SYSTEM_FAILED);
+    YDB_ASSERT(!conn, YDB_E_SYSTEM_FAILED);
     res = yconn_attach(conn, datablock);
-    ydb_check(res, YDB_E_SYSTEM_FAILED);
+    YDB_ASSERT(res, YDB_E_SYSTEM_FAILED);
     ydb_log_out();
     return res;
 failed:
@@ -439,7 +454,7 @@ ydb_res ydb_parse(ydb *datablock, FILE *fp)
 {
     ynode *src = NULL;
     ydb_res res = ynode_scanf_from_fp(fp, &src);
-    ydb_check(res, res);
+    YDB_ASSERT(res, res);
     if (src)
     {
         ynode *top;
@@ -461,7 +476,9 @@ ydb_res ydb_parse(ydb *datablock, FILE *fp)
             yconn_publish(NULL, datablock, OP_MERGE, buf, buflen);
         }
         else
-            res = YDB_E_MERGE_FAILED;
+        {
+            YDB_ASSERT(YDB_E_MERGE_FAILED, YDB_E_MERGE_FAILED);
+        }
         if (buf)
             free(buf);
     }
@@ -541,7 +558,7 @@ struct ydb_delete_data
     ynode *node;
 };
 
-ydb_res ydb_delete_sub(ynode *cur, void *addition)
+static ydb_res ydb_delete_sub(ynode *cur, void *addition)
 {
     struct ydb_delete_data *pddata = (void *)addition;
     ynode *n = pddata->node;
@@ -610,12 +627,12 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
 struct ydb_read_data
 {
     ydb *datablock;
-    ylist *varlist;
+    yarray *vararray;
     int vartotal;
     int varnum;
 };
 
-static ydb_res ydb_ynode_traverse(ynode *cur, void *addition)
+static ydb_res ydb_read_sub(ynode *cur, void *addition)
 {
     struct ydb_read_data *data = addition;
     char *value = ynode_value(cur);
@@ -625,8 +642,8 @@ static ydb_res ydb_ynode_traverse(ynode *cur, void *addition)
         if (n)
         {
             int index = atoi(value);
-            void *p = ylist_data(ylist_index(data->varlist, index));
-            // printf("index=%d p=%p\n", index, p);
+            void *p = yarray_data(data->vararray, index);
+            ydb_log_debug("index=%d p=%p\n", index, p);
             if (YDB_LOGGING_DEBUG)
             {
                 char buf[512];
@@ -675,30 +692,100 @@ int ydb_read(ydb *datablock, const char *format, ...)
         ynode_remove(src);
         return 0;
     }
-    data.varlist = ylist_create();
+    data.vararray = yarray_create(16);
     data.vartotal = ap_num;
     data.varnum = 0;
     data.datablock = datablock;
     va_start(ap, format);
-    ydb_log_debug("ap_num = %d\n", ap_num);
+    ydb_log_debug("var total = %d\n", ap_num);
     do
     {
         void *p = va_arg(ap, void *);
-        ylist_push_back(data.varlist, p);
+        yarray_push_back(data.vararray, p);
         ydb_log_debug("p=%p\n", p);
         ap_num--;
     } while (ap_num > 0);
     va_end(ap);
     flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY;
-    res = ynode_traverse(src, ydb_ynode_traverse, &data, flags);
-    ylist_destroy(data.varlist);
+
+    res = ynode_traverse(src, ydb_read_sub, &data, flags);
+    yarray_destroy(data.vararray);
     if (res)
     {
         ynode_remove(src);
         return -1;
     }
+    ydb_log_debug("var read = %d\n", data.varnum);
     ynode_remove(src);
     return data.varnum;
+}
+
+ydb_res ydb_sync(ydb *datablock)
+{
+    ydb_res res = YDB_OK;
+    ytree *reqpool = NULL;
+    ytree_iter *iter;
+    yconn *conn;
+
+    ydb_log_in();
+    YDB_ASSERT(!datablock, YDB_E_INVALID_ARGS);
+    YDB_ASSERT(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
+    reqpool = ytree_create((ytree_cmp)yconn_cmp, NULL);
+    YDB_ASSERT(!reqpool, YDB_E_MEM);
+
+    iter = ytree_first(datablock->conn);
+    for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
+    {
+        conn = ytree_data(iter);
+        if (IS_SET(conn->flags, STATUS_SERVER))
+            continue;
+        if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
+            continue;
+        res = yconn_request(conn, OP_SYNC, NULL, 0);
+        if (!res)
+            ytree_insert(reqpool, &conn->fd, conn);
+    }
+
+    clock_t start = clock();
+    while (ytree_size(reqpool) > 0)
+    {
+        int i, n;
+        struct epoll_event event[YDB_CONN_MAX];
+        int timeout = (1 - ((float)(clock() - start)) / CLOCKS_PER_SEC) * 1000;
+        if (timeout > 1000 || timeout < 0)
+            break;
+        n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            YDB_ASSERT_ERRNO(n < 0, YDB_E_SYSTEM_FAILED, errno);
+        }
+
+        for (i = 0; i < n; i++)
+        {
+            yconn *conn = event[i].data.ptr;
+            if (IS_SET(conn->flags, STATUS_SERVER))
+                yconn_accept(conn);
+            else
+            {
+                int next = 1;
+                yconn_op op = OP_NONE;
+                ymsg_type type = YMSG_NONE;
+                while (next)
+                {
+                    res = yconn_recv(conn, &op, &type, &next);
+                    if (res || (op == OP_SYNC && (type == YMSG_RESPONSE || type == YMSG_RESP_FAILED)))
+                        ytree_delete(reqpool, &conn->fd);
+                }
+            }
+        }
+    }
+
+failed:
+    ytree_destroy(reqpool);
+    ydb_log_out();
+    return res;
 }
 
 // update the ydb using input path and value
@@ -1077,7 +1164,7 @@ void yconn_socket_recv_head(yconn *conn, yconn_op *op, ymsg_type *type, char **d
     if (n != 3)
         goto failed;
     // Operation type
-    for (j = OP_READ; j > OP_NONE; j--)
+    for (j = OP_SYNC; j > OP_NONE; j--)
     {
         if (strcmp(opstr, yconn_op_str[j]) == 0)
             break;
@@ -1571,23 +1658,6 @@ ydb_res yconn_request(yconn *conn, yconn_op op, char *buf, size_t buflen)
         return YDB_E_INVALID_ARGS;
     assert(conn->func_send);
     res = conn->func_send(conn, op, YMSG_REQUEST, buf, buflen);
-    if (res)
-    {
-        if (IS_SET(conn->flags, STATUS_COND_CLIENT))
-        {
-            yconn_print(conn, 4);
-            yconn_detach(conn);
-            yconn_close(conn);
-        }
-        else
-        {
-            ydb *dblock;
-            dblock = yconn_detach(conn);
-            conn = yconn_reconnect(conn);
-            res = yconn_attach(conn, dblock);
-            yconn_print(conn, 2);
-        }
-    }
     return res;
 }
 
@@ -1598,23 +1668,6 @@ ydb_res yconn_response(yconn *conn, yconn_op op, bool done, char *buf, size_t bu
         return YDB_E_INVALID_ARGS;
     assert(conn->func_send);
     res = conn->func_send(conn, op, done ? YMSG_RESPONSE : YMSG_RESP_FAILED, buf, buflen);
-    if (res)
-    {
-        if (IS_SET(conn->flags, STATUS_COND_CLIENT))
-        {
-            yconn_print(conn, 4);
-            yconn_detach(conn);
-            yconn_close(conn);
-        }
-        else
-        {
-            ydb *dblock;
-            dblock = yconn_detach(conn);
-            conn = yconn_reconnect(conn);
-            res = yconn_attach(conn, dblock);
-            yconn_print(conn, 2);
-        }
-    }
     return res;
 }
 
@@ -1623,7 +1676,6 @@ ydb_res yconn_publish(yconn *src_target, ydb *datablock, yconn_op op, char *buf,
     yconn *conn;
     ylist *publist = NULL;
     ytree_iter *iter;
-    ydb_res res = YDB_OK;
     if (!buf)
         return YDB_E_INVALID_ARGS;
     if (op != OP_MERGE && op != OP_DELETE)
@@ -1663,24 +1715,7 @@ ydb_res yconn_publish(yconn *src_target, ydb *datablock, yconn_op op, char *buf,
     while (conn)
     {
         assert(conn->func_send);
-        res = conn->func_send(conn, op, YMSG_PUBLISH, buf, buflen);
-        if (res)
-        {
-            if (IS_SET(conn->flags, STATUS_COND_CLIENT))
-            {
-                yconn_print(conn, 4);
-                yconn_detach(conn);
-                yconn_close(conn);
-            }
-            else
-            {
-                ydb *dblock;
-                dblock = yconn_detach(conn);
-                conn = yconn_reconnect(conn);
-                res = yconn_attach(conn, dblock);
-                yconn_print(conn, 2);
-            }
-        }
+        conn->func_send(conn, op, YMSG_PUBLISH, buf, buflen);
         conn = ylist_pop_front(publist);
     }
     ydb_log_out();
@@ -1765,13 +1800,11 @@ ydb_res yconn_delete(yconn *conn, char *buf, size_t buflen)
     return res;
 }
 
-int yconn_recv(yconn *conn, int next)
+ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
 {
     ydb_res res;
     char *buf = NULL;
     size_t buflen = 0;
-    yconn_op op = OP_NONE;
-    ymsg_type type = YMSG_NONE;
     assert(conn);
     if (IS_SET(conn->flags, STATUS_DISCONNECT))
     {
@@ -1781,18 +1814,18 @@ int yconn_recv(yconn *conn, int next)
         {
             yconn_print(conn, 4);
             yconn_close(conn);
-            return 0;
+            return YDB_E_CONN_CLOSED;
         }
         if (!IS_SET(conn->flags, STATUS_DISCONNECT))
         {
             if (IS_SET(conn->flags, STATUS_CLIENT))
                 yconn_request(conn, OP_INIT, NULL, 0);
         }
-        return 0;
+        return YDB_OK;
     }
 
     assert(conn->func_recv);
-    res = conn->func_recv(conn, &op, &type, &buf, &buflen, &next);
+    res = conn->func_recv(conn, op, type, &buf, &buflen, next);
     if (res)
     {
         if (buf)
@@ -1803,7 +1836,7 @@ int yconn_recv(yconn *conn, int next)
             yconn_print(conn, 4);
             yconn_detach(conn);
             yconn_close(conn);
-            return 0;
+            return YDB_E_CONN_CLOSED;
         }
         else
         {
@@ -1812,13 +1845,13 @@ int yconn_recv(yconn *conn, int next)
             conn = yconn_reconnect(conn);
             res = yconn_attach(conn, datablock);
             yconn_print(conn, 2);
-            return 0;
+            return YDB_E_CONN_FAILED;
         }
     }
-    switch (type)
+    switch (*type)
     {
     case YMSG_PUBLISH:
-        switch (op)
+        switch (*op)
         {
         case OP_MERGE:
             yconn_merge(conn, buf, buflen);
@@ -1831,7 +1864,7 @@ int yconn_recv(yconn *conn, int next)
         }
         break;
     case YMSG_REQUEST:
-        switch (op)
+        switch (*op)
         {
         case OP_MERGE:
             res = yconn_merge(conn, buf, buflen);
@@ -1841,7 +1874,7 @@ int yconn_recv(yconn *conn, int next)
             res = yconn_delete(conn, buf, buflen);
             yconn_response(conn, OP_DELETE, res ? false : true, NULL, 0);
             break;
-        case OP_READ:
+        case OP_SYNC:
             break;
         case OP_INIT:
             if (!IS_SET(conn->flags, STATUS_COND_CLIENT))
@@ -1877,9 +1910,7 @@ int yconn_recv(yconn *conn, int next)
 
     if (buf)
         free(buf);
-    if (next)
-        return 1;
-    return 0;
+    return YDB_OK;
 }
 
 // accept the connection and return fd;
@@ -1911,44 +1942,41 @@ int yconn_accept(yconn *conn)
     return -1;
 }
 
-int ydb_serve(ydb *datablock, int timeout)
+ydb_res ydb_serve(ydb *datablock, int timeout)
 {
-    int i, n, newfd = 0;
+    ydb_res res;
+    int i, n;
     struct epoll_event event[YDB_CONN_MAX];
     ydb_log_in();
-    ydb_check(!datablock, YDB_E_INVALID_ARGS);
-    ydb_check(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
+    YDB_ASSERT(!datablock, YDB_E_INVALID_ARGS);
+    YDB_ASSERT(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
     n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
     if (n < 0)
     {
         if (errno == EINTR)
             goto successful;
-        ydb_check_errno(n < 0, YDB_E_SYSTEM_FAILED, errno);
+        YDB_ASSERT_ERRNO(n < 0, YDB_E_SYSTEM_FAILED, errno);
     }
 
     for (i = 0; i < n; i++)
     {
         yconn *conn = event[i].data.ptr;
         if (IS_SET(conn->flags, STATUS_SERVER))
-        {
-            newfd = yconn_accept(conn);
-            if (newfd >= 0)
-                goto successful;
-            continue;
-        }
+            yconn_accept(conn);
         else
         {
             int next = 1;
+            yconn_op op = OP_NONE;
+            ymsg_type type = YMSG_NONE;
             while (next)
-                next = yconn_recv(conn, next);
+                res = yconn_recv(conn, &op, &type, &next);
         }
     }
 successful:
-    ydb_log_out();
-    return newfd;
+    return YDB_OK;
 failed:
     ydb_log_out();
-    return -1;
+    return res;
 }
 
 int ydb_fd(ydb *datablock)

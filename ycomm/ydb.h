@@ -13,7 +13,7 @@ extern "C" {
 typedef enum _ydb_res
 {
     YDB_OK = 0,
-    YDB_ERR,
+    YDB_ERROR,
 	YDB_E_INVALID_ARGS,
 	YDB_E_TYPE_ERR,
     YDB_E_INVALID_PARENT,
@@ -109,6 +109,10 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...);
 // read the date from ydb as the scanf() (yaml format)
 int ydb_read(ydb *datablock, const char *format, ...);
 
+// ydb_res ydb_sync(ydb *datablock);
+ydb_res ydb_request(ydb *datablock, const char *format, ...);
+ydb_res ydb_fprintf(ydb *datablock, FILE *fp, const char *format, ...);
+
 // update & delete the ydb using input path and value
 // ydb_path_write(datablock, "/path/to/update=%d", value)
 ydb_res ydb_path_write(ydb *datablock, const char *format, ...);
@@ -118,7 +122,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...);
 // char *value = ydb_path_read(datablock, "/path/to/update")
 char *ydb_path_read(ydb *datablock, const char *format, ...);
 
-int ydb_serve(ydb *datablock, int timeout);
+ydb_res ydb_serve(ydb *datablock, int timeout);
 
 int ydb_fd(ydb *datablock);
 
