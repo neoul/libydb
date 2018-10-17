@@ -15,6 +15,26 @@
 #include "ydb.h"
 #include "ynode.h"
 
+#define YNODE_LEVEL_MAX YDB_LEVEL_MAX
+extern ydb_log_func ydb_logger;
+#define ynode_log(severity, format, ...)                                           \
+    do                                                                           \
+    {                                                                            \
+        if (ydb_log_severity < (severity))                                       \
+            break;                                                               \
+        ydb_logger(severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
+    } while (0)
+
+#define ynode_log_debug(format, ...) ynode_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
+#define ynode_log_inout() ynode_log(YDB_LOG_INOUT, "\n")
+#define ynode_log_in() ynode_log(YDB_LOG_INOUT, "{{ ------\n")
+#define ynode_log_out() ynode_log(YDB_LOG_INOUT, "}}\n")
+#define ynode_log_info(format, ...) ynode_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
+#define ynode_log_warn(format, ...) ynode_log(YDB_LOG_WARN, format, ##__VA_ARGS__)
+#define ynode_log_error(format, ...) ynode_log(YDB_LOG_ERR, format, ##__VA_ARGS__)
+#define YNODE_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
+#define YNODE_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
+
 struct _yhook
 {
     ynode *node;
@@ -842,18 +862,18 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
     switch (parser->error)
     {
     case YAML_MEMORY_ERROR:
-        ydb_log_error("mem err: not enough memory for parsing\n");
+        ynode_log_error("mem err: not enough memory for parsing\n");
         break;
 
     case YAML_READER_ERROR:
         if (parser->problem_value != -1)
         {
-            ydb_log_error("reader error: %s: #%X at %zd\n", parser->problem,
+            ynode_log_error("reader error: %s: #%X at %zd\n", parser->problem,
                           parser->problem_value, parser->problem_offset);
         }
         else
         {
-            ydb_log_error("reader error: %s at %zu\n", parser->problem,
+            ynode_log_error("reader error: %s at %zu\n", parser->problem,
                           parser->problem_offset);
         }
         break;
@@ -861,16 +881,16 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
     case YAML_SCANNER_ERROR:
         if (parser->context)
         {
-            ydb_log_error("scanner error: %s at line %zu, column %zu\n",
+            ynode_log_error("scanner error: %s at line %zu, column %zu\n",
                           parser->context,
                           parser->context_mark.line + 1, parser->context_mark.column + 1);
-            ydb_log_error("%s at line %zu, column %zu\n",
+            ynode_log_error("%s at line %zu, column %zu\n",
                           parser->problem, parser->problem_mark.line + 1,
                           parser->problem_mark.column + 1);
         }
         else
         {
-            ydb_log_error("scanner error: %s at line %zu, column %zu\n",
+            ynode_log_error("scanner error: %s at line %zu, column %zu\n",
                           parser->problem, parser->problem_mark.line + 1,
                           parser->problem_mark.column + 1);
         }
@@ -879,16 +899,16 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
     case YAML_PARSER_ERROR:
         if (parser->context)
         {
-            ydb_log_error("parser error: %s at line %zu, column %zu\n",
+            ynode_log_error("parser error: %s at line %zu, column %zu\n",
                           parser->context,
                           parser->context_mark.line + 1, parser->context_mark.column + 1);
-            ydb_log_error("%s at line %zu, column %zu\n",
+            ynode_log_error("%s at line %zu, column %zu\n",
                           parser->problem, parser->problem_mark.line + 1,
                           parser->problem_mark.column + 1);
         }
         else
         {
-            ydb_log_error("parser error: %s at line %zu, column %zu\n",
+            ynode_log_error("parser error: %s at line %zu, column %zu\n",
                           parser->problem, parser->problem_mark.line + 1,
                           parser->problem_mark.column + 1);
         }
@@ -897,17 +917,17 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
     case YAML_COMPOSER_ERROR:
         if (parser->context)
         {
-            ydb_log_error("composer error: %s at line %zu, column %zu\n",
+            ynode_log_error("composer error: %s at line %zu, column %zu\n",
                           parser->context,
                           parser->context_mark.line + 1, parser->context_mark.column + 1);
-            ydb_log_error("%s at line %zu, column %zu\n",
+            ynode_log_error("%s at line %zu, column %zu\n",
                           parser->problem, parser->problem_mark.line + 1,
                           parser->problem_mark.column + 1);
-            ydb_log_error("\n");
+            ynode_log_error("\n");
         }
         else
         {
-            ydb_log_error("composer error: %s at line %zu, column %zu\n",
+            ynode_log_error("composer error: %s at line %zu, column %zu\n",
                           parser->problem, parser->problem_mark.line + 1,
                           parser->problem_mark.column + 1);
         }
@@ -915,7 +935,7 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
 
     default:
         /* Couldn't happen. */
-        ydb_log_error("internal error\n");
+        ynode_log_error("internal error\n");
         break;
     }
     return 0;
@@ -1138,13 +1158,13 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             res = YDB_E_YAML_EMPTY_TOKEN;
             break;
         }
-        if (YDB_LOGGING_DEBUG)
+        if (YNODE_LOGGING_DEBUG)
         {
             if (token.type == YAML_BLOCK_END_TOKEN ||
                 token.type == YAML_FLOW_MAPPING_END_TOKEN ||
                 token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
                 level--;
-            ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, yaml_token_str[token.type]);
+            ynode_log_debug("%.*s%s\n", level * 2, space, yaml_token_str[token.type]);
             if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
                 token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
                 token.type == YAML_FLOW_SEQUENCE_START_TOKEN ||
@@ -1163,7 +1183,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             }
             if (key)
             {
-                ydb_log(YDB_LOG_DBG, "!!empty\n");
+                ynode_log_debug("!!empty\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
                 node->origin = origin;
                 old = ynode_attach(node, ylist_back(stack), key);
@@ -1220,7 +1240,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             ylist_push_back(stack, node);
             yfree(key);
             key = NULL;
-            ydb_log(YDB_LOG_DBG, "(last stack entry=%p)\n", ylist_back(stack));
+            ynode_log_debug("(last stack entry=%p)\n", ylist_back(stack));
             next = YAML_NEXT_NONE;
             break;
         }
@@ -1241,7 +1261,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         case YAML_FLOW_SEQUENCE_END_TOKEN:
             if (key)
             {
-                ydb_log(YDB_LOG_DBG, "** empty ynode **\n");
+                ynode_log_debug("** empty ynode **\n");
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
                 node->origin = origin;
                 old = ynode_attach(node, ylist_back(stack), key);
@@ -1250,7 +1270,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 key = NULL;
             }
             top = ylist_pop_back(stack);
-            ydb_log(YDB_LOG_DBG, "(last stack entry=%p)\n", ylist_back(stack));
+            ynode_log_debug("(last stack entry=%p)\n", ylist_back(stack));
             next = YAML_NEXT_NONE;
             break;
         case YAML_SCALAR_TOKEN:
@@ -1258,14 +1278,14 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             {
             case YAML_NEXT_MAPPING_KEY_SCALAR:
                 value = (char *)token.data.scalar.value;
-                ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
+                ynode_log_debug("%.*s%s\n", level * 2, space, value);
                 key = ystrdup(value);
                 break;
             case YAML_NEXT_MAPPING_VAL_SCALAR:
             case YAML_NEXT_SEQUENCE_ENTRY_SCALAR:
             case YAML_NEXT_NONE: // only have a scalar (leaf) node
                 value = (char *)token.data.scalar.value;
-                ydb_log(YDB_LOG_DBG, "%.*s%s\n", level * 2, space, value);
+                ynode_log_debug("%.*s%s\n", level * 2, space, value);
                 node = ynode_new(YNODE_TYPE_VAL, value);
                 node->origin = origin;
                 old = ynode_attach(node, ylist_back(stack), key);
@@ -1290,7 +1310,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         case YAML_STREAM_END_TOKEN:
             break;
         case YAML_TAG_TOKEN:
-            ydb_log(YDB_LOG_DBG, "handle=%s suffix=%s\n", token.data.tag.handle, token.data.tag.suffix);
+            ynode_log_debug("handle=%s suffix=%s\n", token.data.tag.handle, token.data.tag.suffix);
             break;
         /* Others */
         case YAML_VERSION_DIRECTIVE_TOKEN:
@@ -1425,7 +1445,7 @@ ynode *ynode_search(ynode *node, char *path)
         if (path[i] == '/')
         {
             token[j] = 0;
-            ydb_log_debug("token: %s\n", token);
+            ynode_log_debug("token: %s\n", token);
             found = ynode_find_child(node, token);
             if (found)
             {
@@ -1448,7 +1468,7 @@ ynode *ynode_search(ynode *node, char *path)
     if (j > 0)
     {
         token[j] = 0;
-        ydb_log_debug("token: %s\n", token);
+        ynode_log_debug("token: %s\n", token);
         found = ynode_find_child(node, token);
         if (found)
             return found;
@@ -1796,22 +1816,22 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     else if (op == YHOOK_OP_NONE)
         new = cur;
 
-    if (YDB_LOGGING_DEBUG)
+    if (YNODE_LOGGING_DEBUG)
     {
         char *path = NULL;
         switch (op)
         {
         case YHOOK_OP_CREATE:
-            path = ynode_path_and_val(new, YDB_LEVEL_MAX);
-            ydb_log_debug("create %s in %s\n", key ? key : "null", path ? path : "null");
+            path = ynode_path_and_val(new, YNODE_LEVEL_MAX);
+            ynode_log_debug("create %s in %s\n", key ? key : "null", path ? path : "null");
             break;
         case YHOOK_OP_REPLACE:
-            path = ynode_path_and_val(new, YDB_LEVEL_MAX);
-            ydb_log_debug("replace %s in %s\n", key ? key : "null", path ? path : "null");
+            path = ynode_path_and_val(new, YNODE_LEVEL_MAX);
+            ynode_log_debug("replace %s in %s\n", key ? key : "null", path ? path : "null");
             break;
         case YHOOK_OP_DELETE:
-            path = ynode_path_and_val(cur, YDB_LEVEL_MAX);
-            ydb_log_debug("delete %s in %s\n", key ? key : "null", path ? path : "null");
+            path = ynode_path_and_val(cur, YNODE_LEVEL_MAX);
+            ynode_log_debug("delete %s in %s\n", key ? key : "null", path ? path : "null");
             break;
         default:
             break;
@@ -1866,7 +1886,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
                 ynode *cur_child = ynode_find_child(new, src_child->key);
                 ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, record);
                 if (!new_child)
-                    ydb_log_error("unable to add child node (src_child->key: %s)\n");
+                    ynode_log_error("unable to add child node (src_child->key: %s)\n");
             }
             break;
         }
@@ -1880,7 +1900,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
                 ynode *src_child = ylist_data(iter);
                 ynode *new_child = ynode_control(NULL, src_child, new, NULL, record);
                 if (!new_child)
-                    ydb_log_error("unable to add child node (src_child->key: %s)\n");
+                    ynode_log_error("unable to add child node (src_child->key: %s)\n");
             }
             break;
         }
@@ -1963,7 +1983,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record)
         if (path[i] == '/') // '/' is working as delimiter
         {
             token[j] = 0;
-            ydb_log_debug("token: %s\n", token);
+            ynode_log_debug("token: %s\n", token);
             node = ynode_new(YNODE_TYPE_DICT, NULL);
             ynode_attach(node, new, token);
             new = node;
@@ -1974,7 +1994,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record)
             if (key) // '=' is represented twice.
                 goto _fail;
             token[j] = 0;
-            ydb_log_debug("token: %s\n", token);
+            ynode_log_debug("token: %s\n", token);
             key = ystrdup(token);
             if (!key)
                 goto _fail;
@@ -1992,7 +2012,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record)
         token[j] = 0;
         if (key)
         {
-            ydb_log_debug("key: %s, token: %s\n", key, token);
+            ynode_log_debug("key: %s, token: %s\n", key, token);
             node = ynode_new(YNODE_TYPE_VAL, token);
             ynode_attach(node, new, key);
             yfree(key);
@@ -2000,7 +2020,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record)
         }
         else
         {
-            ydb_log_debug("token: %s\n", token);
+            ynode_log_debug("token: %s\n", token);
             node = ynode_new(YNODE_TYPE_DICT, NULL);
             ynode_attach(node, new, token);
         }
@@ -2119,11 +2139,11 @@ ynode *ynode_merge_new(ynode *dest, ynode *src)
         if (dest->type == YNODE_TYPE_VAL)
             fprintf(fp, "%s", dest->value);
         else
-            ynode_printf_to_fp(fp, dest, 0, YDB_LEVEL_MAX);
+            ynode_printf_to_fp(fp, dest, 0, YNODE_LEVEL_MAX);
         if (src->type == YNODE_TYPE_VAL)
             fprintf(fp, "%s", src->value);
         else
-            ynode_printf_to_fp(fp, src, 0, YDB_LEVEL_MAX);
+            ynode_printf_to_fp(fp, src, 0, YNODE_LEVEL_MAX);
         fclose(fp);
         ynode_scanf_from_buf(buf, buflen, 0, &clone);
         if (buf)
@@ -2409,23 +2429,23 @@ ydb_res ynode_traverse_to_read(ynode *cur, void *addition)
             int index = atoi(value);
             void *p = ylist_data(ylist_index(data->varlist, index));
             // printf("index=%d p=%p\n", index, p);
-            if (YDB_LOGGING_DEBUG)
+            if (YNODE_LOGGING_DEBUG)
             {
                 char buf[512];
                 ynode_dump_to_buf(buf, sizeof(buf), n, 0, 0);
-                ydb_log_debug("%s", buf);
+                ynode_log_debug("%s", buf);
                 ynode_dump_to_buf(buf, sizeof(buf), cur, 0, 0);
-                ydb_log_debug("%s", buf);
+                ynode_log_debug("%s", buf);
             }
             sscanf(ynode_value(n), &(value[4]), p);
             data->varnum++;
         }
         else
         {
-            if (YDB_LOGGING_DEBUG)
+            if (YNODE_LOGGING_DEBUG)
             {
-                char *path = ynode_path(cur, YDB_LEVEL_MAX);
-                ydb_log_debug("no data for (%s)\n", path);
+                char *path = ynode_path(cur, YNODE_LEVEL_MAX);
+                ynode_log_debug("no data for (%s)\n", path);
                 free(path);
             }
         }
@@ -2460,12 +2480,12 @@ int ynode_read(ynode *n, const char *format, ...)
     data.varnum = 0;
     data.top = n;
     va_start(ap, format);
-    ydb_log_debug("ap_num = %d\n", ap_num);
+    ynode_log_debug("ap_num = %d\n", ap_num);
     do
     {
         void *p = va_arg(ap, void *);
         ylist_push_back(data.varlist, p);
-        ydb_log_debug("p=%p\n", p);
+        ynode_log_debug("p=%p\n", p);
         ap_num--;
     } while (ap_num > 0);
     va_end(ap);

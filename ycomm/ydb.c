@@ -27,42 +27,8 @@
 #include "ydb.h"
 #include "ynode.h"
 
-#define IS_LAEF(x) ((x)->op == YNODE_TYPE_VAL)
-#define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
-#define UNSET_FLAG(flag, v) ((flag) = ((flag) & (~v)))
-#define IS_SET(flag, v) ((flag) & (v))
-
-#define YDB_ERR_NAME(NAME) #NAME
-char *ydb_res_str[] =
-    {
-        YDB_ERR_NAME(YDB_OK),
-        YDB_ERR_NAME(YDB_ERR),
-        YDB_ERR_NAME(YDB_E_INVALID_ARGS),
-        YDB_ERR_NAME(YDB_E_TYPE_ERR),
-        YDB_ERR_NAME(YDB_E_INVALID_PARENT),
-        YDB_ERR_NAME(YDB_E_NO_ENTRY),
-        YDB_ERR_NAME(YDB_E_DUMP_CB),
-        YDB_ERR_NAME(YDB_E_MEM),
-        YDB_ERR_NAME(YDB_E_FULL_BUF),
-        YDB_ERR_NAME(YDB_E_PERSISTENCY_ERR),
-        YDB_ERR_NAME(YDB_E_INVALID_YAML_INPUT),
-        YDB_ERR_NAME(YDB_E_INVALID_YAML_TOP),
-        YDB_ERR_NAME(YDB_E_INVALID_YAML_KEY),
-        YDB_ERR_NAME(YDB_E_INVALID_YAML_ENTRY),
-        YDB_ERR_NAME(YDB_E_YAML_INIT),
-        YDB_ERR_NAME(YDB_E_YAML_EMPTY_TOKEN),
-        YDB_ERR_NAME(YDB_E_MERGE_FAILED),
-        YDB_ERR_NAME(YDB_E_SYSTEM_FAILED),
-        YDB_ERR_NAME(YDB_E_CONN_FAILED),
-        YDB_ERR_NAME(YDB_E_CONN_CLOSED),
-        YDB_ERR_NAME(YDB_E_CONN_DENIED),
-        YDB_ERR_NAME(YDB_E_INVALID_MSG),
-        YDB_ERR_NAME(YDB_E_RECV_REQUIRED),
-        YDB_ERR_NAME(YDB_E_INVALID_FLAGS),
-        YDB_ERR_NAME(YDB_E_ENTRY_EXISTS),
-};
-
-int ydb_logger_example(int severity, const char *func, int line, const char *format, ...)
+int ydb_logger_example(
+    int severity, const char *func, int line, const char *format, ...)
 {
     int len = -1;
     va_list args;
@@ -132,6 +98,59 @@ int ydb_log_register(ydb_log_func func)
             goto failed;                                                  \
         }                                                                 \
     } while (0)
+
+#define ydb_log(severity, format, ...)                                           \
+    do                                                                           \
+    {                                                                            \
+        if (ydb_log_severity < (severity))                                       \
+            break;                                                               \
+        ydb_logger(severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
+    } while (0)
+
+#define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
+#define ydb_log_inout() ydb_log(YDB_LOG_INOUT, "\n")
+#define ydb_log_in() ydb_log(YDB_LOG_INOUT, "{{ ------\n")
+#define ydb_log_out() ydb_log(YDB_LOG_INOUT, "}}\n")
+#define ydb_log_info(format, ...) ydb_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
+#define ydb_log_warn(format, ...) ydb_log(YDB_LOG_WARN, format, ##__VA_ARGS__)
+#define ydb_log_error(format, ...) ydb_log(YDB_LOG_ERR, format, ##__VA_ARGS__)
+#define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
+#define YDB_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
+
+#define IS_LAEF(x) ((x)->op == YNODE_TYPE_VAL)
+#define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
+#define UNSET_FLAG(flag, v) ((flag) = ((flag) & (~v)))
+#define IS_SET(flag, v) ((flag) & (v))
+
+#define YDB_ERR_NAME(NAME) #NAME
+char *ydb_res_str[] =
+    {
+        YDB_ERR_NAME(YDB_OK),
+        YDB_ERR_NAME(YDB_ERR),
+        YDB_ERR_NAME(YDB_E_INVALID_ARGS),
+        YDB_ERR_NAME(YDB_E_TYPE_ERR),
+        YDB_ERR_NAME(YDB_E_INVALID_PARENT),
+        YDB_ERR_NAME(YDB_E_NO_ENTRY),
+        YDB_ERR_NAME(YDB_E_DUMP_CB),
+        YDB_ERR_NAME(YDB_E_MEM),
+        YDB_ERR_NAME(YDB_E_FULL_BUF),
+        YDB_ERR_NAME(YDB_E_PERSISTENCY_ERR),
+        YDB_ERR_NAME(YDB_E_INVALID_YAML_INPUT),
+        YDB_ERR_NAME(YDB_E_INVALID_YAML_TOP),
+        YDB_ERR_NAME(YDB_E_INVALID_YAML_KEY),
+        YDB_ERR_NAME(YDB_E_INVALID_YAML_ENTRY),
+        YDB_ERR_NAME(YDB_E_YAML_INIT),
+        YDB_ERR_NAME(YDB_E_YAML_EMPTY_TOKEN),
+        YDB_ERR_NAME(YDB_E_MERGE_FAILED),
+        YDB_ERR_NAME(YDB_E_SYSTEM_FAILED),
+        YDB_ERR_NAME(YDB_E_CONN_FAILED),
+        YDB_ERR_NAME(YDB_E_CONN_CLOSED),
+        YDB_ERR_NAME(YDB_E_CONN_DENIED),
+        YDB_ERR_NAME(YDB_E_INVALID_MSG),
+        YDB_ERR_NAME(YDB_E_RECV_REQUIRED),
+        YDB_ERR_NAME(YDB_E_INVALID_FLAGS),
+        YDB_ERR_NAME(YDB_E_ENTRY_EXISTS),
+};
 
 typedef struct _yconn yconn;
 
@@ -225,6 +244,7 @@ static ydb_res yconn_response(yconn *conn, yconn_op op, bool done, char *buf, si
 static ydb_res yconn_publish(yconn *src_target, ydb *datablock, yconn_op op, char *buf, size_t buflen);
 static ydb_res yconn_merge(yconn *conn, char *buf, size_t buflen);
 static ydb_res yconn_delete(yconn *conn, char *buf, size_t buflen);
+static ydb_res yconn_sync(yconn *src);
 static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next);
 
 void yconn_socket_deinit(yconn *conn);
@@ -984,6 +1004,7 @@ failed:
 ydb_res ydb_sync(ydb *datablock, ytree *synclist)
 {
     ydb_res res = YDB_OK;
+    ydb_log_in();
     if (!datablock || !synclist)
         return YDB_E_INVALID_ARGS;
     if (datablock->epollfd < 0)
@@ -995,9 +1016,7 @@ ydb_res ydb_sync(ydb *datablock, ytree *synclist)
         for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
         {
             yconn *conn = ytree_data(iter);
-            if (IS_SET(conn->flags, STATUS_DISCONNECT))
-                continue;
-            else if (IS_SET(conn->flags, STATUS_SERVER))
+            if (IS_SET(conn->flags, (STATUS_DISCONNECT | STATUS_SERVER)))
                 continue;
             else if (IS_SET(conn->flags, STATUS_CLIENT))
             {
@@ -2178,6 +2197,85 @@ static ydb_res yconn_delete(yconn *conn, char *buf, size_t buflen)
     return res;
 }
 
+static ydb_res yconn_sync(yconn *src)
+{
+    ydb_res res = YDB_OK;
+    ytree_iter *iter;
+    ydb *datablock = src->db;
+    ytree *synclist;
+    ydb_log_in();
+    synclist = ytree_create((ytree_cmp)yconn_cmp, NULL);
+    iter = ytree_first(datablock->conn);
+    for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
+    {
+        yconn *conn = ytree_data(iter);
+        if (conn == src)
+            continue;
+        else if (IS_SET(conn->flags, (STATUS_DISCONNECT | STATUS_SERVER)))
+            continue;
+        else if (IS_SET(conn->flags, STATUS_CLIENT))
+        {
+            if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
+                continue;
+        }
+        else if (IS_SET(conn->flags, STATUS_COND_CLIENT))
+        {
+            if (!IS_SET(conn->flags, YCONN_WRITABLE))
+                continue;
+        }
+        res = yconn_request(conn, YOP_SYNC, NULL, 0);
+        if (!res)
+            ytree_insert(synclist, &conn->fd, conn);
+    }
+
+    if (ytree_size(synclist) <= 0)
+    {
+        ydb_log_out();
+        return YDB_OK;
+    }
+
+    clock_t start = clock();
+    while (ytree_size(synclist) > 0)
+    {
+        int i, n;
+        struct epoll_event event[YDB_CONN_MAX];
+        int timeout = (1 - ((float)(clock() - start)) / CLOCKS_PER_SEC) * 1000;
+        if (timeout > 1000 || timeout < 0)
+            break;
+        ydb_log_debug("epoll_wait timeout %d\n", timeout);
+        n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            YDB_FAIL_ERRNO(n < 0, YDB_E_SYSTEM_FAILED, errno);
+        }
+
+        for (i = 0; i < n; i++)
+        {
+            yconn *conn = event[i].data.ptr;
+            if (IS_SET(conn->flags, STATUS_SERVER))
+                yconn_accept(conn);
+            else
+            {
+                int next = 1;
+                yconn_op op = YOP_NONE;
+                ymsg_type type = YMSG_NONE;
+                while (next)
+                {
+                    res = yconn_recv(conn, &op, &type, &next);
+                    if (res || (op == YOP_SYNC && (type == YMSG_RESPONSE || type == YMSG_RESP_FAILED)))
+                        ytree_delete(synclist, &conn->fd);
+                }
+            }
+        }
+    }
+failed:
+    ytree_destroy(synclist);
+    ydb_log_out();
+    return res;
+}
+
 #define CLEAR_BUF(buf, buflen) \
     do                         \
     {                          \
@@ -2268,7 +2366,7 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
             break;
         case YOP_SYNC:
             CLEAR_BUF(buf, buflen);
-            // res = yconn_sync(conn, buf, buflen);
+            res = yconn_sync(conn);
             ydb_dumps(conn->db, &buf, &buflen);
             yconn_response(conn, YOP_SYNC, res ? false : true, buf, buflen);
             break;

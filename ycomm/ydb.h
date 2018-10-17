@@ -1,17 +1,18 @@
 #ifndef __YDB__
 #define __YDB__
 
-// YAML DataBlock for Configuration Data Management using YAML and IPC (Inter Process Communication)
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+// YAML DataBlock for Configuration Data Management 
+// using YAML and IPC (Inter Process Communication)
 
 #include <stdio.h>
 
 #define YDB_LEVEL_MAX 32
 #define YDB_CONN_MAX 32
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
     typedef enum _ydb_res
     {
@@ -51,30 +52,10 @@ extern "C"
 #define YDB_LOG_ERR 1
 #define YDB_LOG_CRI 0
 
-    // set the ydb log severity
+    // Set YAML DataBlock log severity
     extern unsigned int ydb_log_severity;
     typedef int (*ydb_log_func)(int severity, const char *func, int line, const char *format, ...);
     int ydb_log_register(ydb_log_func func);
-
-    extern ydb_log_func ydb_logger;
-#define ydb_log(severity, format, ...)                                           \
-    do                                                                           \
-    {                                                                            \
-        if (ydb_log_severity < (severity))                                       \
-            break;                                                               \
-        ydb_logger(severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
-    } while (0)
-
-#define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
-#define ydb_log_inout() ydb_log(YDB_LOG_INOUT, "\n")
-#define ydb_log_in() ydb_log(YDB_LOG_INOUT, "{{ ------\n")
-#define ydb_log_out() ydb_log(YDB_LOG_INOUT, "}}\n")
-#define ydb_log_info(format, ...) ydb_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
-#define ydb_log_warn(format, ...) ydb_log(YDB_LOG_WARN, format, ##__VA_ARGS__)
-#define ydb_log_error(format, ...) ydb_log(YDB_LOG_ERR, format, ##__VA_ARGS__)
-
-#define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
-#define YDB_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
 
     // YAML DataBlock structure
     typedef struct _ydb ydb;
@@ -83,7 +64,7 @@ extern "C"
     // Open YAML DataBlock
     ydb *ydb_open(char *name);
 
-    // Get an opened YDB
+    // Get YAML DataBlock
     ydb *ydb_get(char *name);
 
     // address: use the unix socket if null
@@ -97,9 +78,9 @@ extern "C"
     ydb_res ydb_reconnect(ydb *datablock, char *addr, char *flags);
     ydb_res ydb_disconnect(ydb *datablock, char *addr);
 
-    // Clear all data in YAML DataBlock
+    // Clear all data in the YAML DataBlock
     ydb_res ydb_clear(ydb *datablock);
-    // Close YAML DataBlock
+    // Close the YAML DataBlock
     void ydb_close(ydb *datablock);
 
     // return the top node of the yaml data block.
@@ -143,10 +124,6 @@ extern "C"
     typedef ydb_res (*ydb_update_hook)(FILE *fp, ydb_iter *target, void *user);
     ydb_res ydb_update_hook_add(ydb *datablock, char *path, ydb_update_hook hook, void *user);
     void *ydb_update_hook_delete(ydb *datablock, char *path);
-
-    // ydb_res ydb_sync(ydb *datablock);
-    ydb_res ydb_request(ydb *datablock, const char *format, ...);
-    ydb_res ydb_fprintf(ydb *datablock, FILE *fp, const char *format, ...);
 
     // update & delete the ydb using input path and value
     // ydb_path_write(datablock, "/path/to/update=%d", value)
