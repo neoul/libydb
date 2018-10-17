@@ -428,14 +428,12 @@ ydb_res ydb_clear(ydb *datablock)
         n = ynode_down(datablock->top);
         while(n)
         {
-            printf("xxx\n");
             ynode_delete(n, record);
             n = ynode_down(datablock->top);
         }
         ynode_record_free(record);
         fclose(fp);
     }
-    printf("buf = %s\n", buf);
     yconn_publish(NULL, datablock, YOP_DELETE, buf, buflen);
     if (buf)
         free(buf);
