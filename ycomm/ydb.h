@@ -57,13 +57,12 @@ extern "C"
     int ydb_log_register(ydb_log_func func);
 
     extern ydb_log_func ydb_logger;
-#define ydb_log(severity, format, ...)                                               \
-    do                                                                               \
-    {                                                                                \
-        if (ydb_log_severity < (severity))                                           \
-            break;                                                                   \
-        if (ydb_logger)                                                              \
-            ydb_logger(severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
+#define ydb_log(severity, format, ...)                                           \
+    do                                                                           \
+    {                                                                            \
+        if (ydb_log_severity < (severity))                                       \
+            break;                                                               \
+        ydb_logger(severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
     } while (0)
 
 #define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
@@ -90,9 +89,9 @@ extern "C"
     // address: use the unix socket if null
     //          us://unix-socket-name (unix socket)
     //          uss://unix-socket-name (hidden unix socket)
-    // flags: pub(publisher)/sub(subscriber)
-    //        w(write permission)/ r(read permission)
-    //        unsubscribe(disable the subscription of the data change)
+    // flags: p(publisher)/s(subscriber)
+    //        w(writable): connect to a remote to write.
+    //        u(unsubscribe): disable the subscription of the change
     // e.g. ydb_connect(db, "us:///tmp/ydb_channel", "sub:w")
     ydb_res ydb_connect(ydb *datablock, char *addr, char *flags);
     ydb_res ydb_reconnect(ydb *datablock, char *addr, char *flags);
