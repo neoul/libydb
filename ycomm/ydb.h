@@ -97,7 +97,9 @@ extern "C"
     ydb_res ydb_reconnect(ydb *datablock, char *addr, char *flags);
     ydb_res ydb_disconnect(ydb *datablock, char *addr);
 
-    // Close YAML Datablock
+    // Clear all data in YAML DataBlock
+    ydb_res ydb_clear(ydb *datablock);
+    // Close YAML DataBlock
     void ydb_close(ydb *datablock);
 
     // return the top node of the yaml data block.

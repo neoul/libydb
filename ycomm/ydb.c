@@ -410,6 +410,40 @@ failed:
     return res;
 }
 
+// Clear all data in YAML DataBlock
+ydb_res ydb_clear(ydb *datablock)
+{
+    ydb_res res = YDB_OK;
+    ynode_record *record;
+    size_t buflen = 0;
+    char *buf = NULL;
+    FILE *fp;
+    ynode *n;
+    ydb_log_in();
+    YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
+    fp = open_memstream(&buf, &buflen);
+    if (fp)
+    {
+        record = ynode_record_new(fp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
+        n = ynode_down(datablock->top);
+        while(n)
+        {
+            printf("xxx\n");
+            ynode_delete(n, record);
+            n = ynode_down(datablock->top);
+        }
+        ynode_record_free(record);
+        fclose(fp);
+    }
+    printf("buf = %s\n", buf);
+    yconn_publish(NULL, datablock, YOP_DELETE, buf, buflen);
+    if (buf)
+        free(buf);
+    ydb_log_out();
+failed:
+    return res;
+}
+
 // Close YAML Datablock
 void ydb_close(ydb *datablock)
 {
@@ -649,9 +683,10 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
     char *buf = NULL;
     size_t buflen = 0;
     ydb_res res = YDB_E_MEM;
+    ydb_log_in();
     if (!datablock)
         return YDB_E_INVALID_ARGS;
-    ydb_log_in();
+    
     fp = open_memstream(&buf, &buflen);
     if (fp)
     {
@@ -1512,8 +1547,8 @@ ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, 
         n = send(conn->fd, data, datalen, 0);
         if (n < 0)
             goto conn_failed;
-        ydb_log_info("data {%s}\n", data ? data : "");
     }
+    ydb_log_info("data {%s}\n", data ? data : "");
     n = send(conn->fd, "\n...\n", 5, 0);
     if (n < 0)
         goto conn_failed;
@@ -2240,14 +2275,15 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
             yconn_response(conn, YOP_SYNC, res ? false : true, buf, buflen);
             break;
         case YOP_INIT:
-            if (!IS_SET(conn->flags, STATUS_COND_CLIENT))
-                break;
-            yconn_response(conn, YOP_INIT, true, NULL, 0);
-            if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
+            if (IS_SET(conn->flags, STATUS_COND_CLIENT))
             {
-                CLEAR_BUF(buf, buflen);
-                ydb_dumps(conn->db, &buf, &buflen);
-                yconn_publish(conn, NULL, YOP_MERGE, buf, buflen);
+                yconn_response(conn, YOP_INIT, true, NULL, 0);
+                if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
+                {
+                    CLEAR_BUF(buf, buflen);
+                    ydb_dumps(conn->db, &buf, &buflen);
+                    yconn_publish(conn, NULL, YOP_MERGE, buf, buflen);
+                }
             }
             break;
         default:
