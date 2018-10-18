@@ -33,6 +33,7 @@ extern "C"
         YDB_E_YAML_INIT,
         YDB_E_YAML_EMPTY_TOKEN,
         YDB_E_MERGE_FAILED,
+        YDB_E_DELETE_FAILED,
         YDB_E_SYSTEM_FAILED,
         YDB_E_CONN_FAILED,
         YDB_E_CONN_CLOSED,
@@ -41,6 +42,7 @@ extern "C"
         YDB_E_RECV_REQUIRED,
         YDB_E_INVALID_FLAGS,
         YDB_E_ENTRY_EXISTS,
+        YDB_E_STREAM_FAILED,
     } ydb_res;
 
     extern char *ydb_res_str[];

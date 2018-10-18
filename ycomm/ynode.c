@@ -1428,8 +1428,8 @@ ynode *ynode_search(ynode *node, char *path)
 {
     int i, j;
     int failcount;
-    char token[512];
     ynode *found;
+    char token[512];
 
     if (!path || !node)
         return NULL;
@@ -1459,6 +1459,15 @@ ynode *ynode_search(ynode *node, char *path)
                 if (failcount > 0)
                     return NULL;
                 failcount++;
+            }
+        }
+        else if (path[i] == '=')
+        {
+            char *next = strchr(&path[i], '/');
+            if (!next)
+            {
+                token[j] = 0;
+                break;
             }
         }
         token[j] = path[i];
