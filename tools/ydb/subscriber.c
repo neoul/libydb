@@ -24,7 +24,7 @@ void usage(int status, char *progname)
         printf("\
 YAML DATABLOCK subscriber\n\
   -n, --name YDB_NAME   The name of created YDB (YAML DataBlock).\n\
-  -r, --file FILE       Read data from FILE to send publisher\n\
+  -f, --file FILE       Read data from FILE to send publisher\n\
   -u, --unsubscribe     Disable subscription\n\
   -r, --reconnect       Retry to reconnect upon the communication failure\n\
   -d, --daemon          Runs in daemon mode\n\
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:w:v:urdh",
+        c = getopt_long(argc, argv, "n:f:v:urdh",
                         long_options, &index);
         if (c == -1)
             break;

@@ -65,7 +65,7 @@ extern "C"
     ydb *ydb_open(char *name);
 
     // Get YAML DataBlock
-    ydb *ydb_get(char *name);
+    ydb *ydb_get(char *name, ydb_iter **iter);
 
     // address: use the unix socket if null
     //          us://unix-socket-name (unix socket)
@@ -83,28 +83,31 @@ extern "C"
     // Close the YAML DataBlock
     void ydb_close(ydb *datablock);
 
+    // return the node in the path of the yaml data block.
+    ydb_iter *ydb_search(ydb *datablock, char *path);
     // return the top node of the yaml data block.
     ydb_iter *ydb_top(ydb *datablock);
+
     // return the parent node of the node.
-    ydb_iter *ydb_up(ydb_iter *node);
+    ydb_iter *ydb_up(ydb_iter *iter);
     // return the first child node of the node.
-    ydb_iter *ydb_down(ydb_iter *node);
+    ydb_iter *ydb_down(ydb_iter *iter);
     // return the previous sibling node of the node.
-    ydb_iter *ydb_prev(ydb_iter *node);
+    ydb_iter *ydb_prev(ydb_iter *iter);
     // return the next sibling node of the node.
-    ydb_iter *ydb_next(ydb_iter *node);
+    ydb_iter *ydb_next(ydb_iter *iter);
     // return the first sibling node of the node.
-    ydb_iter *ydb_first(ydb_iter *node);
+    ydb_iter *ydb_first(ydb_iter *iter);
     // return the last sibling node of the node.
-    ydb_iter *ydb_last(ydb_iter *node);
+    ydb_iter *ydb_last(ydb_iter *iter);
     // return node type
-    unsigned char ydb_type(ydb_iter *node);
+    unsigned char ydb_type(ydb_iter *iter);
     // return node value if that is a leaf.
-    char *ydb_value(ydb_iter *node);
+    char *ydb_value(ydb_iter *iter);
     // return node key if that has a hash key.
-    char *ydb_key(ydb_iter *node);
+    char *ydb_key(ydb_iter *iter);
     // return node index if the nodes' parent is a list.
-    int ydb_index(ydb_iter *node);
+    int ydb_index(ydb_iter *iter);
 
     // update the data in the ydb using file stream
     ydb_res ydb_parse(ydb *datablock, FILE *fp);

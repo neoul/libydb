@@ -98,6 +98,10 @@ int test_ydb_read_write()
 					"True");
 	if (res)
 		goto _done;
+
+	ydb_iter *iter = NULL;
+	ydb_dump(ydb_get("/path/to/data/system/hostname", &iter), stdout);
+	printf("ydb_iter = %s\n", ydb_value(iter));
 	
 	ydb_delete(datablock, "system: {fan-enable: , }");
 

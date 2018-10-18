@@ -276,7 +276,7 @@ struct _ydb
     int unsubscribers;
 };
 
-ytree *ydb_pool;
+ytrie *ydb_pool;
 
 int yconn_cmp(int *fd1, int *fd2)
 {
@@ -292,7 +292,7 @@ ydb_res ydb_pool_create()
 {
     if (!ydb_pool)
     {
-        ydb_pool = ytree_create((ytree_cmp)strcmp, NULL);
+        ydb_pool = ytrie_create();
         if (!ydb_pool)
         {
             return YDB_E_MEM;
@@ -303,9 +303,9 @@ ydb_res ydb_pool_create()
 
 void ydb_pool_destroy()
 {
-    if (ydb_pool && ytree_size(ydb_pool) <= 0)
+    if (ydb_pool && ytrie_size(ydb_pool) <= 0)
     {
-        ytree_destroy(ydb_pool);
+        ytrie_destroy(ydb_pool);
         ydb_pool = NULL;
     }
 }
@@ -315,11 +315,13 @@ ydb *ydb_open(char *name)
 {
     ydb_res res = YDB_OK;
     ydb *datablock = NULL;
+    int namelen;
     ydb_log_inout();
     res = (ydb_res)res;
     YDB_FAIL(!name, YDB_E_INVALID_ARGS);
     YDB_FAIL(ydb_pool_create(), YDB_E_SYSTEM_FAILED);
-    datablock = ytree_search(ydb_pool, name);
+    namelen = strlen(name);
+    datablock = ytrie_search(ydb_pool, name, namelen);
     if (datablock)
         return datablock;
     ydb_log_in();
@@ -335,7 +337,7 @@ ydb *ydb_open(char *name)
     datablock->updater = ytrie_create();
     YDB_FAIL(!datablock->updater, YDB_E_SYSTEM_FAILED);
     datablock->epollfd = -1;
-    if (ytree_insert(ydb_pool, datablock->name, datablock))
+    if (ytrie_insert(ydb_pool, datablock->name, namelen, datablock))
         assert(!YDB_E_PERSISTENCY_ERR);
     ydb_log_out();
     return datablock;
@@ -468,7 +470,7 @@ void ydb_close(ydb *datablock)
     ydb_log_in();
     if (datablock)
     {
-        ytree_delete(ydb_pool, datablock->name);
+        ytrie_delete(ydb_pool, datablock->name, strlen(datablock->name));
         if (datablock->conn)
             ytree_destroy_custom(datablock->conn, (user_free)yconn_free);
         if (datablock->updater)
@@ -485,17 +487,30 @@ void ydb_close(ydb *datablock)
     ydb_log_out();
 }
 
-ydb *ydb_get(char *name)
+ydb *ydb_get(char *name, ynode **node)
 {
-    return ytree_search(ydb_pool, name);
+    ydb *datablock;
+    int mlen = 0;
+    int slen = strlen(name);
+    datablock = ytrie_best_match(ydb_pool, name, slen, &mlen);
+    if (datablock && node)
+    {
+        if (mlen < slen)
+            *node = ynode_search(datablock->top, name+mlen);
+    }
+    return datablock;
+}
+
+// return the node in the path of the yaml data block.
+ynode *ydb_search(ydb *datablock, char *path)
+{
+    return ynode_search(datablock->top, path);
 }
 
 // return the top node of the yaml data block.
 ynode *ydb_top(ydb *datablock)
 {
-    if (datablock)
-        return ynode_top(datablock->top);
-    return NULL;
+    return ynode_top(datablock->top);
 }
 
 // return the parent node of the node.
@@ -598,7 +613,7 @@ int ydb_dump(ydb *datablock, FILE *fp)
 {
     if (!datablock)
         return -1;
-    return ynode_printf_to_fp(fp, datablock->top, 0, YDB_LEVEL_MAX);
+    return ynode_printf_to_fp(fp, datablock->top, 1, YDB_LEVEL_MAX);
 }
 
 int ydb_dumps(ydb *datablock, char **buf, size_t *buflen)
