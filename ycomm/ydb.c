@@ -168,6 +168,7 @@ typedef struct _yconn yconn;
 #define YCONN_ROLE_PUBLISHER 0x1
 #define YCONN_ROLE_SUBSCRIBER 0x2
 
+#define YCONN_READ_DISABLED 0x8
 #define YCONN_RECONNECT 0x10
 #define YCONN_WRITABLE 0x20
 #define YCONN_UNSUBSCRIBE 0x40
@@ -266,8 +267,7 @@ ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, 
 
 void yconn_file_deinit(yconn *conn);
 ydb_res yconn_file_init(yconn *conn);
-ydb_res yconn_file_recv(yconn *conn, yconn_op *op, ymsg_type *type, char **data, size_t *datalen, int *next);
-ydb_res yconn_file_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
+ydb_res yconn_file_write(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
 
 #define yconn_errno(conn, res)            \
     ydb_log(YDB_LOG_ERR, "%s: %s (%s)\n", \
@@ -1637,18 +1637,14 @@ ydb_res yconn_file_init(yconn *conn)
     char *fname;
     char *address = conn->address;
     unsigned int flags = conn->flags;
-    char fmode[32] = {0};
     if (!IS_SET(flags, STATUS_DISCONNECT))
         return YDB_OK;
     UNSET_FLAG(flags, STATUS_MASK);
     fname = &(address[strlen("file://")]);
-    sprintf(fmode, "%s%s",
-            IS_SET(flags, YCONN_WRITABLE) ? "w" : "",
-            IS_SET(flags, YCONN_RECONNECT) ? "r" : "");
     fp = (FILE *)conn->head;
     if (!fp)
     {
-        fp = fopen(fname, fmode);
+        fp = fopen(fname, "w");
         if (!fp)
         {
             conn->fd = -1;
@@ -1687,7 +1683,7 @@ void yconn_file_deinit(yconn *conn)
     SET_FLAG(conn->flags, STATUS_DISCONNECT);
 }
 
-ydb_res yconn_file_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
+ydb_res yconn_file_write(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
 {
     ydb_res res;
     FILE *fp;
@@ -1698,7 +1694,12 @@ ydb_res yconn_file_send(yconn *conn, yconn_op op, ymsg_type type, char *data, si
         return YDB_E_CONN_FAILED;
     }
     fp = (FILE *)conn->head;
-    fprintf(fp, "---\n");
+    fprintf(fp,
+            "---\n"
+            "#type: %s\n"
+            "#op: %s\n",
+            ymsg_str[type],
+            yconn_op_str[op]);
     if (datalen > 0)
     {
         int count = fwrite(data, datalen, 1, fp);
@@ -1714,46 +1715,6 @@ conn_failed:
     res = YDB_E_CONN_FAILED;
     yconn_errno(conn, res);
     ydb_log_out();
-    return res;
-}
-
-ydb_res yconn_file_recv(yconn *conn, yconn_op *op, ymsg_type *type, char **data, size_t *datalen, int *next)
-{
-    ydb_res res = YDB_OK;
-    FILE *readfp = (FILE *)conn->head;
-    FILE *writefp = NULL;
-    char *buf = NULL;
-    size_t buflen = 0;
-
-    ydb_log_in();
-    if (IS_SET(conn->flags, STATUS_DISCONNECT))
-    {
-        ydb_log_out();
-        return YDB_E_CONN_FAILED;
-    }
-    *next = 0;
-    *op = YOP_MERGE;
-    *type = YMSG_PUBLISH;
-    *data = NULL;
-    *datalen = 0;
-
-    writefp = open_memstream(&buf, &buflen);
-    if (writefp)
-    {
-        char c;
-        do
-        {
-            c = fgetc(readfp);
-            if (c != EOF)
-                fputc(c, writefp);
-        } while (c != EOF);
-        fclose(writefp);
-        *data = buf;
-        *datalen = buflen;
-    }
-    SET_FLAG(conn->flags, STATUS_DISCONNECT);
-    res = YDB_E_CONN_FAILED;
-    yconn_errno(conn, res);
     return res;
 }
 
@@ -1778,6 +1739,7 @@ static void yconn_print(yconn *conn, const char *func, int line, bool opened)
         n = sprintf(flagstr, "LOCAL");
     n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, YCONN_RECONNECT) ? "reconn" : "-");
     n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_WRITABLE) ? "write" : "-");
+    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_READ_DISABLED) ? "no-read" : "-");
     n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-");
     n += sprintf(flagstr + n, "/%s) ", IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "");
     ydb_logger(YDB_LOG_INFO, func, line, " flags: %s\n", flagstr);
@@ -1804,9 +1766,13 @@ static unsigned int yconn_flags(char *address, char *flagstr)
     while (token)
     {
         if (strncmp(token, "subscriber", 1) == 0) // subscriber role
+        {
+            UNSET_FLAG(flags, YCONN_ROLE_PUBLISHER);
             SET_FLAG(flags, YCONN_ROLE_SUBSCRIBER);
+        }
         else if (strncmp(token, "publisher", 1) == 0) // publisher role
         {
+            UNSET_FLAG(flags, YCONN_ROLE_SUBSCRIBER);
             SET_FLAG(flags, YCONN_ROLE_PUBLISHER);
             SET_FLAG(flags, YCONN_WRITABLE);
             SET_FLAG(flags, YCONN_RECONNECT);
@@ -1829,7 +1795,11 @@ static unsigned int yconn_flags(char *address, char *flagstr)
     }
     else if (strncmp(address, "file://", strlen("file://")) == 0)
     {
+        flags = 0;
         SET_FLAG(flags, YCONN_TYPE_FILE);
+        SET_FLAG(flags, YCONN_WRITABLE);
+        SET_FLAG(flags, YCONN_READ_DISABLED);
+        
     }
     // else if (strncmp(address, "tcp://", strlen("tcp://")) == 0)
     // else if (strncmp(address, "ws://", strlen("ws://")) == 0)
@@ -1861,8 +1831,8 @@ static yconn *yconn_new(char *address, unsigned int flags)
     else if (IS_SET(flags, YCONN_TYPE_FILE))
     {
         func_init = yconn_file_init;
-        func_send = yconn_file_send;
-        func_recv = yconn_file_recv;
+        func_send = yconn_file_write;
+        func_recv = NULL;
         func_accept = NULL;
         func_deinit = yconn_file_deinit;
     }
@@ -2080,7 +2050,7 @@ static ydb_res yconn_attach(yconn *conn, ydb *datablock)
         }
         ydb_log_debug("created epoll %d to %s\n", datablock->epollfd, datablock->name);
     }
-    if (!IS_SET(conn->flags, YCONN_TYPE_FILE))
+    if (!IS_SET(conn->flags, YCONN_READ_DISABLED))
     {
         event.data.ptr = conn;
         event.events = EPOLLIN;
