@@ -43,6 +43,7 @@ extern "C"
         YDB_E_INVALID_FLAGS,
         YDB_E_ENTRY_EXISTS,
         YDB_E_STREAM_FAILED,
+        YDB_E_NO_CONN,
     } ydb_res;
 
     extern char *ydb_res_str[];
