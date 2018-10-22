@@ -82,9 +82,9 @@ int main(int argc, char *argv[])
         signal(SIGPIPE, SIG_IGN);
         // add a signal handler to quit this program.
         signal(SIGINT, HANDLER_SIGINT);
-        ydb_log_severity = YDB_LOG_DBG;
+        // ydb_log_severity = YDB_LOG_DBG;
         datablock = ydb_open(name?name:"top");
-        res = ydb_connect(datablock, "file://hello.yaml", "w:");
+        res = ydb_connect(datablock, "file://stdout", "w:");
         if (res)
         {
             fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);

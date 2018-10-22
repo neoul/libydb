@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
             ydb_log_severity = verbose;
 
         datablock = ydb_open(name);
-        res = ydb_reconnect(datablock, NULL, flags);
+        res = ydb_connect(datablock, NULL, flags);
         if (res)
         {
             printf("\nydb error: %s\n", ydb_res_str[res]);

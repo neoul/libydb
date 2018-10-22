@@ -262,18 +262,6 @@ static ydb_res yconn_delete(yconn *conn, char *buf, size_t buflen);
 static ydb_res yconn_sync(yconn *src);
 static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next);
 
-void yconn_socket_deinit(yconn *conn);
-ydb_res yconn_socket_init(yconn *conn);
-int yconn_socket_accept(yconn *conn, yconn *client);
-ydb_res yconn_socket_recv(
-    yconn *conn, yconn_op *op, ymsg_type *type,
-    unsigned int *flags, char **data, size_t *datalen, int *next);
-ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
-
-void yconn_file_deinit(yconn *conn);
-ydb_res yconn_file_init(yconn *conn);
-ydb_res yconn_file_write(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
-
 #define yconn_errno(conn, res)            \
     ydb_log(YDB_LOG_ERR, "%s: %s (%s)\n", \
             (conn)->address, ydb_res_str[res], strerror(errno));
@@ -1517,7 +1505,7 @@ ydb_res yconn_socket_recv(
     }
     else
         start = recvbuf;
-    len = recv(conn->fd, start, 32, MSG_DONTWAIT);
+    len = recv(conn->fd, start, 2048, MSG_DONTWAIT);
     if (len <= 0)
     {
         if (len == 0)
@@ -1640,7 +1628,7 @@ ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, 
             goto conn_failed;
     }
     ydb_log_info("data {%s}\n", data ? data : "");
-    n = send(conn->fd, "\n...\n", 5, 0);
+    n = send(conn->fd, "...\n", 4, 0);
     if (n < 0)
         goto conn_failed;
     ydb_log_out();
@@ -1666,7 +1654,17 @@ ydb_res yconn_file_init(yconn *conn)
     fp = (FILE *)conn->head;
     if (!fp)
     {
-        fp = fopen(fname, "w");
+        if (strcmp(fname, "stdout") == 0)
+        {
+            if (feof(stdout))
+            {
+                yconn_errno(conn, YDB_E_STREAM_FAILED);
+                return YDB_E_STREAM_FAILED;
+            }
+            fp = stdout;
+        }
+        else
+            fp = fopen(fname, "w");
         if (!fp)
         {
             conn->fd = -1;
@@ -1730,76 +1728,6 @@ ydb_res yconn_file_write(yconn *conn, yconn_op op, ymsg_type type, char *data, s
     }
     ydb_log_debug("data {%s}\n", data ? data : "");
     fprintf(fp, "\n...\n");
-    ydb_log_out();
-    return YDB_OK;
-conn_failed:
-    SET_FLAG(conn->flags, STATUS_DISCONNECT);
-    res = YDB_E_CONN_FAILED;
-    yconn_errno(conn, res);
-    ydb_log_out();
-    return res;
-}
-
-ydb_res yconn_stdio_init(yconn *conn)
-{
-    unsigned int flags = conn->flags;
-    if (!IS_SET(flags, STATUS_DISCONNECT))
-        return YDB_OK;
-    UNSET_FLAG(flags, STATUS_MASK);
-    if (feof(stdin))
-    {
-        yconn_errno(conn, YDB_E_STREAM_FAILED);
-        return YDB_E_STREAM_FAILED;
-    }
-    if (feof(stdout))
-    {
-        yconn_errno(conn, YDB_E_STREAM_FAILED);
-        return YDB_E_STREAM_FAILED;
-    }
-    if (feof(stderr))
-    {
-        yconn_errno(conn, YDB_E_STREAM_FAILED);
-        return YDB_E_STREAM_FAILED;
-    }
-
-    conn->fd = STDIN_FILENO;
-    conn->head = NULL;
-    conn->flags = flags;
-    return YDB_OK;
-}
-
-void yconn_stdio_deinit(yconn *conn)
-{
-    if (!conn)
-        return;
-    conn->fd = -1;
-    UNSET_FLAG(conn->flags, STATUS_MASK);
-    SET_FLAG(conn->flags, STATUS_DISCONNECT);
-}
-
-ydb_res yconn_stdio_write(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
-{
-    ydb_res res;
-    ydb_log_in();
-    if (IS_SET(conn->flags, STATUS_DISCONNECT))
-    {
-        ydb_log_out();
-        return YDB_E_CONN_FAILED;
-    }
-    fprintf(stdout,
-            "---\n"
-            "#type: %s\n"
-            "#op: %s\n",
-            ymsg_str[type],
-            yconn_op_str[op]);
-    if (datalen > 0)
-    {
-        int count = fwrite(data, datalen, 1, stdout);
-        if (count != 1)
-            goto conn_failed;
-    }
-    ydb_log_debug("data {%s}\n", data ? data : "");
-    fprintf(stdout, "\n...\n");
     ydb_log_out();
     return YDB_OK;
 conn_failed:

@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
             ydb_log_severity = verbose;
 
         datablock = ydb_open(name);
-        res = ydb_reconnect(datablock, NULL, flags);
+        res = ydb_connect(datablock, NULL, flags);
         if (res)
         {
             printf("\nydb error: %s\n", ydb_res_str[res]);
@@ -156,6 +156,8 @@ int main(int argc, char *argv[])
             if (res || done)
                 printf("%s, res = %s\n", done ? "done" : "not-done", ydb_res_str[res]);
         } while (!res && !done);
+        fprintf(stdout, "\n# [datablock]\n");
+        ydb_dump(datablock, stdout);
         ydb_close(datablock);
     }
     return 0;
