@@ -165,23 +165,24 @@ char *ydb_res_str[] =
 
 typedef struct _yconn yconn;
 
-#define YCONN_ROLE_PUBLISHER 0x1
-#define YCONN_ROLE_SUBSCRIBER 0x2
+#define YCONN_ROLE_PUBLISHER 0x0001
+#define YCONN_WRITABLE 0x0002
+#define YCONN_UNSUBSCRIBE 0x0004
+#define YCONN_RECONNECT 0x0008
+#define YCONN_FLAGS_MASK 0x000f
 
-#define YCONN_READ_DISABLED 0x8
-#define YCONN_RECONNECT 0x10
-#define YCONN_WRITABLE 0x20
-#define YCONN_UNSUBSCRIBE 0x40
-#define YCONN_MAJOR_CONN 0x80
+#define YCONN_READ_DISABLED 0x0010
+#define YCONN_MAJOR_CONN 0x0020
 
-#define STATUS_SERVER 0x100
-#define STATUS_CLIENT 0x200
-#define STATUS_COND_CLIENT 0x400 // connected client
-#define STATUS_DISCONNECT 0x800
-#define STATUS_MASK 0xf00
+#define YCONN_TYPE_UNIXSOCK 0x0100
+#define YCONN_TYPE_FILE 0x0200
+#define YCONN_TYPE_MASK 0xff00
 
-#define YCONN_TYPE_UNIXSOCK 0x10000
-#define YCONN_TYPE_FILE 0x20000
+#define STATUS_SERVER 0x010000
+#define STATUS_CLIENT 0x020000
+#define STATUS_COND_CLIENT 0x040000 // connected client
+#define STATUS_DISCONNECT 0x080000
+#define STATUS_MASK 0xff0000
 
 typedef enum
 {
@@ -217,7 +218,9 @@ char *ymsg_str[] = {
 };
 
 typedef ydb_res (*yconn_func_send)(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
-typedef ydb_res (*yconn_func_recv)(yconn *conn, yconn_op *op, ymsg_type *type, char **data, size_t *datalen, int *next);
+typedef ydb_res (*yconn_func_recv)(
+    yconn *conn, yconn_op *op, ymsg_type *type, 
+    unsigned int *flags, char **data, size_t *datalen, int *next);
 typedef int (*yconn_func_accept)(yconn *conn, yconn *client); // return fd;
 
 typedef ydb_res (*yconn_func_init)(yconn *conn);
@@ -262,7 +265,9 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
 void yconn_socket_deinit(yconn *conn);
 ydb_res yconn_socket_init(yconn *conn);
 int yconn_socket_accept(yconn *conn, yconn *client);
-ydb_res yconn_socket_recv(yconn *conn, yconn_op *op, ymsg_type *type, char **data, size_t *datalen, int *next);
+ydb_res yconn_socket_recv(
+    yconn *conn, yconn_op *op, ymsg_type *type, 
+    unsigned int *flags, char **data, size_t *datalen, int *next);
 ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
 
 void yconn_file_deinit(yconn *conn);
@@ -1317,7 +1322,7 @@ ydb_res yconn_socket_init(yconn *conn)
             SET_FLAG(flags, STATUS_SERVER);
         }
     }
-    else if (IS_SET(flags, YCONN_ROLE_SUBSCRIBER))
+    else
     {
         if (connect(conn->fd, (struct sockaddr *)&addr, sname_len) == -1)
             goto disconnected;
@@ -1363,7 +1368,7 @@ int yconn_socket_accept(yconn *conn, yconn *client)
     return cfd;
 }
 
-void yconn_socket_recv_head(yconn *conn, yconn_op *op, ymsg_type *type, char **data, size_t *datalen)
+void yconn_socket_recv_head(yconn *conn, yconn_op *op, ymsg_type *type, unsigned int *flags, char **data, size_t *datalen)
 {
     int j;
     int n = 0;
@@ -1410,25 +1415,33 @@ void yconn_socket_recv_head(yconn *conn, yconn_op *op, ymsg_type *type, char **d
         if (opstr[0])
         {
             if (opstr[0] == 'p')
-                SET_FLAG(conn->flags, YCONN_ROLE_PUBLISHER);
+                SET_FLAG(*flags, YCONN_ROLE_PUBLISHER);
             else
-                SET_FLAG(conn->flags, YCONN_ROLE_SUBSCRIBER);
-            if (opstr[2] == 'w')
-                SET_FLAG(conn->flags, YCONN_WRITABLE);
+                UNSET_FLAG(*flags, YCONN_ROLE_PUBLISHER);
+            if (opstr[1] == 'w')
+                SET_FLAG(*flags, YCONN_WRITABLE);
             else
-                UNSET_FLAG(conn->flags, YCONN_WRITABLE);
-            if (opstr[3] == 'u')
-                SET_FLAG(conn->flags, YCONN_UNSUBSCRIBE);
+                UNSET_FLAG(*flags, YCONN_WRITABLE);
+            if (opstr[2] == 'u')
+                SET_FLAG(*flags, YCONN_UNSUBSCRIBE);
             else
-                UNSET_FLAG(conn->flags, YCONN_UNSUBSCRIBE);
-            if (opstr[1] == 'r')
-                SET_FLAG(conn->flags, YCONN_RECONNECT);
+                UNSET_FLAG(*flags, YCONN_UNSUBSCRIBE);
+            if (opstr[3] == 'r')
+                SET_FLAG(*flags, YCONN_RECONNECT);
             else
-                UNSET_FLAG(conn->flags, YCONN_RECONNECT);
+                UNSET_FLAG(*flags, YCONN_RECONNECT);
         }
     }
     ydb_log_info("head {seq: %u, type: %s, op: %s}\n",
                  head->recv.seq, ymsg_str[head->recv.type], yconn_op_str[head->recv.op]);
+    if (*flags)
+    {
+        ydb_log_info("head {flags: %s%s%s%s}\n",
+                IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
+                IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "-",
+                IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "-",
+                IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "-");
+    }
     ydb_log_info("data {%s}\n", *data ? *data : "");
     return;
 failed:
@@ -1436,7 +1449,10 @@ failed:
     return;
 }
 
-ydb_res yconn_socket_recv(yconn *conn, yconn_op *op, ymsg_type *type, char **data, size_t *datalen, int *next)
+ydb_res yconn_socket_recv(
+    yconn *conn, yconn_op *op, ymsg_type *type, 
+    unsigned int *flags, char **data, size_t *datalen, 
+    int *next)
 {
     ydb_res res = YDB_OK;
     struct yconn_socket_head *head;
@@ -1462,7 +1478,7 @@ ydb_res yconn_socket_recv(yconn *conn, yconn_op *op, ymsg_type *type, char **dat
             len = head->recv.len;
             *data = start;
             *datalen = clen;
-            yconn_socket_recv_head(conn, op, type, data, datalen);
+            yconn_socket_recv_head(conn, op, type, flags, data, datalen);
             head->recv.buf = NULL;
             head->recv.len = 0;
             head->recv.fp = NULL;
@@ -1524,7 +1540,7 @@ ydb_res yconn_socket_recv(yconn *conn, yconn_op *op, ymsg_type *type, char **dat
     fclose(head->recv.fp);
     *data = head->recv.buf;
     *datalen = head->recv.len;
-    yconn_socket_recv_head(conn, op, type, data, datalen);
+    yconn_socket_recv_head(conn, op, type, flags, data, datalen);
     head->recv.buf = NULL;
     head->recv.len = 0;
     head->recv.fp = NULL;
@@ -1590,6 +1606,11 @@ ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, 
                 head->send.seq,
                 ymsg_str[type],
                 yconn_op_str[op]);
+
+    ydb_log_info("head {seq: %u, type: %s, op: %s}\n",
+                 head->send.seq,
+                 ymsg_str[type],
+                 yconn_op_str[op]);
     switch (op)
     {
     case YOP_INIT:
@@ -1599,15 +1620,16 @@ ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, 
                      IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "-",
                      IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "-",
                      IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "-");
+        ydb_log_info("head {flags: %s%s%s%s}\n",
+                     IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
+                     IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "-",
+                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "-",
+                     IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "-");
         break;
     default:
         break;
     }
 
-    ydb_log_info("head {seq: %u, type: %s, op: %s}\n",
-                 head->send.seq,
-                 ymsg_str[type],
-                 yconn_op_str[op]);
     n = send(conn->fd, msghead, n, 0);
     if (n < 0)
         goto conn_failed;
@@ -1718,6 +1740,76 @@ conn_failed:
     return res;
 }
 
+ydb_res yconn_stdio_init(yconn *conn)
+{
+    unsigned int flags = conn->flags;
+    if (!IS_SET(flags, STATUS_DISCONNECT))
+        return YDB_OK;
+    UNSET_FLAG(flags, STATUS_MASK);
+    if (feof(stdin))
+    {
+        yconn_errno(conn, YDB_E_STREAM_FAILED);
+        return YDB_E_STREAM_FAILED;
+    }
+    if (feof(stdout))
+    {
+        yconn_errno(conn, YDB_E_STREAM_FAILED);
+        return YDB_E_STREAM_FAILED;
+    }
+    if (feof(stderr))
+    {
+        yconn_errno(conn, YDB_E_STREAM_FAILED);
+        return YDB_E_STREAM_FAILED;
+    }
+
+    conn->fd = STDIN_FILENO;
+    conn->head = NULL;
+    conn->flags = flags;
+    return YDB_OK;
+}
+
+void yconn_stdio_deinit(yconn *conn)
+{
+    if (!conn)
+        return;
+    conn->fd = -1;
+    UNSET_FLAG(conn->flags, STATUS_MASK);
+    SET_FLAG(conn->flags, STATUS_DISCONNECT);
+}
+
+ydb_res yconn_stdio_write(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
+{
+    ydb_res res;
+    ydb_log_in();
+    if (IS_SET(conn->flags, STATUS_DISCONNECT))
+    {
+        ydb_log_out();
+        return YDB_E_CONN_FAILED;
+    }
+    fprintf(stdout,
+            "---\n"
+            "#type: %s\n"
+            "#op: %s\n",
+            ymsg_str[type],
+            yconn_op_str[op]);
+    if (datalen > 0)
+    {
+        int count = fwrite(data, datalen, 1, stdout);
+        if (count != 1)
+            goto conn_failed;
+    }
+    ydb_log_debug("data {%s}\n", data ? data : "");
+    fprintf(stdout, "\n...\n");
+    ydb_log_out();
+    return YDB_OK;
+conn_failed:
+    SET_FLAG(conn->flags, STATUS_DISCONNECT);
+    res = YDB_E_CONN_FAILED;
+    yconn_errno(conn, res);
+    ydb_log_out();
+    return res;
+}
+
 static void yconn_print(yconn *conn, const char *func, int line, bool opened)
 {
     int n;
@@ -1733,14 +1825,12 @@ static void yconn_print(yconn *conn, const char *func, int line, bool opened)
     ydb_logger(YDB_LOG_INFO, func, line, " address: %s\n", conn->address);
     if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
         n = sprintf(flagstr, "PUB");
-    else if (IS_SET(conn->flags, YCONN_ROLE_SUBSCRIBER))
-        n = sprintf(flagstr, "SUB");
     else
-        n = sprintf(flagstr, "LOCAL");
-    n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, YCONN_RECONNECT) ? "reconn" : "-");
-    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_WRITABLE) ? "write" : "-");
-    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_READ_DISABLED) ? "no-read" : "-");
+        n = sprintf(flagstr, "SUB");
+    n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, YCONN_WRITABLE) ? "write" : "-");
     n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-");
+    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_RECONNECT) ? "reconn" : "-");
+    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_READ_DISABLED) ? "no-read" : "-");
     n += sprintf(flagstr + n, "/%s) ", IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "");
     ydb_logger(YDB_LOG_INFO, func, line, " flags: %s\n", flagstr);
 
@@ -1768,11 +1858,9 @@ static unsigned int yconn_flags(char *address, char *flagstr)
         if (strncmp(token, "subscriber", 1) == 0) // subscriber role
         {
             UNSET_FLAG(flags, YCONN_ROLE_PUBLISHER);
-            SET_FLAG(flags, YCONN_ROLE_SUBSCRIBER);
         }
         else if (strncmp(token, "publisher", 1) == 0) // publisher role
         {
-            UNSET_FLAG(flags, YCONN_ROLE_SUBSCRIBER);
             SET_FLAG(flags, YCONN_ROLE_PUBLISHER);
             SET_FLAG(flags, YCONN_WRITABLE);
             SET_FLAG(flags, YCONN_RECONNECT);
@@ -1785,8 +1873,6 @@ static unsigned int yconn_flags(char *address, char *flagstr)
             SET_FLAG(flags, YCONN_RECONNECT);
         token = strtok(NULL, ":,.- ");
     }
-    if (!flags)
-        return 0;
 
     if (strncmp(address, "us://", strlen("us://")) == 0 ||
         strncmp(address, "uss://", strlen("uss://")) == 0)
@@ -2297,6 +2383,7 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
     ydb_res res;
     char *buf = NULL;
     size_t buflen = 0;
+    unsigned int flags = 0x0;
     assert(conn);
     if (IS_SET(conn->flags, STATUS_DISCONNECT))
     {
@@ -2319,7 +2406,7 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
     }
 
     assert(conn->func_recv);
-    res = conn->func_recv(conn, op, type, &buf, &buflen, next);
+    res = conn->func_recv(conn, op, type, &flags, &buf, &buflen, next);
     if (res)
     {
         CLEAR_BUF(buf, buflen);
@@ -2380,6 +2467,7 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
         case YOP_INIT:
             if (IS_SET(conn->flags, STATUS_COND_CLIENT))
             {
+                conn->flags = flags | (conn->flags & (YCONN_TYPE_MASK | STATUS_MASK));
                 yconn_response(conn, YOP_INIT, true, NULL, 0);
                 if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
                 {

@@ -25,10 +25,11 @@ void usage(int status, char *progname)
 YAML DATABLOCK publisher\n\
   -n, --name YDB_NAME   The name of created YDB (YAML DataBlock).\n\
   -f, --file FILE       Read data from FILE to send publisher\n\
+  -w, --writeable       Write data to the remote YDB\n\
   -u, --unsubscribe     Disable subscription\n\
   -r, --reconnect       Retry to reconnect upon the communication failure\n\
   -d, --daemon          Runs in daemon mode\n\
-    , --verbose         Verbose mode for debug (debug|inout|info)\n\
+  -v, --verbose         Verbose mode for debug (debug|inout|info)\n\
   -h, --help            Display this help and exit\n\
 \n\
 ");
@@ -52,14 +53,15 @@ int main(int argc, char *argv[])
         static struct option long_options[] = {
             {"name", required_argument, 0, 'n'},
             {"file", required_argument, 0, 'f'},
-            {"verbose", required_argument, 0, 'v'},
+            {"writeable", no_argument, 0, 'w'},
             {"unsubscribe", no_argument, 0, 'u'},
             {"reconnect", no_argument, 0, 'r'},
             {"daemon", no_argument, 0, 'd'},
+            {"verbose", required_argument, 0, 'v'},
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:f:v:urdh",
+        c = getopt_long(argc, argv, "n:f:wurdv:h",
                         long_options, &index);
         if (c == -1)
             break;
@@ -80,6 +82,8 @@ int main(int argc, char *argv[])
             else if (strcmp(optarg, "info") == 0)
                 verbose = YDB_LOG_INFO;
             break;
+        case 'w':
+            strcat(flags, ":w");
         case 'u':
             strcat(flags, ":u");
             break;
