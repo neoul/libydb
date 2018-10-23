@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
             break;
         case 'v':
             if (strcmp(optarg, "debug") == 0)
-                verbose = YDB_LOG_DBG;
+                verbose = YDB_LOG_DEBUG;
             else if (strcmp(optarg, "inout") == 0)
                 verbose = YDB_LOG_INOUT;
             else if (strcmp(optarg, "info") == 0)

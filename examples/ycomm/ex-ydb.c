@@ -147,7 +147,7 @@ _done:
 
 int main(int argc, char *argv[])
 {
-	ydb_log_severity = YDB_LOG_DBG;
+	ydb_log_severity = YDB_LOG_DEBUG;
 	TEST_FUNC(test_ydb_open_close);
 	TEST_FUNC(test_ydb_read_write);
 	return 0;

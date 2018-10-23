@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <errno.h>
+
 // epoll
 #include <sys/epoll.h>
 
@@ -34,23 +35,23 @@ int ydb_logger_example(
     va_list args;
     switch (severity)
     {
-    case YDB_LOG_DBG:
-        printf("** ydb::dbg::%s:%d: ", func, line);
+    case YDB_LOG_DEBUG:
+        printf("** ydb::debug::%s:%d: ", func, line);
         break;
     case YDB_LOG_INOUT:
-        printf("** ydb::inout::%s:%d: ", func, line);
+        printf("** ydb::inout:%s:%d: ", func, line);
         break;
     case YDB_LOG_INFO:
-        printf("** ydb::info:%s:%d: ", func, line);
+        printf("** ydb::info::%s:%d: ", func, line);
         break;
     case YDB_LOG_WARN:
-        printf("** ydb::warn:%s:%d: ", func, line);
+        printf("** ydb::warn::%s:%d: ", func, line);
         break;
     case YDB_LOG_ERR:
-        printf("** ydb::err:%s:%d: ", func, line);
+        printf("** ydb::error:%s:%d: ", func, line);
         break;
     case YDB_LOG_CRI:
-        printf("** ydb::cri:%s:%d: ", func, line);
+        printf("** ydb::critical:%s:%d: ", func, line);
         break;
     default:
         return 0;
@@ -107,14 +108,14 @@ int ydb_log_register(ydb_log_func func)
         ydb_logger(severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
     } while (0)
 
-#define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
+#define ydb_log_debug(format, ...) ydb_log(YDB_LOG_DEBUG, format, ##__VA_ARGS__)
 #define ydb_log_inout() ydb_log(YDB_LOG_INOUT, "\n")
 #define ydb_log_in() ydb_log(YDB_LOG_INOUT, "{{ ------\n")
 #define ydb_log_out() ydb_log(YDB_LOG_INOUT, "}}\n")
 #define ydb_log_info(format, ...) ydb_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
 #define ydb_log_warn(format, ...) ydb_log(YDB_LOG_WARN, format, ##__VA_ARGS__)
 #define ydb_log_error(format, ...) ydb_log(YDB_LOG_ERR, format, ##__VA_ARGS__)
-#define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
+#define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DEBUG)
 #define YDB_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
 
 #define IS_LAEF(x) ((x)->op == YNODE_TYPE_VAL)
@@ -172,7 +173,7 @@ typedef struct _yconn yconn;
 #define YCONN_RECONNECT 0x0008
 #define YCONN_FLAGS_MASK 0x000f
 
-#define YCONN_READ_DISABLED 0x0010
+#define YCONN_UNREADABLE 0x0010
 #define YCONN_MAJOR_CONN 0x0020
 
 #define YCONN_TYPE_UNIXSOCK 0x0100
@@ -276,6 +277,7 @@ struct _ydb
     ynode *top;
     ytrie *updater;
     ytree *conn;
+    // ylist *disconn;
     int epollfd;
     int unsubscribers;
 };
@@ -1724,7 +1726,7 @@ static void yconn_print(yconn *conn, const char *func, int line, bool opened)
     n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, YCONN_WRITABLE) ? "write" : "-");
     n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-");
     n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_RECONNECT) ? "reconn" : "-");
-    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_READ_DISABLED) ? "no-read" : "-");
+    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNREADABLE) ? "no-read" : "-");
     n += sprintf(flagstr + n, "/%s) ", IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "");
     ydb_logger(YDB_LOG_INFO, func, line, " flags: %s\n", flagstr);
 
@@ -1778,7 +1780,7 @@ static unsigned int yconn_flags(char *address, char *flagstr)
         flags = 0;
         SET_FLAG(flags, YCONN_TYPE_FILE);
         SET_FLAG(flags, YCONN_WRITABLE);
-        SET_FLAG(flags, YCONN_READ_DISABLED);
+        SET_FLAG(flags, YCONN_UNREADABLE);
     }
     // else if (strncmp(address, "tcp://", strlen("tcp://")) == 0)
     // else if (strncmp(address, "ws://", strlen("ws://")) == 0)
@@ -1995,7 +1997,7 @@ static ydb_res yconn_attach(yconn *conn, ydb *datablock)
         }
         ydb_log_debug("created epoll %d to %s\n", datablock->epollfd, datablock->name);
     }
-    if (!IS_SET(conn->flags, YCONN_READ_DISABLED))
+    if (!IS_SET(conn->flags, YCONN_UNREADABLE))
     {
         event.data.ptr = conn;
         event.events = EPOLLIN;

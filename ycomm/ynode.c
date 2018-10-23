@@ -26,14 +26,14 @@ extern ydb_log_func ydb_logger;
         ydb_logger(severity, (__FUNCTION__), (__LINE__), format, ##__VA_ARGS__); \
     } while (0)
 
-#define ynode_log_debug(format, ...) ynode_log(YDB_LOG_DBG, format, ##__VA_ARGS__)
+#define ynode_log_debug(format, ...) ynode_log(YDB_LOG_DEBUG, format, ##__VA_ARGS__)
 #define ynode_log_inout() ynode_log(YDB_LOG_INOUT, "\n")
 #define ynode_log_in() ynode_log(YDB_LOG_INOUT, "{{ ------\n")
 #define ynode_log_out() ynode_log(YDB_LOG_INOUT, "}}\n")
 #define ynode_log_info(format, ...) ynode_log(YDB_LOG_INFO, format, ##__VA_ARGS__)
 #define ynode_log_warn(format, ...) ynode_log(YDB_LOG_WARN, format, ##__VA_ARGS__)
 #define ynode_log_error(format, ...) ynode_log(YDB_LOG_ERR, format, ##__VA_ARGS__)
-#define YNODE_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DBG)
+#define YNODE_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DEBUG)
 #define YNODE_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
 
 struct _yhook

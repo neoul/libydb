@@ -48,7 +48,7 @@ extern "C"
 
     extern char *ydb_res_str[];
 
-#define YDB_LOG_DBG 5
+#define YDB_LOG_DEBUG 5
 #define YDB_LOG_INOUT 4
 #define YDB_LOG_INFO 3
 #define YDB_LOG_WARN 2
