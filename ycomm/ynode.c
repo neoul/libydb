@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <yaml.h>
 
 #include "yalloc.h"
@@ -17,7 +18,7 @@
 
 #define YNODE_LEVEL_MAX YDB_LEVEL_MAX
 extern ydb_log_func ydb_logger;
-#define ynode_log(severity, format, ...)                                           \
+#define ynode_log(severity, format, ...)                                         \
     do                                                                           \
     {                                                                            \
         if (ydb_log_severity < (severity))                                       \
@@ -303,12 +304,12 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *u
         SET_FLAG(hook->flags, YNODE_VAL_NODE_FIRST);
     else
         UNSET_FLAG(hook->flags, YNODE_VAL_NODE_FIRST);
-    
+
     if (IS_SET(flags, YNODE_VAL_NODE_ONLY))
         SET_FLAG(hook->flags, YNODE_VAL_NODE_ONLY);
     else
         UNSET_FLAG(hook->flags, YNODE_VAL_NODE_ONLY);
-    
+
     hook->func = func;
     hook->user = user;
     hook->node = node;
@@ -501,6 +502,7 @@ struct _ynode_record
     int level;
     int indent;
 };
+typedef struct _ynode_record ynode_record;
 
 #define S10 "          "
 static char *space = S10 S10 S10 S10 S10 S10 S10 S10 S10 S10;
@@ -856,6 +858,137 @@ int ynode_printf(ynode *node, int start_level, int end_level)
     return ynode_printf_to_fp(NULL, node, start_level, end_level);
 }
 
+
+struct _ynode_log
+{
+    FILE *fp;
+    char *buf;
+    size_t buflen;
+    ynode *top;
+    ynode *latest;
+    int indent;
+    bool isdump;
+};
+
+struct _ynode_log *ynode_log_open(ynode *top, FILE *dumpfp)
+{
+    struct _ynode_log *log = malloc(sizeof(struct _ynode_log));
+    if (!log)
+        return NULL;
+    memset(log, 0x0, sizeof(struct _ynode_log));
+    if (!dumpfp)
+        log->fp = open_memstream(&log->buf, &log->buflen);
+    else
+    {
+        log->fp = dumpfp;
+        log->isdump = true;
+    }
+    if (!log->fp)
+    {
+        free(log);
+        return NULL;
+    }
+    log->top = top;
+    return log;
+}
+
+void ynode_log_close(struct _ynode_log *log, char **buf, size_t *buflen)
+{
+    if (!log)
+        return;
+    if (log->fp && !log->isdump)
+        fclose(log->fp);
+    if (buf && buflen)
+    {
+        *buf = log->buf;
+        *buflen = log->buflen;
+        free(log);
+    }
+    else
+    {
+        if (log->buf)
+            free(log->buf);
+        free(log);
+    }
+}
+
+static void ynode_log_update(struct _ynode_log *log, ynode *cur)
+{
+    if (log && log->latest)
+    {
+        if (cur == log->latest)
+        {
+            log->latest = cur->parent;
+            log->indent--;
+        }
+    }
+}
+
+static void ynode_log_print(struct _ynode_log *log, ynode *cur)
+{
+    int size;
+    ynode *n;
+    ylist *nodes;
+    if (!log)
+        return;
+    nodes = ylist_create();
+    if (!nodes)
+        return;
+    n = cur;
+    
+    while (n)
+    {
+        if (log->top == n)
+            break;
+        if (log->latest == n)
+            break;
+        ylist_push_front(nodes, n);
+        n = n->parent;
+    };
+    
+    size = ylist_size(nodes);
+    n = ylist_pop_front(nodes);
+    ynode_log_debug("nodes size=%d\n", size);
+    while (n)
+    {
+        int only_val = 0;
+        // print nodes and cur to fp using log->indent
+        fprintf(log->fp, "%.*s", log->indent, space);
+        // print key
+        if (IS_SET(n->flags, YNODE_FLAG_KEY))
+        {
+            char *key = ystr_convert(n->key);
+            fprintf(log->fp, "%s:", key ? key : n->key);
+            if (key)
+                free(key);
+        }
+        else if (IS_SET(n->flags, YNODE_FLAG_ITER))
+            fprintf(log->fp, "-");
+        else
+            only_val = 1;
+
+        // print value
+        if (n->type == YNODE_TYPE_VAL)
+        {
+            char *value = ystr_convert(n->value);
+            fprintf(log->fp, "%s%s\n",
+                                only_val ? "" : " ",
+                                value ? value : n->value);
+            if (value)
+                free(value);
+        }
+        else
+            fprintf(log->fp, "\n");
+        log->indent++;
+        n = ylist_pop_front(nodes);
+    }
+    
+    // update latest print node
+    log->latest = cur;
+    ylist_destroy(nodes);
+    return;
+}
+
 int ydb_log_err_yaml(yaml_parser_t *parser)
 {
     /* Display a parser error message. */
@@ -869,12 +1002,12 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         if (parser->problem_value != -1)
         {
             ynode_log_error("reader error: %s: #%X at %zd\n", parser->problem,
-                          parser->problem_value, parser->problem_offset);
+                            parser->problem_value, parser->problem_offset);
         }
         else
         {
             ynode_log_error("reader error: %s at %zu\n", parser->problem,
-                          parser->problem_offset);
+                            parser->problem_offset);
         }
         break;
 
@@ -882,17 +1015,17 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         if (parser->context)
         {
             ynode_log_error("scanner error: %s at line %zu, column %zu\n",
-                          parser->context,
-                          parser->context_mark.line + 1, parser->context_mark.column + 1);
+                            parser->context,
+                            parser->context_mark.line + 1, parser->context_mark.column + 1);
             ynode_log_error("%s at line %zu, column %zu\n",
-                          parser->problem, parser->problem_mark.line + 1,
-                          parser->problem_mark.column + 1);
+                            parser->problem, parser->problem_mark.line + 1,
+                            parser->problem_mark.column + 1);
         }
         else
         {
             ynode_log_error("scanner error: %s at line %zu, column %zu\n",
-                          parser->problem, parser->problem_mark.line + 1,
-                          parser->problem_mark.column + 1);
+                            parser->problem, parser->problem_mark.line + 1,
+                            parser->problem_mark.column + 1);
         }
         break;
 
@@ -900,17 +1033,17 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         if (parser->context)
         {
             ynode_log_error("parser error: %s at line %zu, column %zu\n",
-                          parser->context,
-                          parser->context_mark.line + 1, parser->context_mark.column + 1);
+                            parser->context,
+                            parser->context_mark.line + 1, parser->context_mark.column + 1);
             ynode_log_error("%s at line %zu, column %zu\n",
-                          parser->problem, parser->problem_mark.line + 1,
-                          parser->problem_mark.column + 1);
+                            parser->problem, parser->problem_mark.line + 1,
+                            parser->problem_mark.column + 1);
         }
         else
         {
             ynode_log_error("parser error: %s at line %zu, column %zu\n",
-                          parser->problem, parser->problem_mark.line + 1,
-                          parser->problem_mark.column + 1);
+                            parser->problem, parser->problem_mark.line + 1,
+                            parser->problem_mark.column + 1);
         }
         break;
 
@@ -918,18 +1051,18 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         if (parser->context)
         {
             ynode_log_error("composer error: %s at line %zu, column %zu\n",
-                          parser->context,
-                          parser->context_mark.line + 1, parser->context_mark.column + 1);
+                            parser->context,
+                            parser->context_mark.line + 1, parser->context_mark.column + 1);
             ynode_log_error("%s at line %zu, column %zu\n",
-                          parser->problem, parser->problem_mark.line + 1,
-                          parser->problem_mark.column + 1);
+                            parser->problem, parser->problem_mark.line + 1,
+                            parser->problem_mark.column + 1);
             ynode_log_error("\n");
         }
         else
         {
             ynode_log_error("composer error: %s at line %zu, column %zu\n",
-                          parser->problem, parser->problem_mark.line + 1,
-                          parser->problem_mark.column + 1);
+                            parser->problem, parser->problem_mark.line + 1,
+                            parser->problem_mark.column + 1);
         }
         break;
 
@@ -1790,7 +1923,7 @@ char *yhook_op_str[] =
         "yhook_op_delete",
 };
 
-static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ynode_record *record)
+static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ynode_log *log)
 {
     ynode *new = NULL;
     yhook_op_type op;
@@ -1827,20 +1960,20 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
 
     if (YNODE_LOGGING_DEBUG)
     {
-        char *path = NULL;
+        char *path = ynode_path_and_val(parent, YNODE_LEVEL_MAX);
         switch (op)
         {
         case YHOOK_OP_CREATE:
-            path = ynode_path_and_val(new, YNODE_LEVEL_MAX);
-            ynode_log_debug("create %s in %s\n", key ? key : "null", path ? path : "null");
+            ynode_log_debug("create %s to %s\n", key ? key : "-", path ? path : "top");
             break;
         case YHOOK_OP_REPLACE:
-            path = ynode_path_and_val(new, YNODE_LEVEL_MAX);
-            ynode_log_debug("replace %s in %s\n", key ? key : "null", path ? path : "null");
+            ynode_log_debug("replace %s in %s\n", key ? key : "-", path ? path : "top");
             break;
         case YHOOK_OP_DELETE:
-            path = ynode_path_and_val(cur, YNODE_LEVEL_MAX);
-            ynode_log_debug("delete %s in %s\n", key ? key : "null", path ? path : "null");
+            if (key || path)
+                ynode_log_debug("delete %s from %s\n", key ? key : "???", path ? path : "top");
+            else
+                ynode_log_debug("delete top\n");
             break;
         default:
             break;
@@ -1854,36 +1987,24 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     case YHOOK_OP_CREATE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
+        ynode_log_print(log, new);
         break;
     case YHOOK_OP_REPLACE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
+        ynode_log_print(log, new);
         break;
     case YHOOK_OP_DELETE:
         yhook_pre_run_for_delete(cur);
-        _ynode_record_print_ynode(record, cur);
+        ynode_log_print(log, cur);
         break;
     case YHOOK_OP_NONE:
     default:
         break;
     }
-    if (record)
-    {
-        if (record->end_level >= 0)
-        {
-            record->end_level--;
-            if (record->start_level <= record->level)
-            {
-                _ynode_record_print_ynode(record, new);
-                record->indent++;
-            }
-        }
-    }
 
     if (src)
     {
-        if (record)
-            record->level++;
         switch (src->type)
         {
         case YNODE_TYPE_DICT:
@@ -1893,7 +2014,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
             {
                 ynode *src_child = ytree_data(iter);
                 ynode *cur_child = ynode_find_child(new, src_child->key);
-                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, record);
+                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, log);
                 if (!new_child)
                     ynode_log_error("unable to add child node (src_child->key: %s)\n");
             }
@@ -1907,7 +2028,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
                  iter = ylist_next(iter))
             {
                 ynode *src_child = ylist_data(iter);
-                ynode *new_child = ynode_control(NULL, src_child, new, NULL, record);
+                ynode *new_child = ynode_control(NULL, src_child, new, NULL, log);
                 if (!new_child)
                     ynode_log_error("unable to add child node (src_child->key: %s)\n");
             }
@@ -1918,25 +2039,21 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
         default:
             assert(!YDB_E_TYPE_ERR);
         }
-        if (record)
-        {
-            record->level--;
-            if (record->start_level <= record->level)
-                record->indent--;
-            record->end_level++;
-        }
     }
 
     switch (op)
     {
     case YHOOK_OP_CREATE:
+        ynode_log_update(log, new);
         yhook_post_run(op, parent, cur, new);
         break;
     case YHOOK_OP_REPLACE:
+        ynode_log_update(log, new);
         yhook_post_run(op, parent, cur, new);
         ynode_free(cur);
         break;
     case YHOOK_OP_DELETE:
+        ynode_log_update(log, cur);
         ynode_detach(cur);
         ynode_free(cur);
         break;
@@ -1949,25 +2066,25 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
 
 // create single ynode and attach to parent
 // return created ynode
-ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_record *record)
+ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_log *log)
 {
     ynode *cur, *new;
     new = ynode_new(type, value);
-    cur = ynode_control(NULL, new, parent, key, record);
+    cur = ynode_control(NULL, new, parent, key, log);
     ynode_free(new);
     return cur;
 }
 
 // create new ynodes to parent using src
 // return created ynode top
-ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_record *record)
+ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_log *log)
 {
-    return ynode_control(NULL, src, parent, key, record);
+    return ynode_control(NULL, src, parent, key, log);
 }
 
 // create new ynodes using path
 // return the last created ynode.
-ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record)
+ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
 {
     int i, j;
     char *key = NULL;
@@ -2038,7 +2155,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record)
     if (parent)
     {
         new = ynode_top(new);
-        ynode_merge(parent, new, record);
+        ynode_merge(parent, new, log);
         ynode_free(new);
         if (key)
             yfree(key);
@@ -2112,22 +2229,21 @@ _fail:
 // merge src ynode to dest.
 // dest is modified by the operation.
 // return modified dest.
-ynode *ynode_merge(ynode *dest, ynode *src, ynode_record *record)
+ynode *ynode_merge(ynode *dest, ynode *src, ynode_log *log)
 {
     ynode *parent;
     if (!dest)
     {
         dest = ynode_copy(src);
-        if (record)
+        if (log && log->fp)
         {
-            _ynode_record_dump_parent(record, dest);
-            _ynode_record_dump_childen(record, dest);
+            ynode_dump_to_fp(log->fp, dest, 1, YDB_LEVEL_MAX);
         }
         return dest;
     }
 
     parent = dest->parent;
-    parent = ynode_control(dest, src, parent, dest->key, record);
+    parent = ynode_control(dest, src, parent, dest->key, log);
     return parent;
 }
 
@@ -2162,10 +2278,10 @@ ynode *ynode_merge_new(ynode *dest, ynode *src)
 }
 
 // deleted cur ynode (including all sub ynodes).
-void ynode_delete(ynode *cur, ynode_record *record)
+void ynode_delete(ynode *cur, ynode_log *log)
 {
     if (cur)
-        ynode_control(cur, NULL, cur->parent, cur->key, record);
+        ynode_control(cur, NULL, cur->parent, cur->key, log);
 }
 
 struct ynode_traverse_data
@@ -2344,7 +2460,7 @@ ydb_res ynode_write(ynode **n, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        res = ynode_scanf_from_buf(buf, buflen, (*n)?(*n)->origin:0, &src);
+        res = ynode_scanf_from_buf(buf, buflen, (*n) ? (*n)->origin : 0, &src);
         if (buf)
             free(buf);
         if (res)
@@ -2399,7 +2515,7 @@ ydb_res ynode_erase(ynode **n, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        res = ynode_scanf_from_buf(buf, buflen, (*n)?(*n)->origin:0, &src);
+        res = ynode_scanf_from_buf(buf, buflen, (*n) ? (*n)->origin : 0, &src);
         if (buf)
             free(buf);
         if (res)

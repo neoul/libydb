@@ -159,35 +159,36 @@ int test_ynode_scanf_from_buf()
 
 int test_ynode_crud()
 {
+	// ydb_log_severity = YDB_LOG_DBG;
 	printf("\n\n=== %s ===\n", __func__);
 	ynode *node, *clone;
 	ynode *a, *b, *c;
 	ynode *top = NULL;
-	ynode_record *record = ynode_record_new(stdout, 0, NULL, 0, 0, 24);
+	ynode_log *log = NULL;
 	ynode_scanf_from_buf(example_yaml, strlen(example_yaml), 0, &top);
 	printf("== top ==\n");
-	ynode_printf(top, 1, 6);
-	
+	ynode_printf(top, 1, YDB_LEVEL_MAX);
+	log = ynode_log_open(top, stdout);
 	printf("== ynode_create ==\n");
-	node = ynode_create(YNODE_TYPE_VAL, "create", "first", top, record);
+	node = ynode_create(YNODE_TYPE_VAL, "create", "first", top, log);
 
-	printf("== ynode_copy (node) ==\n");
 	node = ynode_next(node);
+	printf("== ynode_copy (%s) ==\n", ynode_key(node));
 	clone = ynode_copy(node);
 	ynode_printf(clone, 0, 5);
 	ynode_remove(clone);
 
 	printf("== a ==\n");
 	a = ynode_search(top, "system");
-	ynode_printf(a, 1, 3);
+	ynode_printf(a, 0, 3);
 
 	printf("== b ==\n");
 	ynode_scanf_from_buf(example_yaml2, strlen(example_yaml2), 0, &b);
-	ynode_printf(b, 1, 3);
+	ynode_printf(b, 0, 3);
 
 	printf("== ynode_merge (b to a) ==\n");
-	c = ynode_merge(a, b, record);
-	// ynode_printf(c, -2, 5);
+	c = ynode_merge(a, b, log);
+	ynode_printf(c, -2, 5);
 	
 	printf("== ynode_create (b) ==\n");
 	ynode_create(YNODE_TYPE_VAL, "io", "100", ynode_down(b), NULL);
@@ -198,15 +199,15 @@ int test_ynode_crud()
 	printf("== ynode_merge_new (b to a) ==\n");	
 	c = ynode_merge_new(a, b);
 	ynode_printf(c, -2, 5);
-	ynode_delete(c, record);
+	ynode_remove(c);
 
 
-	ynode_delete(b, record);
+	ynode_remove(b);
 
 	printf("== top ==\n");
-	ynode_printf(top, 1, 24);
-	ynode_delete(top, record);
-	ynode_record_free(record);
+	ynode_printf(top, 1, YDB_LEVEL_MAX);
+	ynode_delete(top, log);
+	ynode_log_close(log, NULL, NULL);
 	return 0;
 }
 

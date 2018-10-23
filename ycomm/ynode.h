@@ -12,22 +12,22 @@ extern "C" {
 #define YNODE_TYPE_MAX      3
 
 typedef struct _ynode ynode;
-typedef struct _ynode_record ynode_record;
-ynode_record *ynode_record_new(FILE *fp, int fd, char *buf, int buflen, int start_level, int end_level);
-void ynode_record_free(ynode_record *cb);
+typedef struct _ynode_log ynode_log;
+ynode_log *ynode_log_open(ynode *top, FILE *dumpfp);
+void ynode_log_close(ynode_log *log, char **buf, size_t *buflen);
 
 // ynode operation (Create, Merge, Delete) interfaces
 // create single ynode and attach to parent.
 // return created ynode.
-ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_record *record);
+ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_log *log);
 
 // create new ynodes to parent using src.
 // return created ynode top.
-ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_record *record);
+ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_log *log);
 
 // create new ynodes using path.
 // return the last created ynode.
-ynode *ynode_create_path(char *path, ynode *parent, ynode_record *record);
+ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log);
 
 // copy src ynodes (including all sub ynodes).
 ynode *ynode_copy(ynode *src);
@@ -35,7 +35,7 @@ ynode *ynode_copy(ynode *src);
 // merge src ynode to dest.
 // dest is modified by the operation.
 // return modified dest.
-ynode *ynode_merge(ynode *dest, ynode *src, ynode_record *record);
+ynode *ynode_merge(ynode *dest, ynode *src, ynode_log *log);
 
 // merge src ynode to dest.
 // dest and src is not modified.
@@ -43,7 +43,7 @@ ynode *ynode_merge(ynode *dest, ynode *src, ynode_record *record);
 ynode *ynode_merge_new(ynode *dest, ynode *src);
 
 // deleted cur ynode (including all sub ynodes).
-void ynode_delete(ynode *node, ynode_record *record);
+void ynode_delete(ynode *node, ynode_log *log);
 
 // dump ydb
 void ynode_dump_node(FILE *fp, int fd, char *buf, int buflen, ynode *node, int start_level, int end_level);

@@ -440,31 +440,24 @@ failed:
 ydb_res ydb_clear(ydb *datablock)
 {
     ydb_res res = YDB_OK;
-    ynode_record *record;
+    ynode_log *log;
     size_t buflen = 0;
     char *buf = NULL;
-    FILE *fp;
     ynode *n;
     ydb_log_in();
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
-    fp = open_memstream(&buf, &buflen);
-    if (fp)
+    log = ynode_log_open(datablock->top, NULL);
+    n = ynode_down(datablock->top);
+    while (n)
     {
-        record = ynode_record_new(fp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
+        ynode_delete(n, log);
         n = ynode_down(datablock->top);
-        while (n)
-        {
-            ynode_delete(n, record);
-            n = ynode_down(datablock->top);
-        }
-        ynode_record_free(record);
-        fclose(fp);
     }
+    ynode_log_close(log, &buf, &buflen);
     yconn_publish(NULL, datablock, YOP_DELETE, buf, buflen);
-    if (buf)
-        free(buf);
-    ydb_log_out();
 failed:
+    CLEAR_BUF(buf, buflen);
+    ydb_log_out();
     return res;
 }
 
@@ -579,24 +572,20 @@ int ydb_index(ynode *node)
 
 ydb_res ydb_parse(ydb *datablock, FILE *fp)
 {
+    ydb_res res = YDB_OK;
+    char *buf = NULL;
+    size_t buflen = 0;
     ynode *src = NULL;
-    ydb_res res = ynode_scanf_from_fp(fp, &src);
+    ydb_log_in();
+    res = ynode_scanf_from_fp(fp, &src);
     YDB_FAIL(res, res);
     if (src)
     {
         ynode *top;
-        FILE *rfp = NULL;
-        char *buf = NULL;
-        size_t buflen = 0;
-        ynode_record *record = NULL;
-        rfp = open_memstream(&buf, &buflen);
-        if (rfp)
-            record = ynode_record_new(rfp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
-        top = ynode_merge(datablock->top, src, record);
-        ynode_record_free(record);
-        ynode_remove(src);
-        if (rfp)
-            fclose(rfp);
+        ynode_log *log = NULL;
+        log = ynode_log_open(datablock->top, NULL);
+        top = ynode_merge(datablock->top, src, log);
+        ynode_log_close(log, &buf, &buflen);
         if (top)
         {
             datablock->top = top;
@@ -606,10 +595,11 @@ ydb_res ydb_parse(ydb *datablock, FILE *fp)
         {
             YDB_FAIL(YDB_E_MERGE_FAILED, YDB_E_MERGE_FAILED);
         }
-        if (buf)
-            free(buf);
     }
 failed:
+    CLEAR_BUF(buf, buflen);
+    ynode_remove(src);
+    ydb_log_out();
     return res;
 }
 
@@ -661,19 +651,13 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
 
     {
         ynode *top = NULL;
-
-        ynode_record *record = NULL;
-
+        ynode_log *log = NULL;
         res = ynode_scanf_from_buf(buf, buflen, 0, &src);
         YDB_FAIL(res || !src, res);
         CLEAR_BUF(buf, buflen);
-        fp = open_memstream(&buf, &buflen);
-        if (fp)
-            record = ynode_record_new(fp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
-        top = ynode_merge(datablock->top, src, record);
-        ynode_record_free(record);
-        if (fp)
-            fclose(fp);
+        log = ynode_log_open(datablock->top, NULL);
+        top = ynode_merge(datablock->top, src, log);
+        ynode_log_close(log, &buf, &buflen);
         YDB_FAIL(!top, YDB_E_MERGE_FAILED);
         datablock->top = top;
         yconn_publish(NULL, datablock, YOP_MERGE, buf, buflen);
@@ -687,7 +671,7 @@ failed:
 
 struct ydb_delete_data
 {
-    ynode_record *record;
+    ynode_log *log;
     ynode *node;
 };
 
@@ -697,7 +681,7 @@ static ydb_res ydb_delete_sub(ynode *cur, void *addition)
     ynode *n = pddata->node;
     ynode *target = ynode_lookup(n, cur);
     if (target)
-        ynode_delete(target, pddata->record);
+        ynode_delete(target, pddata->log);
     return YDB_OK;
 }
 
@@ -728,15 +712,11 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
         res = ynode_scanf_from_buf(buf, buflen, 0, &src);
         YDB_FAIL(res || !src, res);
         CLEAR_BUF(buf, buflen);
-        fp = open_memstream(&buf, &buflen);
-        if (fp)
-            ddata.record = ynode_record_new(fp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
+        ddata.log = ynode_log_open(datablock->top, NULL);
         ddata.node = datablock->top;
         flags = YNODE_VAL_NODE_FIRST | YNODE_VAL_NODE_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
-        ynode_record_free(ddata.record);
-        if (fp)
-            fclose(fp);
+        ynode_log_close(ddata.log, &buf, &buflen);
         if (res)
             yconn_publish(NULL, datablock, YOP_DELETE, buf, buflen);
     }
@@ -777,7 +757,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
         size_t buflen = 0;
         ynode *src = NULL;
         ynode *top = NULL;
-        ynode_record *record = NULL;
+        ynode_log *log = NULL;
         fp = open_memstream(&buf, &buflen);
         if (fp)
         {
@@ -798,14 +778,10 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
         }
         buf = NULL;
         buflen = 0;
-        fp = open_memstream(&buf, &buflen);
-        if (fp)
-            record = ynode_record_new(fp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
-        top = ynode_merge(datablock->top, src, record);
-        ynode_record_free(record);
+        log = ynode_log_open(datablock->top, NULL);
+        top = ynode_merge(datablock->top, src, log);
+        ynode_log_close(log, &buf, &buflen);
         ynode_remove(src);
-        if (fp)
-            fclose(fp);
         if (top)
         {
             datablock->top = top;
@@ -1096,17 +1072,12 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
     fclose(fp);
 
     {
-        FILE *rfp;
         char *rbuf = NULL;
         size_t rbuflen = 0;
-        ynode_record *record = NULL;
-        rfp = open_memstream(&rbuf, &rbuflen);
-        if (rfp)
-            record = ynode_record_new(rfp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
-        src = ynode_create_path(buf, datablock->top, record);
-        ynode_record_free(record);
-        if (rfp)
-            fclose(rfp);
+        ynode_log *log = NULL;
+        log = ynode_log_open(datablock->top, NULL);
+        src = ynode_create_path(buf, datablock->top, log);
+        ynode_log_close(log, &rbuf, &rbuflen);
         if (rbuf)
         {
             if (src)
@@ -1145,19 +1116,14 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
     fclose(fp);
 
     {
-        FILE *rfp;
         char *rbuf = NULL;
         size_t rbuflen = 0;
-        ynode_record *record = NULL;
-        rfp = open_memstream(&rbuf, &rbuflen);
-        if (rfp)
-            record = ynode_record_new(rfp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
+        ynode_log *log = NULL;
+        log = ynode_log_open(datablock->top, NULL);
         target = ynode_search(datablock->top, buf);
         if (target)
-            ynode_delete(target, record);
-        ynode_record_free(record);
-        if (rfp)
-            fclose(rfp);
+            ynode_delete(target, log);
+        ynode_log_close(log, &rbuf, &rbuflen);
         if (rbuf)
         {
             if (target)
@@ -2136,15 +2102,11 @@ static ydb_res yconn_merge(yconn *conn, char *buf, size_t buflen)
     if (src)
     {
         ynode *top;
-        ynode_record *record = NULL;
-        FILE *fp = open_memstream(&buf, &buflen);
-        if (fp)
-            record = ynode_record_new(fp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
-        top = ynode_merge(conn->db->top, src, record);
-        ynode_record_free(record);
+        ynode_log *log = NULL;
+        log = ynode_log_open(conn->db->top, NULL);
+        top = ynode_merge(conn->db->top, src, log);
+        ynode_log_close(log, &buf, &buflen);
         ynode_remove(src);
-        if (fp)
-            fclose(fp);
         if (top)
         {
             conn->db->top = top;
@@ -2163,7 +2125,6 @@ static ydb_res yconn_merge(yconn *conn, char *buf, size_t buflen)
 static ydb_res yconn_delete(yconn *conn, char *buf, size_t buflen)
 {
     ydb_res res;
-    FILE *fp = NULL;
     ynode *src = NULL;
     unsigned int flags;
     struct ydb_delete_data ddata;
@@ -2177,18 +2138,13 @@ static ydb_res yconn_delete(yconn *conn, char *buf, size_t buflen)
     }
     if (src)
     {
-        buf = NULL;
-        buflen = 0;
-        fp = open_memstream(&buf, &buflen);
-        if (fp)
-            ddata.record = ynode_record_new(fp, 0, NULL, 0, 1, YDB_LEVEL_MAX);
+        CLEAR_BUF(buf, buflen);
+        ddata.log = ynode_log_open(conn->db->top, NULL);
         ddata.node = conn->db->top;
         flags = YNODE_VAL_NODE_FIRST | YNODE_VAL_NODE_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
-        ynode_record_free(ddata.record);
+        ynode_log_close(ddata.log, &buf, &buflen);
         ynode_remove(src);
-        if (fp)
-            fclose(fp);
         if (!res)
             yconn_publish(conn, conn->db, YOP_DELETE, buf, buflen);
         if (buf)
