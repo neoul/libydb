@@ -2342,7 +2342,6 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
     default:
         break;
     }
-
     CLEAR_BUF(buf, buflen);
     return YDB_OK;
 }
@@ -2362,7 +2361,8 @@ ydb_res ydb_serve(ydb *datablock, int timeout)
             goto successful;
         YDB_FAIL_ERRNO(n < 0, YDB_E_SYSTEM_FAILED, errno);
     }
-    ydb_log_debug("event (n=%d) received\n", n);
+    if (n > 0)
+        ydb_log_debug("event (n=%d) received\n", n);
     for (i = 0; i < n; i++)
     {
         yconn *conn = event[i].data.ptr;
@@ -2378,6 +2378,7 @@ ydb_res ydb_serve(ydb *datablock, int timeout)
         }
     }
 successful:
+    ydb_log_out();
     return YDB_OK;
 failed:
     ydb_log_out();

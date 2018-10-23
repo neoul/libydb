@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     char *progname = ((p = strrchr(argv[0], '/')) ? ++p : argv[0]);
     char *name = NULL;
     char *addr = NULL;
-    char flags[32] = {"s"};
+    char flags[32] = {"subscriber:reconnect"};
 
     while (1)
     {
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
         signal(SIGPIPE, SIG_IGN);
         // add a signal handler to quit this program.
         signal(SIGINT, HANDLER_SIGINT);
-        // ydb_log_severity = YDB_LOG_DBG;
+        ydb_log_severity = YDB_LOG_DBG;
         datablock = ydb_open(name?name:"top");
         res = ydb_connect(datablock, "file://stdout", "w:");
         if (res)
@@ -97,18 +97,20 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
-
         fd_set read_set;
         struct timeval tv;
 
         do
         {
             int ret;
+            int fd = ydb_fd(datablock);
+            if (fd < 0)
+                break;
             FD_ZERO(&read_set);
             tv.tv_sec = 10;
             tv.tv_usec = 0;
-            FD_SET(ydb_fd(datablock), &read_set);
-            ret = select(ydb_fd(datablock) + 1, &read_set, NULL, NULL, &tv);
+            FD_SET(fd, &read_set);
+            ret = select(fd + 1, &read_set, NULL, NULL, &tv);
             if (ret < 0)
                 break;
             res = ydb_serve(datablock, 5000);
