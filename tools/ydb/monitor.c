@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     char *progname = ((p = strrchr(argv[0], '/')) ? ++p : argv[0]);
     char *name = NULL;
     char *addr = NULL;
-    char flags[32] = {"subscriber:reconnect"};
+    char flags[32] = {"subscriber"};
 
     while (1)
     {
@@ -82,18 +82,20 @@ int main(int argc, char *argv[])
         signal(SIGPIPE, SIG_IGN);
         // add a signal handler to quit this program.
         signal(SIGINT, HANDLER_SIGINT);
-        ydb_log_severity = YDB_LOG_DEBUG;
-        datablock = ydb_open(name?name:"top");
+        ydb_log_severity = YDB_LOG_CRI;
+        datablock = ydb_open(name ? name : "top");
         res = ydb_connect(datablock, "file://stdout", "w:");
         if (res)
         {
             fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
+            ydb_close(datablock);
             exit(EXIT_FAILURE);
         }
         res = ydb_connect(datablock, addr, flags);
         if (res)
         {
             fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
+            ydb_close(datablock);
             exit(EXIT_FAILURE);
         }
 
@@ -105,22 +107,32 @@ int main(int argc, char *argv[])
             int ret;
             int fd = ydb_fd(datablock);
             if (fd < 0)
+            {
+                fprintf(stderr, "ydb error: %s\n", ydb_res_str[YDB_E_NO_CONN]);
                 break;
+            }
             FD_ZERO(&read_set);
-            tv.tv_sec = 10;
+            tv.tv_sec = 5;
             tv.tv_usec = 0;
+
             FD_SET(fd, &read_set);
             ret = select(fd + 1, &read_set, NULL, NULL, &tv);
             if (ret < 0)
                 break;
-            res = ydb_serve(datablock, 5000);
+            if (FD_ISSET(fd, &read_set))
+            {
+                res = ydb_serve(datablock, 0);
+                if (res)
+                {
+                    fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
+                    break;
+                }
+            }
         } while (!res && !done);
-        if (res)
-            fprintf(stderr, "ydb error: %s\n", strerror(errno));
+        
         fprintf(stdout, "\n# [datablock]\n");
         ydb_dump(datablock, stdout);
         ydb_close(datablock);
     }
     return 0;
 }
-

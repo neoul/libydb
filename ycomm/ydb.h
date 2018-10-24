@@ -8,6 +8,7 @@
 
 #define YDB_LEVEL_MAX 32
 #define YDB_CONN_MAX 32
+#define YDB_TIMEOUT 3000 //ms
 
 #ifdef __cplusplus
 extern "C"
