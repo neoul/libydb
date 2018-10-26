@@ -33,31 +33,38 @@ int ydb_logger_example(
 {
     int len = -1;
     va_list args;
+    FILE *fp = NULL;
     switch (severity)
     {
     case YDB_LOG_DEBUG:
-        printf("** ydb::debug::%s:%d: ", func, line);
+        fp = stdout;
+        fprintf(fp, "** ydb::debug::%s:%d: ", func, line);
         break;
     case YDB_LOG_INOUT:
-        printf("** ydb::inout:%s:%d: ", func, line);
+        fp = stdout;
+        fprintf(fp, "** ydb::inout:%s:%d: ", func, line);
         break;
     case YDB_LOG_INFO:
-        printf("** ydb::info::%s:%d: ", func, line);
+        fp = stdout;
+        fprintf(fp, "** ydb::info::%s:%d: ", func, line);
         break;
     case YDB_LOG_WARN:
-        printf("** ydb::warn::%s:%d: ", func, line);
+        fp = stdout;
+        fprintf(fp, "** ydb::warn::%s:%d: ", func, line);
         break;
     case YDB_LOG_ERR:
-        printf("** ydb::error:%s:%d: ", func, line);
+        fp = stdout;
+        fprintf(fp, "** ydb::error:%s:%d: ", func, line);
         break;
     case YDB_LOG_CRI:
-        printf("** ydb::critical:%s:%d: ", func, line);
+        fp = stdout;
+        fprintf(fp, "** ydb::critical:%s:%d: ", func, line);
         break;
     default:
         return 0;
     }
     va_start(args, format);
-    len = vprintf(format, args);
+    len = vfprintf(fp, format, args);
     va_end(args);
     return len;
 }
@@ -518,6 +525,11 @@ ydb *ydb_get(char *name, ynode **node)
             *node = ynode_search(datablock->top, name + mlen);
     }
     return datablock;
+}
+
+char *ydb_name(ydb *datablock)
+{
+    return datablock->name;
 }
 
 // return the node in the path of the yaml data block.

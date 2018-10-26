@@ -68,8 +68,11 @@ extern "C"
     // Open YAML DataBlock
     ydb *ydb_open(char *name);
 
-    // Get YAML DataBlock
+    // Get YAML DataBlock and also return ydb_iter
     ydb *ydb_get(char *name, ydb_iter **iter);
+
+    // Get the name of the YAML DataBlock
+    char *ydb_name(ydb *datablock);
 
     // address: use the unix socket if null
     //          us://unix-socket-name (unix socket)
