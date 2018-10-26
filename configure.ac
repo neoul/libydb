@@ -1,8 +1,13 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
+m4_define([libymldb_major_version], [2])
+m4_define([libymldb_minor_version], [0])
+m4_define([libymldb_micro_version], [0])
+m4_define([libymldb_version],
+      [libymldb_major_version.libymldb_minor_version.libymldb_micro_version])
 
 AC_PREREQ([2.69])
-AC_INIT([libymldb], [0.1], [neoul@actusnetworks.com])
+AC_INIT([libymldb], [libymldb_version], [neoul@actusnetworks.com])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
@@ -23,7 +28,7 @@ LT_INIT
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([stdio.h time.h stdlib.h string.h stdint.h assert.h ctype.h stdarg.h unistd.h yaml.h sys/socket.h sys/un.h errno.h sys/epoll.h stdbool.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T
