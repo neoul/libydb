@@ -2429,7 +2429,7 @@ failed:
 
 int ydb_fd(ydb *datablock)
 {
-    if (datablock && datablock->epollcount > 0)
+    if (datablock)
         return datablock->epollfd;
     return -1;
 }

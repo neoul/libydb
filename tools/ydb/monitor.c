@@ -27,6 +27,8 @@ YAML DATABLOCK monitor\n\
   -n, --name YDB_NAME   The name of created YDB (YAML DataBlock).\n\
   -a, --addr YDB_ADDR   The YAML DataBlock communication address.\n\
                         e.g. us:///tmp/ydb\n\
+  -s, --summary         Print all data at the termination.\n\
+  -N, --no-log          Not print the change log\n\
   -h, --help            Display this help and exit\n\
 \n\
 ");
@@ -41,6 +43,8 @@ int main(int argc, char *argv[])
     char *progname = ((p = strrchr(argv[0], '/')) ? ++p : argv[0]);
     char *name = NULL;
     char *addr = NULL;
+    int summary = 0;
+    int no_log = 0;
     char flags[32] = {"subscriber"};
 
     while (1)
@@ -49,10 +53,12 @@ int main(int argc, char *argv[])
         static struct option long_options[] = {
             {"name", required_argument, 0, 'n'},
             {"addr", required_argument, 0, 'a'},
+            {"summary", no_argument, 0, 's'},
+            {"no-log", no_argument, 0, 'N'},
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:a:h",
+        c = getopt_long(argc, argv, "n:a:sNh",
                         long_options, &index);
         if (c == -1)
             break;
@@ -64,6 +70,12 @@ int main(int argc, char *argv[])
             break;
         case 'a':
             addr = optarg;
+            break;
+        case 's':
+            summary = 1;
+            break;
+        case 'N':
+            no_log = 1;
             break;
         case 'h':
             usage(0, progname);
@@ -84,12 +96,15 @@ int main(int argc, char *argv[])
         signal(SIGINT, HANDLER_SIGINT);
         ydb_log_severity = YDB_LOG_CRI;
         datablock = ydb_open(name ? name : "top");
-        res = ydb_connect(datablock, "file://stdout", "w:");
-        if (res)
+        if (!no_log)
         {
-            fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
-            ydb_close(datablock);
-            exit(EXIT_FAILURE);
+            res = ydb_connect(datablock, "file://stdout", "w:");
+            if (res)
+            {
+                fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
+                ydb_close(datablock);
+                exit(EXIT_FAILURE);
+            }
         }
         res = ydb_connect(datablock, addr, flags);
         if (res)
@@ -99,39 +114,21 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
-        fd_set read_set;
-        struct timeval tv;
-
         do
         {
-            int ret;
-            int fd = ydb_fd(datablock);
-            if (fd < 0)
+            res = ydb_serve(datablock, 0);
+            if (res)
             {
-                fprintf(stderr, "ydb error: %s\n", ydb_res_str[YDB_E_NO_CONN]);
+                fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
                 break;
-            }
-            FD_ZERO(&read_set);
-            tv.tv_sec = 5;
-            tv.tv_usec = 0;
-
-            FD_SET(fd, &read_set);
-            ret = select(fd + 1, &read_set, NULL, NULL, &tv);
-            if (ret < 0)
-                break;
-            if (FD_ISSET(fd, &read_set))
-            {
-                res = ydb_serve(datablock, 0);
-                if (res)
-                {
-                    fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
-                    break;
-                }
             }
         } while (!res && !done);
         
-        fprintf(stdout, "\n# [datablock]\n");
-        ydb_dump(datablock, stdout);
+        if (summary)
+        {
+            fprintf(stdout, "\n# [datablock]\n");
+            ydb_dump(datablock, stdout);
+        }
         ydb_close(datablock);
     }
     return 0;
