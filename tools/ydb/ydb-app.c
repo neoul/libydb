@@ -23,23 +23,22 @@ void usage(int status, char *progname)
         printf("Usage : %s --role=ROLE [OPTION...]\n", progname);
         printf("\
 ydb (YAML DATABLOCK)\n\
-  -n, --name YDB_NAME   The name of created YDB (YAML DataBlock).\n\
-  -r, --role (pub|sub|loc) \n\
-                        Set the role.\n\
-                        pub(lisher): as distribution server\n\
-                        sub(scriber): as distribution client\n\
-                        loc(al): no connection to others\n\
-  -a, --addr YDB_ADDR   The YAML DataBlock communication address.\n\
-                        e.g. us:///tmp/ydb\n\
-  -s, --summary         Print all data at the termination.\n\
-  -N, --no-change-data  Not print the change data\n\
-  -f, --file FILE       Read data from FILE to send publisher\n\
-  -w, --writeable       Write data to the remote YDB\n\
-  -u, --unsubscribe     Disable subscription\n\
-  -R, --reconnect       Retry to reconnect upon the communication failure\n\
-  -d, --daemon          Runs in daemon mode\n\
-  -v, --verbose         Verbose mode for debug (debug|inout|info)\n\
-  -h, --help            Display this help and exit\n\n");
+  -n, --name YDB_NAME       The name of created YDB (YAML DataBlock).\n\
+  -r, --role (pub|sub|loc)  Set the role.\n\
+                            pub(lisher): as distribution server\n\
+                            sub(scriber): as distribution client\n\
+                            loc(al): no connection to others\n\
+  -a, --addr YDB_ADDR       The YAML DataBlock communication address.\n\
+                            e.g. us:///tmp/ydb\n\
+  -s, --summary             Print all data at the termination.\n\
+  -N, --no-change-data      Not print the change data\n\
+  -f, --file FILE           Read data from FILE to send publisher\n\
+  -w, --writeable           Write data to the remote YDB\n\
+  -u, --unsubscribe         Disable subscription\n\
+  -R, --reconnect           Retry to reconnect upon the communication failure\n\
+  -d, --daemon              Runs in daemon mode\n\
+  -v, --verbose             Verbose mode for debug (debug|inout|info)\n\
+  -h, --help                Display this help and exit\n\n");
 
     }
     exit(status);
