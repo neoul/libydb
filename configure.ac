@@ -1,13 +1,13 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-m4_define([libymldb_major_version], [2])
-m4_define([libymldb_minor_version], [0])
-m4_define([libymldb_micro_version], [0])
-m4_define([libymldb_version],
-      [libymldb_major_version.libymldb_minor_version.libymldb_micro_version])
+m4_define([libydb_major_version], [1])
+m4_define([libydb_minor_version], [0])
+m4_define([libydb_micro_version], [0])
+m4_define([libydb_version],
+      [libydb_major_version.libydb_minor_version.libydb_micro_version])
 
 AC_PREREQ([2.69])
-AC_INIT([libymldb], [libymldb_version], [neoul@actusnetworks.com])
+AC_INIT([libydb], [libydb_version], [neoul@ymail.com])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
