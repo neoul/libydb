@@ -12,7 +12,7 @@ void ylogging (const char *format, ...)
   va_list args;
   char buf[1024];
 
-  fp = fopen("/tmp/ycomm.log", "a");
+  fp = fopen("/tmp/ydb.log", "a");
   if(fp == NULL) return;
 
   va_start (args, format);

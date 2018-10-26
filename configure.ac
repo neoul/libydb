@@ -40,11 +40,9 @@ AC_CHECK_FUNCS([memset mkfifo select socket strchr strdup strerror strstr])
 AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_CONFIG_FILES([Makefile
-                 examples/agent/Makefile
-				 examples/samples/Makefile
-                 examples/ycomm/Makefile
+                 examples/ydb/Makefile
+                 tools/ymldb/Makefile
                  tools/ydb/Makefile
-				 tools/monitor/Makefile
                  ymldb/Makefile
-                 ycomm/Makefile])
+                 ydb/Makefile])
 AC_OUTPUT
