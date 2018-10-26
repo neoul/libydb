@@ -49,4 +49,5 @@ tools/ydb/ydb-publisher
 tools/ydb/ydb-subscriber
 ex-yarray
 ex-ynode
-ydb-monitor
+ydb
+ymldb-agent
