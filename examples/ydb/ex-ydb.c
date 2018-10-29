@@ -44,9 +44,9 @@ int test_ydb_open_close()
 	return 0;
 }
 
-ydb_res update_hook(FILE *fp, ynode *target, void *user)
+ydb_res update_hook(FILE *ydb_fp, ynode *cur, void *user)
 {
-	fprintf(fp, 
+	fprintf(ydb_fp, 
 		"system:\n"
 		" hostname: my-pc\n"
 		);

@@ -118,6 +118,7 @@ extern "C"
 
     // update the data in the ydb using file stream
     ydb_res ydb_parse(ydb *datablock, FILE *fp);
+    ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen);
 
     // print the data in the ydb into the file stream
     int ydb_dump(ydb *datablock, FILE *fp);
@@ -131,7 +132,10 @@ extern "C"
     int ydb_read(ydb *datablock, const char *format, ...);
 
     // ydb_update_hook is a callback function executed by ydb_read() to update ydb at reading.
-    typedef ydb_res (*ydb_update_hook)(FILE *fp, ydb_iter *target, void *user);
+    // ydb_fp: The stream buffer to write the data to the ydb
+    // cur: The current data of the ydb
+    // user: The user data regardless of the ydb
+    typedef ydb_res (*ydb_update_hook)(FILE *ydb_fp, ydb_iter *cur, void *user);
     ydb_res ydb_update_hook_add(ydb *datablock, char *path, ydb_update_hook hook, void *user);
     void *ydb_update_hook_delete(ydb *datablock, char *path);
 

@@ -68,7 +68,6 @@ struct _ynode
     struct _yhook *hook;
 };
 
-#define IS_LAEF(x) ((x)->type == YNODE_TYPE_VAL)
 #define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
 #define UNSET_FLAG(flag, v) ((flag) = ((flag) & (~v)))
 #define IS_SET(flag, v) ((flag) & (v))
@@ -1511,14 +1510,10 @@ ydb_res ynode_scanf_from_fd(int fd, ynode **n)
 
 ydb_res ynode_scanf_from_buf(char *buf, int buflen, int origin, ynode **n)
 {
-    // FILE *fp;
     ydb_res res;
     if (!buf || buflen < 0)
         return YDB_E_INVALID_ARGS;
-    // fp = fmemopen(buf, buflen, "r");
     res = ynode_scan(NULL, buf, buflen, origin, n, 0);
-    // if (fp)
-    //     fclose(fp);
     return res;
 }
 

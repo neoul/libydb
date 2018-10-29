@@ -125,7 +125,6 @@ int ydb_log_register(ydb_log_func func)
 #define YDB_LOGGING_DEBUG (ydb_log_severity >= YDB_LOG_DEBUG)
 #define YDB_LOGGING_INFO (ydb_log_severity >= YDB_LOG_INFO)
 
-#define IS_LAEF(x) ((x)->op == YNODE_TYPE_VAL)
 #define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
 #define UNSET_FLAG(flag, v) ((flag) = ((flag) & (~v)))
 #define IS_SET(flag, v) ((flag) & (v))
@@ -612,6 +611,39 @@ ydb_res ydb_parse(ydb *datablock, FILE *fp)
     ynode *src = NULL;
     ydb_log_in();
     res = ynode_scanf_from_fp(fp, &src);
+    YDB_FAIL(res, res);
+    if (src)
+    {
+        ynode *top;
+        ynode_log *log = NULL;
+        log = ynode_log_open(datablock->top, NULL);
+        top = ynode_merge(datablock->top, src, log);
+        ynode_log_close(log, &buf, &buflen);
+        if (top)
+        {
+            datablock->top = top;
+            yconn_publish(NULL, datablock, YOP_MERGE, buf, buflen);
+        }
+        else
+        {
+            YDB_FAIL(YDB_E_MERGE_FAILED, YDB_E_MERGE_FAILED);
+        }
+    }
+failed:
+    CLEAR_BUF(buf, buflen);
+    ynode_remove(src);
+    ydb_log_out();
+    return res;
+}
+
+ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen)
+{
+    ydb_res res = YDB_OK;
+    char *buf = NULL;
+    size_t buflen = 0;
+    ynode *src = NULL;
+    ydb_log_in();
+    res = ynode_scanf_from_buf(buf, buflen, 0, &src);
     YDB_FAIL(res, res);
     if (src)
     {
