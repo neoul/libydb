@@ -9,6 +9,7 @@ ymldb-monitor
 *.o
 *.la
 *.lo
+*.log
 Makefile
 config.h
 config.log

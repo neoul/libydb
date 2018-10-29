@@ -12,7 +12,6 @@ static int done = 1;
 void HANDLER_SIGINT(int param)
 {
     done = 1;
-    printf("set done\n");
 }
 
 void usage(int status, char *progname)
