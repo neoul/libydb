@@ -8,8 +8,10 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <yaml.h>
-// unix socket
+
+// socket/time
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <errno.h>
 
@@ -639,8 +641,6 @@ failed:
 ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen)
 {
     ydb_res res = YDB_OK;
-    char *buf = NULL;
-    size_t buflen = 0;
     ynode *src = NULL;
     ydb_log_in();
     res = ynode_scanf_from_buf(buf, buflen, 0, &src);
@@ -973,7 +973,7 @@ static ydb_res ydb_read_sub(ynode *cur, void *addition)
 }
 
 ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform);
-ydb_res ydb_sync(ydb *datablock, ytree *synclist);
+ydb_res ydb_sync(ydb *datablock);
 
 // read the date from ydb as the scanf()
 int ydb_read(ydb *datablock, const char *format, ...)
@@ -1021,12 +1021,9 @@ int ydb_read(ydb *datablock, const char *format, ...)
     flags = YNODE_VAL_NODE_FIRST | YNODE_VAL_NODE_ONLY;
     if (datablock->unsubscribers > 0)
     {
-        data.synclist = ytree_create((ytree_cmp)yconn_cmp, NULL);
         // res = ynode_traverse(src, ydb_sync_sub, &data, flags);
         // YDB_FAIL(res, res);
-        res = ydb_sync(datablock, data.synclist);
-        ytree_destroy(data.synclist);
-        data.synclist = NULL;
+        res = ydb_sync(datablock);
         YDB_FAIL(res, res);
     }
     res = ynode_traverse(src, ydb_read_sub, &data, flags);
@@ -1041,46 +1038,58 @@ failed:
     return data.varnum;
 }
 
-ydb_res ydb_sync(ydb *datablock, ytree *synclist)
+ydb_res ydb_sync(ydb *datablock)
 {
     ydb_res res = YDB_OK;
-    ydb_log_in();
-    if (!datablock || !synclist)
-        return YDB_E_INVALID_ARGS;
+    ytree *synclist = NULL;
+    ytree_iter *iter;
     if (datablock->epollfd < 0)
         return YDB_OK;
-    if (ytree_size(synclist) <= 0)
+    ydb_log_in();
+    iter = ytree_first(datablock->conn);
+    for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
     {
-        ytree_iter *iter;
-        iter = ytree_first(datablock->conn);
-        for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
+        yconn *conn = ytree_data(iter);
+        if (IS_SET(conn->flags, (STATUS_DISCONNECT | STATUS_SERVER | YCONN_UNREADABLE)))
+            continue;
+        else if (IS_SET(conn->flags, STATUS_CLIENT))
         {
-            yconn *conn = ytree_data(iter);
-            if (IS_SET(conn->flags, (STATUS_DISCONNECT | STATUS_SERVER)))
+            if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
                 continue;
-            else if (IS_SET(conn->flags, STATUS_CLIENT))
+        }
+        else if (IS_SET(conn->flags, STATUS_COND_CLIENT))
+        {
+            if (!IS_SET(conn->flags, YCONN_WRITABLE))
+                continue;
+        }
+        res = yconn_request(conn, YOP_SYNC, NULL, 0);
+        if (!res)
+        {
+            if (!synclist)
             {
-                if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
+                synclist = ytree_create((ytree_cmp)yconn_cmp, NULL);
+                if (!synclist)
                     continue;
             }
-            else if (IS_SET(conn->flags, STATUS_COND_CLIENT))
-            {
-                if (!IS_SET(conn->flags, YCONN_WRITABLE))
-                    continue;
-            }
-            res = yconn_request(conn, YOP_SYNC, NULL, 0);
-            if (!res)
-                ytree_insert(synclist, &conn->fd, conn);
+            ytree_insert(synclist, &conn->fd, conn);
         }
     }
 
-    clock_t start = clock();
+    if (!synclist)
+        goto failed;
+
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
     while (ytree_size(synclist) > 0)
     {
         int i, n;
+        int timeout;
         struct epoll_event event[YDB_CONN_MAX];
-        int timeout = (1 - ((float)(clock() - start)) / CLOCKS_PER_SEC) * 1000;
-        if (timeout > 1000 || timeout < 0)
+        gettimeofday(&end, NULL);
+        timeout = (end.tv_sec - start.tv_sec)*1000;
+        timeout = timeout + (end.tv_usec - start.tv_usec)/1000;
+        timeout = YDB_TIMEOUT - timeout;
+        if (timeout > YDB_TIMEOUT || timeout < 0)
             break;
         ydb_log_debug("epoll_wait timeout %d\n", timeout);
         n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
@@ -1110,6 +1119,7 @@ ydb_res ydb_sync(ydb *datablock, ytree *synclist)
             }
         }
     }
+    ytree_destroy(synclist);
 
 failed:
     ydb_log_out();
@@ -1221,15 +1231,12 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
     YDB_FAIL(!fp, YDB_E_STREAM_FAILED);
 
     {
-        ytree *synclist;
         va_list args;
         va_start(args, format);
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        synclist = ytree_create((ytree_cmp)yconn_cmp, NULL);
-        res = ydb_sync(datablock, synclist);
-        ytree_destroy(synclist);
+        res = ydb_sync(datablock);
         YDB_FAIL(res, res);
         src = ynode_search(datablock->top, buf);
     }
@@ -2263,7 +2270,7 @@ static ydb_res yconn_sync(yconn *src)
         yconn *conn = ytree_data(iter);
         if (conn == src)
             continue;
-        else if (IS_SET(conn->flags, (STATUS_DISCONNECT | STATUS_SERVER)))
+        else if (IS_SET(conn->flags, (STATUS_DISCONNECT | STATUS_SERVER | YCONN_UNREADABLE)))
             continue;
         else if (IS_SET(conn->flags, STATUS_CLIENT))
         {
@@ -2277,16 +2284,32 @@ static ydb_res yconn_sync(yconn *src)
         }
         res = yconn_request(conn, YOP_SYNC, NULL, 0);
         if (!res)
+        {
+            if (!synclist)
+            {
+                synclist = ytree_create((ytree_cmp)yconn_cmp, NULL);
+                if (!synclist)
+                    continue;
+            }
             ytree_insert(synclist, &conn->fd, conn);
+        }
     }
 
-    clock_t start = clock();
+    if (!synclist)
+        goto failed;
+
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
     while (ytree_size(synclist) > 0)
     {
         int i, n;
+        int timeout;
         struct epoll_event event[YDB_CONN_MAX];
-        int timeout = (1 - ((float)(clock() - start)) / CLOCKS_PER_SEC) * 1000;
-        if (timeout > 1000 || timeout < 0)
+        gettimeofday(&end, NULL);
+        timeout = (end.tv_sec - start.tv_sec)*1000;
+        timeout = timeout + (end.tv_usec - start.tv_usec)/1000;
+        timeout = YDB_TIMEOUT - timeout;
+        if (timeout > YDB_TIMEOUT || timeout < 0)
             break;
         ydb_log_debug("epoll_wait timeout %d\n", timeout);
         n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);

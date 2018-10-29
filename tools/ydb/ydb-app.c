@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/select.h>
 
+#include "ylist.h"
 #include "ydb.h"
 
 static int done = 1;
@@ -14,15 +15,12 @@ void HANDLER_SIGINT(int param)
     done = 1;
 }
 
-void usage(int status, char *progname)
+void usage(char *argv_0)
 {
-    if (status != 0)
-        fprintf(stderr, "Try `%s --help' for more information.\n", progname);
-    else
-    {
-        printf("Usage : %s --role=ROLE [OPTION...]\n", progname);
-        printf("\
-ydb (YAML DATABLOCK)\n\
+    char *p;
+    char *pname = ((p = strrchr(argv_0, '/')) ? ++p : argv_0);
+    printf("Usage : %s --role=ROLE [OPTION...]\n", pname);
+    printf("\n\
   -n, --name YDB_NAME       The name of created YDB (YAML DataBlock).\n\
   -r, --role (pub|sub|loc)  Set the role.\n\
                             pub(lisher): as distribution server\n\
@@ -38,10 +36,8 @@ ydb (YAML DATABLOCK)\n\
   -R, --reconnect           Retry to reconnect upon the communication failure\n\
   -d, --daemon              Runs in daemon mode\n\
   -v, --verbose             Verbose mode for debug (debug|inout|info)\n\
+    , --read  PATH/TO/DATA  Read data from YDB.\n\
   -h, --help                Display this help and exit\n\n");
-
-    }
-    exit(status);
 }
 
 void get_stdin(ydb *datablock)
@@ -65,18 +61,33 @@ void get_stdin(ydb *datablock)
 
 int main(int argc, char *argv[])
 {
+    ydb_res res = YDB_ERROR;
+    ydb *datablock = NULL;
+
     int c;
-    char *p;
-    char *progname = ((p = strrchr(argv[0], '/')) ? ++p : argv[0]);
     char *name = NULL;
     char *addr = NULL;
-    char *rfile = NULL;
     char *role = 0;
     char flags[64] = {""};
     int summary = 0;
     int no_change_data = 0;
     int verbose = 0;
     int timeout = 0;
+    ylist *filelist = NULL;
+    ylist *readlist = NULL;
+
+    filelist = ylist_create();
+    if (!filelist)
+    {
+        fprintf(stderr, "ydb error: %s\n", "file list creation failed.");
+        goto end;
+    }
+    readlist = ylist_create();
+    if (!readlist)
+    {
+        fprintf(stderr, "ydb error: %s\n", "read list creation failed.");
+        goto end;
+    }
 
     while (1)
     {
@@ -93,6 +104,7 @@ int main(int argc, char *argv[])
             {"reconnect", no_argument, 0, 'R'},
             {"daemon", no_argument, 0, 'd'},
             {"verbose", required_argument, 0, 'v'},
+            {"read", required_argument, 0, 0},
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
@@ -103,6 +115,13 @@ int main(int argc, char *argv[])
 
         switch (c)
         {
+        case 0:
+            /* If this option set a flag, do nothing else now. */
+            if (long_options[index].flag != 0)
+                break;
+            if (strcmp(long_options[index].name, "read") == 0)
+                ylist_push_back(readlist, optarg);
+            break;
         case 'n':
             name = optarg;
             break;
@@ -119,7 +138,7 @@ int main(int argc, char *argv[])
             no_change_data = 1;
             break;
         case 'f':
-            rfile = optarg;
+            ylist_push_back(filelist, optarg);
             break;
         case 'v':
             if (strcmp(optarg, "debug") == 0)
@@ -142,15 +161,21 @@ int main(int argc, char *argv[])
             timeout = 5000; // 5sec
             break;
         case 'h':
-            usage(0, progname);
+            usage(argv[0]);
+            res = YDB_OK;
+            goto end;
         case '?':
         default:
-            usage(1, progname);
+            usage(argv[0]);
+            goto end;
         }
     }
 
     if (!role)
-        usage(1, progname);
+    {
+        usage(argv[0]);
+        goto end;
+    }
     
     if (verbose > 0)
     {
@@ -160,15 +185,30 @@ int main(int argc, char *argv[])
         printf("  addr: %s\n", addr);
         printf("  summary: %s\n", summary?"yes":"no");
         printf("  no-change-data: %s\n", no_change_data?"yes":"no");
-        printf("  file: %s\n", rfile ? rfile : "none");
+        if (!ylist_empty(filelist))
+        {
+            printf("  file:\n");
+            ylist_iter *iter = ylist_first(filelist);
+            for (; !ylist_done(iter); iter = ylist_next(iter))
+            {
+                printf("   - %s\n", (char *) ylist_data(iter));
+            }
+        }
+        if (!ylist_empty(readlist))
+        {
+            printf("  read:\n");
+            ylist_iter *iter = ylist_first(readlist);
+            for (; !ylist_done(iter); iter = ylist_next(iter))
+            {
+                printf("   - %s\n", (char *) ylist_data(iter));
+            }
+        }
         printf("  verbose: %d\n", verbose);
         printf("  flags: %s\n", flags);
         printf("  daemon: %s\n\n", done ? "no" : "yes");
     }
 
     {
-        ydb_res res;
-        ydb *datablock;
         // ignore SIGPIPE.
         signal(SIGPIPE, SIG_IGN);
         // add a signal handler to quit this program.
@@ -181,7 +221,7 @@ int main(int argc, char *argv[])
         if (!datablock)
         {
             fprintf(stderr, "ydb error: %s\n", "ydb failed");
-            exit(EXIT_FAILURE);
+            goto end;
         }
 
         if (!no_change_data)
@@ -190,11 +230,10 @@ int main(int argc, char *argv[])
             if (res)
             {
                 fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
-                ydb_close(datablock);
-                exit(EXIT_FAILURE);
+                goto end;
             }
         }
-        
+
         if (strncmp(role, "loc", 3) != 0)
         {
             strcat(flags, role);
@@ -202,43 +241,68 @@ int main(int argc, char *argv[])
             if (res)
             {
                 fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
-                ydb_close(datablock);
-                exit(EXIT_FAILURE);
+                goto end;
             }
         }
 
         get_stdin(datablock);
-        if (rfile)
+
+        if (!ylist_empty(filelist))
         {
-            ydb_res res;
-            FILE *fp = fopen(rfile, "r");
-            res = ydb_parse(datablock, fp);
-            if (fp)
-                fclose(fp);
-            if (res)
+            char *fname = ylist_pop_front(filelist);
+            while (fname)
             {
-                printf("\nydb error: %s %s\n", ydb_res_str[res], rfile);
-                ydb_close(datablock);
-                exit(EXIT_FAILURE);
+                FILE *fp = fopen(fname, "r");
+                res = ydb_parse(datablock, fp);
+                if (fp)
+                    fclose(fp);
+                if (res)
+                {
+                    printf("\nydb error: %s %s\n", ydb_res_str[res], fname);
+                    goto end;
+                }
+                fname = ylist_pop_front(filelist);
             }
-            // fprintf(stdout, "[datablock]\n");
-            // ydb_dump(datablock, stdout);
-            // fprintf(stdout, "\n");
         }
 
         do
         {
             res = ydb_serve(datablock, timeout);
-            // if (res || done)
-            //     printf("%s, res = %s\n", done ? "done" : "not-done", ydb_res_str[res]);
+            if (res)
+            {
+                printf("\nydb error: %s\n", ydb_res_str[res]);
+                goto end;
+            }
         } while (!res && !done);
+
+        if (!ylist_empty(readlist))
+        {
+            char *path = ylist_pop_front(readlist);
+            while (path)
+            {
+                char *data = ydb_path_read(datablock, "%s", path);
+                if (!data)
+                {
+                    res = YDB_E_NO_ENTRY;
+                    printf("\nydb error: %s %s\n", ydb_res_str[res], path);
+                    goto end;
+                }
+                fprintf(stdout, "%s=%s\n", path, data);
+                path = ylist_pop_front(readlist);
+            }
+        }
 
         if (summary)
         {
             fprintf(stdout, "\n# %s\n", ydb_name(datablock));
             ydb_dump(datablock, stdout);
         }
-        ydb_close(datablock);
     }
+end:
+    ydb_close(datablock);
+    ylist_destroy(readlist);
+    ylist_destroy(filelist);
+    if (res)
+        return 1;
     return 0;
 }
