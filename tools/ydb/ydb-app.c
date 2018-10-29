@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <stdlib.h>
+#include <sys/select.h>
 
 #include "ydb.h"
 
@@ -42,6 +43,25 @@ ydb (YAML DATABLOCK)\n\
 
     }
     exit(status);
+}
+
+void get_stdin(ydb *datablock)
+{
+    int ret;
+    fd_set read_set;
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 1000; // if 0, sometimes it is not captured.
+    FD_ZERO(&read_set);
+    FD_SET(STDIN_FILENO, &read_set);
+    ret = select(STDIN_FILENO + 1, &read_set, NULL, NULL, &tv);
+    if (ret < 0) {
+        return;
+    }
+    if (FD_ISSET(STDIN_FILENO, &read_set))
+    {
+        ydb_parse(datablock, stdin);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -188,6 +208,7 @@ int main(int argc, char *argv[])
             }
         }
 
+        get_stdin(datablock);
         if (rfile)
         {
             ydb_res res;

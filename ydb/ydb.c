@@ -1725,7 +1725,7 @@ ydb_res yconn_file_write(yconn *conn, yconn_op op, ymsg_type type, char *data, s
     fprintf(fp,
             "---\n"
             "#type: %s\n"
-            "#op: %s\n",
+            "#op: %s\n\n",
             ymsg_str[type],
             yconn_op_str[op]);
     if (datalen > 0)
@@ -1736,6 +1736,7 @@ ydb_res yconn_file_write(yconn *conn, yconn_op op, ymsg_type type, char *data, s
     }
     ydb_log_debug("data {%s}\n", data ? data : "");
     fprintf(fp, "\n...\n");
+    fflush(fp);
     ydb_log_out();
     return YDB_OK;
 conn_failed:
@@ -1957,7 +1958,6 @@ static ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
     conn = yconn_new(addr, conn_flags);
     if (!conn)
         return YDB_E_MEM;
-
     assert(conn->func_init);
     res = conn->func_init(conn);
     if (res)
@@ -1977,7 +1977,6 @@ static ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
         yconn_free(conn);
         return res;
     }
-
     YCONN_INFO(conn, true);
     if (IS_SET(conn->flags, STATUS_CLIENT))
         yconn_request(conn, YOP_INIT, NULL, 0);
