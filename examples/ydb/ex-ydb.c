@@ -128,7 +128,7 @@ int test_ydb_read_write()
 
 	ydb_path_delete(datablock, "system/os");
 
-	ynode_dump(ydb_top(datablock), 0, YDB_LEVEL_MAX);
+	ynode_dump(ydb_root(datablock), 0, YDB_LEVEL_MAX);
 _done:
 	ydb_close(datablock);
 	printf("\n");

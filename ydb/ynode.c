@@ -857,7 +857,6 @@ int ynode_printf(ynode *node, int start_level, int end_level)
     return ynode_printf_to_fp(NULL, node, start_level, end_level);
 }
 
-
 struct _ynode_log
 {
     FILE *fp;
@@ -934,7 +933,7 @@ static void ynode_log_print(struct _ynode_log *log, ynode *cur)
     if (!nodes)
         return;
     n = cur;
-    
+
     while (n)
     {
         if (log->top == n)
@@ -944,7 +943,7 @@ static void ynode_log_print(struct _ynode_log *log, ynode *cur)
         ylist_push_front(nodes, n);
         n = n->parent;
     };
-    
+
     size = ylist_size(nodes);
     n = ylist_pop_front(nodes);
     ynode_log_debug("nodes size=%d\n", size);
@@ -971,8 +970,8 @@ static void ynode_log_print(struct _ynode_log *log, ynode *cur)
         {
             char *value = ystr_convert(n->value);
             fprintf(log->fp, "%s%s\n",
-                                only_val ? "" : " ",
-                                value ? value : n->value);
+                    only_val ? "" : " ",
+                    value ? value : n->value);
             if (value)
                 free(value);
         }
@@ -981,7 +980,7 @@ static void ynode_log_print(struct _ynode_log *log, ynode *cur)
         log->indent++;
         n = ylist_pop_front(nodes);
     }
-    
+
     // update latest print node
     log->latest = cur;
     ylist_destroy(nodes);
@@ -1616,11 +1615,29 @@ ynode *ynode_search(ynode *node, char *path)
 }
 
 // return ynodes' type
-unsigned char ynode_type(ynode *node)
+int ynode_type(ynode *node)
 {
     if (node)
         return node->type;
-    return 0;
+    return -1;
+}
+
+// return the ynode has a value or children
+int ynode_empty(ynode *node)
+{
+    if (!node)
+        return 1;
+    switch (node->type)
+    {
+    case YNODE_TYPE_VAL:
+        return (node->value) ? 0 : 1;
+    case YNODE_TYPE_DICT:
+        return (ytree_size(node->dict) <= 0) ? 1 : 0;
+    case YNODE_TYPE_LIST:
+        return ylist_empty(node->list);
+    default:
+        assert(!YDB_E_TYPE_ERR);
+    }
 }
 
 // return ynodes' value if that is a leaf.

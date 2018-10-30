@@ -46,7 +46,7 @@ void get_stdin(ydb *datablock)
     fd_set read_set;
     struct timeval tv;
     tv.tv_sec = 0;
-    tv.tv_usec = 1000; // if 0, sometimes it is not captured.
+    tv.tv_usec = 0; // if 0, sometimes it is not captured.
     FD_ZERO(&read_set);
     FD_SET(STDIN_FILENO, &read_set);
     ret = select(STDIN_FILENO + 1, &read_set, NULL, NULL, &tv);
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
             break;
         case 'd':
             done = 0;
-            // timeout = 5000; // 5sec
+            timeout = 5000; // 5sec
             break;
         case 'h':
             usage(argv[0]);
@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
                 printf("\nydb error: %s\n", ydb_res_str[res]);
                 goto end;
             }
-        } while (!res && !done);
+        } while (!done);
 
         if (!ylist_empty(readlist))
         {

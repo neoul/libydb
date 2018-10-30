@@ -94,6 +94,10 @@ extern "C"
     ydb_iter *ydb_search(ydb *datablock, char *path);
     // return the top node of the yaml data block.
     ydb_iter *ydb_top(ydb *datablock);
+    // return the root node of the yaml data block.
+    ydb_iter *ydb_root(ydb *datablock);
+    // return 1 if ydb_iter is empty.
+    int ydb_empty(ydb_iter *iter);
 
     // return the parent node of the node.
     ydb_iter *ydb_up(ydb_iter *iter);
@@ -108,7 +112,7 @@ extern "C"
     // return the last sibling node of the node.
     ydb_iter *ydb_last(ydb_iter *iter);
     // return node type
-    unsigned char ydb_type(ydb_iter *iter);
+    int ydb_type(ydb_iter *iter);
     // return node value if that is a leaf.
     char *ydb_value(ydb_iter *iter);
     // return node key if that has a hash key.

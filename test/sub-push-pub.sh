@@ -14,6 +14,6 @@ if [ "x$result" =  "x" ];then
     exit 0
 else
     echo "failed"
-    echo result
+    echo $result
     exit 1
 fi
