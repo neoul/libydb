@@ -9,7 +9,7 @@
 #include "ylist.h"
 #include "ydb.h"
 
-static int done = 1;
+static int done;
 void HANDLER_SIGINT(int param)
 {
     done = 1;
@@ -21,23 +21,25 @@ void usage(char *argv_0)
     char *pname = ((p = strrchr(argv_0, '/')) ? ++p : argv_0);
     printf("Usage : %s --role=ROLE [OPTION...]\n", pname);
     printf("\n\
-  -n, --name YDB_NAME       The name of created YDB (YAML DataBlock).\n\
-  -r, --role (pub|sub|loc)  Set the role.\n\
-                            pub(lisher): as distribution server\n\
-                            sub(scriber): as distribution client\n\
-                            loc(al): no connection to others\n\
-  -a, --addr YDB_ADDR       The YAML DataBlock communication address.\n\
-                            e.g. us:///tmp/ydb\n\
-  -s, --summary             Print all data at the termination.\n\
-  -N, --no-change-data      Not print the change data\n\
-  -f, --file FILE           Read data from FILE to send publisher\n\
-  -w, --writeable           Write data to the remote YDB\n\
-  -u, --unsubscribe         Disable subscription\n\
-  -R, --reconnect           Retry to reconnect upon the communication failure\n\
-  -d, --daemon              Runs in daemon mode\n\
-  -v, --verbose             Verbose mode for debug (debug|inout|info)\n\
-    , --read  PATH/TO/DATA  Read data from YDB.\n\
-  -h, --help                Display this help and exit\n\n");
+  -n, --name YDB_NAME              The name of created YDB (YAML DataBlock).\n\
+  -r, --role (pub|sub|loc)         Set the role.\n\
+                                   pub(lisher): as distribution server\n\
+                                   sub(scriber): as distribution client\n\
+                                   loc(al): no connection to others\n\
+  -a, --addr YDB_ADDR              The YAML DataBlock communication address.\n\
+                                   e.g. us:///tmp/ydb\n\
+  -s, --summary                    Print all data at the termination.\n\
+  -N, --no-change-data             Not print the change data\n\
+  -f, --file FILE                  Read data from FILE to send publisher\n\
+  -w, --writeable                  Write data to the remote YDB\n\
+  -u, --unsubscribe                Disable subscription\n\
+  -R, --reconnect                  Retry to reconnect upon the communication failure\n\
+  -d, --daemon                     Runs in daemon mode\n\
+  -v, --verbose (debug|inout|info) Verbose mode for debug\n\
+    , --read  PATH/TO/DATA         Read data from YDB.\n\
+    , --write PATH/TO/DATA=DATA    Write data from YDB.\n\
+    , --delete PATH/TO/DATA=DATA   Delete data from YDB.\n\
+  -h, --help                       Display this help and exit\n\n");
 }
 
 void get_stdin(ydb *datablock)
@@ -50,14 +52,24 @@ void get_stdin(ydb *datablock)
     FD_ZERO(&read_set);
     FD_SET(STDIN_FILENO, &read_set);
     ret = select(STDIN_FILENO + 1, &read_set, NULL, NULL, &tv);
-    if (ret < 0) {
+    if (ret < 0)
         return;
-    }
     if (FD_ISSET(STDIN_FILENO, &read_set))
     {
         ydb_parse(datablock, stdin);
     }
 }
+
+typedef struct _ydbcmd
+{
+    enum
+    {
+        CMD_READ,
+        CMD_WRITE,
+        CMD_DELETE,
+    } type;
+    char *data;
+} ydbcmd;
 
 int main(int argc, char *argv[])
 {
@@ -72,9 +84,10 @@ int main(int argc, char *argv[])
     int summary = 0;
     int no_change_data = 0;
     int verbose = 0;
-    int timeout = 100;
+    int timeout = 0;
+    int daemon = 0;
     ylist *filelist = NULL;
-    ylist *readlist = NULL;
+    ylist *cmdlist = NULL;
 
     filelist = ylist_create();
     if (!filelist)
@@ -82,10 +95,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "ydb error: %s\n", "file list creation failed.");
         goto end;
     }
-    readlist = ylist_create();
-    if (!readlist)
+    cmdlist = ylist_create();
+    if (!cmdlist)
     {
-        fprintf(stderr, "ydb error: %s\n", "read list creation failed.");
+        fprintf(stderr, "ydb error: %s\n", "ydbcmd list creation failed.");
         goto end;
     }
 
@@ -105,6 +118,8 @@ int main(int argc, char *argv[])
             {"daemon", no_argument, 0, 'd'},
             {"verbose", required_argument, 0, 'v'},
             {"read", required_argument, 0, 0},
+            {"write", required_argument, 0, 0},
+            {"delete", required_argument, 0, 0},
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
@@ -119,8 +134,28 @@ int main(int argc, char *argv[])
             /* If this option set a flag, do nothing else now. */
             if (long_options[index].flag != 0)
                 break;
-            if (strcmp(long_options[index].name, "read") == 0)
-                ylist_push_back(readlist, optarg);
+            ydbcmd *ycmd = malloc(sizeof(ydbcmd));
+            if (ycmd)
+            {
+                ycmd->data = optarg;
+                if (strcmp(long_options[index].name, "read") == 0)
+                {
+                    ycmd->type = CMD_READ;
+                    ylist_push_back(cmdlist, ycmd);
+                }
+                else if (strcmp(long_options[index].name, "write") == 0)
+                {
+                    ycmd->type = CMD_WRITE;
+                    ylist_push_back(cmdlist, ycmd);
+                }
+                else if (strcmp(long_options[index].name, "delete") == 0)
+                {
+                    ycmd->type = CMD_DELETE;
+                    ylist_push_back(cmdlist, ycmd);
+                }
+                else
+                    free(ycmd);
+            }
             break;
         case 'n':
             name = optarg;
@@ -150,6 +185,7 @@ int main(int argc, char *argv[])
             break;
         case 'w':
             strcat(flags, ":w");
+            break;
         case 'u':
             strcat(flags, ":u");
             break;
@@ -157,7 +193,7 @@ int main(int argc, char *argv[])
             strcat(flags, ":r");
             break;
         case 'd':
-            done = 0;
+            daemon = 1;
             timeout = 5000; // 5sec
             break;
         case 'h':
@@ -176,31 +212,32 @@ int main(int argc, char *argv[])
         usage(argv[0]);
         goto end;
     }
-    
+
     if (verbose > 0)
     {
         printf(" configured options:\n");
         printf("  name: %s\n", name);
         printf("  role: %s\n", role);
         printf("  addr: %s\n", addr);
-        printf("  summary: %s\n", summary?"yes":"no");
-        printf("  no-change-data: %s\n", no_change_data?"yes":"no");
+        printf("  summary: %s\n", summary ? "yes" : "no");
+        printf("  no-change-data: %s\n", no_change_data ? "yes" : "no");
         if (!ylist_empty(filelist))
         {
             printf("  file:\n");
             ylist_iter *iter = ylist_first(filelist);
             for (; !ylist_done(iter); iter = ylist_next(iter))
-            {
-                printf("   - %s\n", (char *) ylist_data(iter));
-            }
+                printf("   - %s\n", (char *)ylist_data(iter));
         }
-        if (!ylist_empty(readlist))
+        if (!ylist_empty(cmdlist))
         {
-            printf("  read:\n");
-            ylist_iter *iter = ylist_first(readlist);
+            printf("  ycmd:\n");
+            ylist_iter *iter = ylist_first(cmdlist);
             for (; !ylist_done(iter); iter = ylist_next(iter))
             {
-                printf("   - %s\n", (char *) ylist_data(iter));
+                ydbcmd *ycmd = ylist_data(iter);
+                printf("   - {%s: %s}\n",
+                       (ycmd->type == CMD_READ) ? "read" : (ycmd->type == CMD_WRITE) ? "write" : "delete",
+                       (char *)ycmd->data);
             }
         }
         printf("  verbose: %d\n", verbose);
@@ -265,30 +302,51 @@ int main(int argc, char *argv[])
             }
         }
 
-        do
+        if (daemon)
         {
-            res = ydb_serve(datablock, timeout);
-            if (res)
+            do
             {
-                printf("\nydb error: %s\n", ydb_res_str[res]);
-                goto end;
-            }
-        } while (!done);
-
-        if (!ylist_empty(readlist))
-        {
-            char *path = ylist_pop_front(readlist);
-            while (path)
-            {
-                char *data = ydb_path_read(datablock, "%s", path);
-                if (!data)
+                res = ydb_serve(datablock, timeout);
+                if (res)
                 {
-                    res = YDB_E_NO_ENTRY;
-                    printf("\nydb error: %s %s\n", ydb_res_str[res], path);
+                    printf("\nydb error: %s\n", ydb_res_str[res]);
                     goto end;
                 }
-                fprintf(stdout, "%s", data);
-                path = ylist_pop_front(readlist);
+            } while (!done);
+        }
+        else
+        {
+            if (!ylist_empty(cmdlist))
+            {
+                ydbcmd *ycmd = ylist_pop_front(cmdlist);
+                while (ycmd)
+                {
+                    char *data;
+                    switch (ycmd->type)
+                    {
+                    case CMD_READ:
+                        data = ydb_path_read(datablock, "%s", ycmd->data);
+                        if (data)
+                            fprintf(stdout, "%s", data);
+                        else
+                            res = YDB_E_NO_ENTRY;
+                        break;
+                    case CMD_WRITE:
+                        res = ydb_path_write(datablock, "%s", ycmd->data);
+                        break;
+                    case CMD_DELETE:
+                        res = ydb_path_delete(datablock, "%s", ycmd->data);
+                        break;
+                    }
+                    if (res)
+                    {
+                        printf("\nydb error: %s (%s)\n", ydb_res_str[res], ycmd->data);
+                        free(ycmd);
+                        goto end;
+                    }
+                    free(ycmd);
+                    ycmd = ylist_pop_front(cmdlist);
+                }
             }
         }
 
@@ -300,7 +358,7 @@ int main(int argc, char *argv[])
     }
 end:
     ydb_close(datablock);
-    ylist_destroy(readlist);
+    ylist_destroy(cmdlist);
     ylist_destroy(filelist);
     if (res)
         return 1;

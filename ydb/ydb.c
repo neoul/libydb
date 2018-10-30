@@ -1090,8 +1090,7 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
     YDB_FAIL(!src, YDB_E_MERGE_FAILED);
 
 failed:
-    if (buf)
-        free(buf);
+    CLEAR_BUF(buf, buflen);
     ydb_log_out();
     return res;
 }
@@ -1135,8 +1134,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
     }
     YDB_FAIL(!target, YDB_E_DELETE_FAILED);
 failed:
-    if (buf)
-        free(buf);
+    CLEAR_BUF(buf, buflen);
     ydb_log_out();
     return res;
 }
@@ -1170,8 +1168,7 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
         src = ynode_search(datablock->top, buf);
     }
 failed:
-    if (buf)
-        free(buf);
+    CLEAR_BUF(buf, buflen);
     ydb_log_out();
     if (src && ynode_type(src) == YNODE_TYPE_VAL)
         return ynode_value(src);
@@ -1997,7 +1994,6 @@ static ydb *yconn_detach(yconn *conn)
     assert((old == conn) && YDB_E_PERSISTENCY_ERR);
     if (!IS_SET(conn->flags, YCONN_UNREADABLE))
     {
-        datablock->epollcount--;
         event.data.ptr = old;
         event.events = EPOLLIN;
         if (epoll_ctl(datablock->epollfd, EPOLL_CTL_DEL, conn->fd, &event))
@@ -2005,6 +2001,7 @@ static ydb *yconn_detach(yconn *conn)
             yconn_errno(conn, YDB_E_CONN_FAILED);
             return datablock;
         }
+        datablock->epollcount--;
     }
     return datablock;
 }
@@ -2211,7 +2208,7 @@ static ydb_res yconn_init(yconn *conn)
         return YDB_OK;
     ydb_log_in();
     YDB_FAIL(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
-    
+
     // send
     {
         char *buf = NULL;
@@ -2257,10 +2254,11 @@ static ydb_res yconn_init(yconn *conn)
                     res = yconn_recv(rconn, &op, &type, &next);
                     if (rconn == conn)
                     {
-                        if (!res)
+                        if (res)
                             done = true;
                         if (op == YOP_INIT && (type == YMSG_RESPONSE || type == YMSG_RESP_FAILED))
                             done = true;
+                        ydb_log_debug("init responsed (res=%d, op=%d, type=%d)\n", res, op, type);
                     }
                 }
             }
@@ -2287,19 +2285,20 @@ static ydb_res yconn_merge(yconn *conn, char *buf, size_t buflen)
     {
         ynode *top;
         ynode_log *log = NULL;
+        char *logbuf = NULL;
+        size_t logbuflen = 0;
         log = ynode_log_open(conn->db->top, NULL);
         top = ynode_merge(conn->db->top, src, log);
-        ynode_log_close(log, &buf, &buflen);
+        ynode_log_close(log, &logbuf, &logbuflen);
         ynode_remove(src);
         if (top)
         {
             conn->db->top = top;
-            yconn_publish(conn, conn->db, YOP_MERGE, buf, buflen);
+            yconn_publish(conn, conn->db, YOP_MERGE, logbuf, logbuflen);
         }
         else
             res = YDB_E_MERGE_FAILED;
-        if (buf)
-            free(buf);
+        CLEAR_BUF(logbuf, logbuflen);
     }
     ydb_log_out();
     return res;
@@ -2322,17 +2321,17 @@ static ydb_res yconn_delete(yconn *conn, char *buf, size_t buflen)
     }
     if (src)
     {
-        CLEAR_BUF(buf, buflen);
+        char *logbuf = NULL;
+        size_t logbuflen = 0;
         ddata.log = ynode_log_open(conn->db->top, NULL);
         ddata.node = conn->db->top;
         flags = YNODE_VAL_NODE_FIRST | YNODE_VAL_NODE_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
-        ynode_log_close(ddata.log, &buf, &buflen);
+        ynode_log_close(ddata.log, &logbuf, &logbuflen);
         ynode_remove(src);
         if (!res)
-            yconn_publish(conn, conn->db, YOP_DELETE, buf, buflen);
-        if (buf)
-            free(buf);
+            yconn_publish(conn, conn->db, YOP_DELETE, logbuf, logbuflen);
+        CLEAR_BUF(logbuf, logbuflen);
     }
     ydb_log_out();
     return res;
@@ -2444,11 +2443,11 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
 ydb_res ydb_serve(ydb *datablock, int timeout)
 {
     ydb_res res;
-    int i, n, wait;
+    int i, n;
     struct epoll_event event[YDB_CONN_MAX];
     ydb_log_in();
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
-    YDB_FAIL(datablock->epollfd < 0, YDB_E_NO_CONN);
+    YDB_FAIL(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
 
     n = ylist_size(datablock->disconn);
     if (n > 0)
@@ -2463,8 +2462,16 @@ ydb_res ydb_serve(ydb *datablock, int timeout)
     }
     res = YDB_OK;
     n = ylist_size(datablock->disconn);
-    wait = n ? ((timeout < 0 || timeout > YDB_TIMEOUT) ? YDB_TIMEOUT : timeout) : timeout;
-    n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, wait);
+    if (n > 0)
+    {
+        if (timeout < 0 || timeout > YDB_TIMEOUT)
+            timeout = YDB_TIMEOUT;
+    }
+    else
+    {
+        YDB_FAIL(datablock->epollcount <= 0, YDB_E_NO_CONN);
+    }
+    n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
     if (n < 0)
     {
         if (errno == EINTR)

@@ -1489,7 +1489,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
 
 ydb_res ynode_scanf_from_fp(FILE *fp, ynode **n)
 {
-    return ynode_scan(fp, NULL, 0, fileno(fp), n, 0);
+    if (fp && n)
+        return ynode_scan(fp, NULL, 0, fileno(fp), n, 0);
+    return YDB_E_INVALID_ARGS;
 }
 
 ydb_res ynode_scanf(ynode **n)
