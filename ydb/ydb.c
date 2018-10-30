@@ -1086,8 +1086,8 @@ ydb_res ydb_sync(ydb *datablock)
         int timeout;
         struct epoll_event event[YDB_CONN_MAX];
         gettimeofday(&end, NULL);
-        timeout = (end.tv_sec - start.tv_sec)*1000;
-        timeout = timeout + (end.tv_usec - start.tv_usec)/1000;
+        timeout = (end.tv_sec - start.tv_sec) * 1000;
+        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
         timeout = YDB_TIMEOUT - timeout;
         if (timeout > YDB_TIMEOUT || timeout < 0)
             break;
@@ -1236,8 +1236,11 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        res = ydb_sync(datablock);
-        YDB_FAIL(res, res);
+        if (datablock->unsubscribers > 0)
+        {
+            res = ydb_sync(datablock);
+            YDB_FAIL(res, res);
+        }
         src = ynode_search(datablock->top, buf);
     }
 failed:
@@ -2018,7 +2021,14 @@ static ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
     }
     YCONN_INFO(conn, true);
     if (IS_SET(conn->flags, STATUS_CLIENT))
-        yconn_request(conn, YOP_INIT, NULL, 0);
+    {
+        char *buf = NULL;
+        size_t buflen = 0;
+        if (IS_SET(conn->flags, YCONN_WRITABLE))
+            ydb_dumps(conn->db, &buf, &buflen);
+        yconn_request(conn, YOP_INIT, buf, buflen);
+        CLEAR_BUF(buf, buflen);
+    }
     return res;
 }
 
@@ -2050,7 +2060,14 @@ static ydb_res yconn_reopen(yconn *conn, ydb *datablock)
 
     YCONN_INFO(conn, true);
     if (IS_SET(conn->flags, STATUS_CLIENT))
-        yconn_request(conn, YOP_INIT, NULL, 0);
+    {
+        char *buf = NULL;
+        size_t buflen = 0;
+        if (IS_SET(conn->flags, YCONN_WRITABLE))
+            ydb_dumps(conn->db, &buf, &buflen);
+        yconn_request(conn, YOP_INIT, buf, buflen);
+        CLEAR_BUF(buf, buflen);
+    }
     return res;
 }
 
@@ -2065,7 +2082,7 @@ static ydb *yconn_detach(yconn *conn)
     if (IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
         datablock->unsubscribers--;
     conn->db = NULL;
-    
+
     old = ytree_delete(datablock->conn, &conn->fd);
     assert((old == conn) && YDB_E_PERSISTENCY_ERR);
     if (!IS_SET(conn->flags, YCONN_UNREADABLE))
@@ -2158,7 +2175,7 @@ static ydb_res yconn_publish(yconn *src_target, ydb *datablock, yconn_op op, cha
             conn = ytree_data(iter);
             if (conn == src_target)
                 continue;
-            else if (IS_SET(conn->flags, STATUS_SERVER || STATUS_DISCONNECT))
+            else if (IS_SET(conn->flags, STATUS_SERVER | STATUS_DISCONNECT))
                 continue;
             else if (IS_SET(conn->flags, STATUS_CLIENT))
             {
@@ -2306,8 +2323,8 @@ static ydb_res yconn_sync(yconn *src)
         int timeout;
         struct epoll_event event[YDB_CONN_MAX];
         gettimeofday(&end, NULL);
-        timeout = (end.tv_sec - start.tv_sec)*1000;
-        timeout = timeout + (end.tv_usec - start.tv_usec)/1000;
+        timeout = (end.tv_sec - start.tv_sec) * 1000;
+        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
         timeout = YDB_TIMEOUT - timeout;
         if (timeout > YDB_TIMEOUT || timeout < 0)
             break;
@@ -2415,8 +2432,10 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
         case YOP_INIT:
             if (IS_SET(conn->flags, STATUS_COND_CLIENT))
             {
+                // updated flags
                 conn->flags = flags | (conn->flags & (YCONN_TYPE_MASK | STATUS_MASK));
-                yconn_response(conn, YOP_INIT, true, NULL, 0);
+                res = yconn_merge(conn, buf, buflen);
+                yconn_response(conn, YOP_INIT, res ? false : true, NULL, 0);
                 if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
                 {
                     CLEAR_BUF(buf, buflen);
@@ -2430,7 +2449,7 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
         }
         break;
     case YMSG_RESPONSE:
-        if (*op == YOP_SYNC)
+        if (*op == YOP_SYNC || *op == YOP_INIT)
             yconn_merge(conn, buf, buflen);
         break;
     case YMSG_RESP_FAILED:

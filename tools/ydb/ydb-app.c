@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
     int summary = 0;
     int no_change_data = 0;
     int verbose = 0;
-    int timeout = 0;
+    int timeout = 100;
     ylist *filelist = NULL;
     ylist *readlist = NULL;
 
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
             break;
         case 'd':
             done = 0;
-            timeout = 5000; // 5sec
+            // timeout = 5000; // 5sec
             break;
         case 'h':
             usage(argv[0]);
@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
                     printf("\nydb error: %s %s\n", ydb_res_str[res], path);
                     goto end;
                 }
-                fprintf(stdout, "%s=%s\n", path, data);
+                fprintf(stdout, "%s", data);
                 path = ylist_pop_front(readlist);
             }
         }
