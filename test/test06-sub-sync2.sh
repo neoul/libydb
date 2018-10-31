@@ -2,7 +2,7 @@
 . ./util.sh
 test_init $0 $1
 echo -n "TEST: $TESTNAME : "
-run_bg "ydb -r pub -d -s -N > $TESTNAME.PUB1.log"
+run_bg "ydb -r pub -d -s -N -v info > $TESTNAME.PUB1.log"
 run_bg "ydb -r pub -d -s -N -v info -f ../examples/yaml/ydb-sample.yaml > $TESTNAME.PUB2.log"
 
 r1=`ydb -r sub -N --unsubscribe --read /2/2-1/2-1-1`

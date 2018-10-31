@@ -250,9 +250,12 @@ struct _yconn
     void *head;
 };
 
-static void yconn_print(yconn *conn, const char *func, int line, bool opened);
+static void yconn_print(yconn *conn, const char *func, int line, bool opened, bool simple);
 #define YCONN_INFO(conn, opened) \
-    yconn_print(conn, __func__, __LINE__, opened)
+    yconn_print(conn, __func__, __LINE__, opened, false)
+#define YCONN_SIMPLE_INFO(conn) \
+    yconn_print(conn, __func__, __LINE__, false, true)
+
 
 static unsigned int yconn_flags(char *address, char *flagstr);
 static yconn *yconn_new(char *address, unsigned int flags);
@@ -1391,14 +1394,14 @@ void yconn_socket_recv_head(yconn *conn, yconn_op *op, ymsg_type *type, unsigned
         }
     }
     ydb_log_info("head {seq: %u, type: %s, op: %s}\n",
-                 head->recv.seq, ymsg_str[head->recv.type], yconn_op_str[head->recv.op]);
+                 head->recv.seq, ymsg_str[*type], yconn_op_str[*op]);
     if (*flags)
     {
         ydb_log_info("head {flags: %s%s%s%s}\n",
-                     IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
-                     IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "-",
-                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "-",
-                     IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "-");
+                     IS_SET(*flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
+                     IS_SET(*flags, YCONN_WRITABLE) ? "w" : "_",
+                     IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_",
+                     IS_SET(*flags, YCONN_RECONNECT) ? "r" : "_");
     }
     ydb_log_info("data {%s}\n", *data ? *data : "");
     return;
@@ -1576,14 +1579,14 @@ ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, 
         n += sprintf(msghead + n,
                      "#flags: %s%s%s%s\n",
                      IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
-                     IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "-",
-                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "-",
-                     IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "-");
+                     IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "_",
+                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_",
+                     IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "_");
         ydb_log_info("head {flags: %s%s%s%s}\n",
                      IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
-                     IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "-",
-                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "-",
-                     IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "-");
+                     IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "_",
+                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_",
+                     IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "_");
         break;
     default:
         break;
@@ -1712,39 +1715,45 @@ conn_failed:
     return res;
 }
 
-static void yconn_print(yconn *conn, const char *func, int line, bool opened)
+static void yconn_print(yconn *conn, const char *func, int line, bool opened, bool simple)
 {
     int n;
     char flagstr[128];
     if (!conn || !YDB_LOGGING_INFO)
         return;
-    if (opened)
-        ydb_logger(YDB_LOG_INFO, func, line, "opened conn:\n");
-    else
-        ydb_logger(YDB_LOG_INFO, func, line, "closed conn:\n");
-
-    ydb_logger(YDB_LOG_INFO, func, line, " fd: %d\n", conn->fd);
-    ydb_logger(YDB_LOG_INFO, func, line, " address: %s\n", conn->address);
-    if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
-        n = sprintf(flagstr, "PUB");
-    else
-        n = sprintf(flagstr, "SUB");
-    n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, YCONN_WRITABLE) ? "write" : "-");
-    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-");
-    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_RECONNECT) ? "reconn" : "-");
-    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNREADABLE) ? "no-read" : "-");
-    n += sprintf(flagstr + n, "/%s) ", IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "");
-    ydb_logger(YDB_LOG_INFO, func, line, " flags: %s\n", flagstr);
-
-    n = sprintf(flagstr, "(%s", IS_SET(conn->flags, STATUS_DISCONNECT) ? "dis-conn" : "-");
-    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, STATUS_SERVER) ? "server" : "-");
-    n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, STATUS_CLIENT) ? "client" : "-");
-    n += sprintf(flagstr + n, "/%s)", IS_SET(conn->flags, STATUS_COND_CLIENT) ? "connected" : "-");
-    ydb_logger(YDB_LOG_INFO, func, line, " status: %s\n", flagstr);
-    if (conn->db)
+    if (!simple)
     {
-        ydb_logger(YDB_LOG_INFO, func, line,
-                   " ydb(epollfd): %s(%d)\n", conn->db->name, conn->db->epollfd);
+        if (opened)
+            ydb_logger(YDB_LOG_INFO, func, line, "opened conn:\n");
+        else
+            ydb_logger(YDB_LOG_INFO, func, line, "closed conn:\n");
+        ydb_logger(YDB_LOG_INFO, func, line, " fd: %d\n", conn->fd);
+        ydb_logger(YDB_LOG_INFO, func, line, " address: %s\n", conn->address);
+        if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
+            n = sprintf(flagstr, "PUB");
+        else
+            n = sprintf(flagstr, "SUB");
+        n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, YCONN_WRITABLE) ? "write" : "-");
+        n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-");
+        n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_RECONNECT) ? "reconn" : "-");
+        n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNREADABLE) ? "no-read" : "-");
+        n += sprintf(flagstr + n, "/%s) ", IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "");
+        ydb_logger(YDB_LOG_INFO, func, line, " flags: %s\n", flagstr);
+
+        n = sprintf(flagstr, "(%s", IS_SET(conn->flags, STATUS_DISCONNECT) ? "dis-conn" : "-");
+        n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, STATUS_SERVER) ? "server" : "-");
+        n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, STATUS_CLIENT) ? "client" : "-");
+        n += sprintf(flagstr + n, "/%s)", IS_SET(conn->flags, STATUS_COND_CLIENT) ? "connected" : "-");
+        ydb_logger(YDB_LOG_INFO, func, line, " status: %s\n", flagstr);
+        if (conn->db)
+        {
+            ydb_logger(YDB_LOG_INFO, func, line,
+                    " ydb(epollfd): %s(%d)\n", conn->db->name, conn->db->epollfd);
+        }
+    }
+    else
+    {
+        ydb_logger(YDB_LOG_INFO, func, line, "conn: %s (%d)\n", conn->address, conn->fd);
     }
 }
 
@@ -2044,6 +2053,7 @@ static ydb_res yconn_request(yconn *conn, yconn_op op, char *buf, size_t buflen)
     ydb_log_inout();
     if (!conn)
         return YDB_E_INVALID_ARGS;
+    YCONN_SIMPLE_INFO(conn);
     assert(conn->func_send);
     res = conn->func_send(conn, op, YMSG_REQUEST, buf, buflen);
     return res;
@@ -2055,6 +2065,7 @@ static ydb_res yconn_response(yconn *conn, yconn_op op, bool done, char *buf, si
     ydb_log_inout();
     if (!conn)
         return YDB_E_INVALID_ARGS;
+    YCONN_SIMPLE_INFO(conn);
     assert(conn->func_send);
     res = conn->func_send(conn, op, done ? YMSG_RESPONSE : YMSG_RESP_FAILED, buf, buflen);
     return res;
@@ -2104,6 +2115,7 @@ static ydb_res yconn_publish(yconn *src_target, ydb *datablock, yconn_op op, cha
     conn = ylist_pop_front(publist);
     while (conn)
     {
+        YCONN_SIMPLE_INFO(conn);
         assert(conn->func_send);
         conn->func_send(conn, op, YMSG_PUBLISH, buf, buflen);
         conn = ylist_pop_front(publist);
@@ -2119,12 +2131,14 @@ static ydb_res yconn_sync(yconn *src, ydb *datablock)
     ytree_iter *iter;
     ytree *synclist = NULL;
     struct timeval start, end;
+    int timeout;
 
     ydb_log_in();
     YDB_FAIL(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
     synclist = ytree_create((ytree_cmp)yconn_cmp, NULL);
     YDB_FAIL(!synclist, YDB_E_SYSTEM_FAILED);
 
+    gettimeofday(&start, NULL);
     iter = ytree_first(datablock->conn);
     for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
     {
@@ -2143,6 +2157,7 @@ static ydb_res yconn_sync(yconn *src, ydb *datablock)
             if (!IS_SET(conn->flags, YCONN_WRITABLE))
                 continue;
         }
+        YCONN_SIMPLE_INFO(conn);
         res = yconn_request(conn, YOP_SYNC, NULL, 0);
         if (!res)
         {
@@ -2151,11 +2166,9 @@ static ydb_res yconn_sync(yconn *src, ydb *datablock)
         }
     }
 
-    gettimeofday(&start, NULL);
     while (ytree_size(synclist) > 0)
     {
         int i, n;
-        int timeout;
         struct epoll_event event[YDB_CONN_MAX];
         gettimeofday(&end, NULL);
         timeout = (end.tv_sec - start.tv_sec) * 1000;
@@ -2192,6 +2205,15 @@ static ydb_res yconn_sync(yconn *src, ydb *datablock)
         }
     }
 failed:
+    if (YDB_LOGGING_INFO)
+    {
+        gettimeofday(&end, NULL);
+        timeout = (end.tv_sec - start.tv_sec) * 1000;
+        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
+        ydb_log_debug("start time: %u.%u\n", start.tv_sec, start.tv_usec);
+        ydb_log_debug("end time: %u.%u\n", end.tv_sec, end.tv_usec);
+        ydb_log_info("sync elapsed time: %d\n", timeout);
+    }
     ytree_destroy(synclist);
     ydb_log_out();
     return res;
@@ -2208,6 +2230,7 @@ static ydb_res yconn_init(yconn *conn)
         return YDB_OK;
     ydb_log_in();
     YDB_FAIL(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
+    gettimeofday(&start, NULL);
 
     // send
     {
@@ -2215,13 +2238,13 @@ static ydb_res yconn_init(yconn *conn)
         size_t buflen = 0;
         if (IS_SET(conn->flags, YCONN_WRITABLE) && !ydb_empty(datablock->top))
             ydb_dumps(conn->db, &buf, &buflen);
+        YCONN_SIMPLE_INFO(conn);
         res = yconn_request(conn, YOP_INIT, buf, buflen);
         CLEAR_BUF(buf, buflen);
         YDB_FAIL(res, res);
     }
 
     // recv
-    gettimeofday(&start, NULL);
     do
     {
         gettimeofday(&end, NULL);
@@ -2265,6 +2288,15 @@ static ydb_res yconn_init(yconn *conn)
         }
     } while (!done);
 failed:
+    if (YDB_LOGGING_INFO)
+    {
+        gettimeofday(&end, NULL);
+        timeout = (end.tv_sec - start.tv_sec) * 1000;
+        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
+        ydb_log_debug("start time: %u.%u\n", start.tv_sec, start.tv_usec);
+        ydb_log_debug("end time: %u.%u\n", end.tv_sec, end.tv_usec);
+        ydb_log_info("init elapsed time: %d\n", timeout);
+    }
     ydb_log_out();
     return res;
 }
@@ -2287,6 +2319,7 @@ static ydb_res yconn_merge(yconn *conn, char *buf, size_t buflen)
         ynode_log *log = NULL;
         char *logbuf = NULL;
         size_t logbuflen = 0;
+        YCONN_SIMPLE_INFO(conn);
         log = ynode_log_open(conn->db->top, NULL);
         top = ynode_merge(conn->db->top, src, log);
         ynode_log_close(log, &logbuf, &logbuflen);
@@ -2325,6 +2358,7 @@ static ydb_res yconn_delete(yconn *conn, char *buf, size_t buflen)
         size_t logbuflen = 0;
         ddata.log = ynode_log_open(conn->db->top, NULL);
         ddata.node = conn->db->top;
+        YCONN_SIMPLE_INFO(conn);
         flags = YNODE_VAL_NODE_FIRST | YNODE_VAL_NODE_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
         ynode_log_close(ddata.log, &logbuf, &logbuflen);
