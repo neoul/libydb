@@ -1,7 +1,9 @@
 #!/bin/sh
+
 cd test
-echo $PWD
-rm -f ydb.*.log
-find . -type f -exec {} \;
-rm -f ydb.*.log
+TESTLIST=`find . -name "test*.sh" -type f | sort`
+for ENTRY in $TESTLIST; do
+    # echo $ENTRY
+    $ENTRY
+done
 cd -
