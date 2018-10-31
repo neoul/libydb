@@ -813,7 +813,7 @@ failed:
 
 struct update_hook
 {
-    ydb_update_hook hook;
+    ydb_read_hook hook;
     void *user;
 };
 
@@ -887,7 +887,7 @@ ydb_res ydb_update(ydb *datablock, ynode *target)
     return res;
 }
 
-ydb_res ydb_update_hook_add(ydb *datablock, char *path, ydb_update_hook hook, void *user)
+ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, void *user)
 {
     ydb_res res;
     int pathlen;
@@ -908,7 +908,7 @@ failed:
     return res;
 }
 
-void *ydb_update_hook_delete(ydb *datablock, char *path)
+void *ydb_read_hook_delete(ydb *datablock, char *path)
 {
     int pathlen;
     struct update_hook *uphook;

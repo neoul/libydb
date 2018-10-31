@@ -1,7 +1,7 @@
 #ifndef __YDB__
 #define __YDB__
 
-// YAML DataBlock for Configuration Data Management 
+// YAML DataBlock for Configuration Data Management
 // using YAML and IPC (Inter Process Communication)
 
 #include <stdio.h>
@@ -135,14 +135,6 @@ extern "C"
     // read the date from ydb as the scanf() (yaml format)
     int ydb_read(ydb *datablock, const char *format, ...);
 
-    // ydb_update_hook is a callback function executed by ydb_read() to update ydb at reading.
-    // ydb_fp: The stream buffer to write the data to the ydb
-    // cur: The current data of the ydb
-    // user: The user data regardless of the ydb
-    typedef ydb_res (*ydb_update_hook)(FILE *ydb_fp, ydb_iter *cur, void *user);
-    ydb_res ydb_update_hook_add(ydb *datablock, char *path, ydb_update_hook hook, void *user);
-    void *ydb_update_hook_delete(ydb *datablock, char *path);
-
     // update & delete the ydb using input path and value
     // ydb_path_write(datablock, "/path/to/update=%d", value)
     ydb_res ydb_path_write(ydb *datablock, const char *format, ...);
@@ -155,6 +147,23 @@ extern "C"
     ydb_res ydb_serve(ydb *datablock, int timeout);
 
     int ydb_fd(ydb *datablock);
+
+
+    // ydb_read_hook: The callback function executed by ydb_read()
+    //   to update ydb at reading.
+    // ydb_fp: The stream buffer to be written to the ydb
+    //   YAML format stream should be written by the ydb_read_hook.
+    // cur: The current data of the ydb
+    // user: The user data regardless of the ydb
+    typedef ydb_res (*ydb_read_hook)(FILE *ydb_fp, ydb_iter *cur, void *user);
+
+    // ydb_read_hook_add/ydb_read_hook_delete:
+    //   Register/unregister the callback function to the target ynode.
+    // path: the path to the target ynode
+    // hook: user-defined callback function called in ydb_read().
+    // user: user's data
+    ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, void *user);
+    void *ydb_read_hook_delete(ydb *datablock, char *path);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

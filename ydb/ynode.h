@@ -144,7 +144,8 @@ extern "C"
     ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *user);
 
     // unregister the hook func from the target ynode.
-    void yhook_unregister(ynode *node);
+    // return user data registered with the hook.
+    void *yhook_unregister(ynode *node);
 
     typedef ydb_res (*ynode_callback)(ynode *cur, void *addition);
 

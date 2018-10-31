@@ -105,7 +105,7 @@ int test_ydb_read_write()
 	
 	ydb_delete(datablock, "system: {fan-enable: , }");
 
-	ydb_update_hook_add(datablock, "/system/hostname", update_hook, NULL);
+	ydb_read_hook_add(datablock, "/system/hostname", update_hook, NULL);
 
 	int speed = 0;
 	char hostname[128] = {

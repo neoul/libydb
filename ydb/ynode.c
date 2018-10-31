@@ -317,12 +317,16 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *u
 }
 
 // unregister the hook func from the target ynode.
-void yhook_unregister(ynode *node)
+// return user data registered with the hook.
+void *yhook_unregister(ynode *node)
 {
+    void *data = NULL;
     if (!node || !node->hook)
-        return;
+        return NULL;
+    data = node->hook->user;
     free(node->hook);
     node->hook = NULL;
+    return data;
 }
 
 static int yhook_pre_run_for_delete(ynode *cur);
