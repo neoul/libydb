@@ -123,7 +123,7 @@ int test_ynode_path(char *fname)
 
 	top = ynode_down(top);
 	top = ynode_down(top);
-	path = ynode_path(top, YDB_LEVEL_MAX);
+	path = ynode_path(top, YDB_LEVEL_MAX, NULL);
 	printf("path=%s\n", path);
 	free(path);
 
@@ -251,7 +251,7 @@ int test_yhook()
 	// move to 1-2 node
 	top = ynode_search(top, "1/1-2");
 	ynode_dump(top, 0, 0);
-	yhook_register(top, YNODE_VAL_NODE_FIRST, ynode_hooker, NULL);
+	yhook_register(top, YNODE_LEAF_FIRST, ynode_hooker, NULL);
 
 	printf("== ynode_create to check yhook ==\n");
 	ynode_create(YNODE_TYPE_VAL, "1-2-4", "v13", top, NULL);

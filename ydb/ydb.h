@@ -69,7 +69,11 @@ extern "C"
     ydb *ydb_open(char *name);
 
     // Get YAML DataBlock and also return ydb_iter
-    ydb *ydb_get(char *name, ydb_iter **iter);
+    ydb *ydb_get(char *name_and_path, ydb_iter **iter);
+    
+    // return the new string consisting of the YDB name and the path to the iter.
+    // the return string must be free.
+    char *ydb_name_and_path(ydb_iter *iter, int *pathlen);
 
     // Get the name of the YAML DataBlock
     char *ydb_name(ydb *datablock);
@@ -92,6 +96,8 @@ extern "C"
 
     // return the node in the path of the yaml data block.
     ydb_iter *ydb_search(ydb *datablock, char *path);
+    // return the path of the node. (the path must be free.)
+    char *ydb_path(ydb *datablock, ydb_iter *iter, int *pathlen);
     // return the top node of the yaml data block.
     ydb_iter *ydb_top(ydb *datablock);
     // return the root node of the yaml data block.
@@ -162,8 +168,15 @@ extern "C"
     // path: the path to the target ynode
     // hook: user-defined callback function called in ydb_read().
     // user: user's data
+    // ydb_read_hook_delete: It returns the user's data registered.
     ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, void *user);
     void *ydb_read_hook_delete(ydb *datablock, char *path);
+
+    typedef void (*ydb_write_hook)(char op, ydb_iter *cur, ydb_iter *_new, void *user);
+
+    // // flags: leaf-only, val-only, 
+    ydb_res ydb_write_hook_add(ydb_iter *cur, ydb_write_hook func, char *flags, void *user);
+    void *ydb_write_hook_delete(ydb_iter *cur);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

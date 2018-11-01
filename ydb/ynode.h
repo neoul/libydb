@@ -115,10 +115,9 @@ extern "C"
 
     // create a new path string for the ydb
     // the level is the number of the parent and ancestors to be printed.
-    // the path returned should be free.
-    char *ynode_path(ynode *node, int level);
-    char *ynode_path_and_pathlen(ynode *node, int level, int *pathlen);
-
+    // the path returned must be free.
+    char *ynode_path(ynode *node, int level, int *pathlen);
+    
     // create a new path and value string for the ydb
     char *ynode_path_and_val(ynode *node, int level);
 
@@ -134,8 +133,8 @@ extern "C"
 
 // flags for ynode hook and traverse func
 #define YNODE_NO_FLAG 0x0
-#define YNODE_VAL_NODE_FIRST 0x1
-#define YNODE_VAL_NODE_ONLY 0x2
+#define YNODE_LEAF_FIRST 0x1
+#define YNODE_VAL_ONLY 0x2
 #define YNODE_LEAF_ONLY 0x4
 
     typedef void (*yhook_func)(yhook_op_type op, ynode *cur, ynode *_new, void *user);

@@ -102,6 +102,11 @@ int test_ydb_read_write()
 	ydb_iter *iter = NULL;
 	ydb_dump(ydb_get("/path/to/data/system/hostname", &iter), stdout);
 	printf("ydb_iter = %s\n", ydb_value(iter));
+	int pathlen = 0;
+	char *path = ydb_path(datablock, iter, &pathlen);
+	printf("ydb_path=%s\n", path);
+	if (path)
+		free(path);
 	
 	ydb_delete(datablock, "system: {fan-enable: , }");
 
