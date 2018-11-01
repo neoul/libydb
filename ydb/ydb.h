@@ -162,9 +162,9 @@ extern "C"
     //   to update ydb at reading.
     // ydb_fp: The stream buffer to be written to the ydb
     //   YAML format stream should be written by the ydb_read_hook.
-    // cur: The current data of the ydb
+    // path: The path of ydb_read_hook registered
     // user: The user data regardless of the ydb
-    typedef ydb_res (*ydb_read_hook)(FILE *ydb_fp, ydb_iter *cur, void *user);
+    typedef ydb_res (*ydb_read_hook)(ydb *datablock, char *path, FILE *ydb_fp, void *user);
 
     // ydb_read_hook_add/ydb_read_hook_delete:
     //   Register/unregister the callback function to the target ynode.
@@ -173,13 +173,13 @@ extern "C"
     // user: user's data
     // ydb_read_hook_delete: It returns the user's data registered.
     ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, void *user);
-    void *ydb_read_hook_delete(ydb *datablock, char *path);
+    void ydb_read_hook_delete(ydb *datablock, char *path);
 
     typedef void (*ydb_write_hook)(char op, ydb_iter *cur, ydb_iter *_new, void *user);
 
     // // flags: leaf-only, val-only, 
-    ydb_res ydb_write_hook_add(ydb_iter *cur, ydb_write_hook func, char *flags, void *user);
-    void *ydb_write_hook_delete(ydb_iter *cur);
+    ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, void *user);
+    void ydb_write_hook_delete(ydb *datablock, char *path);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

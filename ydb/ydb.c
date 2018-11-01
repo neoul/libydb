@@ -911,18 +911,15 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
     ydb_res res = YDB_OK;
     ydb *datablock = addition;
     struct update_hook *uphook = NULL;
-    int keylen = 0;
-    char *key;
-    key = ynode_path(cur, YDB_LEVEL_MAX, &keylen);
-    if (key && keylen > 0)
+    int pathlen = 0;
+    char *path = ydb_path(datablock, cur, &pathlen);
+    if (path && pathlen > 0)
     {
         // int matched_len = 0;
-        // hook = ytrie_best_match(datablock->updater, key, keylen, &matched_len);
-        uphook = ytrie_search(datablock->updater, key, keylen);
-        ydb_log_info("hook %s %s (%d)\n", uphook ? "found" : "not found", key, keylen);
+        // hook = ytrie_best_match(datablock->updater, path, pathlen, &matched_len);
+        uphook = ytrie_search(datablock->updater, path, pathlen);
+        ydb_log_info("hook %s %s (%d)\n", uphook ? "found" : "not found", path, pathlen);
     }
-    if (key)
-        free(key);
     if (uphook)
     {
         FILE *fp;
@@ -934,7 +931,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
         fp = open_memstream(&buf, &buflen);
         if (fp)
         {
-            res = uphook->hook(fp, cur, uphook->user);
+            res = uphook->hook(datablock, path, fp, uphook->user);
             fclose(fp);
         }
         res = ynode_scanf_from_buf(buf, buflen, 0, &src);
@@ -942,12 +939,11 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
         if (res)
         {
             ynode_remove(src);
-            return res;
+            goto done;
         }
         if (!src)
-        {
-            return res;
-        }
+            goto done;
+
         log = ynode_log_open(datablock->top, NULL);
         top = ynode_merge(datablock->top, src, log);
         ynode_log_close(log, &buf, &buflen);
@@ -961,6 +957,9 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
             res = YDB_E_MERGE_FAILED;
         CLEAR_BUF(buf, buflen);
     }
+done:
+    if (path)
+        free(path);
     return res;
 }
 
@@ -983,17 +982,17 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, void *
     uphook = ytrie_search(datablock->updater, path, pathlen);
     YDB_FAIL(uphook, YDB_E_ENTRY_EXISTS);
     uphook = malloc(sizeof(struct update_hook));
-    YDB_FAIL(!uphook, YDB_E_INVALID_ARGS);
+    YDB_FAIL(!uphook, YDB_E_MEM);
     uphook->hook = hook;
     uphook->user = user;
-    ytrie_insert(datablock->updater, path, strlen(path), uphook);
+    ytrie_insert(datablock->updater, path, pathlen, uphook);
     return YDB_OK;
 failed:
     ydb_log_out();
     return res;
 }
 
-void *ydb_read_hook_delete(ydb *datablock, char *path)
+void ydb_read_hook_delete(ydb *datablock, char *path)
 {
     int pathlen;
     struct update_hook *uphook;
@@ -1001,14 +1000,12 @@ void *ydb_read_hook_delete(ydb *datablock, char *path)
     if (!datablock || !path)
     {
         ydb_log_out();
-        return NULL;
+        return;
     }
     pathlen = strlen(path);
     uphook = ytrie_delete(datablock->updater, path, pathlen);
     ydb_log_out();
-    if (uphook)
-        return uphook->user;
-    return NULL;
+    free(uphook);
 }
 
 struct ydb_read_data
@@ -1231,6 +1228,8 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
             res = yconn_sync(NULL, datablock);
             YDB_FAIL(res, res);
         }
+        src = ynode_search(datablock->top, buf);
+        ydb_update(datablock, src);
         src = ynode_search(datablock->top, buf);
     }
 failed:
@@ -2602,5 +2601,49 @@ int ydb_fd(ydb *datablock)
     return -1;
 }
 
-// ydb_change_hook_add(ydb, path, callback, user, flag)
-// ydb_change_hook_delete(ydb, path)
+ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, void *user)
+{
+    ynode *cur;
+    unsigned int hook_flags = YNODE_NO_FLAG;
+    if (!datablock || !func)
+        return YDB_E_INVALID_ARGS;
+    
+    if (flags)
+    {
+        if (strstr(flags, "leaf-first") == 0)
+            SET_FLAG(hook_flags, YNODE_LEAF_FIRST);
+        if (strstr(flags, "val-only") == 0)
+            SET_FLAG(hook_flags, YNODE_VAL_ONLY);
+    }
+
+    if (path)
+    {
+        cur = ydb_search(datablock, path);
+        if (!cur)
+            return YDB_E_NO_ENTRY;
+    }
+    else
+    {
+        cur = datablock->top;
+    }
+    
+    return yhook_register(cur, hook_flags, func, user);
+}
+
+void ydb_write_hook_delete(ydb *datablock, char *path)
+{
+    ynode *cur;
+    if (!datablock)
+        return;
+    if (path)
+    {
+        cur = ydb_search(datablock, path);
+        if (!cur)
+            return;
+    }
+    else
+    {
+        cur = datablock->top;
+    }
+    yhook_unregister(cur);
+}

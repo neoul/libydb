@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 #include "ydb.h"
-#include "ynode.h"
+// #include "ynode.h"
 
 char *example_yaml =
 	"system:\n"
@@ -44,13 +44,20 @@ int test_ydb_open_close()
 	return 0;
 }
 
-ydb_res update_hook(FILE *ydb_fp, ynode *cur, void *user)
+ydb_res update_hook(ydb *datablock, char *path, FILE *ydb_fp, void *user)
 {
+	printf("HOOK %s path=%s\n", __func__, path);
 	fprintf(ydb_fp, 
 		"system:\n"
 		" hostname: my-pc\n"
 		);
 	return YDB_OK;
+}
+
+void notify_hook(char op, ydb_iter *cur, ydb_iter *_new, void *user)
+{
+	printf("HOOK %s (%c) cur=%s new=%s\n", __func__, op, 
+		ydb_value(cur)?ydb_value(cur):"", ydb_value(_new)?ydb_value(_new):"");
 }
 
 int test_ydb_read_write()
@@ -111,6 +118,7 @@ int test_ydb_read_write()
 	ydb_delete(datablock, "system: {fan-enable: , }");
 
 	ydb_read_hook_add(datablock, "/system/hostname", update_hook, NULL);
+	ydb_write_hook_add(datablock, "/system/hostname", notify_hook, NULL, NULL);
 
 	int speed = 0;
 	char hostname[128] = {
@@ -133,7 +141,7 @@ int test_ydb_read_write()
 
 	ydb_path_delete(datablock, "system/os");
 
-	ynode_dump(ydb_root(datablock), 0, YDB_LEVEL_MAX);
+	// ynode_dump(ydb_root(datablock), 0, YDB_LEVEL_MAX);
 _done:
 	ydb_close(datablock);
 	printf("\n");
@@ -152,7 +160,7 @@ _done:
 
 int main(int argc, char *argv[])
 {
-	ydb_log_severity = YDB_LOG_DEBUG;
+	// ydb_log_severity = YDB_LOG_DEBUG;
 	TEST_FUNC(test_ydb_open_close);
 	TEST_FUNC(test_ydb_read_write);
 	return 0;

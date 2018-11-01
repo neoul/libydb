@@ -120,19 +120,16 @@ extern "C"
     // the level is the number of the parent and ancestors to be printed.
     // the path returned must be free.
     char *ynode_path(ynode *node, int level, int *pathlen);
-        
+
     // create a new path and value string for the ydb
     char *ynode_path_and_val(ynode *node, int level, int *pathlen);
 
     // ynode callback for hooking some change in ynode db.
-    typedef enum _yhook_op_type
-    {
-        YHOOK_OP_NONE,
-        YHOOK_OP_CREATE,
-        YHOOK_OP_REPLACE,
-        YHOOK_OP_DELETE,
-    } yhook_op_type;
-    extern char *yhook_op_str[];
+#define YHOOK_OP_NONE 0x0
+#define YHOOK_OP_CREATE 'c'
+#define YHOOK_OP_REPLACE 'r'
+#define YHOOK_OP_DELETE 'd'
+    char *yhook_op_str(char op);
 
 // flags for ynode hook and traverse func
 #define YNODE_NO_FLAG 0x0
@@ -140,14 +137,14 @@ extern "C"
 #define YNODE_VAL_ONLY 0x2
 #define YNODE_LEAF_ONLY 0x4
 
-    typedef void (*yhook_func)(yhook_op_type op, ynode *cur, ynode *_new, void *user);
+    typedef void (*yhook_func)(char yhook_op, ynode *cur, ynode *_new, void *user);
 
     // register the hook func to the target ynode.
     ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *user);
 
     // unregister the hook func from the target ynode.
     // return user data registered with the hook.
-    void *yhook_unregister(ynode *node);
+    void yhook_unregister(ynode *node);
 
     typedef ydb_res (*ynode_callback)(ynode *cur, void *addition);
 

@@ -211,9 +211,9 @@ int test_ynode_crud()
 	return 0;
 }
 
-void ynode_hooker(yhook_op_type op, ynode *cur, ynode *new, void *user)
+void ynode_hooker(char op, ynode *cur, ynode *new, void *user)
 {
-	printf("== %s: %s ==\n", __func__, yhook_op_str[op]);
+	printf("== %s: %s ==\n", __func__, yhook_op_str(op));
 	if (op == YHOOK_OP_CREATE || op == YHOOK_OP_REPLACE)
 		ynode_dump(new, 0, 0);
 	else
@@ -329,10 +329,10 @@ int main(int argc, char *argv[])
 		printf("test_ynode_crud() failed.\n");
 	}
 
-	// ydb_log_severity = YDB_LOG_DEBUG;
-	// if(test_yhook())
-	// {
-	// 	printf("test_yhook() failed.\n");
-	// }
+	ydb_log_severity = YDB_LOG_DEBUG;
+	if(test_yhook())
+	{
+		printf("test_yhook() failed.\n");
+	}
 	return 0;
 }

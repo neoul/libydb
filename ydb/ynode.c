@@ -318,15 +318,12 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *u
 
 // unregister the hook func from the target ynode.
 // return user data registered with the hook.
-void *yhook_unregister(ynode *node)
+void yhook_unregister(ynode *node)
 {
-    void *data = NULL;
     if (!node || !node->hook)
-        return NULL;
-    data = node->hook->user;
+        return;
     free(node->hook);
     node->hook = NULL;
-    return data;
 }
 
 static int yhook_pre_run_for_delete(ynode *cur);
@@ -397,7 +394,7 @@ static int yhook_pre_run_for_delete(ynode *cur)
 }
 
 // return ynode is changed or not.
-static void yhook_pre_run(yhook_op_type op, ynode *parent, ynode *cur, ynode *new)
+static void yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
 {
     yhook *hook;
     if (cur)
@@ -430,7 +427,7 @@ static void yhook_pre_run(yhook_op_type op, ynode *parent, ynode *cur, ynode *ne
     }
 }
 
-static void yhook_post_run(yhook_op_type op, ynode *parent, ynode *cur, ynode *new)
+static void yhook_post_run(char op, ynode *parent, ynode *cur, ynode *new)
 {
     yhook *hook;
     if (cur)
@@ -1913,7 +1910,7 @@ char *ynode_path_and_val(ynode *node, int level, int *pathlen)
     return NULL;
 }
 
-static yhook_op_type ynode_op_get(ynode *cur, ynode *new)
+static char ynode_op_get(ynode *cur, ynode *new)
 {
     if (!cur && !new)
         return YHOOK_OP_NONE;
@@ -1937,18 +1934,28 @@ static yhook_op_type ynode_op_get(ynode *cur, ynode *new)
     }
 }
 
-char *yhook_op_str[] =
+char *yhook_op_str(char op)
+{
+    switch(op)
     {
-        "yhook_op_none",
-        "yhook_op_create",
-        "yhook_op_replace",
-        "yhook_op_delete",
-};
+        case YHOOK_OP_CREATE:
+            return "create";
+        case YHOOK_OP_REPLACE:
+            return "replace";
+        case YHOOK_OP_DELETE:
+            return "delete";
+        case YHOOK_OP_NONE:
+            return "none";
+        default:
+            return "???";
+    }
+}
+    
 
 static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ynode_log *log)
 {
     ynode *new = NULL;
-    yhook_op_type op;
+    char op;
     if (parent)
     {
         if (cur && cur->parent != parent)
