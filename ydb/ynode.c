@@ -1845,6 +1845,23 @@ int ynode_path_fprintf(FILE *fp, ynode *node, int level)
     return 0;
 }
 
+int ynode_level(ynode *top, ynode *node)
+{
+    ynode *n;
+    int level = 0;
+    if (!node)
+        return 0;
+    n = node->parent;
+    while(n)
+    {
+        if (n == top)
+            break;
+        n = n->parent;
+        level++;
+    }
+    return level;
+}
+
 char *ynode_path(ynode *node, int level, int *pathlen)
 {
     char *buf = NULL;
@@ -1867,7 +1884,7 @@ char *ynode_path(ynode *node, int level, int *pathlen)
     return NULL;
 }
 
-char *ynode_path_and_val(ynode *node, int level)
+char *ynode_path_and_val(ynode *node, int level, int *pathlen)
 {
     char *buf = NULL;
     size_t buflen = 0;
@@ -1886,7 +1903,11 @@ char *ynode_path_and_val(ynode *node, int level)
     if (fp)
         fclose(fp);
     if (buf && buflen > 0)
+    {
+        if (pathlen)
+            *pathlen = buflen;
         return buf;
+    }
     if (buf)
         free(buf);
     return NULL;
@@ -1961,7 +1982,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
 
     if (YNODE_LOGGING_DEBUG)
     {
-        char *path = ynode_path_and_val(parent, YNODE_LEVEL_MAX);
+        char *path = ynode_path_and_val(parent, YNODE_LEVEL_MAX, NULL);
         switch (op)
         {
         case YHOOK_OP_CREATE:

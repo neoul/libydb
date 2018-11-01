@@ -552,8 +552,13 @@ ynode *ydb_search(ydb *datablock, char *path)
 // return the path of the node. (the path must be free.)
 char *ydb_path(ydb *datablock, ynode *node, int *pathlen)
 {
+    return ynode_path(node, ynode_level(datablock->top, node), pathlen);
+}
 
-    return ynode_path(node, YDB_LEVEL_MAX, pathlen);
+// return the path of the node. (the path must be free.)
+char *ydb_path_and_value(ydb *datablock, ynode *node, int *pathlen)
+{
+    return ynode_path_and_val(node, ynode_level(datablock->top, node), pathlen);
 }
 
 // return the top node of the yaml data block.

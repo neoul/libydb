@@ -132,11 +132,11 @@ int test_ynode_path(char *fname)
 	top = ynode_down(top);
 	top = ynode_down(top);
 
-	path = ynode_path_and_val(top, YDB_LEVEL_MAX);
+	path = ynode_path_and_val(top, YDB_LEVEL_MAX, NULL);
 	printf("path=%s\n", path);
 	free(path);
 
-	path = ynode_path_and_val(top, 0);
+	path = ynode_path_and_val(top, 0, NULL);
 	printf("path=%s\n", path);
 	free(path);
 	

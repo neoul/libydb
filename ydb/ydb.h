@@ -94,15 +94,18 @@ extern "C"
     // Close the YAML DataBlock
     void ydb_close(ydb *datablock);
 
-    // return the node in the path of the yaml data block.
-    ydb_iter *ydb_search(ydb *datablock, char *path);
     // return the path of the node. (the path must be free.)
     char *ydb_path(ydb *datablock, ydb_iter *iter, int *pathlen);
+    // return the path of the node. (the path must be free.)
+    char *ydb_path_and_value(ydb *datablock, ydb_iter *iter, int *pathlen);
+    // return the node in the path of the yaml data block.
+    ydb_iter *ydb_search(ydb *datablock, char *path);
+
     // return the top node of the yaml data block.
     ydb_iter *ydb_top(ydb *datablock);
     // return the root node of the yaml data block.
     ydb_iter *ydb_root(ydb *datablock);
-    // return 1 if ydb_iter is empty.
+    // return 1 if the node has no child.
     int ydb_empty(ydb_iter *iter);
 
     // return the parent node of the node.

@@ -113,13 +113,16 @@ extern "C"
     // return the last sibling node of the ynode.
     ynode *ynode_last(ynode *node);
 
+    // Return the level from top to node.
+    int ynode_level(ynode *top, ynode *node);
+
     // create a new path string for the ydb
     // the level is the number of the parent and ancestors to be printed.
     // the path returned must be free.
     char *ynode_path(ynode *node, int level, int *pathlen);
-    
+        
     // create a new path and value string for the ydb
-    char *ynode_path_and_val(ynode *node, int level);
+    char *ynode_path_and_val(ynode *node, int level, int *pathlen);
 
     // ynode callback for hooking some change in ynode db.
     typedef enum _yhook_op_type
