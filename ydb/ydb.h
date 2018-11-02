@@ -70,7 +70,7 @@ extern "C"
 
     // Get YAML DataBlock and also return ydb_iter
     ydb *ydb_get(char *name_and_path, ydb_iter **iter);
-    
+
     // return the new string consisting of the YDB name and the path to the iter.
     // the return string must be free.
     char *ydb_name_and_path(ydb_iter *iter, int *pathlen);
@@ -157,14 +157,19 @@ extern "C"
 
     int ydb_fd(ydb *datablock);
 
-
     // ydb_read_hook: The callback function executed by ydb_read()
     //   to update ydb at reading.
     // ydb_fp: The stream buffer to be written to the ydb
     //   YAML format stream should be written by the ydb_read_hook.
     // path: The path of ydb_read_hook registered
-    // user: The user data regardless of the ydb
-    typedef ydb_res (*ydb_read_hook)(ydb *datablock, char *path, FILE *ydb_fp, void *user);
+    // U1~U4: The user data
+
+    typedef ydb_res (*ydb_read_hook0)(ydb *db, char *path, FILE *ydb_fp);
+    typedef ydb_res (*ydb_read_hook1)(ydb *db, char *path, FILE *ydb_fp, void *U1);
+    typedef ydb_res (*ydb_read_hook2)(ydb *db, char *path, FILE *ydb_fp, void *U1, void *U2);
+    typedef ydb_res (*ydb_read_hook3)(ydb *db, char *path, FILE *ydb_fp, void *U1, void *U2, void *U3);
+    typedef ydb_res (*ydb_read_hook4)(ydb *db, char *path, FILE *ydb_fp, void *U1, void *U2, void *U3, void *U4);
+    typedef ydb_read_hook1 ydb_read_hook;
 
     // ydb_read_hook_add/ydb_read_hook_delete:
     //   Register/unregister the callback function to the target ynode.
@@ -172,12 +177,12 @@ extern "C"
     // hook: user-defined callback function called in ydb_read().
     // user: user's data
     // ydb_read_hook_delete: It returns the user's data registered.
-    ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, void *user);
+    ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, int num, ...);
     void ydb_read_hook_delete(ydb *datablock, char *path);
 
     typedef void (*ydb_write_hook)(char op, ydb_iter *cur, ydb_iter *_new, void *user);
 
-    // // flags: leaf-only, val-only, 
+    // // flags: leaf-only, val-only,
     ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, void *user);
     void ydb_write_hook_delete(ydb *datablock, char *path);
 

@@ -250,7 +250,7 @@ struct _yconn
     void *head;
 };
 
-static void yconn_print(yconn *conn, const char *func, int line, char *state , bool simple);
+static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple);
 #define YCONN_INFO(conn, state) \
     yconn_print(conn, __func__, __LINE__, state, false)
 #define YCONN_SIMPLE_INFO(conn) \
@@ -347,25 +347,25 @@ static void ydb_print(ydb *datablock, const char *func, int line, char *state)
 {
     if (!datablock || !YDB_LOGGING_INFO)
         return;
-    ydb_logger(YDB_LOG_INFO, func, line, "%s ydb:\n", state?state:"");
+    ydb_logger(YDB_LOG_INFO, func, line, "%s ydb:\n", state ? state : "");
     ydb_logger(YDB_LOG_INFO, func, line, "  name: %s\n", datablock->name);
     ydb_logger(YDB_LOG_INFO, func, line, "  epollfd: %d\n", datablock->epollfd);
     ydb_logger(YDB_LOG_INFO, func, line, "  epollcount: %d\n", datablock->epollcount);
     ydb_logger(YDB_LOG_INFO, func, line, "  unsubscribers: %d\n", datablock->unsubscribers);
     if (!ylist_empty(datablock->disconn))
     {
-        ydb_logger(YDB_LOG_INFO, func, line, 
-            "  disconn: %d\n", ylist_size(datablock->disconn));
+        ydb_logger(YDB_LOG_INFO, func, line,
+                   "  disconn: %d\n", ylist_size(datablock->disconn));
     }
     if (ytree_size(datablock->conn) > 0)
     {
-        ydb_logger(YDB_LOG_INFO, func, line, 
-            "  conn: %d\n", ytree_size(datablock->conn));
+        ydb_logger(YDB_LOG_INFO, func, line,
+                   "  conn: %d\n", ytree_size(datablock->conn));
     }
     if (ytrie_size(datablock->updater) > 0)
     {
-        ydb_logger(YDB_LOG_INFO, func, line, 
-            "  write hooks: %d\n", ytrie_size(datablock->updater));
+        ydb_logger(YDB_LOG_INFO, func, line,
+                   "  write hooks: %d\n", ytrie_size(datablock->updater));
     }
 }
 #define YDB_INFO(conn, state) \
@@ -902,8 +902,16 @@ failed:
 
 struct update_hook
 {
-    ydb_read_hook hook;
-    void *user;
+    union {
+        ydb_read_hook hook;
+        ydb_read_hook0 hook0;
+        ydb_read_hook1 hook1;
+        ydb_read_hook2 hook2;
+        ydb_read_hook3 hook3;
+        ydb_read_hook4 hook4;
+    };
+    int num;
+    void *user[];
 };
 
 static ydb_res ydb_update_sub(ynode *cur, void *addition)
@@ -931,7 +939,29 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
         fp = open_memstream(&buf, &buflen);
         if (fp)
         {
-            res = uphook->hook(datablock, path, fp, uphook->user);
+            switch (uphook->num)
+            {
+            case 0:
+                res = uphook->hook0(datablock, path, fp);
+                break;
+            case 1:
+                res = uphook->hook1(datablock, path, fp, uphook->user[0]);
+                break;
+            case 2:
+                res = uphook->hook2(
+                    datablock, path, fp, uphook->user[0], uphook->user[1]);
+                break;
+            case 3:
+                res = uphook->hook3(
+                    datablock, path, fp, uphook->user[0], uphook->user[1], uphook->user[2]);
+                break;
+            case 4:
+                res = uphook->hook4(
+                    datablock, path, fp, uphook->user[0], uphook->user[1], uphook->user[2], uphook->user[3]);
+                break;
+            default:
+                break;
+            }
             fclose(fp);
         }
         res = ynode_scanf_from_buf(buf, buflen, 0, &src);
@@ -971,20 +1001,34 @@ ydb_res ydb_update(ydb *datablock, ynode *target)
     return res;
 }
 
-ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, void *user)
+ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, int num, ...)
 {
     ydb_res res;
     int pathlen;
     struct update_hook *uphook;
     ydb_log_in();
-    YDB_FAIL(!datablock || !hook || !path, YDB_E_INVALID_ARGS);
+    YDB_FAIL(!datablock || !hook || !path || num < 0, YDB_E_INVALID_ARGS);
+    YDB_FAIL(num > 5, YDB_E_INVALID_ARGS);
     pathlen = strlen(path);
     uphook = ytrie_search(datablock->updater, path, pathlen);
     YDB_FAIL(uphook, YDB_E_ENTRY_EXISTS);
-    uphook = malloc(sizeof(struct update_hook));
+    uphook = malloc(sizeof(struct update_hook) + sizeof(void *) * num);
     YDB_FAIL(!uphook, YDB_E_MEM);
     uphook->hook = hook;
-    uphook->user = user;
+    uphook->num = num;
+    {
+        int i;
+        va_list ap;
+        va_start(ap, num);
+        ydb_log_debug("var total = %d\n", num);
+        for (i = 0; i < num; i++)
+        {
+            void *p = va_arg(ap, void *);
+            uphook->user[i] = p;
+            ydb_log_debug("p=%p\n", p);
+        }
+        va_end(ap);
+    }
     ytrie_insert(datablock->updater, path, pathlen, uphook);
     return YDB_OK;
 failed:
@@ -1777,7 +1821,7 @@ conn_failed:
     return res;
 }
 
-static void yconn_print(yconn *conn, const char *func, int line, char *state , bool simple)
+static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple)
 {
     int n;
     char flagstr[128];
@@ -2607,7 +2651,7 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char
     unsigned int hook_flags = YNODE_NO_FLAG;
     if (!datablock || !func)
         return YDB_E_INVALID_ARGS;
-    
+
     if (flags)
     {
         if (strstr(flags, "leaf-first") == 0)
@@ -2626,7 +2670,7 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char
     {
         cur = datablock->top;
     }
-    
+
     return yhook_register(cur, hook_flags, func, user);
 }
 

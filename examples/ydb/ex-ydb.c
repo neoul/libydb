@@ -44,7 +44,7 @@ int test_ydb_open_close()
 	return 0;
 }
 
-ydb_res update_hook(ydb *datablock, char *path, FILE *ydb_fp, void *user)
+ydb_res update_hook(ydb *datablock, char *path, FILE *ydb_fp)
 {
 	printf("HOOK %s path=%s\n", __func__, path);
 	fprintf(ydb_fp, 
@@ -117,7 +117,7 @@ int test_ydb_read_write()
 	
 	ydb_delete(datablock, "system: {fan-enable: , }");
 
-	ydb_read_hook_add(datablock, "/system/hostname", update_hook, NULL);
+	ydb_read_hook_add(datablock, "/system/hostname", (ydb_read_hook) update_hook, 0);
 	ydb_write_hook_add(datablock, "/system/hostname", notify_hook, NULL, NULL);
 
 	int speed = 0;
