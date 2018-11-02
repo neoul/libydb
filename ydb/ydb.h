@@ -157,13 +157,14 @@ extern "C"
 
     int ydb_fd(ydb *datablock);
 
-    // ydb_read_hook: The callback function executed by ydb_read()
-    //   to update ydb at reading.
-    // fp: The stream buffer to be written to the ydb
-    //   YAML format stream should be written by the ydb_read_hook.
-    // path: The path of ydb_read_hook registered
-    // U1~U4: The user data
-
+    // ydb_read_hook: The callback executed by ydb_read() to update the datablock at reading.
+    //  - ydb_read_hook0 - 4: The callback prototype according to the USER (U1-4) number.
+    //  - path: The path of ydb_read_hook registered
+    //  - fp: The stream to write the data into the datablock.
+    //        YAML format stream should be written by the ydb_read_hook.
+    //  - U1-4: The user-defined data
+    //  - num: The number of the user-defined data (U1-4)
+    
     typedef ydb_res (*ydb_read_hook0)(ydb *datablock, char *path, FILE *fp);
     typedef ydb_res (*ydb_read_hook1)(ydb *datablock, char *path, FILE *fp, void *U1);
     typedef ydb_res (*ydb_read_hook2)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2);
@@ -171,23 +172,27 @@ extern "C"
     typedef ydb_res (*ydb_read_hook4)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2, void *U3, void *U4);
     typedef ydb_read_hook1 ydb_read_hook;
 
-    // ydb_read_hook_add/ydb_read_hook_delete:
-    //   Register/unregister the callback function to the target ynode.
-    // path: the path to the target ynode
-    // hook: user-defined callback function called in ydb_read().
-    // user: user's data
-    // ydb_read_hook_delete: It returns the user's data registered.
     ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, int num, ...);
     void ydb_read_hook_delete(ydb *datablock, char *path);
 
-    typedef void (*ydb_write_hook0)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new);
-    typedef void (*ydb_write_hook1)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1);
-    typedef void (*ydb_write_hook2)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2);
-    typedef void (*ydb_write_hook3)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2, void *U3);
-    typedef void (*ydb_write_hook4)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2, void *U3, void *U4);
+    // ydb_write_hook: The callback executed by ydb_write() to notify the change in the datablock.
+    //  - ydb_write_hook0 - 4: The callback prototype according to the USER (U1-4) number.
+    //  - op: 0: none, c: create, d: delete, r: replace
+    //  - _cur: The current data node
+    //  - _new: The new data node to be replaced or created.
+    //  - path: The path of ydb_read_hook registered
+    //  - U1-4: The user-defined data
+    //  - path: The path of ydb_write_hook registered
+    //  - num: The number of the user-defined data (U1-4)
+    //  - flags: leaf-only (The node doesn't have any child.), val-only (The node has the data.)
+
+    typedef void (*ydb_write_hook0)(ydb *datablock, char op, ydb_iter *_cur, ydb_iter *_new);
+    typedef void (*ydb_write_hook1)(ydb *datablock, char op, ydb_iter *_cur, ydb_iter *_new, void *U1);
+    typedef void (*ydb_write_hook2)(ydb *datablock, char op, ydb_iter *_cur, ydb_iter *_new, void *U1, void *U2);
+    typedef void (*ydb_write_hook3)(ydb *datablock, char op, ydb_iter *_cur, ydb_iter *_new, void *U1, void *U2, void *U3);
+    typedef void (*ydb_write_hook4)(ydb *datablock, char op, ydb_iter *_cur, ydb_iter *_new, void *U1, void *U2, void *U3, void *U4);
     typedef ydb_write_hook1 ydb_write_hook;
 
-    // // flags: leaf-only, val-only,
     ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, int num, ...);
     void ydb_write_hook_delete(ydb *datablock, char *path);
 
