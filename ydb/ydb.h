@@ -159,16 +159,16 @@ extern "C"
 
     // ydb_read_hook: The callback function executed by ydb_read()
     //   to update ydb at reading.
-    // ydb_fp: The stream buffer to be written to the ydb
+    // fp: The stream buffer to be written to the ydb
     //   YAML format stream should be written by the ydb_read_hook.
     // path: The path of ydb_read_hook registered
     // U1~U4: The user data
 
-    typedef ydb_res (*ydb_read_hook0)(ydb *db, char *path, FILE *ydb_fp);
-    typedef ydb_res (*ydb_read_hook1)(ydb *db, char *path, FILE *ydb_fp, void *U1);
-    typedef ydb_res (*ydb_read_hook2)(ydb *db, char *path, FILE *ydb_fp, void *U1, void *U2);
-    typedef ydb_res (*ydb_read_hook3)(ydb *db, char *path, FILE *ydb_fp, void *U1, void *U2, void *U3);
-    typedef ydb_res (*ydb_read_hook4)(ydb *db, char *path, FILE *ydb_fp, void *U1, void *U2, void *U3, void *U4);
+    typedef ydb_res (*ydb_read_hook0)(ydb *datablock, char *path, FILE *fp);
+    typedef ydb_res (*ydb_read_hook1)(ydb *datablock, char *path, FILE *fp, void *U1);
+    typedef ydb_res (*ydb_read_hook2)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2);
+    typedef ydb_res (*ydb_read_hook3)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2, void *U3);
+    typedef ydb_res (*ydb_read_hook4)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2, void *U3, void *U4);
     typedef ydb_read_hook1 ydb_read_hook;
 
     // ydb_read_hook_add/ydb_read_hook_delete:
@@ -180,10 +180,15 @@ extern "C"
     ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, int num, ...);
     void ydb_read_hook_delete(ydb *datablock, char *path);
 
-    typedef void (*ydb_write_hook)(char op, ydb_iter *cur, ydb_iter *_new, void *user);
+    typedef void (*ydb_write_hook0)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new);
+    typedef void (*ydb_write_hook1)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1);
+    typedef void (*ydb_write_hook2)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2);
+    typedef void (*ydb_write_hook3)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2, void *U3);
+    typedef void (*ydb_write_hook4)(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2, void *U3, void *U4);
+    typedef ydb_write_hook1 ydb_write_hook;
 
     // // flags: leaf-only, val-only,
-    ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, void *user);
+    ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, int num, ...);
     void ydb_write_hook_delete(ydb *datablock, char *path);
 
 #ifdef __cplusplus

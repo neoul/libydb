@@ -4,7 +4,6 @@
 #include <unistd.h>
 
 #include "ydb.h"
-// #include "ynode.h"
 
 char *example_yaml =
 	"system:\n"
@@ -54,7 +53,7 @@ ydb_res update_hook(ydb *datablock, char *path, FILE *ydb_fp)
 	return YDB_OK;
 }
 
-void notify_hook(char op, ydb_iter *cur, ydb_iter *_new, void *user)
+void notify_hook(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new)
 {
 	printf("HOOK %s (%c) cur=%s new=%s\n", __func__, op, 
 		ydb_value(cur)?ydb_value(cur):"", ydb_value(_new)?ydb_value(_new):"");
@@ -117,8 +116,9 @@ int test_ydb_read_write()
 	
 	ydb_delete(datablock, "system: {fan-enable: , }");
 
+	ydb_log_severity = YDB_LOG_DEBUG;
 	ydb_read_hook_add(datablock, "/system/hostname", (ydb_read_hook) update_hook, 0);
-	ydb_write_hook_add(datablock, "/system/hostname", notify_hook, NULL, NULL);
+	ydb_write_hook_add(datablock, "/system/hostname", (ydb_write_hook) notify_hook, NULL, 0);
 
 	int speed = 0;
 	char hostname[128] = {
@@ -141,7 +141,6 @@ int test_ydb_read_write()
 
 	ydb_path_delete(datablock, "system/os");
 
-	// ynode_dump(ydb_root(datablock), 0, YDB_LEVEL_MAX);
 _done:
 	ydb_close(datablock);
 	printf("\n");

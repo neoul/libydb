@@ -1001,26 +1001,27 @@ ydb_res ydb_update(ydb *datablock, ynode *target)
     return res;
 }
 
-ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, int num, ...)
+ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int num, ...)
 {
     ydb_res res;
     int pathlen;
     struct update_hook *uphook;
     ydb_log_in();
-    YDB_FAIL(!datablock || !hook || !path || num < 0, YDB_E_INVALID_ARGS);
-    YDB_FAIL(num > 5, YDB_E_INVALID_ARGS);
+    YDB_FAIL(!datablock || !func || !path || num < 0, YDB_E_INVALID_ARGS);
+    YDB_FAIL(num > 4 || num < 0, YDB_E_INVALID_ARGS);
     pathlen = strlen(path);
     uphook = ytrie_search(datablock->updater, path, pathlen);
-    YDB_FAIL(uphook, YDB_E_ENTRY_EXISTS);
-    uphook = malloc(sizeof(struct update_hook) + sizeof(void *) * num);
-    YDB_FAIL(!uphook, YDB_E_MEM);
-    uphook->hook = hook;
+    // YDB_FAIL(uphook, YDB_E_ENTRY_EXISTS);
+    if (!uphook)
+        uphook = malloc(sizeof(struct update_hook) + sizeof(void *) * num);
+    YDB_FAIL(!uphook, YDB_E_NO_ENTRY);
+    uphook->hook = func;
     uphook->num = num;
     {
         int i;
         va_list ap;
         va_start(ap, num);
-        ydb_log_debug("var total = %d\n", num);
+        ydb_log_debug("user total = %d\n", num);
         for (i = 0; i < num; i++)
         {
             void *p = va_arg(ap, void *);
@@ -2645,10 +2646,17 @@ int ydb_fd(ydb *datablock)
     return -1;
 }
 
-ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, void *user)
+ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, int num, ...)
 {
+    ydb_res res = YDB_OK;
     ynode *cur;
-    unsigned int hook_flags = YNODE_NO_FLAG;
+    void *user[5];
+    unsigned int hook_flags = 0;
+
+    ydb_log_in();
+    YDB_FAIL(!datablock || !func || !path || num < 0, YDB_E_INVALID_ARGS);
+    YDB_FAIL(num > 4 || num < 0, YDB_E_INVALID_ARGS);
+    
     if (!datablock || !func)
         return YDB_E_INVALID_ARGS;
 
@@ -2663,15 +2671,31 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char
     if (path)
     {
         cur = ydb_search(datablock, path);
-        if (!cur)
-            return YDB_E_NO_ENTRY;
+        YDB_FAIL(!cur, YDB_E_NO_ENTRY);
     }
     else
-    {
         cur = datablock->top;
+    
+    user[0] = datablock;
+    num++;
+    {
+        int i;
+        va_list ap;
+        va_start(ap, num);
+        ydb_log_debug("user total = %d\n", num);
+        ydb_log_debug("user[0]=%p\n", user[0]);
+        for (i = 1; i < num; i++)
+        {
+            void *p = va_arg(ap, void *);
+            user[i+1] = p;
+            ydb_log_debug("user[%d]=%p\n", i, user[i]);
+        }
+        va_end(ap);
     }
-
-    return yhook_register(cur, hook_flags, func, user);
+    return yhook_register(cur, hook_flags, (yhook_func) func, num, user);
+failed:
+    ydb_log_out();
+    return res;
 }
 
 void ydb_write_hook_delete(ydb *datablock, char *path)

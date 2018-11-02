@@ -137,18 +137,23 @@ extern "C"
 #define YNODE_VAL_ONLY 0x2
 #define YNODE_LEAF_ONLY 0x4
 
-    typedef void (*yhook_func)(char yhook_op, ynode *cur, ynode *_new, void *user);
+    typedef void (*yhook_func0)(char op, ydb_iter *cur, ydb_iter *_new);
+    typedef void (*yhook_func1)(void *U0, char op, ydb_iter *cur, ydb_iter *_new);
+    typedef void (*yhook_func2)(void *U0, char op, ydb_iter *cur, ydb_iter *_new, void *U1);
+    typedef void (*yhook_func3)(void *U0, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2);
+    typedef void (*yhook_func4)(void *U0, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2, void *U3);
+    typedef void (*yhook_func5)(void *U0, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2, void *U3, void *U4);
+    typedef yhook_func2 yhook_func;
 
     // register the hook func to the target ynode.
-    ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *user);
+    ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int user_num, void *user[]);
 
     // unregister the hook func from the target ynode.
     // return user data registered with the hook.
     void yhook_unregister(ynode *node);
 
-    typedef ydb_res (*ynode_callback)(ynode *cur, void *addition);
-
-    ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *addition, unsigned int flags);
+    typedef ydb_res (*ynode_callback)(ynode *cur, void *user);
+    ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *user, unsigned int flags);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

@@ -39,9 +39,19 @@ extern ydb_log_func ydb_logger;
 struct _yhook
 {
     ynode *node;
-    yhook_func func;
-    void *user;
+    union
+    {
+        yhook_func0 func0;
+        yhook_func1 func1;
+        yhook_func2 func2;
+        yhook_func3 func3;
+        yhook_func4 func4;
+        yhook_func5 func5;
+        yhook_func2 func;
+    };
     unsigned int flags;
+    int user_num;
+    void *user[];
 };
 typedef struct _yhook yhook;
 
@@ -283,35 +293,42 @@ static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
 }
 
 // register the hook func to the target ynode.
-ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *user)
+ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int user_num, void *user[])
 {
     yhook *hook;
     if (!node || !func)
         return YDB_E_INVALID_ARGS;
     if (IS_SET(flags, YNODE_LEAF_ONLY))
         return YDB_E_INVALID_FLAGS;
+    if (user_num > 5 || user_num < 0)
+        return YDB_E_INVALID_ARGS;
+    if (!user && user_num > 0)
+        return YDB_E_INVALID_ARGS;
     if (node->hook)
         hook = node->hook;
     else
     {
-        hook = malloc(sizeof(yhook));
-        memset(hook, 0x0, sizeof(yhook));
+        hook = malloc(sizeof(yhook) + sizeof(void *) * user_num);
+        memset(hook, 0x0, sizeof(yhook) + sizeof(void *) * user_num);
     }
     if (!hook)
-        return YDB_E_MEM;
+        return YDB_E_NO_ENTRY;
+
+    hook->flags = 0x0;
     if (IS_SET(flags, YNODE_LEAF_FIRST))
         SET_FLAG(hook->flags, YNODE_LEAF_FIRST);
     else
         UNSET_FLAG(hook->flags, YNODE_LEAF_FIRST);
-
     if (IS_SET(flags, YNODE_VAL_ONLY))
         SET_FLAG(hook->flags, YNODE_VAL_ONLY);
     else
         UNSET_FLAG(hook->flags, YNODE_VAL_ONLY);
 
-    hook->func = func;
-    hook->user = user;
     hook->node = node;
+    hook->func = func;
+    hook->user_num = user_num;
+    if (user_num > 0)
+        memcpy(hook->user, user, sizeof(void *) * user_num);
     node->hook = hook;
     return YDB_OK;
 }
@@ -320,10 +337,36 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, void *u
 // return user data registered with the hook.
 void yhook_unregister(ynode *node)
 {
-    if (!node || !node->hook)
-        return;
-    free(node->hook);
-    node->hook = NULL;
+    yhook_delete(node);
+}
+
+static void yhook_func_exec(yhook *hook, char op, ydb_iter *cur, ydb_iter *_new)
+{
+    assert(hook->func);
+    ynode_log_debug("user_num %d\n", hook->user_num);
+    switch (hook->user_num)
+    {
+    case 0:
+        hook->func0(op, cur, _new);
+        break;
+    case 1:
+        hook->func1(hook->user[0], op, cur, _new);
+        break;
+    case 2:
+        hook->func2(hook->user[0], op, cur, _new, hook->user[1]);
+        break;
+    case 3:
+        hook->func3(hook->user[0], op, cur, _new, hook->user[1], hook->user[2]);
+        break;
+    case 4:
+        hook->func4(hook->user[0], op, cur, _new, hook->user[1], hook->user[2], hook->user[3]);
+        break;
+    case 5:
+        hook->func5(hook->user[0], op, cur, _new, hook->user[1], hook->user[2], hook->user[3], hook->user[4]);
+        break;
+    default:
+        break;
+    }
 }
 
 static int yhook_pre_run_for_delete(ynode *cur);
@@ -355,9 +398,9 @@ static int yhook_pre_run_for_delete(ynode *cur)
         if (hook && !(IS_SET(hook->flags, YNODE_LEAF_FIRST)))
         {
             if (cur->type == YNODE_TYPE_VAL)
-                hook->func(YHOOK_OP_DELETE, cur, NULL, hook->user);
+                yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
             else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                hook->func(YHOOK_OP_DELETE, cur, NULL, hook->user);
+                yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
             break;
         }
         node = node->parent;
@@ -383,9 +426,9 @@ static int yhook_pre_run_for_delete(ynode *cur)
         if (hook && IS_SET(hook->flags, YNODE_LEAF_FIRST))
         {
             if (cur->type == YNODE_TYPE_VAL)
-                hook->func(YHOOK_OP_DELETE, cur, NULL, hook->user);
+                yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
             else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                hook->func(YHOOK_OP_DELETE, cur, NULL, hook->user);
+                yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
             break;
         }
         node = node->parent;
@@ -403,11 +446,11 @@ static void yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
         if (hook && !(IS_SET(hook->flags, YNODE_LEAF_FIRST)))
         {
             if (cur->type == YNODE_TYPE_VAL)
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             else if (new && new->type == YNODE_TYPE_VAL)
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
         }
     }
     while (parent)
@@ -416,11 +459,11 @@ static void yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
         if (hook && !(IS_SET(hook->flags, YNODE_LEAF_FIRST)))
         {
             if (cur && cur->type == YNODE_TYPE_VAL)
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             else if (new && new->type == YNODE_TYPE_VAL)
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             break;
         }
         parent = parent->parent;
@@ -436,11 +479,11 @@ static void yhook_post_run(char op, ynode *parent, ynode *cur, ynode *new)
         if (hook && IS_SET(hook->flags, YNODE_LEAF_FIRST))
         {
             if (cur->type == YNODE_TYPE_VAL)
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             else if (new && new->type == YNODE_TYPE_VAL)
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
         }
     }
     while (parent)
@@ -449,30 +492,17 @@ static void yhook_post_run(char op, ynode *parent, ynode *cur, ynode *new)
         if (hook && IS_SET(hook->flags, YNODE_LEAF_FIRST))
         {
             if (cur && cur->type == YNODE_TYPE_VAL)
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             else if (new && new->type == YNODE_TYPE_VAL)
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                hook->func(op, cur, new, hook->user);
+                yhook_func_exec(hook, op, cur, new);
             break;
         }
         parent = parent->parent;
     }
 }
 
-static void yhook_copy(ynode *dest, ynode *src)
-{
-    yhook *hook;
-    if (!dest || !src)
-        return;
-    if (dest->hook || !src->hook)
-        return;
-    hook = malloc(sizeof(yhook));
-    hook->func = src->hook->func;
-    hook->user = src->hook->user;
-    hook->node = dest;
-    dest->hook = hook;
-}
 
 static void yhook_delete(ynode *cur)
 {
@@ -481,6 +511,21 @@ static void yhook_delete(ynode *cur)
     free(cur->hook);
     cur->hook = NULL;
 }
+
+static void yhook_copy(ynode *dest, ynode *src)
+{
+    yhook *hook;
+    if (!dest || !src)
+        return;
+    yhook_delete(dest);
+    if (!src->hook)
+        return;
+    hook = malloc(sizeof(yhook) + sizeof(void *) * src->hook->user_num);
+    if (hook)
+        memcpy(hook, src->hook, sizeof(yhook) + sizeof(void *) * src->hook->user_num);
+    dest->hook = hook;
+}
+
 
 struct _ynode_record
 {
@@ -1849,7 +1894,7 @@ int ynode_level(ynode *top, ynode *node)
     if (!node)
         return 0;
     n = node->parent;
-    while(n)
+    while (n)
     {
         if (n == top)
             break;
@@ -1936,21 +1981,20 @@ static char ynode_op_get(ynode *cur, ynode *new)
 
 char *yhook_op_str(char op)
 {
-    switch(op)
+    switch (op)
     {
-        case YHOOK_OP_CREATE:
-            return "create";
-        case YHOOK_OP_REPLACE:
-            return "replace";
-        case YHOOK_OP_DELETE:
-            return "delete";
-        case YHOOK_OP_NONE:
-            return "none";
-        default:
-            return "???";
+    case YHOOK_OP_CREATE:
+        return "create";
+    case YHOOK_OP_REPLACE:
+        return "replace";
+    case YHOOK_OP_DELETE:
+        return "delete";
+    case YHOOK_OP_NONE:
+        return "none";
+    default:
+        return "???";
     }
 }
-    
 
 static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ynode_log *log)
 {
