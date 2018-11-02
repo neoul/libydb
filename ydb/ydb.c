@@ -900,7 +900,7 @@ failed:
     return res;
 }
 
-struct update_hook
+struct readhook
 {
     union {
         ydb_read_hook hook;
@@ -918,17 +918,17 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
 {
     ydb_res res = YDB_OK;
     ydb *datablock = addition;
-    struct update_hook *uphook = NULL;
+    struct readhook *rhook = NULL;
     int pathlen = 0;
     char *path = ydb_path(datablock, cur, &pathlen);
     if (path && pathlen > 0)
     {
         // int matched_len = 0;
         // hook = ytrie_best_match(datablock->updater, path, pathlen, &matched_len);
-        uphook = ytrie_search(datablock->updater, path, pathlen);
-        ydb_log_info("hook %s %s (%d)\n", uphook ? "found" : "not found", path, pathlen);
+        rhook = ytrie_search(datablock->updater, path, pathlen);
+        ydb_log_info("hook %s %s (%d)\n", rhook ? "found" : "not found", path, pathlen);
     }
-    if (uphook)
+    if (rhook)
     {
         FILE *fp;
         char *buf = NULL;
@@ -939,25 +939,25 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
         fp = open_memstream(&buf, &buflen);
         if (fp)
         {
-            switch (uphook->num)
+            switch (rhook->num)
             {
             case 0:
-                res = uphook->hook0(datablock, path, fp);
+                res = rhook->hook0(datablock, path, fp);
                 break;
             case 1:
-                res = uphook->hook1(datablock, path, fp, uphook->user[0]);
+                res = rhook->hook1(datablock, path, fp, rhook->user[0]);
                 break;
             case 2:
-                res = uphook->hook2(
-                    datablock, path, fp, uphook->user[0], uphook->user[1]);
+                res = rhook->hook2(
+                    datablock, path, fp, rhook->user[0], rhook->user[1]);
                 break;
             case 3:
-                res = uphook->hook3(
-                    datablock, path, fp, uphook->user[0], uphook->user[1], uphook->user[2]);
+                res = rhook->hook3(
+                    datablock, path, fp, rhook->user[0], rhook->user[1], rhook->user[2]);
                 break;
             case 4:
-                res = uphook->hook4(
-                    datablock, path, fp, uphook->user[0], uphook->user[1], uphook->user[2], uphook->user[3]);
+                res = rhook->hook4(
+                    datablock, path, fp, rhook->user[0], rhook->user[1], rhook->user[2], rhook->user[3]);
                 break;
             default:
                 break;
@@ -1005,18 +1005,18 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
 {
     ydb_res res;
     int pathlen;
-    struct update_hook *uphook;
+    struct readhook *rhook;
     ydb_log_in();
     YDB_FAIL(!datablock || !func || !path || num < 0, YDB_E_INVALID_ARGS);
     YDB_FAIL(num > 4 || num < 0, YDB_E_INVALID_ARGS);
     pathlen = strlen(path);
-    uphook = ytrie_search(datablock->updater, path, pathlen);
-    // YDB_FAIL(uphook, YDB_E_ENTRY_EXISTS);
-    if (!uphook)
-        uphook = malloc(sizeof(struct update_hook) + sizeof(void *) * num);
-    YDB_FAIL(!uphook, YDB_E_NO_ENTRY);
-    uphook->hook = func;
-    uphook->num = num;
+    rhook = ytrie_search(datablock->updater, path, pathlen);
+    // YDB_FAIL(rhook, YDB_E_ENTRY_EXISTS);
+    if (!rhook)
+        rhook = malloc(sizeof(struct readhook) + sizeof(void *) * num);
+    YDB_FAIL(!rhook, YDB_E_NO_ENTRY);
+    rhook->hook = func;
+    rhook->num = num;
     {
         int i;
         va_list ap;
@@ -1025,12 +1025,12 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
         for (i = 0; i < num; i++)
         {
             void *p = va_arg(ap, void *);
-            uphook->user[i] = p;
+            rhook->user[i] = p;
             ydb_log_debug("p=%p\n", p);
         }
         va_end(ap);
     }
-    ytrie_insert(datablock->updater, path, pathlen, uphook);
+    ytrie_insert(datablock->updater, path, pathlen, rhook);
     return YDB_OK;
 failed:
     ydb_log_out();
@@ -1040,7 +1040,7 @@ failed:
 void ydb_read_hook_delete(ydb *datablock, char *path)
 {
     int pathlen;
-    struct update_hook *uphook;
+    struct readhook *rhook;
     ydb_log_in();
     if (!datablock || !path)
     {
@@ -1048,9 +1048,9 @@ void ydb_read_hook_delete(ydb *datablock, char *path)
         return;
     }
     pathlen = strlen(path);
-    uphook = ytrie_delete(datablock->updater, path, pathlen);
+    rhook = ytrie_delete(datablock->updater, path, pathlen);
     ydb_log_out();
-    free(uphook);
+    free(rhook);
 }
 
 struct ydb_read_data
