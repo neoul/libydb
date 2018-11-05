@@ -9,11 +9,13 @@
 #include <unistd.h>
 #include <yaml.h>
 
-// socket/time
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
 #include <errno.h>
+#include <fcntl.h>
 
 // epoll
 #include <sys/epoll.h>
@@ -189,6 +191,7 @@ typedef struct _yconn yconn;
 
 #define YCONN_TYPE_UNIX 0x0100
 #define YCONN_TYPE_INET 0x0200
+#define YCONN_TYPE_FIFO 0x0400
 #define YCONN_TYPE_FILE 0x0800
 #define YCONN_TYPE_MASK 0xff00
 
@@ -584,7 +587,7 @@ void ydb_close(ydb *datablock)
             ynode_delete(ynode_top(datablock->top), NULL);
         if (datablock->name)
             yfree(datablock->name);
-        if (datablock->epollfd >= 0)
+        if (datablock->epollfd > 0)
             close(datablock->epollfd);
         free(datablock);
     }
@@ -1294,6 +1297,7 @@ struct yconn_socket_head
     struct
     {
         unsigned int seq;
+        int fd;
     } send;
     struct
     {
@@ -1314,6 +1318,8 @@ void yconn_socket_deinit(yconn *conn)
     head = conn->head;
     if (head)
     {
+        if (head->send.fd > 0)
+            close(head->send.fd);
         if (head->recv.fp)
             fclose(head->recv.fp);
         if (head->recv.buf)
@@ -1321,7 +1327,7 @@ void yconn_socket_deinit(yconn *conn)
         free(head);
     }
     conn->head = NULL;
-    if (conn->fd >= 0)
+    if (conn->fd > 0)
         close(conn->fd);
     conn->fd = -1;
     UNSET_FLAG(conn->flags, STATUS_MASK);
@@ -1396,7 +1402,7 @@ ydb_res yconn_socket_init(yconn *conn)
     {
         char *sname = &(address[strlen("us://")]);
         addr.un.sun_family = AF_UNIX;
-        if (0 == access(sname, F_OK))
+        if (access(sname, F_OK) == 0)
             unlink(sname);
         snprintf(addr.un.sun_path, sizeof(addr.un.sun_path), "%s", sname);
         addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(sname) + 1;
@@ -1441,7 +1447,7 @@ ydb_res yconn_socket_init(yconn *conn)
     return YDB_OK;
 disconnected:
     yconn_errno(conn, YDB_E_CONN_FAILED);
-    if (fd >= 0)
+    if (fd > 0)
         close(fd);
     UNSET_FLAG(flags, STATUS_MASK);
     SET_FLAG(flags, STATUS_DISCONNECT);
@@ -1717,7 +1723,7 @@ conn_closed:
 
 ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
 {
-    int n;
+    int n, fd;
     ydb_res res;
     char msghead[128];
     struct yconn_socket_head *head;
@@ -1760,18 +1766,20 @@ ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, 
     default:
         break;
     }
-
-    n = send(conn->fd, msghead, n, 0);
+    fd = conn->fd;
+    if (head->send.fd > 0)
+        fd = head->send.fd;
+    n = send(fd, msghead, n, 0);
     if (n < 0)
         goto conn_failed;
     if (datalen > 0)
     {
-        n = send(conn->fd, data, datalen, 0);
+        n = send(fd, data, datalen, 0);
         if (n < 0)
             goto conn_failed;
     }
     ydb_log_info("data {%s}\n", data ? data : "");
-    n = send(conn->fd, "...\n", 4, 0);
+    n = send(fd, "...\n", 4, 0);
     if (n < 0)
         goto conn_failed;
     ydb_log_out();
@@ -1787,17 +1795,73 @@ conn_failed:
 
 ydb_res yconn_file_init(yconn *conn)
 {
-    FILE *fp;
     char *fname;
     char *address = conn->address;
     unsigned int flags = conn->flags;
+    struct yconn_socket_head *head;
     if (!IS_SET(flags, STATUS_DISCONNECT))
         return YDB_OK;
     UNSET_FLAG(flags, STATUS_MASK);
-    fname = &(address[strlen("file://")]);
-    fp = (FILE *)conn->head;
-    if (!fp)
+    head = conn->head;
+    if (!head)
     {
+        head = malloc(sizeof(struct yconn_socket_head));
+        if (!head)
+        {
+            yconn_error(conn, YDB_E_MEM);
+            return YDB_E_MEM;
+        }
+        memset(head, 0x0, sizeof(struct yconn_socket_head));
+        conn->head = head;
+    }
+
+    if (IS_SET(flags, YCONN_TYPE_FIFO))
+    {
+        char buf[256];
+        fname = &(address[strlen("fifo://")]);
+        strcpy(buf, fname);
+        char *fi = strtok(buf, ", :");
+        char *fo = strtok(NULL, ", :");
+        if (!fi || !fo)
+        {
+            yconn_error(conn, YDB_E_STREAM_FAILED);
+            return YDB_E_STREAM_FAILED;
+        }
+        
+        if (access(fi, F_OK) != 0)
+        {
+            if (mkfifo(fi, 0666))
+            {
+                yconn_errno(conn, YDB_E_STREAM_FAILED);
+                return YDB_E_STREAM_FAILED;
+            }
+        }
+        
+        if (access(fo, F_OK) != 0)
+        {
+            if (mkfifo(fo, 0666))
+            {
+                yconn_errno(conn, YDB_E_STREAM_FAILED);
+                return YDB_E_STREAM_FAILED;
+            }
+        }
+        ydb_log_debug("fi=%s, fo=%s\n", fi, fo);
+
+        conn->fd = open(fi, O_RDWR);
+        head->send.fd = open(fo, O_RDWR);
+        if (conn->fd < 0 || head->send.fd < 0)
+        {
+            if (conn->fd > 0)
+                close(conn->fd);
+            if (head->send.fd > 0)
+                close(head->send.fd);
+            goto disconnected;
+        }
+    }
+    else
+    {
+        FILE *fp;
+        fname = &(address[strlen("file://")]);
         if (strcmp(fname, "stdout") == 0)
         {
             if (feof(stdout))
@@ -1810,79 +1874,54 @@ ydb_res yconn_file_init(yconn *conn)
         else
             fp = fopen(fname, "w");
         if (!fp)
+            goto disconnected;
+        conn->fd = fileno(fp);
+        if (conn->fd < 0)
         {
-            conn->fd = -1;
-            yconn_errno(conn, YDB_E_SYSTEM_FAILED);
-            return YDB_E_SYSTEM_FAILED;
+            if (fp)
+                fclose(fp);
+            goto disconnected;
         }
     }
-
-    conn->fd = fileno(fp);
-    if (conn->fd < 0)
-    {
-        conn->fd = -1;
-        conn->head = NULL;
-        fclose(fp);
-        yconn_errno(conn, YDB_E_SYSTEM_FAILED);
-        return YDB_E_SYSTEM_FAILED;
-    }
-    conn->head = (void *)fp;
     conn->flags = flags;
     return YDB_OK;
+disconnected:
+    yconn_errno(conn, YDB_E_CONN_FAILED);
+    free(head);
+    conn->head = NULL;
+    UNSET_FLAG(flags, STATUS_MASK);
+    SET_FLAG(flags, STATUS_DISCONNECT);
+    conn->flags = flags;
+    return YDB_E_CONN_FAILED;
 }
 
 void yconn_file_deinit(yconn *conn)
 {
-    FILE *fp;
+    struct yconn_socket_head *head;
     if (!conn)
         return;
-    fp = conn->head;
-    if (fp)
+    head = conn->head;
+    if (head)
     {
-        if (strcmp(conn->address, "file://stdout") != 0)
-            fclose(fp);
-        conn->head = NULL;
-        conn->fd = -1;
+        if (IS_SET(conn->flags, YCONN_TYPE_FIFO))
+        {
+            if (head->send.fd > 0)
+                close(head->send.fd);
+        }
+        if (head->recv.fp)
+            fclose(head->recv.fp);
+        if (head->recv.buf)
+            free(head->recv.buf);
+        free(head);
     }
+    conn->head = NULL;
+    if (strcmp(conn->address, "file://stdout") != 0 && conn->fd > 0)
+        close(conn->fd);
+    conn->fd = -1;
     UNSET_FLAG(conn->flags, STATUS_MASK);
     SET_FLAG(conn->flags, STATUS_DISCONNECT);
 }
 
-ydb_res yconn_file_write(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
-{
-    ydb_res res;
-    FILE *fp;
-    ydb_log_in();
-    if (IS_SET(conn->flags, STATUS_DISCONNECT))
-    {
-        ydb_log_out();
-        return YDB_E_CONN_FAILED;
-    }
-    fp = (FILE *)conn->head;
-    fprintf(fp,
-            "---\n"
-            "#type: %s\n"
-            "#op: %s\n\n",
-            ymsg_str[type],
-            yconn_op_str[op]);
-    if (datalen > 0)
-    {
-        int count = fwrite(data, datalen, 1, fp);
-        if (count != 1)
-            goto conn_failed;
-    }
-    ydb_log_debug("data {%s}\n", data ? data : "");
-    fprintf(fp, "\n...\n");
-    fflush(fp);
-    ydb_log_out();
-    return YDB_OK;
-conn_failed:
-    SET_FLAG(conn->flags, STATUS_DISCONNECT);
-    res = YDB_E_CONN_FAILED;
-    yconn_errno(conn, res);
-    ydb_log_out();
-    return res;
-}
 
 static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple)
 {
@@ -1969,6 +2008,10 @@ static unsigned int yconn_flags(char *address, char *flagstr)
     {
         SET_FLAG(flags, YCONN_TYPE_INET);
     }
+    else if (strncmp(address, "fifo://", strlen("fifo://")) == 0)
+    {
+        SET_FLAG(flags, YCONN_TYPE_FIFO);
+    }
     // else if (strncmp(address, "ws://", strlen("ws://")) == 0)
     // else if (strncmp(address, "wss://", strlen("wss://")) == 0)
     else
@@ -1998,8 +2041,16 @@ static yconn *yconn_new(char *address, unsigned int flags)
     else if (IS_SET(flags, YCONN_TYPE_FILE))
     {
         func_init = yconn_file_init;
-        func_send = yconn_file_write;
+        func_send = yconn_socket_send;
         func_recv = NULL;
+        func_accept = NULL;
+        func_deinit = yconn_file_deinit;
+    }
+    else if (IS_SET(flags, YCONN_TYPE_FIFO))
+    {
+        func_init = yconn_file_init;
+        func_send = yconn_socket_send;
+        func_recv = yconn_socket_recv;
         func_accept = NULL;
         func_deinit = yconn_file_deinit;
     }
@@ -2035,7 +2086,7 @@ static void yconn_free(yconn *conn)
             ytrie_delete(yconn_pool, conn->address, strlen(conn->address));
         assert(conn->func_deinit);
         conn->func_deinit(conn);
-        if (conn->fd >= 0)
+        if (conn->fd > 0)
             close(conn->fd);
         if (conn->address)
             yfree(conn->address);
