@@ -21,6 +21,9 @@
 // true/false
 #include <stdbool.h>
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "yalloc.h"
 #include "ytree.h"
 #include "ylist.h"
@@ -184,8 +187,9 @@ typedef struct _yconn yconn;
 #define YCONN_UNREADABLE 0x0010
 #define YCONN_MAJOR_CONN 0x0020
 
-#define YCONN_TYPE_UNIXSOCK 0x0100
-#define YCONN_TYPE_FILE 0x0200
+#define YCONN_TYPE_UNIX 0x0100
+#define YCONN_TYPE_INET 0x0200
+#define YCONN_TYPE_FILE 0x0800
 #define YCONN_TYPE_MASK 0xff00
 
 #define STATUS_SERVER 0x010000
@@ -1324,45 +1328,85 @@ void yconn_socket_deinit(yconn *conn)
     SET_FLAG(conn->flags, STATUS_DISCONNECT);
 }
 
+#define DEFAULT_SOCK_PORT "9999"
 ydb_res yconn_socket_init(yconn *conn)
 {
     int fd = -1;
-    char *sname;
-    int sname_len;
-    struct sockaddr_un addr;
+    int addrlen;
+    union {
+        struct sockaddr_un un;
+        struct sockaddr_in in;
+    } addr;
+    
     char *address = conn->address;
     unsigned int flags = conn->flags;
     if (!IS_SET(flags, STATUS_DISCONNECT))
         return YDB_OK;
     UNSET_FLAG(flags, STATUS_MASK);
-    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (IS_SET(flags, YCONN_TYPE_INET))
+        fd = socket(AF_INET, SOCK_STREAM, 0);
+    else // if (IS_SET(flags, YCONN_TYPE_UNIX))
+        fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
         yconn_errno(conn, YDB_E_SYSTEM_FAILED);
         return YDB_E_SYSTEM_FAILED;
     }
     memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    if (strncmp(address, "uss://", strlen("uss://")) == 0)
+    
+    if (IS_SET(flags, YCONN_TYPE_INET))
     {
-        sname = &(address[strlen("uss://")]);
-        snprintf(addr.sun_path, sizeof(addr.sun_path), "#%s", sname);
-        addr.sun_path[0] = 0;
+        int ret = 1;
+        int opt = 1;
+        char *cport;
+        in_addr_t caddr;
+        char cname[128];
+        strcpy(cname, &(address[strlen("tcp://")]));
+        cport = strtok(cname, ":");
+        cport = strtok(NULL, ":");
+        ret = inet_pton(AF_INET, cname, &caddr); // INADDR_ANY;
+        if (ret != 1)
+        {
+            yconn_errno(conn, YDB_E_SYSTEM_FAILED);
+            return YDB_E_SYSTEM_FAILED;
+        }
+        if (!cport)
+            cport = DEFAULT_SOCK_PORT;
+        addr.in.sin_family = AF_INET; 
+        addr.in.sin_addr.s_addr = caddr;
+        addr.in.sin_port = htons(atoi(cport));
+        addrlen = sizeof (struct sockaddr_in);
+
+        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) 
+        { 
+            yconn_errno(conn, YDB_E_SYSTEM_FAILED);
+            return YDB_E_SYSTEM_FAILED;
+        }
+        ydb_log_debug("addr: %s, port: %s\n", cname[0]?cname:"null", cport);
+    }
+    else if (strncmp(address, "uss://", strlen("uss://")) == 0)
+    {
+        char *sname = &(address[strlen("uss://")]);
+        addr.un.sun_family = AF_UNIX;
+        snprintf(addr.un.sun_path, sizeof(addr.un.sun_path), "#%s", sname);
+        addr.un.sun_path[0] = 0;
+        addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(sname) + 1;
     }
     else
     {
-        sname = &(address[strlen("us://")]);
+        char *sname = &(address[strlen("us://")]);
+        addr.un.sun_family = AF_UNIX;
         if (0 == access(sname, F_OK))
             unlink(sname);
-        snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", sname);
+        snprintf(addr.un.sun_path, sizeof(addr.un.sun_path), "%s", sname);
+        addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(sname) + 1;
     }
-    sname_len = offsetof(struct sockaddr_un, sun_path) + strlen(sname) + 1;
 
     if (IS_SET(flags, YCONN_ROLE_PUBLISHER))
     {
-        if (bind(fd, (struct sockaddr *)&addr, sname_len) < 0)
+        if (bind(fd, (struct sockaddr *)&addr, addrlen) < 0)
         {
-            if (connect(fd, (struct sockaddr *)&addr, sname_len) == -1)
+            if (connect(fd, (struct sockaddr *)&addr, addrlen) == -1)
                 goto disconnected;
             SET_FLAG(flags, STATUS_CLIENT);
         }
@@ -1375,7 +1419,7 @@ ydb_res yconn_socket_init(yconn *conn)
     }
     else
     {
-        if (connect(fd, (struct sockaddr *)&addr, sname_len) == -1)
+        if (connect(fd, (struct sockaddr *)&addr, addrlen) == -1)
             goto disconnected;
         SET_FLAG(flags, STATUS_CLIENT);
     }
@@ -1408,9 +1452,16 @@ disconnected:
 int yconn_socket_accept(yconn *conn, yconn *client)
 {
     int cfd = -1;
-    struct sockaddr_un addr;
-    socklen_t clen = sizeof(addr);
-    cfd = accept(conn->fd, &addr, &clen);
+    union {
+        struct sockaddr_un un;
+        struct sockaddr_in in;
+    } addr;
+    socklen_t clen;
+    if (IS_SET(conn->flags, YCONN_TYPE_INET))
+        clen = sizeof(addr.in);
+    else
+        clen = sizeof(addr.un);
+    cfd = accept(conn->fd, (struct sockaddr *) &addr, &clen);
     if (cfd < 0)
     {
         yconn_errno(conn, YDB_E_CONN_FAILED);
@@ -1430,9 +1481,20 @@ int yconn_socket_accept(yconn *conn, yconn *client)
         client->head = head;
     }
     client->fd = cfd;
+    if (IS_SET(conn->flags, YCONN_TYPE_INET))
+    {
+        char buf[128];
+        char caddr[128] = {0};
+        const char *client_addr = inet_ntop(AF_INET, &addr.in.sin_addr, buf, clen);
+        snprintf(caddr, sizeof(caddr), "tcp://%s:%d", client_addr?client_addr:"unknown", ntohs(addr.in.sin_port));
+        ydb_log_debug("accept conn: %s\n", caddr);
+        if (client->address)
+            yfree(client->address);
+        client->address = ystrdup(caddr);
+    }
     UNSET_FLAG(client->flags, STATUS_MASK);
     SET_FLAG(client->flags, STATUS_COND_CLIENT);
-    SET_FLAG(client->flags, YCONN_TYPE_UNIXSOCK);
+    SET_FLAG(client->flags, YCONN_TYPE_UNIX);
     return cfd;
 }
 
@@ -1894,7 +1956,7 @@ static unsigned int yconn_flags(char *address, char *flagstr)
     if (strncmp(address, "us://", strlen("us://")) == 0 ||
         strncmp(address, "uss://", strlen("uss://")) == 0)
     {
-        SET_FLAG(flags, YCONN_TYPE_UNIXSOCK);
+        SET_FLAG(flags, YCONN_TYPE_UNIX);
     }
     else if (strncmp(address, "file://", strlen("file://")) == 0)
     {
@@ -1903,7 +1965,10 @@ static unsigned int yconn_flags(char *address, char *flagstr)
         SET_FLAG(flags, YCONN_WRITABLE);
         SET_FLAG(flags, YCONN_UNREADABLE);
     }
-    // else if (strncmp(address, "tcp://", strlen("tcp://")) == 0)
+    else if (strncmp(address, "tcp://", strlen("tcp://")) == 0)
+    {
+        SET_FLAG(flags, YCONN_TYPE_INET);
+    }
     // else if (strncmp(address, "ws://", strlen("ws://")) == 0)
     // else if (strncmp(address, "wss://", strlen("wss://")) == 0)
     else
@@ -1922,7 +1987,7 @@ static yconn *yconn_new(char *address, unsigned int flags)
     yconn_func_accept func_accept = NULL;
     yconn *conn = NULL;
 
-    if (IS_SET(flags, YCONN_TYPE_UNIXSOCK))
+    if (IS_SET(flags, YCONN_TYPE_UNIX | YCONN_TYPE_INET))
     {
         func_init = yconn_socket_init;
         func_send = yconn_socket_send;

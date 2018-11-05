@@ -1,5 +1,6 @@
 #ifndef __YDB__
 #define __YDB__
+#define YDB_VERSION "1.0"
 
 // YAML DataBlock for Configuration Data Management
 // using YAML and IPC (Inter Process Communication)
