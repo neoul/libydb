@@ -1596,7 +1596,7 @@ failed:
     return;
 }
 
-ydb_res yconn_socket_recv(
+ydb_res yconn_default_recv(
     yconn *conn, yconn_op *op, ymsg_type *type,
     unsigned int *flags, char **data, size_t *datalen,
     int *next)
@@ -1664,7 +1664,8 @@ ydb_res yconn_socket_recv(
     }
     else
         start = recvbuf;
-    len = recv(conn->fd, start, 2048, MSG_DONTWAIT);
+    // len = recv(conn->fd, start, 2048, MSG_DONTWAIT);
+    len = read(conn->fd, start, 2048);
     if (len <= 0)
     {
         if (len == 0)
@@ -1732,7 +1733,7 @@ conn_closed:
     return res;
 }
 
-ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
+ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
 {
     int n, fd;
     ydb_res res;
@@ -1780,17 +1781,17 @@ ydb_res yconn_socket_send(yconn *conn, yconn_op op, ymsg_type type, char *data, 
     fd = conn->fd;
     if (head->send.fd > 0)
         fd = head->send.fd;
-    n = send(fd, msghead, n, 0);
+    n = write(fd, msghead, n);
     if (n < 0)
         goto conn_failed;
     if (datalen > 0)
     {
-        n = send(fd, data, datalen, 0);
+        n = write(fd, data, datalen);
         if (n < 0)
             goto conn_failed;
     }
     ydb_log_info("data {%s}\n", data ? data : "");
-    n = send(fd, "...\n", 4, 0);
+    n = write(fd, "...\n", 4);
     if (n < 0)
         goto conn_failed;
     ydb_log_out();
@@ -2043,24 +2044,16 @@ static yconn *yconn_new(char *address, unsigned int flags)
     if (IS_SET(flags, YCONN_TYPE_UNIX | YCONN_TYPE_INET))
     {
         func_init = yconn_socket_init;
-        func_send = yconn_socket_send;
-        func_recv = yconn_socket_recv;
+        func_send = yconn_default_send;
+        func_recv = yconn_default_recv;
         func_accept = yconn_socket_accept;
         func_deinit = yconn_socket_deinit;
     }
-    else if (IS_SET(flags, YCONN_TYPE_FILE))
+    else if (IS_SET(flags, YCONN_TYPE_FILE | YCONN_TYPE_FIFO))
     {
         func_init = yconn_file_init;
-        func_send = yconn_socket_send;
-        func_recv = NULL;
-        func_accept = NULL;
-        func_deinit = yconn_file_deinit;
-    }
-    else if (IS_SET(flags, YCONN_TYPE_FIFO))
-    {
-        func_init = yconn_file_init;
-        func_send = yconn_socket_send;
-        func_recv = yconn_socket_recv;
+        func_send = yconn_default_send;
+        func_recv = yconn_default_recv;
         func_accept = NULL;
         func_deinit = yconn_file_deinit;
     }
