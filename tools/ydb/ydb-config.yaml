@@ -1,0 +1,30 @@
+# ydb-app config.
+verbose: debug
+summary: false
+no-change-data: true
+ydb:
+  - name: test1
+    conn:
+      addr: ws:///tmp/test1
+      role: pub
+      reconnect: true
+  - name: test2
+    conn:
+      addr: wss://test2
+      role: sub
+      unsubscribe: true
+      writeable: true
+      file: ydb-config.yaml # file path to be read at start.
+operations:
+  - target: test1
+    op: read
+    path: PATH/TO/DATA
+    start-in: 10sec
+  - target: test1
+    op: write
+    path: PATH/TO/DATA
+    start-in: 5sec
+
+
+
+

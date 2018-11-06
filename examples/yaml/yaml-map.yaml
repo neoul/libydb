@@ -1,0 +1,13 @@
+---
+# http://yaml.org/type/map.html -----------------------------------------------#
+
+map:
+  # Unordered set of key: value pairs.
+  Block style: !!map
+    Clark : Evans
+    Ingy  : dot net
+    Oren  : Ben-Kiki
+    kkk   :
+    : ok
+  Flow style: !!map { Clark: Evans, Ingy: dot net, Oren: Ben-Kiki }
+...

@@ -39,8 +39,7 @@ extern ydb_log_func ydb_logger;
 struct _yhook
 {
     ynode *node;
-    union
-    {
+    union {
         yhook_func0 func0;
         yhook_func1 func1;
         yhook_func2 func2;
@@ -503,7 +502,6 @@ static void yhook_post_run(char op, ynode *parent, ynode *cur, ynode *new)
     }
 }
 
-
 static void yhook_delete(ynode *cur)
 {
     if (!cur || !cur->hook)
@@ -525,7 +523,6 @@ static void yhook_copy(ynode *dest, ynode *src)
         memcpy(hook, src->hook, sizeof(yhook) + sizeof(void *) * src->hook->user_num);
     dest->hook = hook;
 }
-
 
 struct _ynode_record
 {
@@ -1172,7 +1169,7 @@ static char *ynode_strpbrk(char *src, char *src_end, char *stop)
     return NULL;
 }
 
-struct ynod_query_data
+struct ynode_query_data
 {
     yaml_parser_t *parser;
     int num_of_query;
@@ -1183,7 +1180,7 @@ static int ynod_yaml_query_handler(void *data, unsigned char *buffer, size_t siz
 {
     int len;
     char *start, *cur, *end, *buf;
-    struct ynod_query_data *qd = data;
+    struct ynode_query_data *qd = data;
     yaml_parser_t *parser = (yaml_parser_t *)qd->parser;
 
     if (parser->input.string.current == parser->input.string.end)
@@ -1263,26 +1260,38 @@ _done:
     return 1;
 }
 
+#define YNODE_FAIL(cond, root_cause)                            \
+    if (cond)                                                   \
+    {                                                           \
+        res = root_cause;                                       \
+        ynode_log_error("'%s': %s\n", #cond, ydb_res_str[res]); \
+        break;                                                  \
+    }
+
+#define CLEAR_YVALUE(v) \
+    do                  \
+    {                   \
+        if (v)          \
+            yfree(v);   \
+        v = NULL;       \
+    } while (0)
+
 ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform)
 {
     ydb_res res = YDB_OK;
     int level = 0;
-    yaml_parser_t parser;
-    yaml_token_t token; /* new variable */
-    ylist *stack;
+    ylist *node_stack;
     ynode *top = NULL;
     ynode *node = NULL;
     ynode *old = NULL;
-    char *key = NULL;
-    char *value = NULL;
-    struct ynod_query_data qdata;
-    enum YAML_NEXT_TOKEN
-    {
-        YAML_NEXT_NONE,
-        YAML_NEXT_MAPPING_KEY_SCALAR,
-        YAML_NEXT_MAPPING_VAL_SCALAR,
-        YAML_NEXT_SEQUENCE_ENTRY_SCALAR,
-    } next = YAML_NEXT_NONE;
+    char *val = NULL;
+    char *scalar = NULL;
+    struct ynode_query_data qdata;
+    yaml_token_type_t last_token = YAML_NO_TOKEN;
+    yaml_parser_t parser;
+    yaml_token_t token;
+    bool token_save = false;
+    int node_type;
 
     if ((!fp && !buf) || !n)
     {
@@ -1290,8 +1299,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         return res;
     }
 
-    stack = ylist_create();
-    if (!stack)
+    node_stack = ylist_create();
+    if (!node_stack)
     {
         res = YDB_E_MEM;
         return res;
@@ -1321,11 +1330,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         if (fp)
             yaml_parser_set_input_file(&parser, fp);
         else
-            yaml_parser_set_input_string(&parser,
-                                         (const unsigned char *)buf, (size_t)buflen);
+            yaml_parser_set_input_string(&parser, (const unsigned char *)buf, (size_t)buflen);
     }
 
-    /* BEGIN new code */
     do
     {
         yaml_parser_scan(&parser, &token);
@@ -1341,6 +1348,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 token.type == YAML_FLOW_MAPPING_END_TOKEN ||
                 token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
                 level--;
+            // if (token.type != YAML_SCALAR_TOKEN)
             ynode_log_debug("%.*s%s\n", level * 2, space, yaml_token_str[token.type]);
             if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
                 token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
@@ -1348,52 +1356,44 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 token.type == YAML_FLOW_MAPPING_START_TOKEN)
                 level++;
         }
+        token_save = true;
 
         switch (token.type)
         {
         case YAML_KEY_TOKEN:
-            node = ylist_back(stack);
-            if (node && node->type != YNODE_TYPE_DICT)
-            {
-                res = YDB_E_INVALID_YAML_KEY;
-                break;
-            }
-            if (key)
-            {
-                ynode_log_debug("!!empty\n");
-                node = ynode_new(YNODE_TYPE_VAL, NULL);
-                node->origin = origin;
-                old = ynode_attach(node, ylist_back(stack), key);
-                ynode_free(old);
-                yfree(key);
-                key = NULL;
-            }
-            next = YAML_NEXT_MAPPING_KEY_SCALAR;
-            break;
         case YAML_VALUE_TOKEN:
-            next = YAML_NEXT_MAPPING_VAL_SCALAR;
+            if (last_token == token.type)
+            {
+                if (val)
+                {
+                    node = ylist_back(node_stack);
+                    ynode_log_debug("%.*s%s %s ** insert **\n",
+                                    level * 2, space, val ? val : "", val ? ":" : "");
+                    node = ynode_new(YNODE_TYPE_VAL, NULL);
+                    node->origin = origin;
+                    old = ynode_attach(node, ylist_back(node_stack), val);
+                    ynode_free(old);
+                    CLEAR_YVALUE(val);
+                    top = node;
+                }
+            }
             break;
-            /* Block delimeters */
+        /* Block delimeters */
         case YAML_BLOCK_SEQUENCE_START_TOKEN:
-        case YAML_BLOCK_MAPPING_START_TOKEN:
         case YAML_FLOW_SEQUENCE_START_TOKEN:
+        case YAML_BLOCK_MAPPING_START_TOKEN:
         case YAML_FLOW_MAPPING_START_TOKEN:
         {
-            int node_type;
             if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
                 token.type == YAML_FLOW_SEQUENCE_START_TOKEN)
                 node_type = YNODE_TYPE_LIST;
             else
                 node_type = YNODE_TYPE_DICT;
-            if (ylist_empty(stack))
+            if (ylist_empty(node_stack))
             {
                 if (top)
                 {
-                    if (node_type != top->type)
-                    {
-                        res = YDB_E_INVALID_YAML_TOP;
-                        break;
-                    }
+                    YNODE_FAIL(node_type != top->type, YDB_E_INVALID_YAML_TOP);
                     node = top;
                 }
                 else
@@ -1407,76 +1407,99 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 node = ynode_new(node_type, NULL);
                 node->origin = origin;
             }
-            if (!node)
-            {
-                res = YDB_E_MEM;
-                break;
-            }
-            old = ynode_attach(node, ylist_back(stack), key);
+            YNODE_FAIL(!node, YDB_E_MEM);
+            old = ynode_attach(node, ylist_back(node_stack), val);
             ynode_free(old);
-            ylist_push_back(stack, node);
-            yfree(key);
-            key = NULL;
-            ynode_log_debug("(last stack entry=%p)\n", ylist_back(stack));
-            next = YAML_NEXT_NONE;
+            ylist_push_back(node_stack, node);
+            CLEAR_YVALUE(val);
+            ynode_log_debug("node_stack %d (last entry=%p)\n", ylist_size(node_stack), ylist_back(node_stack));
             break;
         }
-        case YAML_BLOCK_ENTRY_TOKEN: // ,
-            node = ylist_back(stack);
-            if (!node || (node && node->type != YNODE_TYPE_LIST))
-                res = YDB_E_INVALID_YAML_ENTRY;
-            next = YAML_NEXT_SEQUENCE_ENTRY_SCALAR;
+        case YAML_BLOCK_ENTRY_TOKEN: // -
+        {
+            node = ylist_back(node_stack);
+            YNODE_FAIL(!node, YDB_E_INVALID_YAML_ENTRY);
+            YNODE_FAIL(node->type != YNODE_TYPE_LIST, YDB_E_INVALID_YAML_ENTRY);
             break;
+        }
         case YAML_FLOW_ENTRY_TOKEN: // ,
-            node = ylist_back(stack);
-            if (!node || (node && node->type != YNODE_TYPE_DICT))
-                res = YDB_E_INVALID_YAML_ENTRY;
-            next = YAML_NEXT_MAPPING_KEY_SCALAR;
             break;
         case YAML_BLOCK_END_TOKEN:
         case YAML_FLOW_MAPPING_END_TOKEN:
         case YAML_FLOW_SEQUENCE_END_TOKEN:
-            if (key)
+            if (val)
             {
-                ynode_log_debug("** empty ynode **\n");
+                ynode_log_debug("%.*s%s ** insert **\n", level * 2, space, val);
                 node = ynode_new(YNODE_TYPE_VAL, NULL);
                 node->origin = origin;
-                old = ynode_attach(node, ylist_back(stack), key);
+                old = ynode_attach(node, ylist_back(node_stack), val);
                 ynode_free(old);
-                yfree(key);
-                key = NULL;
+                CLEAR_YVALUE(val);
             }
-            top = ylist_pop_back(stack);
-            ynode_log_debug("(last stack entry=%p)\n", ylist_back(stack));
-            next = YAML_NEXT_NONE;
+            top = ylist_pop_back(node_stack);
+            ynode_log_debug("node_stack %d (last entry=%p)\n", ylist_size(node_stack), ylist_back(node_stack));
             break;
         case YAML_SCALAR_TOKEN:
-            switch (next)
+            token_save = false;
+            switch (last_token)
             {
-            case YAML_NEXT_MAPPING_KEY_SCALAR:
-                value = (char *)token.data.scalar.value;
-                ynode_log_debug("%.*s%s\n", level * 2, space, value);
-                key = ystrdup(value);
+            case YAML_KEY_TOKEN:
+                scalar = (char *)token.data.scalar.value;
+                ynode_log_debug("%.*s%s (set as a key)\n", level * 2, space, scalar);
+                val = ystrdup(scalar);
                 break;
-            case YAML_NEXT_MAPPING_VAL_SCALAR:
-            case YAML_NEXT_SEQUENCE_ENTRY_SCALAR:
-            case YAML_NEXT_NONE: // only have a scalar (leaf) node
-                value = (char *)token.data.scalar.value;
-                ynode_log_debug("%.*s%s\n", level * 2, space, value);
-                node = ynode_new(YNODE_TYPE_VAL, value);
+            case YAML_VALUE_TOKEN:
+                scalar = (char *)token.data.scalar.value;
+                ynode_log_debug("%.*s%s %s %s ** insert **\n", level * 2, space, val ? val : "", val ? ":" : "", scalar);
+                node = ynode_new(YNODE_TYPE_VAL, scalar);
                 node->origin = origin;
-                old = ynode_attach(node, ylist_back(stack), key);
+                old = ynode_attach(node, ylist_back(node_stack), val);
                 ynode_free(old);
-                if (key)
-                    yfree(key);
-                key = NULL;
+                CLEAR_YVALUE(val);
+                top = node;
+                break;
+            case YAML_BLOCK_SEQUENCE_START_TOKEN:
+            case YAML_FLOW_SEQUENCE_START_TOKEN:
+            case YAML_BLOCK_MAPPING_START_TOKEN:
+            case YAML_FLOW_MAPPING_START_TOKEN:
+            case YAML_FLOW_ENTRY_TOKEN:
+            case YAML_BLOCK_ENTRY_TOKEN:
+                scalar = (char *)token.data.scalar.value;
+                node = ylist_back(node_stack);
+                if (node->type == YNODE_TYPE_DICT)
+                {
+                    if (val)
+                    {
+                        ynode_log_debug("%.*s%s %s %s ** insert **\n",
+                                        level * 2, space, val ? val : "", val ? ":" : "", scalar ? scalar : "");
+                        node = ynode_new(YNODE_TYPE_VAL, scalar);
+                        node->origin = origin;
+                        old = ynode_attach(node, ylist_back(node_stack), val);
+                    }
+                    else
+                    {
+                        node = ynode_new(YNODE_TYPE_VAL, NULL);
+                        node->origin = origin;
+                        old = ynode_attach(node, ylist_back(node_stack), scalar);
+                        ynode_log_debug("%.*s%s %s ** insert **\n",
+                                        level * 2, space, scalar ? scalar : "", scalar ? ":" : "");
+                    }
+                }
+                else
+                {
+                    ynode_log_debug("%.*s%s %s %s ** insert **\n",
+                                    level * 2, space, val ? val : "", val ? ":" : "", scalar);
+                    node = ynode_new(YNODE_TYPE_VAL, scalar);
+                    node->origin = origin;
+                    old = ynode_attach(node, ylist_back(node_stack), val);
+                }
+                ynode_free(old);
+                CLEAR_YVALUE(val);
                 top = node;
                 break;
             default:
-                res = YDB_E_INVALID_YAML_INPUT;
                 break;
             }
-            next = YAML_NEXT_NONE;
             break;
         case YAML_DOCUMENT_START_TOKEN:
             break;
@@ -1488,45 +1511,41 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             break;
         case YAML_TAG_TOKEN:
             ynode_log_debug("handle=%s suffix=%s\n", token.data.tag.handle, token.data.tag.suffix);
-            break;
         /* Others */
         case YAML_VERSION_DIRECTIVE_TOKEN:
         case YAML_TAG_DIRECTIVE_TOKEN:
         case YAML_ANCHOR_TOKEN:
         case YAML_ALIAS_TOKEN:
+            token_save = false;
         default:
             break;
         }
+        if (token_save)
+            last_token = token.type;
         if (res)
             break;
 
         if (token.type != YAML_STREAM_END_TOKEN)
-        {
             yaml_token_delete(&token);
-        }
     } while (token.type != YAML_STREAM_END_TOKEN);
-
     yaml_token_delete(&token);
-    /* END new code */
-
-    /* Cleanup */
     yaml_parser_delete(&parser);
 
-    if (!ylist_empty(stack) && !res)
+    if (!ylist_empty(node_stack) && !res)
         res = YDB_E_INVALID_YAML_INPUT;
 
     if (res)
     {
         if (!top)
-            top = ylist_front(stack);
-        while (!ylist_empty(stack))
-            ylist_pop_back(stack);
+            top = ylist_front(node_stack);
+        while (!ylist_empty(node_stack))
+            ylist_pop_back(node_stack);
         ynode_free(ynode_top(top));
         top = NULL;
     }
-    ylist_destroy(stack);
-    if (key)
-        yfree(key);
+    ylist_destroy(node_stack);
+    if (val)
+        yfree(val);
     *n = top;
     if (queryform)
         *queryform = qdata.num_of_query;
