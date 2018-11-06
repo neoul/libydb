@@ -1362,7 +1362,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         {
         case YAML_KEY_TOKEN:
         case YAML_VALUE_TOKEN:
-            if (last_token == token.type)
+            if (last_token == token.type || (val && token.type == YAML_KEY_TOKEN))
             {
                 if (val)
                 {
@@ -1448,6 +1448,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ynode_log_debug("%.*s%s (set as a key)\n", level * 2, space, scalar);
                 val = ystrdup(scalar);
                 break;
+            case YAML_STREAM_START_TOKEN:
+            case YAML_DOCUMENT_START_TOKEN:
             case YAML_VALUE_TOKEN:
                 scalar = (char *)token.data.scalar.value;
                 ynode_log_debug("%.*s%s %s %s ** insert **\n", level * 2, space, val ? val : "", val ? ":" : "", scalar);
@@ -1502,11 +1504,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             }
             break;
         case YAML_DOCUMENT_START_TOKEN:
-            break;
         case YAML_DOCUMENT_END_TOKEN:
-            break;
         case YAML_STREAM_START_TOKEN:
-            break;
         case YAML_STREAM_END_TOKEN:
             break;
         case YAML_TAG_TOKEN:
@@ -1599,10 +1598,12 @@ static ynode *ynode_find_child(ynode *node, char *key)
     {
         int count = 0;
         ylist_iter *iter;
-        int index = 0;
-        if (strspn(key, "0123456789") != strlen(key))
-            return NULL;
+        int index = -1;
+        // if (strspn(key, "0123456789") != strlen(key))
+        //     return NULL;
         index = atoi(key);
+        if (index < 0)
+            return NULL;
         for (iter = ylist_first(node->list);
              !ylist_done(iter);
              iter = ylist_next(iter))
@@ -1671,7 +1672,7 @@ ynode *ynode_search(ynode *node, char *path)
     if (j > 0)
     {
         token[j] = 0;
-        ynode_log_debug("token: %s\n", token);
+        ynode_log_debug("*token: %s\n", token);
         found = ynode_find_child(node, token);
         if (found)
             return found;
@@ -2026,6 +2027,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
         switch (parent->type)
         {
         case YNODE_TYPE_LIST:
+            key = NULL;
             break;
         case YNODE_TYPE_DICT:
             if (!cur && key)
@@ -2062,10 +2064,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
             ynode_log_debug("replace %s in %s\n", key ? key : "-", path ? path : "top");
             break;
         case YHOOK_OP_DELETE:
-            if (key || path)
-                ynode_log_debug("delete %s from %s\n", key ? key : "???", path ? path : "top");
-            else
-                ynode_log_debug("delete top\n");
+            ynode_log_debug("delete %s from %s\n", key ? key : "-", path ? path : "top");
             break;
         default:
             break;
@@ -2498,8 +2497,9 @@ ydb_res ynode_traverse(ynode *cur, ynode_callback cb, void *addition, unsigned i
     return ynode_traverse_sub(cur, &tdata);
 }
 
-// find the ref ynode on the same position in target ynode grapes.
-ynode *ynode_lookup(ynode *target, ynode *ref)
+// find the ref ynode on the same position if val_search = false.
+// find the ref ynode on the same key and value node if val_search = true.
+ynode *ynode_lookup(ynode *target, ynode *ref, int val_search)
 {
     ylist *parents;
     if (!target || !ref)
@@ -2508,27 +2508,75 @@ ynode *ynode_lookup(ynode *target, ynode *ref)
     if (!parents)
         return NULL;
 
+    // insert that has a parent.
     while (ref->parent)
     {
         ylist_push_front(parents, ref);
         ref = ref->parent;
     };
 
-    while (!ylist_empty(parents) && target)
+    if (val_search)
     {
-        ref = ylist_pop_front(parents);
-        int index = ynode_index(ref);
-        if (index >= 0)
+        while (!ylist_empty(parents) && target)
         {
-            char key[64];
-            sprintf(key, "%d", index);
-            target = ynode_find_child(target, key);
+            ref = ylist_pop_front(parents);
+            switch (target->type)
+            {
+            case YNODE_TYPE_DICT:
+                if (IS_SET(ref->flags, YNODE_FLAG_KEY))
+                    target = ynode_find_child(target, ref->key);
+                else
+                    target = NULL;
+                break;
+            case YNODE_TYPE_LIST:
+                if (IS_SET(ref->flags, YNODE_FLAG_ITER))
+                {
+                    if (ref->type == YNODE_TYPE_VAL)
+                    {
+                        ynode *tar_child;
+                        ylist_iter *iter = ylist_first(target->list);
+                        for (; !ylist_done(iter); iter = ylist_next(iter))
+                        {
+                            tar_child = ylist_data(iter);
+                            if (tar_child->type == YNODE_TYPE_VAL &&
+                                strcmp(tar_child->value, ref->value) == 0)
+                            {
+                                target = tar_child;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                        target = NULL;
+                }
+                else
+                    target = NULL;
+                break;
+            case YNODE_TYPE_VAL:
+                target = NULL;
+                break;
+            default:
+                assert(!YDB_E_TYPE_ERR);
+            }
         }
-        else
+    }
+    else
+    {
+        while (!ylist_empty(parents) && target)
         {
-            target = ynode_find_child(target, ref->key);
+            ref = ylist_pop_front(parents);
+            int index = ynode_index(ref);
+            if (index >= 0)
+            {
+                char key[64];
+                sprintf(key, "%d", index);
+                target = ynode_find_child(target, key);
+            }
+            else
+            {
+                target = ynode_find_child(target, ref->key);
+            }
         }
-        // ynode_dump(target, 0, 0);
     }
     ylist_destroy(parents);
     return target;
@@ -2582,7 +2630,7 @@ ydb_res ynode_write(ynode **n, const char *format, ...)
 ydb_res ynode_erase_sub(ynode *cur, void *addition)
 {
     ynode *n = (void *)addition;
-    ynode *target = ynode_lookup(n, cur);
+    ynode *target = ynode_lookup(n, cur, 1);
     if (target)
         ynode_delete(target, NULL);
     return YDB_OK;
@@ -2640,7 +2688,7 @@ ydb_res ynode_traverse_to_read(ynode *cur, void *addition)
     char *value = ynode_value(cur);
     if (value && strncmp(value, "+", 1) == 0)
     {
-        ynode *n = ynode_lookup(data->top, cur);
+        ynode *n = ynode_lookup(data->top, cur, 0);
         if (n)
         {
             int index = atoi(value);

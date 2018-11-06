@@ -81,8 +81,9 @@ extern "C"
     // lookup an ynode in the path
     ynode *ynode_search(ynode *node, char *path);
 
-    // find the ref ynode on the same path in target ynode grapes.
-    ynode *ynode_lookup(ynode *target, ynode *ref);
+    // find the ref ynode on the same position if val_search = false.
+    // find the ref ynode on the same key and value node if val_search = true.
+    ynode *ynode_lookup(ynode *target, ynode *ref, int val_search);
 
     // return ynodes' type
     int ynode_type(ynode *node);

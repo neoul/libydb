@@ -188,7 +188,7 @@ int test_ynode_crud()
 
 	printf("== ynode_merge (b to a) ==\n");
 	c = ynode_merge(a, b, log);
-	ynode_printf(c, -2, 5);
+	ynode_printf(c, -2, 5);	
 	
 	printf("== ynode_create (b) ==\n");
 	ynode_create(YNODE_TYPE_VAL, "io", "100", ynode_down(b), NULL);
@@ -294,36 +294,37 @@ int test_yhook()
 
 int main(int argc, char *argv[])
 {
-	// if(test_ynode_scanf_from_fp("ynode-value.yaml"))
+	if(test_ynode_scanf_from_fp("ynode-value.yaml"))
+	{
+		printf("test_ynode_scanf_from_fp() failed.\n");
+	}
+	
+	if(test_ynode_scanf_from_fp("ynode-list.yaml"))
+	{
+		printf("test_ynode_scanf_from_fp() failed.\n");
+	}
+
+	if(test_ynode_scanf_from_fp("ynode-dict.yaml"))
+	{
+		printf("test_ynode_scanf_from_fp() failed.\n");
+	}
+
+	// if(test_ynode_scanf_from_buf())
 	// {
-	// 	printf("test_ynode_scanf_from_fp() failed.\n");
+	// 	printf("test_ynode_scanf_from_buf() failed.\n");
 	// }
 	
-	// if(test_ynode_scanf_from_fp("ynode-list.yaml"))
-	// {
-	// 	printf("test_ynode_scanf_from_fp() failed.\n");
-	// }
+	if(test_ynode_search_and_iterate("ynode-input.yaml"))
+	{
+		printf("test_ynode_search_and_iterate() failed.\n");
+	}
 
-	// if(test_ynode_scanf_from_fp("ynode-dict.yaml"))
-	// {
-	// 	printf("test_ynode_scanf_from_fp() failed.\n");
-	// }
+	if(test_ynode_path("ynode-input.yaml"))
+	{
+		printf("test_ynode_path() failed.\n");
+	}
 
-	// // if(test_ynode_scanf_from_buf())
-	// // {
-	// // 	printf("test_ynode_scanf_from_buf() failed.\n");
-	// // }
-	
-	// if(test_ynode_search_and_iterate("ynode-input.yaml"))
-	// {
-	// 	printf("test_ynode_search_and_iterate() failed.\n");
-	// }
-
-	// if(test_ynode_path("ynode-input.yaml"))
-	// {
-	// 	printf("test_ynode_path() failed.\n");
-	// }
-	// ydb_log_severity = YDB_LOG_DEBUG;
+	ydb_log_severity = YDB_LOG_DEBUG;
 	if(test_ynode_crud())
 	{
 		printf("test_ynode_crud() failed.\n");

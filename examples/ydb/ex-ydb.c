@@ -83,6 +83,9 @@ int test_ydb_read_write()
 	if (res)
 		goto _done;
 	char entry[3][64];
+	entry[0][0] = 0;
+	entry[1][0] = 0;
+	entry[2][0] = 0;
 	num = ydb_read(datablock, 
 		"- %s\n"
 		"- %s\n"
@@ -91,6 +94,26 @@ int test_ydb_read_write()
 		entry[1],
 		entry[2]);
 
+	printf("num %d, list-entry=%s\n", num, entry[0]);
+	printf("num %d, list-entry=%s\n", num, entry[1]);
+	printf("num %d, list-entry=%s\n", num, entry[2]);
+
+	ydb_delete(datablock, "- list-entry2\n");
+	// ydb_path_delete(datablock, "/1");
+
+	entry[0][0] = 0;
+	entry[1][0] = 0;
+	entry[2][0] = 0;
+	num = ydb_read(datablock, 
+		"- %s\n"
+		"- %s\n"
+		"- %s\n", 
+		entry[0],
+		entry[1],
+		entry[2]);
+
+	printf("num %d, list-entry=%s\n", num, entry[0]);
+	printf("num %d, list-entry=%s\n", num, entry[1]);
 	printf("num %d, list-entry=%s\n", num, entry[2]);
 
 	res = ydb_write(datablock,
@@ -116,7 +139,6 @@ int test_ydb_read_write()
 	
 	ydb_delete(datablock, "system: {fan-enable: , }");
 
-	ydb_log_severity = YDB_LOG_DEBUG;
 	ydb_read_hook_add(datablock, "/system/hostname", (ydb_read_hook) update_hook, 0);
 	ydb_write_hook_add(datablock, "/system/hostname", (ydb_write_hook) notify_hook, NULL, 0);
 
@@ -159,7 +181,7 @@ _done:
 
 int main(int argc, char *argv[])
 {
-	// ydb_log_severity = YDB_LOG_DEBUG;
+	ydb_log_severity = YDB_LOG_DEBUG;
 	TEST_FUNC(test_ydb_open_close);
 	TEST_FUNC(test_ydb_read_write);
 	return 0;

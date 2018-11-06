@@ -870,7 +870,7 @@ static ydb_res ydb_delete_sub(ynode *cur, void *addition)
 {
     struct ydb_delete_data *pddata = (void *)addition;
     ynode *n = pddata->node;
-    ynode *target = ynode_lookup(n, cur);
+    ynode *target = ynode_lookup(n, cur, 1);
     if (target)
         ynode_delete(target, pddata->log);
     return YDB_OK;
@@ -1086,7 +1086,7 @@ static ydb_res ydb_read_sub(ynode *cur, void *addition)
 
     if (value && strncmp(value, "+", 1) == 0)
     {
-        ynode *n = ynode_lookup(data->datablock->top, cur);
+        ynode *n = ynode_lookup(data->datablock->top, cur, 0);
         if (n)
         {
             int index = atoi(value);
