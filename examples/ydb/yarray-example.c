@@ -24,6 +24,9 @@ int main()
         yarray_push_back(a, data);
     }
 
+    yarray_traverse(a, callback, NULL);
+    yarray_fprintf(stdout, a);
+
     for (count=10; count<20; count++)
     {
         data = malloc(sizeof(int));
@@ -31,6 +34,7 @@ int main()
         yarray_push_front(a, data);
     }
 
+    yarray_traverse(a, callback, NULL);
     yarray_fprintf(stdout, a);
 
     for (count=0; count<20; count++)
@@ -67,8 +71,6 @@ int main()
             free(data);
         }
     }
-
-
     yarray_destroy_custom(a, free);
     return 0;
 }

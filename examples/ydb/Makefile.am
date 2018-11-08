@@ -1,51 +1,58 @@
-bin_PROGRAMS = ex-ytree ex-ytrie ex-yalloc ex-ylist ex-yarray ex-ytrie2 ex-ynode ex-ydb
+bin_PROGRAMS = ymap-example ytree-example ytrie-example yalloc-example ylist-example yarray-example ytrie2-example ynode-example ydb-example
 
-ex_ytree_SOURCES = ex-ytree.c
-ex_ytree_CPPFLAGS = -I $(top_srcdir)/ydb
-ex_ytree_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+
+ymap_example_SOURCES = ymap-example.c
+ymap_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ymap_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
                   -lydb -lyaml -lm
-ex_ytree_CFLAGS = -g -Wall
+ymap_example_CFLAGS = -g -Wall
 
-ex_ylist_SOURCES = ex-ylist.c
-ex_ylist_CPPFLAGS = -I $(top_srcdir)/ydb
-ex_ylist_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+ytree_example_SOURCES = ytree-example.c
+ytree_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ytree_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+                  -lydb -lyaml -lm
+ytree_example_CFLAGS = -g -Wall
+
+ylist_example_SOURCES = ylist-example.c
+ylist_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ylist_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
     -lydb -lyaml
-ex_ylist_CFLAGS = -g -Wall
+ylist_example_CFLAGS = -g -Wall
 
-ex_yarray_SOURCES = ex-yarray.c
-ex_yarray_CPPFLAGS = -I $(top_srcdir)/ydb
-ex_yarray_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+yarray_example_SOURCES = yarray-example.c
+yarray_example_CPPFLAGS = -I $(top_srcdir)/ydb
+yarray_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
     -lydb -lyaml
-ex_yarray_CFLAGS = -g -Wall
+yarray_example_CFLAGS = -g -Wall
 
-ex_ytrie_SOURCES = ex-ytrie.c
-ex_ytrie_CPPFLAGS = -I $(top_srcdir)/ydb
-ex_ytrie_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+ytrie_example_SOURCES = ytrie-example.c
+ytrie_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ytrie_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
     -lydb -lyaml
-ex_ytrie_CFLAGS = -g -Wall
+ytrie_example_CFLAGS = -g -Wall
 
-ex_yalloc_SOURCES = ex-yalloc.c
-ex_yalloc_CPPFLAGS = -I $(top_srcdir)/ydb
-ex_yalloc_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+yalloc_example_SOURCES = yalloc-example.c
+yalloc_example_CPPFLAGS = -I $(top_srcdir)/ydb
+yalloc_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
                   -lydb -lyaml
-ex_yalloc_CFLAGS = -g -Wall
+yalloc_example_CFLAGS = -g -Wall
 
-ex_ytrie2_SOURCES = ex-ytrie2.c
-ex_ytrie2_CPPFLAGS = -I $(top_srcdir)/ydb
-ex_ytrie2_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+ytrie2_example_SOURCES = ytrie2-example.c
+ytrie2_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ytrie2_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
     -lydb -lyaml
-ex_ytrie2_CFLAGS = -g -Wall
+ytrie2_example_CFLAGS = -g -Wall
 
-ex_ynode_SOURCES = ex-ynode.c
-ex_ynode_CPPFLAGS = -I $(top_srcdir)/ydb
-ex_ynode_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+ynode_example_SOURCES = ynode-example.c
+ynode_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ynode_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
     -lydb -lyaml
-ex_ynode_CFLAGS = -g -Wall
+ynode_example_CFLAGS = -g -Wall
 
-ex_ydb_SOURCES = ex-ydb.c
-ex_ydb_CPPFLAGS = -I $(top_srcdir)/ydb
-ex_ydb_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+ydb_example_SOURCES = ydb-example.c
+ydb_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ydb_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
     -lydb -lyaml
-ex_ydb_CFLAGS = -g -Wall
+ydb_example_CFLAGS = -g -Wall
 
 # dist_pkgdata_DATA = ytrie-input.txt

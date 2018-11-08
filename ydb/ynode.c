@@ -249,7 +249,7 @@ static ynode *ynode_detach(ynode *node)
         break;
     case YNODE_TYPE_LIST:
         assert(node->iter && YDB_E_NO_ENTRY);
-        ylist_erase(node->iter, NULL);
+        ylist_erase(parent->list, node->iter, NULL);
         UNSET_FLAG(node->flags, YNODE_FLAG_ITER);
         node->iter = NULL;
         break;
@@ -1605,8 +1605,8 @@ static ynode *ynode_find_child(ynode *node, char *key)
         if (index < 0)
             return NULL;
         for (iter = ylist_first(node->list);
-             !ylist_done(iter);
-             iter = ylist_next(iter))
+             !ylist_done(node->list, iter);
+             iter = ylist_next(node->list, iter))
         {
             if (index == count)
                 return ylist_data(iter);
@@ -1736,8 +1736,8 @@ int ynode_index(ynode *node)
         int index = 0;
         ylist_iter *iter;
         for (iter = ylist_first(node->parent->list);
-             !ylist_done(iter);
-             iter = ylist_next(iter))
+             !ylist_done(node->parent->list, iter);
+             iter = ylist_next(node->parent->list, iter))
         {
             if (node->iter == iter)
                 return index;
@@ -1807,7 +1807,7 @@ ynode *ynode_prev(ynode *node)
         return ytree_data(iter);
     }
     case YNODE_TYPE_LIST:
-        return ylist_data(ylist_prev(node->iter));
+        return ylist_data(ylist_prev(node->parent->list, node->iter));
     case YNODE_TYPE_VAL:
     default:
         break;
@@ -1829,7 +1829,7 @@ ynode *ynode_next(ynode *node)
         return ytree_data(iter);
     }
     case YNODE_TYPE_LIST:
-        return ylist_data(ylist_next(node->iter));
+        return ylist_data(ylist_next(node->parent->list, node->iter));
     case YNODE_TYPE_VAL:
     default:
         break;
@@ -2115,8 +2115,8 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
         {
             ylist_iter *iter;
             for (iter = ylist_first(src->list);
-                 !ylist_done(iter);
-                 iter = ylist_next(iter))
+                 !ylist_done(src->list, iter);
+                 iter = ylist_next(src->list, iter))
             {
                 ynode *src_child = ylist_data(iter);
                 ynode *new_child = ynode_control(NULL, src_child, new, NULL, log);
@@ -2293,8 +2293,8 @@ ynode *ynode_copy(ynode *src)
     {
         ylist_iter *iter;
         for (iter = ylist_first(src->list);
-             !ylist_done(iter);
-             iter = ylist_next(iter))
+             !ylist_done(src->list, iter);
+             iter = ylist_next(src->list, iter))
         {
             ynode *src_child = ylist_data(iter);
             ynode *dest_child = ynode_copy(src_child);
@@ -2535,7 +2535,7 @@ ynode *ynode_lookup(ynode *target, ynode *ref, int val_search)
                     {
                         ynode *tar_child;
                         ylist_iter *iter = ylist_first(target->list);
-                        for (; !ylist_done(iter); iter = ylist_next(iter))
+                        for (; !ylist_done(target->list, iter); iter = ylist_next(target->list, iter))
                         {
                             tar_child = ylist_data(iter);
                             if (tar_child->type == YNODE_TYPE_VAL &&

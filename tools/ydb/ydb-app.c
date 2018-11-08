@@ -225,14 +225,14 @@ int main(int argc, char *argv[])
         {
             printf("  file:\n");
             ylist_iter *iter = ylist_first(filelist);
-            for (; !ylist_done(iter); iter = ylist_next(iter))
+            for (; !ylist_done(filelist, iter); iter = ylist_next(filelist, iter))
                 printf("   - %s\n", (char *)ylist_data(iter));
         }
         if (!ylist_empty(cmdlist))
         {
             printf("  ycmd:\n");
             ylist_iter *iter = ylist_first(cmdlist);
-            for (; !ylist_done(iter); iter = ylist_next(iter))
+            for (; !ylist_done(cmdlist, iter); iter = ylist_next(cmdlist, iter))
             {
                 ydbcmd *ycmd = ylist_data(iter);
                 printf("   - {%s: %s}\n",

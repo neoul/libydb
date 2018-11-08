@@ -593,12 +593,6 @@ static ylist *_ymldb_traverse_ancestors(struct ynode *ydb, int traverse_level)
         ylist_push_front(templist, ydb);
         ydb = ydb->parent;
     }
-    // ylist_iter *iter;
-    // for(iter = ylist_first(templist); !ylist_done(iter); iter = ylist_next(iter))
-    // {
-    //     ydb = ylist_data(iter);
-    //     printf("TRAVERSE %s\n", ydb->key);
-    // }
     return templist;
 }
 
@@ -642,7 +636,7 @@ static void _ymldb_fprintf_node(FILE *stream, struct ynode *ydb, int print_level
         ylist *ancestors;
 
         ancestors = _ymldb_traverse_ancestors(ydb, print_level);
-        for (iter = ylist_first(ancestors); !ylist_done(iter); iter = ylist_next(iter))
+        for (iter = ylist_first(ancestors); !ylist_done(ancestors, iter); iter = ylist_next(ancestors, iter))
         {
             struct ynode *ancestor;
             ancestor = ylist_data(iter);
@@ -2031,7 +2025,7 @@ static void _params_buf_dump(struct ymldb_params *params, struct ynode *ydb, int
         ylist *ancestors;
 
         ancestors = _ymldb_traverse_ancestors(ydb, print_level);
-        for (iter = ylist_first(ancestors); !ylist_done(iter); iter = ylist_next(iter))
+        for (iter = ylist_first(ancestors); !ylist_done(ancestors, iter); iter = ylist_next(ancestors, iter))
         {
             struct ynode *ancestor;
             ancestor = ylist_data(iter);

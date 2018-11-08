@@ -17,18 +17,13 @@ struct _ylist
     size_t size;
 };
 
-// create a list
+// create a list.
 ylist *ylist_create()
 {
     struct _ylist *list = malloc(sizeof(struct _ylist));
     if (list)
     {
-        list->head = &(list->_head); // malloc(sizeof(struct _ylist_iter));
-        if (!list->head)
-        {
-            // free(list);
-            return NULL;
-        }
+        list->head = &(list->_head);
         list->head->next = list->head;
         list->head->prev = list->head;
         list->head->data = NULL;
@@ -37,7 +32,7 @@ ylist *ylist_create()
     return list;
 }
 
-// destroy the list
+// destroy the list.
 void ylist_destroy(ylist *list)
 {
     if (list)
@@ -47,12 +42,11 @@ void ylist_destroy(ylist *list)
         {
             data = ylist_pop_front(list);
         } while (data);
-        // free(list->head);
         free(list);
     }
 }
 
-// destroy the list with free
+// destroy the list with free func for data.
 void ylist_destroy_custom(ylist *list, user_free ufree)
 {
     if (list)
@@ -64,16 +58,15 @@ void ylist_destroy_custom(ylist *list, user_free ufree)
             if (data && ufree)
                 ufree(data);
         } while (data);
-        // free(list->head);
         free(list);
     }
 }
 
-// return iterator if success
+// push the data into the head of the list. return ylist_iter if ok.
 ylist_iter *ylist_push_front(ylist *list, void *data)
 {
     struct _ylist_iter *iter;
-    if (!list || !data)
+    if (!list)
         return NULL;
     iter = malloc(sizeof(struct _ylist_iter));
     if (iter)
@@ -88,11 +81,11 @@ ylist_iter *ylist_push_front(ylist *list, void *data)
     return iter;
 }
 
-// return iterator if success
+// push the data into the end of the list. return ylist_iter if ok.
 ylist_iter *ylist_push_back(ylist *list, void *data)
 {
     struct _ylist_iter *iter;
-    if (!list || !data)
+    if (!list)
         return NULL;
     iter = malloc(sizeof(struct _ylist_iter));
     if (iter)
@@ -107,7 +100,7 @@ ylist_iter *ylist_push_back(ylist *list, void *data)
     return iter;
 }
 
-// pop out data of the first entry if success
+// pop out of the first data of the list.
 void *ylist_pop_front(ylist *list)
 {
     struct _ylist_iter *iter;
@@ -127,7 +120,7 @@ void *ylist_pop_front(ylist *list)
     }
 }
 
-// pop out data of the last entry if success
+// pop out of the last data of the list.
 void *ylist_pop_back(ylist *list)
 {
     struct _ylist_iter *iter;
@@ -147,7 +140,7 @@ void *ylist_pop_back(ylist *list)
     }
 }
 
-// true if it is empty.
+// return 1 if it is empty.
 int ylist_empty(ylist *list)
 {
     if (list)
@@ -169,7 +162,7 @@ int ylist_size(ylist *list)
     return 0;
 }
 
-// return the data of the first entry
+// just return the data of the first entry
 void *ylist_front(ylist *list)
 {
     struct _ylist_iter *iter;
@@ -182,7 +175,7 @@ void *ylist_front(ylist *list)
         return iter->data;
 }
 
-// return the data of the last entry
+// just return the data of the last entry
 void *ylist_back(ylist *list)
 {
     struct _ylist_iter *iter;
@@ -195,6 +188,7 @@ void *ylist_back(ylist *list)
         return iter->data;
 }
 
+// get the ylist_iter of the first entry of the list.
 ylist_iter *ylist_first(ylist *list)
 {
     if (!list)
@@ -204,6 +198,7 @@ ylist_iter *ylist_first(ylist *list)
     return list->head->next;
 }
 
+// get the ylist_iter of the last entry of the list.
 ylist_iter *ylist_last(ylist *list)
 {
     if (!list)
@@ -213,25 +208,27 @@ ylist_iter *ylist_last(ylist *list)
     return list->head->prev;
 }
 
-// return next iterator of the current iterator.
-ylist_iter *ylist_next(ylist_iter *iter)
+// return the next ylist_iter from the current ylist_iter.
+ylist_iter *ylist_next(ylist *list, ylist_iter *iter)
 {
-    iter = iter ? (iter->next) : NULL;
-    if (iter && iter->data)
-        return iter;
-    return NULL;
+    if (!list || !iter)
+        return NULL;
+    if (iter->next == list->head)
+        return NULL;
+    return iter->next;
 }
 
-// return previous iterator of the current iterator.
-ylist_iter *ylist_prev(ylist_iter *iter)
+// return the previous ylist_iter from the current ylist_iter.
+ylist_iter *ylist_prev(ylist *list, ylist_iter *iter)
 {
-    iter = iter ? (iter->prev) : NULL;
-    if (iter && iter->data)
-        return iter;
-    return NULL;
+    if (!list || !iter)
+        return NULL;
+    if (iter->prev == list->head)
+        return NULL;
+    return iter->prev;
 }
 
-// return Xth iterator in the list.
+// return xth ylist_iter (index) from the list.
 ylist_iter *ylist_index(ylist *list, int index)
 {
     int count = 0;
@@ -244,71 +241,57 @@ ylist_iter *ylist_index(ylist *list, int index)
     while (iter) {
         if (count == index)
             return iter;
-        iter = ylist_next(iter);
+        iter = ylist_next(list, iter);
         count++;
     }
     return iter;
 }
 
-// true if the iterator ended
-int ylist_done(ylist_iter *iter)
+// return 1 if the ylist_iter ended.
+int ylist_done(ylist *list, ylist_iter *iter)
 {
-    if (!iter)
+    if (!iter || !list)
         return 1;
-    if (iter->data)
-        return 0;
-    return 1;
+    if (iter == list->head)
+        return 1;
+    return 0;
 }
 
-// get data of the iterator
+// get data of the ylist_iter.
 void *ylist_data(ylist_iter *iter)
 {
     if (iter)
-    {
         return iter->data;
-    }
     return NULL;
 }
 
-// delete the data of the iterator and then return prev iterator.
-ylist_iter *ylist_erase(ylist_iter *iter, user_free ufree)
+// remove the current ylist_iter and then return the previous ylist_iter.
+// the data must be free if needed before ylist_erase
+// or define and set ufree to free in progress.
+ylist_iter *ylist_erase(ylist *list, ylist_iter *iter, user_free ufree)
 {
-    if (!iter)
+    struct _ylist_iter *prev;
+    if (!iter || !list)
         return NULL;
-    if (iter->data)
-    {
-        struct _ylist_iter *prev;
-        prev = iter->prev;
-        if (ufree)
-            ufree(iter->data);
-        iter->prev->next = iter->next;
-        iter->next->prev = iter->prev;
-        free(iter);
-        iter = prev->next;
-        while (iter && iter->data) {
-            iter = iter->next;
-        }
-        if (iter && iter->data == NULL)
-        { // head
-            ylist *list = (ylist *) iter;
-            list->size--;
-        }
-        if (prev->data == NULL) // head
-            return NULL;
-        return prev;
-    }
-    else
-    {
+    if (iter == list->head)
         return NULL;
-    }
+    prev = iter->prev;
+    if (ufree)
+        ufree(iter->data);
+    iter->prev->next = iter->next;
+    iter->next->prev = iter->prev;
+    free(iter);
+    list->size--;
+    return prev;
 }
 
-// insert the data the next of the iterator and then return new iterator for the data
-// return NULL if it failed.
+// insert the data next to the ylist_iter and then 
+// return new ylist_iter if ok or null if failed.
+// if ylist_iter is null, the data will be pushed back to the list.
 ylist_iter *ylist_insert(ylist *list, ylist_iter *iter, void *data)
 {
     struct _ylist_iter *new_iter;
-    if (!data || (!list && !iter))
+    if (!list)
         return NULL;
     if (!iter)
         return ylist_push_back(list, data);
@@ -321,25 +304,12 @@ ylist_iter *ylist_insert(ylist *list, ylist_iter *iter, void *data)
         new_iter->prev = iter;
         iter->next->prev = new_iter;
         iter->next = new_iter;
-    
-        if (list)
-            list->size++;
-        else
-        {
-            iter = new_iter->next;
-            while (iter && iter->data) {
-                iter = iter->next;
-            }
-            if (iter && iter->data == NULL)
-            { // head
-                ylist *list = (ylist *) iter;
-                list->size++;
-            }
-        }
+        list->size++;
     }
     return new_iter;
 }
 
+// print all entries of the list.
 void ylist_printf(ylist *list, ylist_print print, void *addition)
 {
     struct _ylist_iter *iter;
@@ -351,6 +321,7 @@ void ylist_printf(ylist *list, ylist_print print, void *addition)
     }
 }
 
+// traverse all entries of the list and call ylist_callback for each entry.
 int ylist_traverse(ylist *list, ylist_callback cb, void *addition)
 {
     int res = -1;

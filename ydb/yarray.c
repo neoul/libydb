@@ -68,7 +68,8 @@ static yfragment *yfragment_get(yarray *array, int index, int *local_index)
     {
         int n = 0;
         ylist_iter *iter = ylist_first(array->fragments);
-        for (; !ylist_done(iter); iter = ylist_next(iter))
+        for (; !ylist_done(array->fragments, iter);
+             iter = ylist_next(array->fragments, iter))
         {
             fra = ylist_data(iter);
             if (index < n + fra->n)
@@ -83,7 +84,8 @@ static yfragment *yfragment_get(yarray *array, int index, int *local_index)
     {
         int n = array->n;
         ylist_iter *iter = ylist_last(array->fragments);
-        for (; !ylist_done(iter); iter = ylist_prev(iter))
+        for (; !ylist_done(array->fragments, iter);
+             iter = ylist_prev(array->fragments, iter))
         {
             fra = ylist_data(iter);
             n = n - fra->n;
@@ -100,7 +102,7 @@ static yfragment *yfragment_get(yarray *array, int index, int *local_index)
 yfragment *yfragment_shift_next(yarray *array, yfragment *fra, int *local_index)
 {
     int lindex = *local_index;
-    yfragment *tar_fra = ylist_data(ylist_next(fra->iter));
+    yfragment *tar_fra = ylist_data(ylist_next(array->fragments, fra->iter));
     if (!tar_fra || (tar_fra && ((tar_fra->fsize - tar_fra->n) < (fra->n - lindex))))
     {
         tar_fra = yfragment_new(fra->fsize);
@@ -131,15 +133,15 @@ yfragment *yfragment_shift_prev(yarray *array, yfragment *fra, int *local_index)
 {
     int lindex = *local_index;
     yfragment *tar_fra = NULL;
-    tar_fra = ylist_data(ylist_prev(fra->iter));
+    tar_fra = ylist_data(ylist_prev(array->fragments, fra->iter));
 
     if (!tar_fra || (tar_fra && ((tar_fra->fsize - tar_fra->n) < (lindex + 1))))
     {
         tar_fra = yfragment_new(fra->fsize);
         if (!tar_fra)
             return NULL;
-        if (ylist_prev(fra->iter))
-            tar_fra->iter = ylist_insert(array->fragments, ylist_prev(fra->iter), tar_fra);
+        if (ylist_prev(array->fragments, fra->iter))
+            tar_fra->iter = ylist_insert(array->fragments, ylist_prev(array->fragments, fra->iter), tar_fra);
         else
             tar_fra->iter = ylist_push_front(array->fragments, tar_fra);
         if (!tar_fra->iter)
@@ -165,7 +167,7 @@ yfragment *yfragment_shift_prev(yarray *array, yfragment *fra, int *local_index)
 
 int yfragment_merge_next(yarray *array, yfragment *fra)
 {
-    yfragment *tar_fra = ylist_data(ylist_next(fra->iter));
+    yfragment *tar_fra = ylist_data(ylist_next(array->fragments, fra->iter));
     if (tar_fra)
     {
         int n;
@@ -176,7 +178,7 @@ int yfragment_merge_next(yarray *array, yfragment *fra)
             for (n = 0; n < max; n++)
                 fra->data[YINDEX(fra, fra->n + n)] = tar_fra->data[YINDEX(tar_fra, n)];
             fra->n = fra->n + max;
-            ylist_erase(tar_fra->iter, free);
+            ylist_erase(array->fragments, tar_fra->iter, free);
             return 1;
         }
         else if (((tar_fra->fsize - tar_fra->n) >= fra->n) && tar_fra->n >= fra->n)
@@ -189,7 +191,7 @@ int yfragment_merge_next(yarray *array, yfragment *fra)
                 tar_fra->data[YINDEX(tar_fra, n)] = fra->data[cur_index];
             }
             tar_fra->n = tar_fra->n + max;
-            ylist_erase(fra->iter, free);
+            ylist_erase(array->fragments, fra->iter, free);
             return 1;
         }
     }
@@ -198,7 +200,7 @@ int yfragment_merge_next(yarray *array, yfragment *fra)
 
 int yfragment_merge_prev(yarray *array, yfragment *fra)
 {
-    yfragment *tar_fra = ylist_data(ylist_prev(fra->iter));
+    yfragment *tar_fra = ylist_data(ylist_prev(array->fragments, fra->iter));
     if (tar_fra)
         return yfragment_merge_next(array, tar_fra);
     return 0;
@@ -253,7 +255,7 @@ int yarray_push_back(yarray *array, void *data)
 {
     int index = -1;
     yfragment *fra;
-    if (!array || !data)
+    if (!array)
         return index;
     fra = ylist_back(array->fragments);
     if (fra)
@@ -288,7 +290,7 @@ int yarray_push_back(yarray *array, void *data)
 int yarray_push_front(yarray *array, void *data)
 {
     yfragment *fra;
-    if (!array || !data)
+    if (!array)
         return -1;
     fra = ylist_front(array->fragments);
     if (fra)
@@ -430,7 +432,7 @@ void *yarray_delete(yarray *array, int index)
     merged = yfragment_merge_next(array, fra);
     if (!merged)
         yfragment_merge_prev(array, fra);
-    yarray_fprintf(stdout, array);
+    // yarray_fprintf(stdout, array);
     return data;
 }
 
@@ -447,7 +449,7 @@ int yarray_insert(yarray *array, int index, void *data)
     int n;
     int local_index = 0;
     yfragment *fra;
-    if (!array || !data || index < 0)
+    if (!array || index < 0)
         return -1;
     if (index > array->n)
         return -1;
@@ -479,7 +481,7 @@ int yarray_insert(yarray *array, int index, void *data)
     fra->data[YINDEX(fra, local_index)] = data;
     fra->n++;
     array->n++;
-    yarray_fprintf(stdout, array);
+    // yarray_fprintf(stdout, array);
     return index;
 }
 
@@ -492,7 +494,8 @@ void yarray_fprintf(FILE *fp, yarray *array)
     fprintf(fp, "array: {p: %p, fsize: %ld, n: %ld, fragments: %d}\n",
             array, array->fsize, array->n, ylist_size(array->fragments));
     for (iter = ylist_first(array->fragments);
-         !ylist_done(iter); iter = ylist_next(iter))
+         !ylist_done(array->fragments, iter);
+         iter = ylist_next(array->fragments, iter))
     {
         int i;
         fra = ylist_data(iter);
@@ -515,7 +518,8 @@ int yarray_traverse(yarray *array, yarray_callback cb, void *addition)
         return res;
     index = 0;
     for (iter = ylist_first(array->fragments);
-         !ylist_done(iter); iter = ylist_next(iter))
+         !ylist_done(array->fragments, iter);
+         iter = ylist_next(array->fragments, iter))
     {
         int local_index;
         fra = ylist_data(iter);
@@ -558,7 +562,8 @@ int yarray_search_around(yarray *array, int around, void *data)
         ylist_iter *iter;
         index = 0;
         for (iter = ylist_first(array->fragments);
-             !ylist_done(iter); iter = ylist_next(iter))
+             !ylist_done(array->fragments, iter);
+             iter = ylist_next(array->fragments, iter))
         {
             fra = ylist_data(iter);
             local_index = yarray_search_local(fra, data);
@@ -573,7 +578,7 @@ int yarray_search_around(yarray *array, int around, void *data)
     {
         index = 0;
         ylist_iter *_next = fra->iter;
-        ylist_iter *_prev = ylist_prev(fra->iter);
+        ylist_iter *_prev = ylist_prev(array->fragments, fra->iter);
         while (_next || _prev)
         {
             if (_next)
@@ -585,7 +590,8 @@ int yarray_search_around(yarray *array, int around, void *data)
                 {
                     ylist_iter *iter;
                     for (iter = ylist_first(array->fragments);
-                         !ylist_done(iter); iter = ylist_next(iter))
+                         !ylist_done(array->fragments, iter);
+                         iter = ylist_next(array->fragments, iter))
                     {
                         fra = ylist_data(iter);
                         if (_next == iter)
@@ -594,7 +600,7 @@ int yarray_search_around(yarray *array, int around, void *data)
                     }
                     return index + local_index;
                 }
-                _next = ylist_next(_next);
+                _next = ylist_next(array->fragments, _next);
             }
 
             if (_prev)
@@ -606,7 +612,8 @@ int yarray_search_around(yarray *array, int around, void *data)
                 {
                     ylist_iter *iter;
                     for (iter = ylist_first(array->fragments);
-                         !ylist_done(iter); iter = ylist_next(iter))
+                         !ylist_done(array->fragments, iter);
+                         iter = ylist_next(array->fragments, iter))
                     {
                         fra = ylist_data(iter);
                         if (_prev == iter)
@@ -615,7 +622,7 @@ int yarray_search_around(yarray *array, int around, void *data)
                     }
                     return index + local_index;
                 }
-                _prev = ylist_prev(_prev);
+                _prev = ylist_prev(array->fragments, _prev);
             }
         }
     }

@@ -1,13 +1,14 @@
 #ifndef __YARRAY__
 #define __YARRAY__
 
-//  yarray is the linked list of small pieces of arrays designed for flexible insertion and deletion and fast index access.
+// yarray is a scalable array that consists of the small arrarys linked as a list.
+// yarray supports flexible insertion, deletion and fast index access.
+
+#include "ylist.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "ylist.h"
 
 typedef struct _yarray yarray;
 yarray *yarray_create(int fragment_size);

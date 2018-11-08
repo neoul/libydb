@@ -47,13 +47,13 @@ void *ytree_search(ytree *tree, void *key);
 // return 1 if found, otherwise return 0
 int ytree_exist(ytree *tree, void *key);
 
-// Iterates through entries in the tree
+// iterates all entries in the tree
 int ytree_traverse(ytree *tree, ytree_callback cb, void *addition);
 
-// Iterates through entries in the tree in reverse direction
+// iterates all entries in the tree in reverse direction
 int ytree_traverse_reverse(ytree *tree, ytree_callback cb, void *addition);
 
-// Iterates through the entries in the tree within a range.
+// iterates all entries in the tree within a range.
 int ytree_traverse_in_range(ytree *tree, 
     void *lower_boundary, void *higher_boundary, ytree_callback cb, void *addition);
 

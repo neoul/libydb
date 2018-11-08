@@ -38,13 +38,7 @@ examples/samples/ymldb-update-callback-example
 examples/samples/ymldb-push-pull
 examples/samples/ymldb-example2
 examples/agent/ymldb-agent
-examples/ydb/ex-yalloc
-examples/ydb/ex-yque
-examples/ydb/ex-ytree
-examples/ydb/ex-ytrie
-examples/ydb/ex-ylist
-examples/ydb/ex-ytrie2
-examples/ydb/ex-ydb
+examples/ydb/*-example
 ydb/utilities/.dirstamp
 tools/ydb/ydb-publisher
 tools/ydb/ydb-subscriber

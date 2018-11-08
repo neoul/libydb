@@ -5,7 +5,11 @@
 extern "C" {
 #endif
 
+// ylist is the simple list.
+
 typedef struct _ylist ylist;
+
+// ylist_iter is the iterator to loop each list entry.
 typedef struct _ylist_iter ylist_iter;
 
 #ifndef _USER_FREE_
@@ -13,72 +17,80 @@ typedef struct _ylist_iter ylist_iter;
 typedef void (*user_free)(void *);
 #endif
 
+// the callback definition to traverse all entries in the list.
+// data: the data inserted.
+// addition: the user-defined data
 typedef int(*ylist_callback)(void *data, void *addition);
 typedef void (*ylist_print)(void *data, void *addition);
 
-// create a list
+// create a list.
 ylist *ylist_create();
 
-// destroy the list
+// destroy the list.
 void ylist_destroy(ylist *list);
 
-// destroy the list with free
+// destroy the list with free func for data.
 void ylist_destroy_custom(ylist *list, user_free ufree);
 
-// return ylist_iter if success
+// push the data into the head of the list. return ylist_iter if ok.
 ylist_iter *ylist_push_front(ylist *list, void *data);
 
-// return ylist_iter if success
+// push the data into the end of the list. return ylist_iter if ok.
 ylist_iter *ylist_push_back(ylist *list, void *data);
 
-// pop out data of the first entry if success
+// pop out of the first data of the list.
 void *ylist_pop_front(ylist *list);
 
-// pop out data of the last entry if success
+// pop out of the last data of the list.
 void *ylist_pop_back(ylist *list);
 
-// true if it is empty.
+// return 1 if it is empty.
 int ylist_empty(ylist *list);
 
 // return the number of entries in the list.
 int ylist_size(ylist *list);
 
-// return the data of the first entry
+// just return the data of the first entry
 void *ylist_front(ylist *list);
 
-// return the data of the last entry
+// just return the data of the last entry
 void *ylist_back(ylist *list);
 
-// get the iterator of the list from head
+// get the ylist_iter of the first entry of the list.
 ylist_iter *ylist_first(ylist *list);
 
-// get the iterator of the list from tail
+// get the ylist_iter of the last entry of the list.
 ylist_iter *ylist_last(ylist *list);
 
-// return next iterator of the current iterator.
-ylist_iter *ylist_next(ylist_iter *iter);
+// return the next ylist_iter from the current ylist_iter.
+ylist_iter *ylist_next(ylist *list, ylist_iter *iter);
 
-// return previous iterator of the current iterator.
-ylist_iter *ylist_prev(ylist_iter *iter);
+// return the previous ylist_iter from the current ylist_iter.
+ylist_iter *ylist_prev(ylist *list, ylist_iter *iter);
 
-// return Xth iterator in the list.
+// return xth ylist_iter (index) from the list.
 ylist_iter *ylist_index(ylist *list, int index);
 
-// true if the iterator ended
-int ylist_done(ylist_iter *iter);
+// return 1 if the ylist_iter ended.
+int ylist_done(ylist *list, ylist_iter *iter);
 
-// get data of the iterator
+// get data of the ylist_iter.
 void *ylist_data(ylist_iter *iter);
 
-// delete the data of the iterator and then return prev iterator.
-ylist_iter *ylist_erase(ylist_iter *iter, user_free ufree);
+// remove the current ylist_iter and then return the previous ylist_iter.
+// the data must be free if needed before ylist_erase
+// or define and set ufree to free in progress.
+ylist_iter *ylist_erase(ylist *list, ylist_iter *iter, user_free ufree);
 
-// insert the data the next of the iterator and then return new iterator for the data
-// return NULL if it failed.
+// insert the data next to the ylist_iter and then 
+// return new ylist_iter if ok or null if failed.
+// if ylist_iter is null, the data will be pushed back to the list.
 ylist_iter *ylist_insert(ylist *list, ylist_iter *iter, void *data);
 
+// print all entries of the list.
 void ylist_printf(ylist *list, ylist_print print, void *addition);
 
+// traverse all entries of the list and call ylist_callback for each entry.
 int ylist_traverse(ylist *list, ylist_callback cb, void *addition);
 #ifdef __cplusplus
 } // closing brace for extern "C"
