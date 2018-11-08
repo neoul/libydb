@@ -8,7 +8,7 @@ extern "C"
 
 // ynode type
 #define YNODE_TYPE_VAL 0
-#define YNODE_TYPE_DICT 1
+#define YNODE_TYPE_MAP 1
 #define YNODE_TYPE_LIST 2
 #define YNODE_TYPE_MAX 3
 

@@ -66,7 +66,7 @@ struct _ynode
     };
     union {
         ylist *list;
-        ytree *dict;
+        ytree *map;
         char *value;
         void *data;
     };
@@ -179,8 +179,8 @@ static void ynode_free(ynode *node)
         if (node->value)
             yfree(node->value);
         break;
-    case YNODE_TYPE_DICT:
-        ytree_destroy_custom(node->dict, (user_free)ynode_free);
+    case YNODE_TYPE_MAP:
+        ytree_destroy_custom(node->map, (user_free)ynode_free);
         break;
     case YNODE_TYPE_LIST:
         ylist_destroy_custom(node->list, (user_free)ynode_free);
@@ -206,9 +206,9 @@ static ynode *ynode_new(unsigned char type, char *value)
         if (!node->value)
             goto _error;
         break;
-    case YNODE_TYPE_DICT:
-        node->dict = ytree_create((ytree_cmp)strcmp, (user_free)yfree);
-        if (!node->dict)
+    case YNODE_TYPE_MAP:
+        node->map = ytree_create((ytree_cmp)strcmp, (user_free)yfree);
+        if (!node->map)
             goto _error;
         break;
     case YNODE_TYPE_LIST:
@@ -239,9 +239,9 @@ static ynode *ynode_detach(ynode *node)
     node->parent = NULL;
     switch (parent->type)
     {
-    case YNODE_TYPE_DICT:
+    case YNODE_TYPE_MAP:
         assert(node->key && YDB_E_NO_ENTRY);
-        searched_node = ytree_delete(parent->dict, node->key);
+        searched_node = ytree_delete(parent->map, node->key);
         UNSET_FLAG(node->flags, YNODE_FLAG_KEY);
         node->key = NULL;
         assert(searched_node && YDB_E_NO_ENTRY);
@@ -260,7 +260,7 @@ static ynode *ynode_detach(ynode *node)
     return parent;
 }
 
-// insert the ynode to the parent, the key is used for dict type.
+// insert the ynode to the parent, the key is used for map type.
 // return old ynode that was being attached to the parent.
 static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
 {
@@ -273,10 +273,10 @@ static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
         ynode_detach(node);
     switch (parent->type)
     {
-    case YNODE_TYPE_DICT:
+    case YNODE_TYPE_MAP:
         SET_FLAG(node->flags, YNODE_FLAG_KEY);
         node->key = ystrdup(key);
-        old = ytree_insert(parent->dict, node->key, node);
+        old = ytree_insert(parent->map, node->key, node);
         break;
     case YNODE_TYPE_LIST:
         // ignore key.
@@ -406,8 +406,8 @@ static int yhook_pre_run_for_delete(ynode *cur)
     }
     switch (cur->type)
     {
-    case YNODE_TYPE_DICT:
-        res = ytree_traverse(cur->dict, yhook_pre_run_for_delete_dict, NULL);
+    case YNODE_TYPE_MAP:
+        res = ytree_traverse(cur->map, yhook_pre_run_for_delete_dict, NULL);
         break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(cur->list, yhook_pre_run_for_delete_list, NULL);
@@ -664,9 +664,9 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
             free(value);
         break;
     }
-    case YNODE_TYPE_DICT:
+    case YNODE_TYPE_MAP:
     {
-        res = _ynode_record_print(record, " dict: num=%d,", ytree_size(node->dict));
+        res = _ynode_record_print(record, " map: num=%d,", ytree_size(node->map));
         break;
     }
     case YNODE_TYPE_LIST:
@@ -804,8 +804,8 @@ static int _ynode_record_dump_childen(struct _ynode_record *record, ynode *node)
     record->level++;
     switch (node->type)
     {
-    case YNODE_TYPE_DICT:
-        res = ytree_traverse(node->dict, _ynode_record_traverse_dict, record);
+    case YNODE_TYPE_MAP:
+        res = ytree_traverse(node->map, _ynode_record_traverse_dict, record);
         break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(node->list, _ynode_record_traverse_list, record);
@@ -1388,7 +1388,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 token.type == YAML_FLOW_SEQUENCE_START_TOKEN)
                 node_type = YNODE_TYPE_LIST;
             else
-                node_type = YNODE_TYPE_DICT;
+                node_type = YNODE_TYPE_MAP;
             if (ylist_empty(node_stack))
             {
                 if (top)
@@ -1468,7 +1468,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             case YAML_BLOCK_ENTRY_TOKEN:
                 scalar = (char *)token.data.scalar.value;
                 node = ylist_back(node_stack);
-                if (node->type == YNODE_TYPE_DICT)
+                if (node->type == YNODE_TYPE_MAP)
                 {
                     if (val)
                     {
@@ -1510,6 +1510,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             break;
         case YAML_TAG_TOKEN:
             ynode_log_debug("handle=%s suffix=%s\n", token.data.tag.handle, token.data.tag.suffix);
+
+            token_save = false;
+            break;
         /* Others */
         case YAML_VERSION_DIRECTIVE_TOKEN:
         case YAML_TAG_DIRECTIVE_TOKEN:
@@ -1590,9 +1593,9 @@ void ynode_remove(ynode *n)
 
 static ynode *ynode_find_child(ynode *node, char *key)
 {
-    if (node->type == YNODE_TYPE_DICT)
+    if (node->type == YNODE_TYPE_MAP)
     {
-        return ytree_search(node->dict, key);
+        return ytree_search(node->map, key);
     }
     else if (node->type == YNODE_TYPE_LIST)
     {
@@ -1699,8 +1702,8 @@ int ynode_empty(ynode *node)
     {
     case YNODE_TYPE_VAL:
         return (node->value) ? 0 : 1;
-    case YNODE_TYPE_DICT:
-        return (ytree_size(node->dict) <= 0) ? 1 : 0;
+    case YNODE_TYPE_MAP:
+        return (ytree_size(node->map) <= 0) ? 1 : 0;
     case YNODE_TYPE_LIST:
         return ylist_empty(node->list);
     default:
@@ -1721,7 +1724,7 @@ char *ynode_key(ynode *node)
 {
     if (!node || !node->parent)
         return NULL;
-    if (node->parent->type == YNODE_TYPE_DICT)
+    if (node->parent->type == YNODE_TYPE_MAP)
         return node->key;
     return NULL;
 }
@@ -1782,8 +1785,8 @@ ynode *ynode_down(ynode *node)
         return NULL;
     switch (node->type)
     {
-    case YNODE_TYPE_DICT:
-        return ytree_data(ytree_first(node->dict));
+    case YNODE_TYPE_MAP:
+        return ytree_data(ytree_first(node->map));
     case YNODE_TYPE_LIST:
         return ylist_front(node->list);
     case YNODE_TYPE_VAL:
@@ -1800,10 +1803,10 @@ ynode *ynode_prev(ynode *node)
         return NULL;
     switch (node->parent->type)
     {
-    case YNODE_TYPE_DICT:
+    case YNODE_TYPE_MAP:
     {
-        ytree_iter *iter = ytree_find(node->parent->dict, node->key);
-        iter = ytree_prev(node->parent->dict, iter);
+        ytree_iter *iter = ytree_find(node->parent->map, node->key);
+        iter = ytree_prev(node->parent->map, iter);
         return ytree_data(iter);
     }
     case YNODE_TYPE_LIST:
@@ -1822,10 +1825,10 @@ ynode *ynode_next(ynode *node)
         return NULL;
     switch (node->parent->type)
     {
-    case YNODE_TYPE_DICT:
+    case YNODE_TYPE_MAP:
     {
-        ytree_iter *iter = ytree_find(node->parent->dict, node->key);
-        iter = ytree_next(node->parent->dict, iter);
+        ytree_iter *iter = ytree_find(node->parent->map, node->key);
+        iter = ytree_next(node->parent->map, iter);
         return ytree_data(iter);
     }
     case YNODE_TYPE_LIST:
@@ -1844,8 +1847,8 @@ ynode *ynode_first(ynode *node)
         return NULL;
     switch (node->parent->type)
     {
-    case YNODE_TYPE_DICT:
-        return ytree_data(ytree_first(node->parent->dict));
+    case YNODE_TYPE_MAP:
+        return ytree_data(ytree_first(node->parent->map));
     case YNODE_TYPE_LIST:
         return ylist_front(node->parent->list);
     case YNODE_TYPE_VAL:
@@ -1862,8 +1865,8 @@ ynode *ynode_last(ynode *node)
         return NULL;
     switch (node->parent->type)
     {
-    case YNODE_TYPE_DICT:
-        return ytree_data(ytree_last(node->parent->dict));
+    case YNODE_TYPE_MAP:
+        return ytree_data(ytree_last(node->parent->map));
     case YNODE_TYPE_LIST:
         return ylist_back(node->parent->list);
     case YNODE_TYPE_VAL:
@@ -2029,9 +2032,9 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
         case YNODE_TYPE_LIST:
             key = NULL;
             break;
-        case YNODE_TYPE_DICT:
+        case YNODE_TYPE_MAP:
             if (!cur && key)
-                cur = ytree_search(parent->dict, key);
+                cur = ytree_search(parent->map, key);
             break;
         case YNODE_TYPE_VAL:
             return NULL;
@@ -2098,10 +2101,10 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     {
         switch (src->type)
         {
-        case YNODE_TYPE_DICT:
+        case YNODE_TYPE_MAP:
         {
-            ytree_iter *iter = ytree_first(src->dict);
-            for (; iter != NULL; iter = ytree_next(src->dict, iter))
+            ytree_iter *iter = ytree_first(src->map);
+            for (; iter != NULL; iter = ytree_next(src->map, iter))
             {
                 ynode *src_child = ytree_data(iter);
                 ynode *cur_child = ynode_find_child(new, src_child->key);
@@ -2189,7 +2192,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
     if (parent)
         new = ynode_new(parent->type, NULL);
     else
-        new = ynode_new(YNODE_TYPE_DICT, NULL);
+        new = ynode_new(YNODE_TYPE_MAP, NULL);
     if (!new)
         return NULL;
 
@@ -2201,7 +2204,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
         {
             token[j] = 0;
             ynode_log_debug("token: %s\n", token);
-            node = ynode_new(YNODE_TYPE_DICT, NULL);
+            node = ynode_new(YNODE_TYPE_MAP, NULL);
             ynode_attach(node, new, token);
             new = node;
             j = 0;
@@ -2238,7 +2241,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
         else
         {
             ynode_log_debug("token: %s\n", token);
-            node = ynode_new(YNODE_TYPE_DICT, NULL);
+            node = ynode_new(YNODE_TYPE_MAP, NULL);
             ynode_attach(node, new, token);
         }
         new = node;
@@ -2276,10 +2279,10 @@ ynode *ynode_copy(ynode *src)
 
     switch (src->type)
     {
-    case YNODE_TYPE_DICT:
+    case YNODE_TYPE_MAP:
     {
-        ytree_iter *iter = ytree_first(src->dict);
-        for (; iter != NULL; iter = ytree_next(src->dict, iter))
+        ytree_iter *iter = ytree_first(src->map);
+        for (; iter != NULL; iter = ytree_next(src->map, iter))
         {
             ynode *src_child = ytree_data(iter);
             ynode *dest_child = ynode_copy(src_child);
@@ -2383,7 +2386,7 @@ struct ynode_traverse_data
 };
 
 static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata);
-static int ynode_traverse_dict(void *key, void *data, void *addition)
+static int ynode_traverse_map(void *key, void *data, void *addition)
 {
     ynode *cur = data;
     struct ynode_traverse_data *tdata = addition;
@@ -2407,8 +2410,8 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
         {
             switch (cur->type)
             {
-            case YNODE_TYPE_DICT:
-                if (ytree_size(cur->dict) <= 0)
+            case YNODE_TYPE_MAP:
+                if (ytree_size(cur->map) <= 0)
                     res = tdata->cb(cur, tdata->addition);
                 break;
             case YNODE_TYPE_LIST:
@@ -2437,8 +2440,8 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
 
     switch (cur->type)
     {
-    case YNODE_TYPE_DICT:
-        res = ytree_traverse(cur->dict, ynode_traverse_dict, tdata);
+    case YNODE_TYPE_MAP:
+        res = ytree_traverse(cur->map, ynode_traverse_map, tdata);
         break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(cur->list, ynode_traverse_list, tdata);
@@ -2458,8 +2461,8 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
         {
             switch (cur->type)
             {
-            case YNODE_TYPE_DICT:
-                if (ytree_size(cur->dict) <= 0)
+            case YNODE_TYPE_MAP:
+                if (ytree_size(cur->map) <= 0)
                     res = tdata->cb(cur, tdata->addition);
                 break;
             case YNODE_TYPE_LIST:
@@ -2522,7 +2525,7 @@ ynode *ynode_lookup(ynode *target, ynode *ref, int val_search)
             ref = ylist_pop_front(parents);
             switch (target->type)
             {
-            case YNODE_TYPE_DICT:
+            case YNODE_TYPE_MAP:
                 if (IS_SET(ref->flags, YNODE_FLAG_KEY))
                     target = ynode_find_child(target, ref->key);
                 else
