@@ -1,0 +1,16 @@
+---
+# http://yaml.org/type/omap.html ----------------------------------------------#
+
+omap:
+  Bestiary:
+    - aardvark: African pig-like ant eater. Ugly.
+    - anteater: South-American ant eater. Two species.
+    - anaconda: South-American constrictor snake. Scaly.
+    # Etc.
+  # Flow style
+  Numbers: !!omap [ one: 1, two: 2, three : 3 ]
+
+# Ordered maps are represented as
+# A sequence of mappings, with
+# each mapping having one key
+...

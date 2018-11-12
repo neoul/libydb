@@ -32,6 +32,7 @@ extern "C"
         YDB_E_INVALID_YAML_TOP,
         YDB_E_INVALID_YAML_KEY,
         YDB_E_INVALID_YAML_ENTRY,
+        YDB_E_INVALID_YAML_TOKEN,
         YDB_E_YAML_INIT,
         YDB_E_YAML_EMPTY_TOKEN,
         YDB_E_MERGE_FAILED,
@@ -138,6 +139,8 @@ extern "C"
     // print the data in the ydb into the file stream
     int ydb_dump(ydb *datablock, FILE *fp);
     int ydb_dumps(ydb *datablock, char **buf, size_t *buflen);
+
+    int ydb_dump_debug(ydb *datablock, FILE *fp);
 
     // update and delete data in ydb using the input string (yaml format)
     ydb_res ydb_write(ydb *datablock, const char *format, ...);

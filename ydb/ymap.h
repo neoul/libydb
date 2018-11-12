@@ -49,6 +49,8 @@ int ymap_traverse(ymap *map, ytree_callback cb, void *addition);
 // iterates all entries in the ymap in ordering.
 int ymap_traverse_order(ymap *map, ytree_callback cb, void *addition);
 
+// find the iterator of the ymap using key.
+ymap_iter *ymap_find(ymap *map, void *key);
 // get the iterator of the ymap from the head
 ymap_iter *ymap_first(ymap *map);
 // get the iterator of the ymap from the head

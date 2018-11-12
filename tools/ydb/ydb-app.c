@@ -353,7 +353,10 @@ int main(int argc, char *argv[])
         if (summary)
         {
             fprintf(stdout, "\n# %s\n", ydb_name(datablock));
-            ydb_dump(datablock, stdout);
+            if (verbose == YDB_LOG_DEBUG)
+                ydb_dump_debug(datablock, stdout);
+            else
+                ydb_dump(datablock, stdout);
         }
     }
 end:

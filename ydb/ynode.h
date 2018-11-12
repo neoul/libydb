@@ -7,10 +7,12 @@ extern "C"
 #endif
 
 // ynode type
-#define YNODE_TYPE_VAL 0
-#define YNODE_TYPE_MAP 1
-#define YNODE_TYPE_LIST 2
-#define YNODE_TYPE_MAX 3
+#define YNODE_TYPE_NONE 0
+#define YNODE_TYPE_VAL 1
+#define YNODE_TYPE_MAP 2
+#define YNODE_TYPE_OMAP 3
+#define YNODE_TYPE_LIST 4
+#define YNODE_TYPE_MAX 5
 
     typedef struct _ynode ynode;
     typedef struct _ynode_log ynode_log;

@@ -173,6 +173,7 @@ char *ydb_res_str[] =
         YDB_ERR_NAME(YDB_E_INVALID_YAML_TOP),
         YDB_ERR_NAME(YDB_E_INVALID_YAML_KEY),
         YDB_ERR_NAME(YDB_E_INVALID_YAML_ENTRY),
+        YDB_ERR_NAME(YDB_E_INVALID_YAML_TOKEN),
         YDB_ERR_NAME(YDB_E_YAML_INIT),
         YDB_ERR_NAME(YDB_E_YAML_EMPTY_TOKEN),
         YDB_ERR_NAME(YDB_E_MERGE_FAILED),
@@ -799,6 +800,14 @@ int ydb_dump(ydb *datablock, FILE *fp)
     if (!datablock)
         return -1;
     return ynode_printf_to_fp(fp, datablock->top, 1, YDB_LEVEL_MAX);
+}
+
+int ydb_dump_debug(ydb *datablock, FILE *fp)
+{
+    if (!datablock)
+        return -1;
+    ynode_dump_to_fp(fp, datablock->top, 1, YDB_LEVEL_MAX);
+    return 0;
 }
 
 int ydb_dumps(ydb *datablock, char **buf, size_t *buflen)

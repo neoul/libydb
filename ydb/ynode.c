@@ -10,8 +10,9 @@
 #include <yaml.h>
 
 #include "yalloc.h"
-#include "ytree.h"
 #include "ylist.h"
+#include "ytree.h"
+#include "ymap.h"
 
 #include "ydb.h"
 #include "ynode.h"
@@ -67,6 +68,7 @@ struct _ynode
     union {
         ylist *list;
         ytree *map;
+        ymap *omap;
         char *value;
         void *data;
     };
@@ -182,6 +184,9 @@ static void ynode_free(ynode *node)
     case YNODE_TYPE_MAP:
         ytree_destroy_custom(node->map, (user_free)ynode_free);
         break;
+    case YNODE_TYPE_OMAP:
+        ymap_destroy_custom(node->omap, (user_free)ynode_free);
+        break;
     case YNODE_TYPE_LIST:
         ylist_destroy_custom(node->list, (user_free)ynode_free);
         break;
@@ -209,6 +214,11 @@ static ynode *ynode_new(unsigned char type, char *value)
     case YNODE_TYPE_MAP:
         node->map = ytree_create((ytree_cmp)strcmp, (user_free)yfree);
         if (!node->map)
+            goto _error;
+        break;
+    case YNODE_TYPE_OMAP:
+        node->omap = ymap_create((ytree_cmp)strcmp, (user_free)yfree);
+        if (!node->omap)
             goto _error;
         break;
     case YNODE_TYPE_LIST:
@@ -247,6 +257,14 @@ static ynode *ynode_detach(ynode *node)
         assert(searched_node && YDB_E_NO_ENTRY);
         assert(searched_node == node && YDB_E_INVALID_PARENT);
         break;
+    case YNODE_TYPE_OMAP:
+        assert(node->key && YDB_E_NO_ENTRY);
+        searched_node = ymap_delete(parent->omap, node->key);
+        UNSET_FLAG(node->flags, YNODE_FLAG_KEY);
+        node->key = NULL;
+        assert(searched_node && YDB_E_NO_ENTRY);
+        assert(searched_node == node && YDB_E_INVALID_PARENT);
+        break;
     case YNODE_TYPE_LIST:
         assert(node->iter && YDB_E_NO_ENTRY);
         ylist_erase(parent->list, node->iter, NULL);
@@ -277,6 +295,11 @@ static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
         SET_FLAG(node->flags, YNODE_FLAG_KEY);
         node->key = ystrdup(key);
         old = ytree_insert(parent->map, node->key, node);
+        break;
+    case YNODE_TYPE_OMAP:
+        SET_FLAG(node->flags, YNODE_FLAG_KEY);
+        node->key = ystrdup(key);
+        old = ymap_insert_back(parent->omap, node->key, node);
         break;
     case YNODE_TYPE_LIST:
         // ignore key.
@@ -408,6 +431,9 @@ static int yhook_pre_run_for_delete(ynode *cur)
     {
     case YNODE_TYPE_MAP:
         res = ytree_traverse(cur->map, yhook_pre_run_for_delete_dict, NULL);
+        break;
+    case YNODE_TYPE_OMAP:
+        res = ymap_traverse(cur->omap, yhook_pre_run_for_delete_dict, NULL);
         break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(cur->list, yhook_pre_run_for_delete_list, NULL);
@@ -669,6 +695,11 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
         res = _ynode_record_print(record, " map: num=%d,", ytree_size(node->map));
         break;
     }
+    case YNODE_TYPE_OMAP:
+    {
+        res = _ynode_record_print(record, " omap: num=%d,", ymap_size(node->omap));
+        break;
+    }
     case YNODE_TYPE_LIST:
     {
         res = _ynode_record_print(record, " list: num=%d,", ylist_size(node->list));
@@ -719,7 +750,11 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
         return res;
 
     // print value
-    if (node->type == YNODE_TYPE_VAL)
+    if (node->type == YNODE_TYPE_OMAP)
+    {
+        res = _ynode_record_print(record, " !!omap\n");
+    }
+    else if (node->type == YNODE_TYPE_VAL)
     {
         char *value = ystr_convert(node->value);
         res = _ynode_record_print(record, "%s%s\n",
@@ -806,6 +841,9 @@ static int _ynode_record_dump_childen(struct _ynode_record *record, ynode *node)
     {
     case YNODE_TYPE_MAP:
         res = ytree_traverse(node->map, _ynode_record_traverse_dict, record);
+        break;
+    case YNODE_TYPE_OMAP:
+        res = ymap_traverse(node->omap, _ynode_record_traverse_dict, record);
         break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(node->list, _ynode_record_traverse_list, record);
@@ -1276,6 +1314,7 @@ _done:
         v = NULL;       \
     } while (0)
 
+
 ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform)
 {
     ydb_res res = YDB_OK;
@@ -1291,7 +1330,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     yaml_parser_t parser;
     yaml_token_t token;
     bool token_save = false;
-    int node_type;
+    int next_node_type = YNODE_TYPE_NONE;
 
     if ((!fp && !buf) || !n)
     {
@@ -1342,20 +1381,19 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             res = YDB_E_YAML_EMPTY_TOKEN;
             break;
         }
-        if (YNODE_LOGGING_DEBUG)
-        {
-            if (token.type == YAML_BLOCK_END_TOKEN ||
-                token.type == YAML_FLOW_MAPPING_END_TOKEN ||
-                token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
-                level--;
-            // if (token.type != YAML_SCALAR_TOKEN)
-            ynode_log_debug("%.*s%s\n", level * 2, space, yaml_token_str[token.type]);
-            if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
-                token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
-                token.type == YAML_FLOW_SEQUENCE_START_TOKEN ||
-                token.type == YAML_FLOW_MAPPING_START_TOKEN)
-                level++;
-        }
+
+        if (token.type == YAML_BLOCK_END_TOKEN ||
+            token.type == YAML_FLOW_MAPPING_END_TOKEN ||
+            token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
+            level--;
+        // if (token.type != YAML_SCALAR_TOKEN)
+        ynode_log_debug("%.*s%s\n", level * 2, space, yaml_token_str[token.type]);
+        if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
+            token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
+            token.type == YAML_FLOW_SEQUENCE_START_TOKEN ||
+            token.type == YAML_FLOW_MAPPING_START_TOKEN)
+            level++;
+
         token_save = true;
 
         switch (token.type)
@@ -1384,42 +1422,51 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         case YAML_BLOCK_MAPPING_START_TOKEN:
         case YAML_FLOW_MAPPING_START_TOKEN:
         {
-            if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
-                token.type == YAML_FLOW_SEQUENCE_START_TOKEN)
-                node_type = YNODE_TYPE_LIST;
-            else
-                node_type = YNODE_TYPE_MAP;
+            if (next_node_type == YNODE_TYPE_NONE)
+            {
+                if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
+                    token.type == YAML_FLOW_SEQUENCE_START_TOKEN)
+                    next_node_type = YNODE_TYPE_LIST;
+                else
+                    next_node_type = YNODE_TYPE_MAP;
+            }
             if (ylist_empty(node_stack))
             {
                 if (top)
                 {
-                    YNODE_FAIL(node_type != top->type, YDB_E_INVALID_YAML_TOP);
+                    YNODE_FAIL(next_node_type != top->type, YDB_E_INVALID_YAML_TOP);
                     node = top;
                 }
                 else
                 {
-                    node = ynode_new(node_type, NULL);
+                    node = ynode_new(next_node_type, NULL);
                     node->origin = origin;
                 }
             }
             else
             {
-                node = ynode_new(node_type, NULL);
+                node = ynode_new(next_node_type, NULL);
                 node->origin = origin;
             }
+            next_node_type = YNODE_TYPE_NONE;
             YNODE_FAIL(!node, YDB_E_MEM);
             old = ynode_attach(node, ylist_back(node_stack), val);
             ynode_free(old);
             ylist_push_back(node_stack, node);
             CLEAR_YVALUE(val);
-            ynode_log_debug("node_stack %d (last entry=%p)\n", ylist_size(node_stack), ylist_back(node_stack));
+            ynode_log_debug("node_stack %d (last entry=%p %s)\n",
+                ylist_size(node_stack), ylist_back(node_stack),
+                (node->type==YNODE_TYPE_LIST)?"list":
+                (node->type==YNODE_TYPE_MAP)?"map":
+                (node->type==YNODE_TYPE_OMAP)?"omap":"val"
+                );
             break;
         }
         case YAML_BLOCK_ENTRY_TOKEN: // -
         {
             node = ylist_back(node_stack);
             YNODE_FAIL(!node, YDB_E_INVALID_YAML_ENTRY);
-            YNODE_FAIL(node->type != YNODE_TYPE_LIST, YDB_E_INVALID_YAML_ENTRY);
+            YNODE_FAIL(node->type == YNODE_TYPE_MAP, YDB_E_INVALID_YAML_ENTRY);
             break;
         }
         case YAML_FLOW_ENTRY_TOKEN: // ,
@@ -1437,7 +1484,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 CLEAR_YVALUE(val);
             }
             top = ylist_pop_back(node_stack);
-            ynode_log_debug("node_stack %d (last entry=%p)\n", ylist_size(node_stack), ylist_back(node_stack));
+            ynode_log_debug("node_stack %d (last entry=%p)\n",
+                ylist_size(node_stack), ylist_back(node_stack));
             break;
         case YAML_SCALAR_TOKEN:
             token_save = false;
@@ -1510,7 +1558,17 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             break;
         case YAML_TAG_TOKEN:
             ynode_log_debug("handle=%s suffix=%s\n", token.data.tag.handle, token.data.tag.suffix);
-
+            if (strncmp((char *)token.data.tag.handle, "!!", 2) == 0)
+            {
+                if (strcmp((char *)token.data.tag.suffix, "map") == 0)
+                    next_node_type = YNODE_TYPE_MAP;
+                else if (strcmp((char *)token.data.tag.suffix, "seq") == 0)
+                    next_node_type = YNODE_TYPE_MAP;
+                else if (strcmp((char *)token.data.tag.suffix, "omap") == 0)
+                    next_node_type = YNODE_TYPE_OMAP;
+                else if (strcmp((char *)token.data.tag.suffix, "set") == 0)
+                    next_node_type = YNODE_TYPE_MAP;
+            }
             token_save = false;
             break;
         /* Others */
@@ -1593,11 +1651,13 @@ void ynode_remove(ynode *n)
 
 static ynode *ynode_find_child(ynode *node, char *key)
 {
-    if (node->type == YNODE_TYPE_MAP)
+    switch (node->type)
     {
+    case YNODE_TYPE_MAP:
         return ytree_search(node->map, key);
-    }
-    else if (node->type == YNODE_TYPE_LIST)
+    case YNODE_TYPE_OMAP:
+        return ymap_search(node->omap, key);
+    case YNODE_TYPE_LIST:
     {
         int count = 0;
         ylist_iter *iter;
@@ -1617,8 +1677,12 @@ static ynode *ynode_find_child(ynode *node, char *key)
         }
         return NULL;
     }
-    else
+    case YNODE_TYPE_VAL:
         return NULL;
+    default:
+        assert(YDB_E_TYPE_ERR);
+    }
+    return NULL;
 }
 
 // lookup the ynode in the path
@@ -1704,6 +1768,8 @@ int ynode_empty(ynode *node)
         return (node->value) ? 0 : 1;
     case YNODE_TYPE_MAP:
         return (ytree_size(node->map) <= 0) ? 1 : 0;
+    case YNODE_TYPE_OMAP:
+        return (ymap_size(node->omap) <= 0) ? 1 : 0;
     case YNODE_TYPE_LIST:
         return ylist_empty(node->list);
     default:
@@ -1724,7 +1790,8 @@ char *ynode_key(ynode *node)
 {
     if (!node || !node->parent)
         return NULL;
-    if (node->parent->type == YNODE_TYPE_MAP)
+    if (node->parent->type == YNODE_TYPE_MAP ||
+        node->parent->type == YNODE_TYPE_OMAP)
         return node->key;
     return NULL;
 }
@@ -1787,6 +1854,8 @@ ynode *ynode_down(ynode *node)
     {
     case YNODE_TYPE_MAP:
         return ytree_data(ytree_first(node->map));
+    case YNODE_TYPE_OMAP:
+        return ymap_data(ymap_first(node->omap));
     case YNODE_TYPE_LIST:
         return ylist_front(node->list);
     case YNODE_TYPE_VAL:
@@ -1808,6 +1877,12 @@ ynode *ynode_prev(ynode *node)
         ytree_iter *iter = ytree_find(node->parent->map, node->key);
         iter = ytree_prev(node->parent->map, iter);
         return ytree_data(iter);
+    }
+    case YNODE_TYPE_OMAP:
+    {
+        ymap_iter *iter = ymap_find(node->parent->omap, node->key);
+        iter = ymap_prev(node->parent->omap, iter);
+        return ymap_data(iter);
     }
     case YNODE_TYPE_LIST:
         return ylist_data(ylist_prev(node->parent->list, node->iter));
@@ -1831,6 +1906,12 @@ ynode *ynode_next(ynode *node)
         iter = ytree_next(node->parent->map, iter);
         return ytree_data(iter);
     }
+    case YNODE_TYPE_OMAP:
+    {
+        ymap_iter *iter = ymap_find(node->parent->omap, node->key);
+        iter = ymap_next(node->parent->omap, iter);
+        return ymap_data(iter);
+    }
     case YNODE_TYPE_LIST:
         return ylist_data(ylist_next(node->parent->list, node->iter));
     case YNODE_TYPE_VAL:
@@ -1849,6 +1930,8 @@ ynode *ynode_first(ynode *node)
     {
     case YNODE_TYPE_MAP:
         return ytree_data(ytree_first(node->parent->map));
+    case YNODE_TYPE_OMAP:
+        return ymap_data(ymap_first(node->parent->omap));
     case YNODE_TYPE_LIST:
         return ylist_front(node->parent->list);
     case YNODE_TYPE_VAL:
@@ -1867,6 +1950,8 @@ ynode *ynode_last(ynode *node)
     {
     case YNODE_TYPE_MAP:
         return ytree_data(ytree_last(node->parent->map));
+    case YNODE_TYPE_OMAP:
+        return ymap_data(ymap_last(node->parent->omap));
     case YNODE_TYPE_LIST:
         return ylist_back(node->parent->list);
     case YNODE_TYPE_VAL:
@@ -2036,6 +2121,10 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
             if (!cur && key)
                 cur = ytree_search(parent->map, key);
             break;
+        case YNODE_TYPE_OMAP:
+            if (!cur && key)
+                cur = ymap_search(parent->omap, key);
+            break;
         case YNODE_TYPE_VAL:
             return NULL;
         default:
@@ -2107,6 +2196,19 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
             for (; iter != NULL; iter = ytree_next(src->map, iter))
             {
                 ynode *src_child = ytree_data(iter);
+                ynode *cur_child = ynode_find_child(new, src_child->key);
+                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, log);
+                if (!new_child)
+                    ynode_log_error("unable to add child node (src_child->key: %s)\n");
+            }
+            break;
+        }
+        case YNODE_TYPE_OMAP:
+        {
+            ymap_iter *iter = ymap_first(src->omap);
+            for (; iter != NULL; iter = ymap_next(src->omap, iter))
+            {
+                ynode *src_child = ymap_data(iter);
                 ynode *cur_child = ynode_find_child(new, src_child->key);
                 ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, log);
                 if (!new_child)
@@ -2292,6 +2394,19 @@ ynode *ynode_copy(ynode *src)
         }
         break;
     }
+    case YNODE_TYPE_OMAP:
+    {
+        ymap_iter *iter = ymap_first(src->omap);
+        for (; iter != NULL; iter = ymap_next(src->omap, iter))
+        {
+            ynode *src_child = ymap_data(iter);
+            ynode *dest_child = ynode_copy(src_child);
+            if (!dest_child)
+                goto _fail;
+            ynode_attach(dest_child, dest, src_child->key);
+        }
+        break;
+    }
     case YNODE_TYPE_LIST:
     {
         ylist_iter *iter;
@@ -2414,6 +2529,10 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
                 if (ytree_size(cur->map) <= 0)
                     res = tdata->cb(cur, tdata->addition);
                 break;
+            case YNODE_TYPE_OMAP:
+                if (ymap_size(cur->omap) <= 0)
+                    res = tdata->cb(cur, tdata->addition);
+                break;
             case YNODE_TYPE_LIST:
                 if (ylist_empty(cur->list))
                     res = tdata->cb(cur, tdata->addition);
@@ -2443,6 +2562,9 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
     case YNODE_TYPE_MAP:
         res = ytree_traverse(cur->map, ynode_traverse_map, tdata);
         break;
+    case YNODE_TYPE_OMAP:
+        res = ymap_traverse(cur->omap, ynode_traverse_map, tdata);
+        break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(cur->list, ynode_traverse_list, tdata);
         break;
@@ -2463,6 +2585,10 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
             {
             case YNODE_TYPE_MAP:
                 if (ytree_size(cur->map) <= 0)
+                    res = tdata->cb(cur, tdata->addition);
+                break;
+            case YNODE_TYPE_OMAP:
+                if (ymap_size(cur->omap) <= 0)
                     res = tdata->cb(cur, tdata->addition);
                 break;
             case YNODE_TYPE_LIST:
@@ -2526,6 +2652,7 @@ ynode *ynode_lookup(ynode *target, ynode *ref, int val_search)
             switch (target->type)
             {
             case YNODE_TYPE_MAP:
+            case YNODE_TYPE_OMAP:
                 if (IS_SET(ref->flags, YNODE_FLAG_KEY))
                     target = ynode_find_child(target, ref->key);
                 else
