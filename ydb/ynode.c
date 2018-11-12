@@ -1314,7 +1314,6 @@ _done:
         v = NULL;       \
     } while (0)
 
-
 ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform)
 {
     ydb_res res = YDB_OK;
@@ -1374,7 +1373,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         if (!token.type)
         {
             ydb_log_err_yaml(&parser);
-            res = YDB_E_YAML_EMPTY_TOKEN;
+            res = YDB_E_YAML_PARSING;
             break;
         }
 
@@ -1382,7 +1381,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             token.type == YAML_FLOW_MAPPING_END_TOKEN ||
             token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
             level--;
-        
+
         ynode_log_debug("%d_%.*s%s\n", level, level, space, yaml_token_str[token.type]);
 
         if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
@@ -1396,10 +1395,13 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         switch (token.type)
         {
         case YAML_KEY_TOKEN:
+            YNODE_FAIL(top->type == YNODE_TYPE_LIST && YAML_KEY_TOKEN,
+                       YDB_E_INVALID_YAML_TOKEN);
             if (key)
             {
                 ynode_log_debug("%d_%.*s%s%s: **null**\n", level, level, space, key ? key : "", key ? ": " : "");
                 new = ynode_new(YNODE_TYPE_VAL, NULL);
+                YNODE_FAIL(!new, YDB_E_MEM);
                 new->origin = origin;
                 old = ynode_attach(new, top, key);
                 ynode_free(old);
@@ -1417,12 +1419,12 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             if (top && top->type == YNODE_TYPE_OMAP)
             {
                 // ignore YAML_BLOCK_MAPPING_START_TOKEN
-                if(last_token == YAML_BLOCK_ENTRY_TOKEN &&
+                if (last_token == YAML_BLOCK_ENTRY_TOKEN &&
                     token.type == YAML_BLOCK_MAPPING_START_TOKEN)
-                    {
-                        ignore_block_map = true;
-                        break;
-                    }
+                {
+                    ignore_block_map = true;
+                    break;
+                }
             }
             if (next_node_type == YNODE_TYPE_NONE)
             {
@@ -1440,31 +1442,28 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             old = ynode_attach(new, top, key);
             ynode_free(old);
             ynode_log_debug("%d_%.*s%s %s (created)\n", level, level, space,
-                (new->type==YNODE_TYPE_LIST)?"list":
-                (new->type==YNODE_TYPE_MAP)?"map":
-                (new->type==YNODE_TYPE_OMAP)?"omap":"val",
-                key?key:"no-key"
-                );
+                            (new->type == YNODE_TYPE_LIST) ? "list" : (new->type == YNODE_TYPE_MAP) ? "map" : (new->type == YNODE_TYPE_OMAP) ? "omap" : "val",
+                            key ? key : "no-key");
             CLEAR_YVALUE(key);
             top = new;
             break;
         }
         case YAML_BLOCK_ENTRY_TOKEN: // -
-            YNODE_FAIL(top->type == YNODE_TYPE_MAP, YDB_E_INVALID_YAML_ENTRY);
-            YNODE_FAIL(top->type == YNODE_TYPE_OMAP, YDB_E_INVALID_YAML_ENTRY);
+        case YAML_FLOW_ENTRY_TOKEN:  // ,
+            // YNODE_FAIL(top->type == YNODE_TYPE_MAP, YDB_E_INVALID_YAML_ENTRY);
+            // YNODE_FAIL(top->type == YNODE_TYPE_OMAP, YDB_E_INVALID_YAML_ENTRY);
             if (scalar_next)
             {
                 ynode_log_debug("%d_%.*s%s%s **null**\n", level, level, space, key ? key : "", key ? ": " : "");
                 new = ynode_new(YNODE_TYPE_VAL, NULL);
+                YNODE_FAIL(!new, YDB_E_MEM);
                 new->origin = origin;
                 old = ynode_attach(new, top, key);
                 ynode_free(old);
                 CLEAR_YVALUE(key);
-                top = (top==NULL)?new:top;
+                top = (top == NULL) ? new : top;
             }
             scalar_next = true;
-            break;
-        case YAML_FLOW_ENTRY_TOKEN: // ,
             break;
         case YAML_BLOCK_END_TOKEN:
         case YAML_FLOW_MAPPING_END_TOKEN:
@@ -1474,16 +1473,17 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ignore_block_map = false;
                 break;
             }
-            if (key)
+            if (key || scalar_next)
             {
                 ynode_log_debug("%d_%.*s%s%s: **null**\n", level, level, space, key ? key : "", key ? ": " : "");
                 new = ynode_new(YNODE_TYPE_VAL, NULL);
+                YNODE_FAIL(!new, YDB_E_MEM);
                 new->origin = origin;
                 old = ynode_attach(new, top, key);
                 ynode_free(old);
                 CLEAR_YVALUE(key);
             }
-            top = (top->parent)?top->parent:top;
+            top = (top->parent) ? top->parent : top;
             break;
         case YAML_SCALAR_TOKEN:
             token_save = false;
@@ -1500,11 +1500,12 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             case YAML_VALUE_TOKEN:
                 ynode_log_debug("%d_%.*s%s%s%s (val)\n", level, level, space, key ? key : "", key ? ": " : "", scalar);
                 new = ynode_new(YNODE_TYPE_VAL, scalar);
+                YNODE_FAIL(!new, YDB_E_MEM);
                 new->origin = origin;
                 old = ynode_attach(new, top, key);
                 ynode_free(old);
                 CLEAR_YVALUE(key);
-                top = (top==NULL)?new:top;
+                top = (top == NULL) ? new : top;
                 break;
             case YAML_BLOCK_SEQUENCE_START_TOKEN:
             case YAML_BLOCK_MAPPING_START_TOKEN:
@@ -1523,11 +1524,12 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 }
                 ynode_log_debug("%d_%.*s%s%s%s (val)\n", level, level, space, key ? key : "", key ? ": " : "", scalar);
                 new = ynode_new(YNODE_TYPE_VAL, scalar);
+                YNODE_FAIL(!new, YDB_E_MEM);
                 new->origin = origin;
                 old = ynode_attach(new, top, key);
                 ynode_free(old);
                 CLEAR_YVALUE(key);
-                top = (top==NULL)?new:top;
+                top = (top == NULL) ? new : top;
                 break;
             default:
                 break;
