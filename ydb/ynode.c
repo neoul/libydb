@@ -1326,11 +1326,12 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     char *val = NULL;
     char *scalar = NULL;
     struct ynode_query_data qdata;
-    yaml_token_type_t last_token = YAML_NO_TOKEN;
+    yaml_token_type_t last_token;
     yaml_parser_t parser;
     yaml_token_t token;
-    bool token_save = false;
     int next_node_type = YNODE_TYPE_NONE;
+    bool ignore_block_map = false;
+    bool token_save = false;
 
     if ((!fp && !buf) || !n)
     {
@@ -1372,6 +1373,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             yaml_parser_set_input_string(&parser, (const unsigned char *)buf, (size_t)buflen);
     }
 
+    last_token = YAML_NO_TOKEN;
+
     do
     {
         yaml_parser_scan(&parser, &token);
@@ -1386,8 +1389,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             token.type == YAML_FLOW_MAPPING_END_TOKEN ||
             token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
             level--;
-        // if (token.type != YAML_SCALAR_TOKEN)
-        ynode_log_debug("%.*s%s\n", level * 2, space, yaml_token_str[token.type]);
+        
+        ynode_log_debug("%d_%.*s%s\n", level, level * 2, space, yaml_token_str[token.type]);
+
         if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
             token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
             token.type == YAML_FLOW_SEQUENCE_START_TOKEN ||
@@ -1422,6 +1426,18 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         case YAML_BLOCK_MAPPING_START_TOKEN:
         case YAML_FLOW_MAPPING_START_TOKEN:
         {
+            node = ylist_back(node_stack);
+            if (node && node->type == YNODE_TYPE_OMAP)
+            {
+                // ignore YAML_BLOCK_MAPPING_START_TOKEN
+                if(last_token == YAML_BLOCK_ENTRY_TOKEN &&
+                    token.type == YAML_BLOCK_MAPPING_START_TOKEN)
+                    {
+                        ignore_block_map = true;
+                        break;
+                    }
+            }
+            
             if (next_node_type == YNODE_TYPE_NONE)
             {
                 if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
@@ -1474,6 +1490,11 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         case YAML_BLOCK_END_TOKEN:
         case YAML_FLOW_MAPPING_END_TOKEN:
         case YAML_FLOW_SEQUENCE_END_TOKEN:
+            if (ignore_block_map && token.type == YAML_BLOCK_END_TOKEN)
+            {
+                ignore_block_map = false;
+                break;
+            }
             if (val)
             {
                 ynode_log_debug("%.*s%s ** insert **\n", level * 2, space, val);
@@ -1580,6 +1601,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         default:
             break;
         }
+
         if (token_save)
             last_token = token.type;
         if (res)
