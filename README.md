@@ -35,3 +35,23 @@ $ ./configure or $ ./configure CFLAGS="-g -Wall"
 $ make
 $ make install
 ```
+
+# YDB (YAML DataBlock)
+
+YAML DataBlock for Configuration Data Management using YAML and IPC (Inter Process Communication)
+
+## Limitation
+
+### YAML features not supported
+
+- !!binary
+- !!pairs
+
+### YAML feature supported
+
+- !!map
+- !!seq
+- !!omap
+- !!set
+- anchor and alias with `<<` merge key
+- all other types are supported as string type.
