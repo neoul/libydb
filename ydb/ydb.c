@@ -161,33 +161,26 @@ char *ydb_res_str[] =
     {
         YDB_ERR_NAME(YDB_OK),
         YDB_ERR_NAME(YDB_ERR),
+        YDB_ERR_NAME(YDB_E_SYSTEM_FAILED),
+        YDB_ERR_NAME(YDB_E_STREAM_FAILED),
+        YDB_ERR_NAME(YDB_E_PERSISTENCY_ERR),
         YDB_ERR_NAME(YDB_E_INVALID_ARGS),
         YDB_ERR_NAME(YDB_E_TYPE_ERR),
         YDB_ERR_NAME(YDB_E_INVALID_PARENT),
         YDB_ERR_NAME(YDB_E_NO_ENTRY),
-        YDB_ERR_NAME(YDB_E_DUMP_CB),
-        YDB_ERR_NAME(YDB_E_MEM),
+        YDB_ERR_NAME(YDB_E_MEM_ALLOC),
         YDB_ERR_NAME(YDB_E_FULL_BUF),
-        YDB_ERR_NAME(YDB_E_PERSISTENCY_ERR),
-        YDB_ERR_NAME(YDB_E_INVALID_YAML_INPUT),
-        YDB_ERR_NAME(YDB_E_INVALID_YAML_PARENT),
-        YDB_ERR_NAME(YDB_E_INVALID_YAML_KEY),
-        YDB_ERR_NAME(YDB_E_INVALID_YAML_ENTRY),
+        
         YDB_ERR_NAME(YDB_E_INVALID_YAML_TOKEN),
-        YDB_ERR_NAME(YDB_E_YAML_INIT),
-        YDB_ERR_NAME(YDB_E_YAML_PARSING),
+        YDB_ERR_NAME(YDB_E_YAML_INIT_FAILED),
+        YDB_ERR_NAME(YDB_E_YAML_PARSING_FAILED),
         YDB_ERR_NAME(YDB_E_MERGE_FAILED),
         YDB_ERR_NAME(YDB_E_DELETE_FAILED),
-        YDB_ERR_NAME(YDB_E_SYSTEM_FAILED),
+        YDB_ERR_NAME(YDB_E_INVALID_MSG),
+        YDB_ERR_NAME(YDB_E_ENTRY_EXISTS),
+        YDB_ERR_NAME(YDB_E_NO_CONN),
         YDB_ERR_NAME(YDB_E_CONN_FAILED),
         YDB_ERR_NAME(YDB_E_CONN_CLOSED),
-        YDB_ERR_NAME(YDB_E_CONN_DENIED),
-        YDB_ERR_NAME(YDB_E_INVALID_MSG),
-        YDB_ERR_NAME(YDB_E_RECV_REQUIRED),
-        YDB_ERR_NAME(YDB_E_INVALID_FLAGS),
-        YDB_ERR_NAME(YDB_E_ENTRY_EXISTS),
-        YDB_ERR_NAME(YDB_E_STREAM_FAILED),
-        YDB_ERR_NAME(YDB_E_NO_CONN),
         YDB_ERR_NAME(YDB_E_FUNC),
 };
 
@@ -335,7 +328,7 @@ static ydb_res ypool_create()
         ydb_pool = ytrie_create();
         if (!ydb_pool)
         {
-            return YDB_E_MEM;
+            return YDB_E_MEM_ALLOC;
         }
     }
     if (!yconn_pool)
@@ -343,7 +336,7 @@ static ydb_res ypool_create()
         yconn_pool = ytrie_create();
         if (!yconn_pool)
         {
-            return YDB_E_MEM;
+            return YDB_E_MEM_ALLOC;
         }
     }
     return YDB_OK;
@@ -1456,8 +1449,8 @@ ydb_res yconn_socket_init(yconn *conn)
         if (!head)
         {
             close(fd);
-            yconn_error(conn, YDB_E_MEM);
-            return YDB_E_MEM;
+            yconn_error(conn, YDB_E_MEM_ALLOC);
+            return YDB_E_MEM_ALLOC;
         }
         memset(head, 0x0, sizeof(struct yconn_socket_head));
         conn->head = head;
@@ -1500,7 +1493,7 @@ int yconn_socket_accept(yconn *conn, yconn *client)
         if (!head)
         {
             close(cfd);
-            yconn_error(conn, YDB_E_MEM);
+            yconn_error(conn, YDB_E_MEM_ALLOC);
             return -1;
         }
         memset(head, 0x0, sizeof(struct yconn_socket_head));
@@ -1829,8 +1822,8 @@ ydb_res yconn_file_init(yconn *conn)
         head = malloc(sizeof(struct yconn_socket_head));
         if (!head)
         {
-            yconn_error(conn, YDB_E_MEM);
-            return YDB_E_MEM;
+            yconn_error(conn, YDB_E_MEM_ALLOC);
+            return YDB_E_MEM_ALLOC;
         }
         memset(head, 0x0, sizeof(struct yconn_socket_head));
         conn->head = head;
@@ -2165,7 +2158,7 @@ static ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
     SET_FLAG(conn_flags, YCONN_MAJOR_CONN);
     conn = yconn_new(addr, conn_flags);
     if (!conn)
-        return YDB_E_MEM;
+        return YDB_E_MEM_ALLOC;
     YDB_ASSERT(!conn->func_init, YDB_E_FUNC);
     res = conn->func_init(conn);
     if (res)
@@ -2317,7 +2310,7 @@ static ydb_res yconn_publish(yconn *src_target, ydb *datablock, yconn_op op, cha
         return YDB_E_INVALID_MSG;
     publist = ylist_create();
     if (!publist)
-        return YDB_E_MEM;
+        return YDB_E_MEM_ALLOC;
     ydb_log_in();
     if (datablock)
     {
