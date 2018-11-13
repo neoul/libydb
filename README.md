@@ -55,3 +55,4 @@ YAML DataBlock for Configuration Data Management using YAML and IPC (Inter Proce
 - !!set
 - anchor and alias with `<<` merge key
 - all other types are supported as string type.
+- !!imap (a map indexed by integer key)
