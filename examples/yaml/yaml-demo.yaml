@@ -24,16 +24,17 @@ omap:
   # Flow style
   Numbers: !!omap [ one: 1, two: 2, three : 3 ]
 
-# http://yaml.org/type/pairs.html ---------------------------------------------#
+# YAML DataBlock does support pairs
+# # http://yaml.org/type/pairs.html ---------------------------------------------#
 
-pairs:
-  # Explicitly typed pairs.
-  Block tasks: !!pairs
-    - meeting: with team.
-    - meeting: with boss.
-    - break: lunch.
-    - meeting: with client.
-  Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
+# pairs:
+#   # Explicitly typed pairs.
+#   Block tasks: !!pairs
+#     - meeting: with team.
+#     - meeting: with boss.
+#     - break: lunch.
+#     - meeting: with client.
+#   Flow tasks: !!pairs [ meeting: with team, meeting: with boss ]
 
 # http://yaml.org/type/set.html -----------------------------------------------#
 
@@ -51,15 +52,15 @@ set:
 seq:
   # Ordered sequence of nodes
   Block style: !!seq
-  - Mercury   # Rotates - no light/dark sides.
-  - Venus     # Deadliest. Aptly named.
-  - Earth     # Mostly dirt.
-  - Mars      # Seems empty.
-  - Jupiter   # The king.
-  - Saturn    # Pretty.
-  - Uranus    # Where the sun hardly shines.
-  - Neptune   # Boring. No rings.
-  - Pluto     # You call this a planet?
+    - Mercury   # Rotates - no light/dark sides.
+    - Venus     # Deadliest. Aptly named.
+    - Earth     # Mostly dirt.
+    - Mars      # Seems empty.
+    - Jupiter   # The king.
+    - Saturn    # Pretty.
+    - Uranus    # Where the sun hardly shines.
+    - Neptune   # Boring. No rings.
+    - Pluto     # You call this a planet?
   Flow style: !!seq [ Mercury, Venus, Earth, Mars,      # Rocks
                       Jupiter, Saturn, Uranus, Neptune, # Gas
                       Pluto ]                           # Overrated

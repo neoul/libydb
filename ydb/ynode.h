@@ -91,6 +91,8 @@ extern "C"
     int ynode_type(ynode *node);
     // return the ynode has a value or children
     int ynode_empty(ynode *node);
+    // return the number of chilren
+    int ynode_size(ynode *node);
 
     // return ynodes' value if that is a leaf.
     char *ynode_value(ynode *node);
