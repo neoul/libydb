@@ -1325,12 +1325,18 @@ _done:
     return 1;
 }
 
-#define YNODE_FAIL(cond, root_cause)                            \
-    if (cond)                                                   \
-    {                                                           \
-        res = root_cause;                                       \
-        ynode_log_error("'%s': %s\n", #cond, ydb_res_str[res]); \
-        break;                                                  \
+#define YNODE_SCAN_FAIL(cond, root_cause)                                 \
+    if (cond)                                                             \
+    {                                                                     \
+        char *failpath = ynode_path(top, YDB_LEVEL_MAX, NULL);            \
+        res = root_cause;                                                 \
+        if (failpath)                                                     \
+        {                                                                 \
+            ynode_log(YDB_LOG_ERR, "%s(%s)\n", failpath, key ? key : ""); \
+            free(failpath);                                               \
+        }                                                                 \
+        ynode_log(YDB_LOG_ERR, "'%s': %s\n", #cond, ydb_res_str[res]);    \
+        break;                                                            \
     }
 
 #define CLEAR_YSTR(v) \
@@ -1439,7 +1445,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             if (top->type == YNODE_TYPE_LIST && YAML_KEY_TOKEN)
             { // create map to the list parent
                 new = ynode_new_and_attach(YNODE_TYPE_MAP, NULL, origin, top, NULL);
-                YNODE_FAIL(!new, YDB_E_MEM_ALLOC);
+                YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
                 ynode_log_debug("%d_%.*s%s %s (created [pairs])\n", level, level, space,
                                 ynode_type_str[new->type], "no-key");
                 top = new;
@@ -1449,7 +1455,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ynode_log_debug("%d_%.*s%s%s: null\n",
                                 level, level, space, key ? key : "", key ? ": " : "");
                 new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, top, key);
-                YNODE_FAIL(!new, YDB_E_MEM_ALLOC);
+                YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
                 CLEAR_YSTR(key);
             }
             break;
@@ -1480,7 +1486,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                     next_node_type = YNODE_TYPE_MAP;
             }
             new = ynode_new_and_attach(next_node_type, NULL, origin, top, key);
-            YNODE_FAIL(!new, YDB_E_MEM_ALLOC);
+            YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
             if (set_next)
             {
                 SET_FLAG(new->flags, YNODE_FLAG_SET);
@@ -1500,7 +1506,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ynode_log_debug("%d_%.*s%s%s null\n",
                                 level, level, space, key ? key : "", key ? ": " : "");
                 new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, top, key);
-                YNODE_FAIL(!new, YDB_E_MEM_ALLOC);
+                YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
                 CLEAR_YSTR(key);
                 top = (top == NULL) ? new : top;
             }
@@ -1519,7 +1525,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ynode_log_debug("%d_%.*s%s%s: null\n",
                                 level, level, space, key ? key : "", key ? ": " : "");
                 new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, top, key);
-                YNODE_FAIL(!new, YDB_E_MEM_ALLOC);
+                YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
                 CLEAR_YSTR(key);
             }
             top = (top->parent) ? top->parent : top;
@@ -1540,7 +1546,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ynode_log_debug("%d_%.*s%s%s%s (val)\n",
                                 level, level, space, key ? key : "", key ? ": " : "", scalar);
                 new = ynode_new_and_attach(YNODE_TYPE_VAL, scalar, origin, top, key);
-                YNODE_FAIL(!new, YDB_E_MEM_ALLOC);
+                YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
                 CLEAR_YSTR(key);
                 top = (top == NULL) ? new : top;
                 break;
@@ -1563,7 +1569,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ynode_log_debug("%d_%.*s%s%s%s (val)\n",
                                 level, level, space, key ? key : "", key ? ": " : "", scalar);
                 new = ynode_new_and_attach(YNODE_TYPE_VAL, scalar, origin, top, key);
-                YNODE_FAIL(!new, YDB_E_MEM_ALLOC);
+                YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
                 CLEAR_YSTR(key);
                 top = (top == NULL) ? new : top;
                 break;
@@ -1604,7 +1610,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             if (!anchors)
             {
                 anchors = ytrie_create();
-                YNODE_FAIL(!anchors, YDB_E_MEM_ALLOC);
+                YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
             }
             anchor = (char *)token.data.anchor.value;
             path = ynode_path(top, YDB_LEVEL_MAX, &pathlen);
@@ -1619,13 +1625,13 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 n += snprintf(anchor_path + n, sizeof(anchor_path) - n, "/%d", ynode_size(top));
             else
             {
-                ynode_log_debug("anchor (%s) is ignored...\n", token.data.anchor.value);
+                ynode_log_debug("anchor (%s) ignored ...\n", anchor);
                 break;
             }
             path = ytrie_insert(anchors, anchor, strlen(anchor), ystrdup(anchor_path));
-            if (path)
+            if (path) // free old anchor
                 yfree(path);
-            ynode_log_debug("anchor (%s, %s) stored\n", anchor, anchor_path);
+            ynode_log_debug("anchor (%s: %s) stored\n", anchor, anchor_path);
             token_save = false;
             break;
         }
@@ -1636,27 +1642,21 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             ynode *root = ynode_top(top);
             ynode *copy, *old;
             alias = (char *)token.data.alias.value;
-            ynode_log_debug("alias=%s\n", alias);
-            // search anchor
             if (!anchors)
-            {
-                ynode_log_debug("alias (%s) is ignored...\n", alias);
                 break;
-            }
             path = ytrie_search(anchors, alias, strlen(alias));
             if (!path)
             {
-                ynode_log_debug("no anchor (%s) ...\n", alias);
+                ynode_log_debug("no anchor for (%s) ...\n", alias);
                 break;
             }
             copy = ynode_copy(ynode_search(root, path));
+            if (!copy)
+                break;
             if (strcmp(key, "<<") == 0)
             {
                 if (!top->parent)
-                {
-                    ynode_log_debug("invalid merge (<<) (%s) ...\n", alias);
                     break;
-                }
                 old = ynode_attach(copy, top->parent, top->key);
                 top = copy;
             }
