@@ -182,6 +182,7 @@ char *ydb_res_str[] =
         YDB_ERR_NAME(YDB_E_CONN_FAILED),
         YDB_ERR_NAME(YDB_E_CONN_CLOSED),
         YDB_ERR_NAME(YDB_E_FUNC),
+        YDB_ERR_NAME(YDB_W_UPDATED),
 };
 
 typedef struct _yconn yconn;
@@ -934,10 +935,17 @@ struct readhook
     void *user[];
 };
 
+struct ydb_update_params
+{
+    ydb *datablock;
+    bool updated;
+};
+
 static ydb_res ydb_update_sub(ynode *cur, void *addition)
 {
     ydb_res res = YDB_OK;
-    ydb *datablock = addition;
+    struct ydb_update_params *params = addition;
+    ydb *datablock = params->datablock;
     struct readhook *rhook = NULL;
     int pathlen = 0;
     char *path = ydb_path(datablock, cur, &pathlen);
@@ -1002,6 +1010,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
         {
             datablock->top = top;
             yconn_publish(NULL, datablock, YOP_MERGE, buf, buflen);
+            params->updated = true;
         }
         else
             res = YDB_E_MERGE_FAILED;
@@ -1016,8 +1025,15 @@ done:
 ydb_res ydb_update(ydb *datablock, ynode *target)
 {
     ydb_res res = YDB_OK;
+    struct ydb_update_params params;
     if (datablock && ytrie_size(datablock->updater) > 0)
-        res = ynode_traverse(target, ydb_update_sub, datablock, YNODE_LEAF_FIRST);
+    {
+        params.datablock = datablock;
+        params.updated = false;
+        res = ynode_traverse(target, ydb_update_sub, &params, YNODE_LEAF_FIRST);
+    }
+    if (!res)
+        return YDB_W_UPDATED;
     return res;
 }
 
@@ -1294,8 +1310,9 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
             YDB_FAIL(res, res);
         }
         src = ynode_search(datablock->top, buf);
-        ydb_update(datablock, src);
-        src = ynode_search(datablock->top, buf);
+        res = ydb_update(datablock, src);
+        if (res == YDB_W_UPDATED)
+            src = ynode_search(datablock->top, buf);
     }
 failed:
     CLEAR_BUF(buf, buflen);

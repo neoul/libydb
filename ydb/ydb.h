@@ -40,6 +40,7 @@ extern "C"
         YDB_E_CONN_FAILED,
         YDB_E_CONN_CLOSED,
         YDB_E_FUNC,
+        YDB_W_UPDATED,
     } ydb_res;
 
     extern char *ydb_res_str[];
@@ -172,7 +173,7 @@ extern "C"
     ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, int num, ...);
     void ydb_read_hook_delete(ydb *datablock, char *path);
 
-    // ydb_write_hook: The callback executed by ydb_write() to notify the change in the datablock.
+    // ydb_write_hook: The callback executed by ydb_write() or the remote ydb update to notify the change of the datablock.
     //  - ydb_write_hook0 - 4: The callback prototype according to the USER (U1-4) number.
     //  - op: 0: none, c: create, d: delete, r: replace
     //  - _cur: The current data node

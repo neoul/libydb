@@ -346,6 +346,8 @@ int main(int argc, char *argv[])
                     }
                     free(ycmd);
                     ycmd = ylist_pop_front(cmdlist);
+                    if (ycmd)
+                        fprintf(stdout, " ");
                 }
             }
         }
