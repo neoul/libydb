@@ -23,9 +23,9 @@ void usage(char *argv_0)
     printf("\n\
   -n, --name YDB_NAME              The name of created YDB (YAML DataBlock).\n\
   -r, --role (pub|sub|loc)         Set the role.\n\
-                                   pub(lisher): as distribution server\n\
-                                   sub(scriber): as distribution client\n\
-                                   loc(al): no connection to others\n\
+                                   pub(publisher): as distribution server\n\
+                                   sub(subscriber): as distribution client\n\
+                                   loc(local): no connection to others\n\
   -a, --addr YDB_ADDR              The YAML DataBlock communication address.\n\
                                    e.g. us:///tmp/ydb\n\
   -s, --summary                    Print all data at the termination.\n\
@@ -33,6 +33,7 @@ void usage(char *argv_0)
   -f, --file FILE                  Read data from FILE to send publisher\n\
   -w, --writeable                  Write data to the remote YDB\n\
   -u, --unsubscribe                Disable subscription\n\
+  -S, --sync-before-read           update YDB from remotes before read\n\
   -R, --reconnect                  Retry to reconnect upon the communication failure\n\
   -d, --daemon                     Runs in daemon mode\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
@@ -114,6 +115,7 @@ int main(int argc, char *argv[])
             {"file", required_argument, 0, 'f'},
             {"writeable", no_argument, 0, 'w'},
             {"unsubscribe", no_argument, 0, 'u'},
+            {"sync-before-read", no_argument, 0, 'S'},
             {"reconnect", no_argument, 0, 'R'},
             {"daemon", no_argument, 0, 'd'},
             {"verbose", required_argument, 0, 'v'},
@@ -123,7 +125,7 @@ int main(int argc, char *argv[])
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:r:a:sNf:wuRdv:h",
+        c = getopt_long(argc, argv, "n:r:a:sNf:wuSRdv:h",
                         long_options, &index);
         if (c == -1)
             break;
@@ -189,6 +191,9 @@ int main(int argc, char *argv[])
         case 'u':
             strcat(flags, ":u");
             break;
+        case 'S':
+            strcat(flags, ":sync");
+            break;
         case 'R':
             strcat(flags, ":r");
             break;
@@ -209,8 +214,7 @@ int main(int argc, char *argv[])
 
     if (!role)
     {
-        usage(argv[0]);
-        goto end;
+        role = "local";
     }
 
     if (verbose > 0)

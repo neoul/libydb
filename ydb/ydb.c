@@ -170,7 +170,6 @@ char *ydb_res_str[] =
         YDB_ERR_NAME(YDB_E_NO_ENTRY),
         YDB_ERR_NAME(YDB_E_MEM_ALLOC),
         YDB_ERR_NAME(YDB_E_FULL_BUF),
-        
         YDB_ERR_NAME(YDB_E_INVALID_YAML_TOKEN),
         YDB_ERR_NAME(YDB_E_YAML_INIT_FAILED),
         YDB_ERR_NAME(YDB_E_YAML_PARSING_FAILED),
@@ -191,10 +190,10 @@ typedef struct _yconn yconn;
 #define YCONN_WRITABLE 0x0002
 #define YCONN_UNSUBSCRIBE 0x0004
 #define YCONN_RECONNECT 0x0008
-#define YCONN_FLAGS_MASK 0x000f
-
-#define YCONN_UNREADABLE 0x0010
-#define YCONN_MAJOR_CONN 0x0020
+#define YCONN_SYNC 0x0010
+#define YCONN_UNREADABLE 0x0020
+#define YCONN_MAJOR_CONN 0x0040
+#define YCONN_FLAGS_MASK 0x00ff
 
 #define YCONN_TYPE_UNIX 0x0100
 #define YCONN_TYPE_INET 0x0200
@@ -306,7 +305,7 @@ struct _ydb
     ylist *disconn;
     int epollfd;
     int epollcount;
-    int unsubscribers;
+    int synccount;
 };
 
 ytrie *ydb_pool;
@@ -365,7 +364,7 @@ static void ydb_print(ydb *datablock, const char *func, int line, char *state)
     ydb_logger(YDB_LOG_INFO, func, line, "  name: %s\n", datablock->name);
     ydb_logger(YDB_LOG_INFO, func, line, "  epollfd: %d\n", datablock->epollfd);
     ydb_logger(YDB_LOG_INFO, func, line, "  epollcount: %d\n", datablock->epollcount);
-    ydb_logger(YDB_LOG_INFO, func, line, "  unsubscribers: %d\n", datablock->unsubscribers);
+    ydb_logger(YDB_LOG_INFO, func, line, "  synccount: %d\n", datablock->synccount);
     if (!ylist_empty(datablock->disconn))
     {
         ydb_logger(YDB_LOG_INFO, func, line,
@@ -424,12 +423,16 @@ failed:
     return NULL;
 }
 
-// address: use the unix socket if null
+// address: use the unix socket named to the YDB name if null
 //          us://unix-socket-name (unix socket)
 //          uss://unix-socket-name (hidden unix socket)
-// flags: p(publisher)/s(subscriber)
+//          tcp://ipaddr:port (tcp)
+//          fifo://named-fifo-input,named-fifo-output
+// flags: pub(publisher)/sub(subscriber)
 //        w(writable): connect to a remote to write.
 //        u(unsubscribe): disable the subscription of the data change
+//        r(reconnect mode): retry the connection in ydb_serve()
+//        s(sync-before-read mode): request the update of the YDB before ydb_read()
 // e.g. ydb_connect(db, "us:///tmp/ydb_channel", "sub:w")
 ydb_res ydb_connect(ydb *datablock, char *addr, char *flags)
 {
@@ -1179,7 +1182,7 @@ int ydb_read(ydb *datablock, const char *format, ...)
     }
 
     flags = YNODE_LEAF_FIRST | YNODE_VAL_ONLY;
-    if (datablock->unsubscribers > 0)
+    if (datablock->synccount > 0)
     {
         res = yconn_sync(NULL, datablock);
         YDB_FAIL(res, res);
@@ -1304,7 +1307,7 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
         vfprintf(fp, format, args);
         va_end(args);
         fclose(fp);
-        if (datablock->unsubscribers > 0)
+        if (datablock->synccount > 0)
         {
             res = yconn_sync(NULL, datablock);
             YDB_FAIL(res, res);
@@ -1592,21 +1595,16 @@ void yconn_socket_recv_head(yconn *conn, yconn_op *op, ymsg_type *type, unsigned
                 SET_FLAG(*flags, YCONN_UNSUBSCRIBE);
             else
                 UNSET_FLAG(*flags, YCONN_UNSUBSCRIBE);
-            if (opstr[3] == 'r')
-                SET_FLAG(*flags, YCONN_RECONNECT);
-            else
-                UNSET_FLAG(*flags, YCONN_RECONNECT);
         }
     }
     ydb_log_info("head {seq: %u, type: %s, op: %s}\n",
                  head->recv.seq, ymsg_str[*type], yconn_op_str[*op]);
     if (*flags)
     {
-        ydb_log_info("head {flags: %s%s%s%s}\n",
+        ydb_log_info("head {flags: %s%s%s}\n",
                      IS_SET(*flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
                      IS_SET(*flags, YCONN_WRITABLE) ? "w" : "_",
-                     IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_",
-                     IS_SET(*flags, YCONN_RECONNECT) ? "r" : "_");
+                     IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
     }
     ydb_log_info("data {%s}\n", *data ? *data : "");
     return;
@@ -1783,16 +1781,14 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     {
     case YOP_INIT:
         n += sprintf(msghead + n,
-                     "#flags: %s%s%s%s\n",
+                     "#flags: %s%s%s\n",
                      IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
                      IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "_",
-                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_",
-                     IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "_");
-        ydb_log_info("head {flags: %s%s%s%s}\n",
+                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
+        ydb_log_info("head {flags: %s%s%s}\n",
                      IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
                      IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "_",
-                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_",
-                     IS_SET(conn->flags, YCONN_RECONNECT) ? "r" : "_");
+                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
         break;
     default:
         break;
@@ -2003,11 +1999,11 @@ static unsigned int yconn_flags(char *address, char *flagstr)
     token = strtok(flagbuf, ":,.- ");
     while (token)
     {
-        if (strncmp(token, "subscriber", 1) == 0) // subscriber role
+        if (strncmp(token, "subscriber", 3) == 0) // subscriber role
         {
             UNSET_FLAG(flags, YCONN_ROLE_PUBLISHER);
         }
-        else if (strncmp(token, "publisher", 1) == 0) // publisher role
+        else if (strncmp(token, "publisher", 3) == 0) // publisher role
         {
             SET_FLAG(flags, YCONN_ROLE_PUBLISHER);
             SET_FLAG(flags, YCONN_WRITABLE);
@@ -2015,10 +2011,12 @@ static unsigned int yconn_flags(char *address, char *flagstr)
         }
         else if (strncmp(token, "unsubscribe", 1) == 0) // unsubscribe mode
             SET_FLAG(flags, YCONN_UNSUBSCRIBE);
-        else if (strncmp(token, "wriable", 1) == 0) // writable mode
+        else if (strncmp(token, "writable", 1) == 0) // writable mode
             SET_FLAG(flags, YCONN_WRITABLE);
         else if (strncmp(token, "reconnect", 1) == 0) // reconnect mode
             SET_FLAG(flags, YCONN_RECONNECT);
+        else if (strncmp(token, "sync-before-read", 1) == 0) // sync-before-read mode
+            SET_FLAG(flags, YCONN_SYNC);
         token = strtok(NULL, ":,.- ");
     }
 
@@ -2239,8 +2237,8 @@ static ydb *yconn_detach(yconn *conn)
     if (!conn || !conn->db)
         return NULL;
     datablock = conn->db;
-    if (IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
-        datablock->unsubscribers--;
+    if (IS_SET(conn->flags, YCONN_SYNC))
+        datablock->synccount--;
     conn->db = NULL;
 
     old = ytree_delete(datablock->conn, &conn->fd);
@@ -2285,8 +2283,8 @@ static ydb_res yconn_attach(yconn *conn, ydb *datablock)
     }
     old = ytree_insert(datablock->conn, &conn->fd, conn);
     YDB_ASSERT(old, YDB_E_PERSISTENCY_ERR);
-    if (IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
-        datablock->unsubscribers++;
+    if (IS_SET(conn->flags, YCONN_SYNC))
+        datablock->synccount++;
     conn->db = datablock;
     return YDB_OK;
 }
@@ -2393,7 +2391,7 @@ static ydb_res yconn_sync(yconn *src, ydb *datablock)
             continue;
         else if (IS_SET(conn->flags, STATUS_CLIENT))
         {
-            if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE))
+            if (!IS_SET(conn->flags, YCONN_SYNC))
                 continue;
         }
         else if (IS_SET(conn->flags, STATUS_COND_CLIENT))
@@ -2409,7 +2407,7 @@ static ydb_res yconn_sync(yconn *src, ydb *datablock)
                 ytree_insert(synclist, &conn->fd, conn);
         }
     }
-
+    ydb_log_info("sync request num: %d\n", ytree_size(synclist));
     while (ytree_size(synclist) > 0)
     {
         int i, n;
@@ -2696,7 +2694,6 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
                     CLEAR_BUF(buf, buflen);
                     ydb_dumps(conn->db, &buf, &buflen);
                     yconn_response(conn, YOP_INIT, res ? false : true, buf, buflen);
-                    // yconn_publish(conn, NULL, YOP_MERGE, buf, buflen);
                 }
             }
             break;
