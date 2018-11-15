@@ -78,7 +78,7 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
 
     res =
         ydb_write(datablock,
-                  "message:\n"
+                  "+msg:\n"
                   " src: %s\n"
                   " dest: %s\n"
                   "%s\n",
@@ -122,6 +122,7 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
     if (!db)
         return -1;
 
+    *datablock = NULL;
     idb = ydb_down(ydb_top(db));
     while (idb)
     {
@@ -147,7 +148,7 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
     // ydb_dump(db, stdout);
     // printf("=====\n\n");
 
-    idb = ydb_search(db, "message/dest");
+    idb = ydb_search(db, "+msg/dest");
     if (idb)
     {
         if (strcmp(ydb_value(idb), src_id) == 0)
