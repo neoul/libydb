@@ -41,6 +41,7 @@ extern "C"
         YDB_E_CONN_CLOSED,
         YDB_E_FUNC,
         YDB_W_UPDATED,
+        YDB_W_MORE_RECV,
     } ydb_res;
 
     extern char *ydb_res_str[];

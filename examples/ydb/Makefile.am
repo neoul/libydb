@@ -1,4 +1,5 @@
-bin_PROGRAMS = ymap-example ytree-example ytrie-example yalloc-example ylist-example yarray-example ytrie2-example ynode-example ydb-example
+bin_PROGRAMS = ymap-example ytree-example ytrie-example yalloc-example ylist-example \
+    yarray-example ytrie2-example ynode-example ydb-example yipc-example
 
 
 ymap_example_SOURCES = ymap-example.c
@@ -54,5 +55,11 @@ ydb_example_CPPFLAGS = -I $(top_srcdir)/ydb
 ydb_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
     -lydb -lyaml
 ydb_example_CFLAGS = -g -Wall
+
+yipc_example_SOURCES = yipc-example.c
+yipc_example_CPPFLAGS = -I $(top_srcdir)/ydb
+yipc_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+    -lydb -lyaml
+yipc_example_CFLAGS = -g -Wall
 
 # dist_pkgdata_DATA = ytrie-input.txt

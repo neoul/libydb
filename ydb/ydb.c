@@ -182,6 +182,7 @@ char *ydb_res_str[] =
         YDB_ERR_NAME(YDB_E_CONN_CLOSED),
         YDB_ERR_NAME(YDB_E_FUNC),
         YDB_ERR_NAME(YDB_W_UPDATED),
+        YDB_ERR_NAME(YDB_W_MORE_RECV),
 };
 
 typedef struct _yconn yconn;
@@ -306,6 +307,8 @@ struct _ydb
     int epollfd;
     int epollcount;
     int synccount;
+    yconn *under_recv;
+    struct timeval retrytime;
 };
 
 ytrie *ydb_pool;
@@ -1340,6 +1343,7 @@ struct yconn_socket_head
         FILE *fp;
         char *buf;
         size_t len;
+        int next;
     } recv;
 };
 
@@ -1537,7 +1541,9 @@ int yconn_socket_accept(yconn *conn, yconn *client)
     return cfd;
 }
 
-void yconn_socket_recv_head(yconn *conn, yconn_op *op, ymsg_type *type, unsigned int *flags, char **data, size_t *datalen)
+void yconn_default_recv_head(
+    yconn *conn, yconn_op *op, ymsg_type *type,
+    unsigned int *flags, char **data, size_t *datalen)
 {
     int j;
     int n = 0;
@@ -1606,7 +1612,7 @@ void yconn_socket_recv_head(yconn *conn, yconn_op *op, ymsg_type *type, unsigned
                      IS_SET(*flags, YCONN_WRITABLE) ? "w" : "_",
                      IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
     }
-    ydb_log_info("data {%s}\n", *data ? *data : "");
+    ydb_log_info("data {\n%s}\n", *data ? *data : "");
     return;
 failed:
     *op = head->recv.op = YOP_NONE;
@@ -1630,7 +1636,7 @@ ydb_res yconn_default_recv(
     if (IS_SET(conn->flags, STATUS_DISCONNECT))
         return YDB_E_CONN_FAILED;
 
-    if (*next && head->recv.fp && head->recv.buf)
+    if (head->recv.next && head->recv.fp && head->recv.buf)
     {
         start = head->recv.buf;
         end = strstr(start, "...\n");
@@ -1642,7 +1648,7 @@ ydb_res yconn_default_recv(
             len = head->recv.len;
             *data = start;
             *datalen = clen;
-            yconn_socket_recv_head(conn, op, type, flags, data, datalen);
+            yconn_default_recv_head(conn, op, type, flags, data, datalen);
             head->recv.buf = NULL;
             head->recv.len = 0;
             head->recv.fp = NULL;
@@ -1655,14 +1661,14 @@ ydb_res yconn_default_recv(
                     goto conn_failed;
                 fflush(head->recv.fp);
                 start[clen] = 0;
-                *next = 1;
+                *next = head->recv.next = 1;
                 return YDB_OK;
             }
             else
-                *next = 0;
+                *next = head->recv.next = 0;
         }
         else
-            *next = 0;
+            *next = head->recv.next = 0;
     }
     if (!head->recv.fp)
     {
@@ -1681,8 +1687,11 @@ ydb_res yconn_default_recv(
     }
     else
         start = recvbuf;
-    // len = recv(conn->fd, start, 2048, MSG_DONTWAIT);
-    len = read(conn->fd, start, 2048);
+
+    if (IS_SET(conn->flags, (YCONN_TYPE_INET | YCONN_TYPE_UNIX)))
+        len = recv(conn->fd, start, 2048, MSG_DONTWAIT);
+    else
+        len = read(conn->fd, start, 2048);
     if (len <= 0)
     {
         if (len == 0)
@@ -1705,7 +1714,7 @@ ydb_res yconn_default_recv(
     fclose(head->recv.fp);
     *data = head->recv.buf;
     *datalen = head->recv.len;
-    yconn_socket_recv_head(conn, op, type, flags, data, datalen);
+    yconn_default_recv_head(conn, op, type, flags, data, datalen);
     head->recv.buf = NULL;
     head->recv.len = 0;
     head->recv.fp = NULL;
@@ -1717,11 +1726,11 @@ ydb_res yconn_default_recv(
         if (fwrite(start + clen, len - clen, 1, head->recv.fp) != 1)
             goto conn_failed;
         fflush(head->recv.fp);
-        *next = 1;
+        *next = head->recv.next = 1;
     }
     else
     {
-        *next = 0;
+        *next = head->recv.next = 0;
     }
     return YDB_OK;
 keep_data:
@@ -1731,7 +1740,7 @@ keep_data:
             goto conn_failed;
         fflush(head->recv.fp);
     }
-    *next = 0;
+    *next = head->recv.next = 0;
     return YDB_OK;
 conn_failed:
     UNSET_FLAG(conn->flags, STATUS_MASK);
@@ -1746,7 +1755,7 @@ conn_closed:
     head->recv.fp = NULL;
     head->recv.buf = NULL;
     head->recv.len = 0;
-    *next = 0;
+    *next = head->recv.next = 0;
     return res;
 }
 
@@ -1754,7 +1763,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
 {
     int n, fd;
     ydb_res res;
-    char msghead[128];
+    char msghead[256];
     struct yconn_socket_head *head;
     ydb_log_in();
     if (IS_SET(conn->flags, STATUS_DISCONNECT))
@@ -1805,7 +1814,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
         if (n < 0)
             goto conn_failed;
     }
-    ydb_log_info("data {%s}\n", data ? data : "");
+    ydb_log_info("data {\n%s}\n", data ? data : "");
     n = write(fd, "...\n", 4);
     if (n < 0)
         goto conn_failed;
@@ -1873,8 +1882,8 @@ ydb_res yconn_file_init(yconn *conn)
             }
         }
         ydb_log_debug("fi=%s, fo=%s\n", fi, fo);
-
-        conn->fd = open(fi, O_RDWR);
+        // open(fifo_path, O_RDONLY | O_NONBLOCK);
+        conn->fd = open(fi, O_RDONLY | O_NONBLOCK);
         head->send.fd = open(fo, O_RDWR);
         if (conn->fd < 0 || head->send.fd < 0)
         {
@@ -1982,6 +1991,8 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
             ydb_logger(YDB_LOG_INFO, func, line,
                        " ydb(epollfd): %s(%d)\n",
                        conn->db->name, conn->db->epollfd);
+            ydb_logger(YDB_LOG_INFO, func, line,
+                       " ydb(synccount): %d\n", conn->db->synccount);
         }
     }
     else
@@ -2015,7 +2026,7 @@ static unsigned int yconn_flags(char *address, char *flagstr)
             SET_FLAG(flags, YCONN_WRITABLE);
         else if (strncmp(token, "reconnect", 1) == 0) // reconnect mode
             SET_FLAG(flags, YCONN_RECONNECT);
-        else if (strncmp(token, "sync-before-read", 1) == 0) // sync-before-read mode
+        else if (strncmp(token, "sync-before-read", 4) == 0) // sync-before-read mode
             SET_FLAG(flags, YCONN_SYNC);
         token = strtok(NULL, ":,.- ");
     }
@@ -2134,7 +2145,7 @@ static int yconn_accept(yconn *conn)
     ydb_log_inout();
     if (!conn)
         return -1;
-    conn_flags = yconn_flags(conn->address, "s:u:");
+    conn_flags = yconn_flags(conn->address, "sub:u:");
     client = yconn_new(conn->address, conn_flags);
     if (!client)
         return -1;
@@ -2714,7 +2725,7 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
     return YDB_OK;
 }
 
-ydb_res ydb_serve(ydb *datablock, int timeout)
+ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
 {
     ydb_res res;
     int i, n;
@@ -2726,24 +2737,39 @@ ydb_res ydb_serve(ydb *datablock, int timeout)
     n = ylist_size(datablock->disconn);
     if (n > 0)
     {
-        for (i = 0; i < n; i++)
+        int retry_ms;
+        struct timeval cur;
+        gettimeofday(&cur, NULL);
+        retry_ms = (cur.tv_sec - datablock->retrytime.tv_sec) * 1000;
+        retry_ms = retry_ms + (cur.tv_usec - datablock->retrytime.tv_usec) / 1000;
+        if (retry_ms < 0 || retry_ms >= YDB_TIMEOUT)
         {
-            yconn *conn = ylist_pop_front(datablock->disconn);
-            if (!conn)
-                break;
-            yconn_reopen(conn, datablock);
+            for (i = 0; i < n; i++)
+            {
+                yconn *conn = ylist_pop_front(datablock->disconn);
+                if (!conn)
+                    break;
+                ydb_log_info("re-connect to %s ..\n", conn->address);
+                yconn_reopen(conn, datablock); // conn will push back on failure
+            }
+            gettimeofday(&datablock->retrytime, NULL);
         }
     }
+    if (datablock->under_recv)
+    {
+        int next = 0;
+        yconn_op op = YOP_NONE;
+        ymsg_type type = YMSG_NONE;
+        yconn_recv(datablock->under_recv, &op, &type, &next);
+        datablock->under_recv = NULL;
+    }
+
     res = YDB_OK;
     n = ylist_size(datablock->disconn);
     if (n > 0)
     {
         if (timeout < 0 || timeout > YDB_TIMEOUT)
             timeout = YDB_TIMEOUT;
-    }
-    else
-    {
-        YDB_FAIL(datablock->epollcount <= 0, YDB_E_NO_CONN);
     }
     n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
     if (n < 0)
@@ -2761,16 +2787,34 @@ ydb_res ydb_serve(ydb *datablock, int timeout)
             yconn_accept(conn);
         else
         {
-            int next = 1;
+            int next = 0;
             yconn_op op = YOP_NONE;
             ymsg_type type = YMSG_NONE;
-            while (next)
+            if (once_recv)
+            {
                 yconn_recv(conn, &op, &type, &next);
+                if (next)
+                    datablock->under_recv = conn;
+                if (i + 1 < n || next)
+                    res = YDB_W_MORE_RECV;
+                break;
+            }
+            else
+            {
+                do {
+                    yconn_recv(conn, &op, &type, &next);
+                } while (next);
+            }
         }
     }
 failed:
     ydb_log_out();
     return res;
+}
+
+ydb_res ydb_serve(ydb *datablock, int timeout)
+{
+    return ydb_recv(datablock, timeout, false);
 }
 
 int ydb_fd(ydb *datablock)

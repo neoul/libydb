@@ -21,7 +21,7 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...);
 
 int yipc_send_sync(char *src_id, char *dest_id, const char *format, ...);
 
-int yipc_recv(char *src_id, char **dest_id, ydb **datablock);
+int yipc_recv(char *src_id, int timeout, ydb **datablock);
 
 int yipc_state(char *id);
 
