@@ -1050,7 +1050,6 @@ static void ynode_log_update(struct _ynode_log *log, ynode *cur)
 
 static void ynode_log_print(struct _ynode_log *log, ynode *cur)
 {
-    int size;
     ynode *n;
     ylist *nodes;
     if (!log)
@@ -1070,9 +1069,7 @@ static void ynode_log_print(struct _ynode_log *log, ynode *cur)
         n = n->parent;
     };
 
-    size = ylist_size(nodes);
     n = ylist_pop_front(nodes);
-    ynode_log_debug("nodes size=%d\n", size);
     while (n)
     {
         int only_val = 0;
@@ -1106,7 +1103,6 @@ static void ynode_log_print(struct _ynode_log *log, ynode *cur)
         log->indent++;
         n = ylist_pop_front(nodes);
     }
-
     // update latest print node
     log->latest = cur;
     ylist_destroy(nodes);
@@ -1712,7 +1708,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     }
     if (anchors)
         ytrie_destroy_custom(anchors, yfree);
-
+    // ynode_dump(top, 0, 24);
     CLEAR_YSTR(key);
     *n = top;
     if (queryform)
@@ -2380,6 +2376,8 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
         ynode_free(cur);
         break;
     case YHOOK_OP_NONE:
+        ynode_log_update(log, cur);
+        break;
     default:
         break;
     }
