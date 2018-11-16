@@ -1404,6 +1404,7 @@ ydb_res yconn_socket_init(yconn *conn)
         char *cport;
         in_addr_t caddr;
         char cname[128];
+        int socket_opt = 0;
         strcpy(cname, &(address[strlen("tcp://")]));
         cport = strtok(cname, ":");
         cport = strtok(NULL, ":");
@@ -1419,8 +1420,11 @@ ydb_res yconn_socket_init(yconn *conn)
         addr.in.sin_addr.s_addr = caddr;
         addr.in.sin_port = htons(atoi(cport));
         addrlen = sizeof(struct sockaddr_in);
-
-        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
+        socket_opt = SO_REUSEADDR;
+#ifdef SO_REUSEPORT
+        socket_opt =  socket_opt | SO_REUSEPORT;
+#endif
+        if (setsockopt(fd, SOL_SOCKET, socket_opt, &opt, sizeof(opt)))
         {
             yconn_errno(conn, YDB_E_SYSTEM_FAILED);
             return YDB_E_SYSTEM_FAILED;
