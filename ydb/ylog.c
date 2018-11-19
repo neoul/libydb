@@ -61,7 +61,7 @@ int ylog_quiet(
 }
 
 unsigned int ylog_severity = YLOG_ERROR;
-ylog_func ylog_logger = ylog_quiet;
+ylog_func ylog_logger = ylog_general;
 int ylog_register(ylog_func func)
 {
     ylog_logger = func;
