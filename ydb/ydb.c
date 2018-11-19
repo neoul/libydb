@@ -610,8 +610,10 @@ void ydb_close(ydb *datablock)
 ydb *ydb_get(char *name_and_path, ynode **node)
 {
     ydb *datablock;
-    int mlen = 0;
-    int slen = strlen(name_and_path);
+    int mlen = 0, slen;
+    if (!name_and_path)
+        return NULL;
+    slen = strlen(name_and_path);
     datablock = ytrie_best_match(ydb_pool, name_and_path, slen, &mlen);
     if (datablock && node)
     {
