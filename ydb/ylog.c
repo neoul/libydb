@@ -7,7 +7,7 @@
 
 #include "ylog.h"
 
-int ylog_func_example(
+int ylog_general(
     int severity, const char *func, int line, const char *format, ...)
 {
     int len = -1;
@@ -54,14 +54,14 @@ int ylog_func_example(
     return len;
 }
 
-int ydb_quiet(
+int ylog_quiet(
     int severity, const char *func, int line, const char *format, ...)
 {
     return 0;
 }
 
 unsigned int ylog_severity = YLOG_ERROR;
-ylog_func ylog_logger = ydb_quiet;
+ylog_func ylog_logger = ylog_quiet;
 int ylog_register(ylog_func func)
 {
     ylog_logger = func;
