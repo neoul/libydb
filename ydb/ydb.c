@@ -550,6 +550,8 @@ ydb *ydb_get(char *name_and_path, ynode **node)
     if (!name_and_path)
         return NULL;
     slen = strlen(name_and_path);
+    if (!ydb_pool)
+        return NULL;
     datablock = ytrie_best_match(ydb_pool, name_and_path, slen, &mlen);
     if (datablock && node)
     {
