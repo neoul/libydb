@@ -36,6 +36,9 @@ int test_ydb_open_close()
 	block2 = ydb_open("/path/to/datablock2");
 	block3 = ydb_open("/path/to/datablock3");
 
+	ydb *ref = ydb_get("test", NULL);
+	ydb_path_write(ref, "ok=%s", "okkk!");
+
 	ydb_close(block3);
 	ydb_close(block2);
 	ydb_close(block1);

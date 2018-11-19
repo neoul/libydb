@@ -45,27 +45,33 @@ int ydb_logger_example(
     {
     case YDB_LOG_DEBUG:
         fp = stdout;
-        fprintf(fp, "** ydb::debug::%s:%d: ", func, line);
+        if (fp)
+            fprintf(fp, "** ydb::debug::%s:%d: ", func, line);
         break;
     case YDB_LOG_INOUT:
         fp = stdout;
-        fprintf(fp, "** ydb::inout:%s:%d: ", func, line);
+        if (fp)
+            fprintf(fp, "** ydb::inout:%s:%d: ", func, line);
         break;
     case YDB_LOG_INFO:
         fp = stdout;
-        fprintf(fp, "** ydb::info::%s:%d: ", func, line);
+        if (fp)
+            fprintf(fp, "** ydb::info::%s:%d: ", func, line);
         break;
     case YDB_LOG_WARN:
         fp = stdout;
-        fprintf(fp, "** ydb::warn::%s:%d: ", func, line);
+        if (fp)
+            fprintf(fp, "** ydb::warn::%s:%d: ", func, line);
         break;
     case YDB_LOG_ERR:
-        fp = stdout;
-        fprintf(fp, "** ydb::error:%s:%d: ", func, line);
+        fp = stderr;
+        if (fp)
+            fprintf(fp, "** ydb::error:%s:%d: ", func, line);
         break;
     case YDB_LOG_CRI:
-        fp = stdout;
-        fprintf(fp, "** ydb::critical:%s:%d: ", func, line);
+        fp = stderr;
+        if (fp)
+            fprintf(fp, "** ydb::critical:%s:%d: ", func, line);
         break;
     default:
         return 0;
@@ -74,6 +80,12 @@ int ydb_logger_example(
     len = vfprintf(fp, format, args);
     va_end(args);
     return len;
+}
+
+int ydb_quiet(
+    int severity, const char *func, int line, const char *format, ...)
+{
+    return 0;
 }
 
 unsigned int ydb_log_severity = YDB_LOG_ERR;
@@ -1424,7 +1436,7 @@ ydb_res yconn_socket_init(yconn *conn)
         addrlen = sizeof(struct sockaddr_in);
         socket_opt = SO_REUSEADDR;
 #ifdef SO_REUSEPORT
-        socket_opt =  socket_opt | SO_REUSEPORT;
+        socket_opt = socket_opt | SO_REUSEPORT;
 #endif
         if (setsockopt(fd, SOL_SOCKET, socket_opt, &opt, sizeof(opt)))
         {
@@ -2807,7 +2819,8 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
             }
             else
             {
-                do {
+                do
+                {
                     yconn_recv(conn, &op, &type, &next);
                 } while (next);
             }
