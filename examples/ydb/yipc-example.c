@@ -26,8 +26,8 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	// ydb_log_severity = YDB_LOG_INFO;
-	// ydb_log_severity = YDB_LOG_DEBUG;
+	// ylog_severity = YLOG_INFO;
+	// ylog_severity = YLOG_DEBUG;
 	src = argv[1];
 	dest = argv[2];
 	send_count = atoi(argv[3]);

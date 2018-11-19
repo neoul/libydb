@@ -46,18 +46,6 @@ extern "C"
 
     extern char *ydb_res_str[];
 
-#define YDB_LOG_DEBUG 5
-#define YDB_LOG_INOUT 4
-#define YDB_LOG_INFO 3
-#define YDB_LOG_WARN 2
-#define YDB_LOG_ERR 1
-#define YDB_LOG_CRI 0
-
-    // Set YAML DataBlock log severity
-    extern unsigned int ydb_log_severity;
-    typedef int (*ydb_log_func)(int severity, const char *func, int line, const char *format, ...);
-    int ydb_log_register(ydb_log_func func);
-
     // YAML DataBlock structure
     typedef struct _ydb ydb;
     typedef struct _ynode ydb_iter; // The node reference of YDB
@@ -163,7 +151,7 @@ extern "C"
     //        YAML format stream should be written by the ydb_read_hook.
     //  - U1-4: The user-defined data
     //  - num: The number of the user-defined data (U1-4)
-    
+
     typedef ydb_res (*ydb_read_hook0)(ydb *datablock, char *path, FILE *fp);
     typedef ydb_res (*ydb_read_hook1)(ydb *datablock, char *path, FILE *fp, void *U1);
     typedef ydb_res (*ydb_read_hook2)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2);

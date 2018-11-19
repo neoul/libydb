@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/select.h>
 
+#include "ylog.h"
 #include "ylist.h"
 #include "ydb.h"
 
@@ -179,11 +180,11 @@ int main(int argc, char *argv[])
             break;
         case 'v':
             if (strcmp(optarg, "debug") == 0)
-                verbose = YDB_LOG_DEBUG;
+                verbose = YLOG_DEBUG;
             else if (strcmp(optarg, "inout") == 0)
-                verbose = YDB_LOG_INOUT;
+                verbose = YLOG_INOUT;
             else if (strcmp(optarg, "info") == 0)
-                verbose = YDB_LOG_INFO;
+                verbose = YLOG_INFO;
             break;
         case 'w':
             strcat(flags, ":w");
@@ -256,7 +257,7 @@ int main(int argc, char *argv[])
         signal(SIGINT, HANDLER_SIGINT);
 
         if (verbose)
-            ydb_log_severity = verbose;
+            ylog_severity = verbose;
 
         datablock = ydb_open(name ? name : "top");
         if (!datablock)
@@ -359,7 +360,7 @@ int main(int argc, char *argv[])
         if (summary)
         {
             fprintf(stdout, "\n# %s\n", ydb_name(datablock));
-            if (verbose == YDB_LOG_DEBUG)
+            if (verbose == YLOG_DEBUG)
                 ydb_dump_debug(datablock, stdout);
             else
                 ydb_dump(datablock, stdout);

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include "ylog.h"
 #include "ydb.h"
 #include "ynode.h"
 
@@ -159,7 +159,7 @@ int test_ynode_scanf_from_buf()
 
 int test_ynode_crud()
 {
-	// ydb_log_severity = YDB_LOG_DEBUG;
+	// ylog_severity = YLOG_DEBUG;
 	printf("\n\n=== %s ===\n", __func__);
 	ynode *node, *clone;
 	ynode *a, *b, *c;
@@ -294,43 +294,43 @@ int test_yhook()
 
 int main(int argc, char *argv[])
 {
-	if(test_ynode_scanf_from_fp("ynode-value.yaml"))
-	{
-		printf("test_ynode_scanf_from_fp() failed.\n");
-	}
-	
-	if(test_ynode_scanf_from_fp("ynode-list.yaml"))
-	{
-		printf("test_ynode_scanf_from_fp() failed.\n");
-	}
-
-	if(test_ynode_scanf_from_fp("ynode-dict.yaml"))
-	{
-		printf("test_ynode_scanf_from_fp() failed.\n");
-	}
-
-	// if(test_ynode_scanf_from_buf())
+	// if(test_ynode_scanf_from_fp("ynode-value.yaml"))
 	// {
-	// 	printf("test_ynode_scanf_from_buf() failed.\n");
+	// 	printf("test_ynode_scanf_from_fp() failed.\n");
 	// }
 	
-	if(test_ynode_search_and_iterate("ynode-input.yaml"))
-	{
-		printf("test_ynode_search_and_iterate() failed.\n");
-	}
+	// if(test_ynode_scanf_from_fp("ynode-list.yaml"))
+	// {
+	// 	printf("test_ynode_scanf_from_fp() failed.\n");
+	// }
 
-	if(test_ynode_path("ynode-input.yaml"))
-	{
-		printf("test_ynode_path() failed.\n");
-	}
+	// if(test_ynode_scanf_from_fp("ynode-dict.yaml"))
+	// {
+	// 	printf("test_ynode_scanf_from_fp() failed.\n");
+	// }
 
-	ydb_log_severity = YDB_LOG_DEBUG;
+	// // if(test_ynode_scanf_from_buf())
+	// // {
+	// // 	printf("test_ynode_scanf_from_buf() failed.\n");
+	// // }
+	
+	// if(test_ynode_search_and_iterate("ynode-input.yaml"))
+	// {
+	// 	printf("test_ynode_search_and_iterate() failed.\n");
+	// }
+
+	// if(test_ynode_path("ynode-input.yaml"))
+	// {
+	// 	printf("test_ynode_path() failed.\n");
+	// }
+
+	ylog_severity = YLOG_DEBUG;
 	if(test_ynode_crud())
 	{
 		printf("test_ynode_crud() failed.\n");
 	}
 
-	ydb_log_severity = YDB_LOG_DEBUG;
+	ylog_severity = YLOG_DEBUG;
 	if(test_yhook())
 	{
 		printf("test_yhook() failed.\n");

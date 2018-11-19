@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "ylog.h"
 #include "ydb.h"
 
 char *example_yaml =
@@ -184,7 +185,7 @@ _done:
 
 int main(int argc, char *argv[])
 {
-	ydb_log_severity = YDB_LOG_DEBUG;
+	ylog_severity = YLOG_DEBUG;
 	TEST_FUNC(test_ydb_open_close);
 	TEST_FUNC(test_ydb_read_write);
 	return 0;
