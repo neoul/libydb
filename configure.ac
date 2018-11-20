@@ -41,8 +41,6 @@ AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_CONFIG_FILES([Makefile
                  examples/ydb/Makefile
-                 tools/ymldb/Makefile
                  tools/ydb/Makefile
-                 ymldb/Makefile
                  ydb/Makefile])
 AC_OUTPUT

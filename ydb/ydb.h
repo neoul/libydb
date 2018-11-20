@@ -115,14 +115,14 @@ extern "C"
     int ydb_index(ydb_iter *iter);
 
     // update the data in the ydb using file stream
-    ydb_res ydb_parse(ydb *datablock, FILE *fp);
+    ydb_res ydb_parse(ydb *datablock, FILE *stream);
     ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen);
 
     // print the data in the ydb into the file stream
-    int ydb_dump(ydb *datablock, FILE *fp);
+    int ydb_dump(ydb *datablock, FILE *stream);
     int ydb_dumps(ydb *datablock, char **buf, size_t *buflen);
 
-    int ydb_dump_debug(ydb *datablock, FILE *fp);
+    int ydb_dump_debug(ydb *datablock, FILE *stream);
 
     // update and delete data in ydb using the input string (yaml format)
     ydb_res ydb_write(ydb *datablock, const char *format, ...);
@@ -130,6 +130,9 @@ extern "C"
 
     // read the date from ydb as the scanf() (yaml format)
     int ydb_read(ydb *datablock, const char *format, ...);
+
+    // print the target data to the stream
+    int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...);
 
     // update & delete the ydb using input path and value
     // ydb_path_write(datablock, "/path/to/update=%d", value)
@@ -152,11 +155,11 @@ extern "C"
     //  - U1-4: The user-defined data
     //  - num: The number of the user-defined data (U1-4)
 
-    typedef ydb_res (*ydb_read_hook0)(ydb *datablock, char *path, FILE *fp);
-    typedef ydb_res (*ydb_read_hook1)(ydb *datablock, char *path, FILE *fp, void *U1);
-    typedef ydb_res (*ydb_read_hook2)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2);
-    typedef ydb_res (*ydb_read_hook3)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2, void *U3);
-    typedef ydb_res (*ydb_read_hook4)(ydb *datablock, char *path, FILE *fp, void *U1, void *U2, void *U3, void *U4);
+    typedef ydb_res (*ydb_read_hook0)(ydb *datablock, char *path, FILE *stream);
+    typedef ydb_res (*ydb_read_hook1)(ydb *datablock, char *path, FILE *stream, void *U1);
+    typedef ydb_res (*ydb_read_hook2)(ydb *datablock, char *path, FILE *stream, void *U1, void *U2);
+    typedef ydb_res (*ydb_read_hook3)(ydb *datablock, char *path, FILE *stream, void *U1, void *U2, void *U3);
+    typedef ydb_res (*ydb_read_hook4)(ydb *datablock, char *path, FILE *stream, void *U1, void *U2, void *U3, void *U4);
     typedef ydb_read_hook1 ydb_read_hook;
 
     ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, int num, ...);

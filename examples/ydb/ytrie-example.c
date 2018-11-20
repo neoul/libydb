@@ -108,10 +108,19 @@ int main(int argc, char *argv[])
 		};
 		for(i=0; i < (sizeof(item)/sizeof(char *)); i++)
 		{
-			printf("search : %s (%ld)\n", item[i], strlen(item[i]));
+			printf("best match : %s (%ld)\n", item[i], strlen(item[i]));
 			searchvalue = ytrie_best_match(trie, item[i], strlen(item[i]), &matchlen);
 			if(searchvalue)
-				printf("  [SEARCH] search value: %s, match_len %d\n", searchvalue, matchlen);
+				printf("  [SEARCH] best match value: %s, match_len %d\n", searchvalue, matchlen);
+			else
+				printf("  [SEARCH] -- failed\n");
+		}
+		for(i=0; i < (sizeof(item)/sizeof(char *)); i++)
+		{
+			printf("search : %s (%ld)\n", item[i], strlen(item[i]));
+			searchvalue = ytrie_search(trie, item[i], strlen(item[i]));
+			if(searchvalue)
+				printf("  [SEARCH] search value: %s\n", searchvalue);
 			else
 				printf("  [SEARCH] -- failed\n");
 		}

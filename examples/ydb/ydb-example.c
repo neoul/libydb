@@ -165,6 +165,9 @@ int test_ydb_read_write()
 	char *temp = ydb_path_read(datablock, "system/temporature");
 	printf("temporature=%d\n", atoi(temp));
 
+	ydb_fprintf(stdout, datablock, "system: {fan-speed, hostname}\n");
+	ydb_fprintf(stdout, datablock, "system:\n");
+
 	ydb_path_delete(datablock, "system/os");
 
 _done:

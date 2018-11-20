@@ -19,6 +19,11 @@ extern "C"
     ynode_log *ynode_log_open(ynode *top, FILE *dumpfp);
     void ynode_log_close(ynode_log *log, char **buf, size_t *buflen);
 
+
+    // get the src nodes' data using the log (ynode_log).
+    // return the number of nodes printed to the log (ynode_log).
+    int ynode_get(ynode *src, ynode_log *log);
+
     // ynode operation (Create, Merge, Delete) interfaces
     // create single ynode and attach to parent.
     // return created ynode.

@@ -2367,6 +2367,58 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     return new;
 }
 
+// get the src nodes' data using the log (ynode_log).
+// return the number of nodes printed to the log (ynode_log).
+int ynode_get(ynode *src, ynode_log *log)
+{
+    int n = 0;
+    if (!src)
+        return 0;
+    ynode_log_print(log, src);
+    n += 1;
+    switch (src->type)
+    {
+    case YNODE_TYPE_MAP:
+    {
+        ytree_iter *iter = ytree_first(src->map);
+        for (; iter != NULL; iter = ytree_next(src->map, iter))
+        {
+            ynode *src_child = ytree_data(iter);
+            n += ynode_get(src_child, log);
+        }
+        break;
+    }
+    case YNODE_TYPE_OMAP:
+    {
+        ymap_iter *iter = ymap_first(src->omap);
+        for (; iter != NULL; iter = ymap_next(src->omap, iter))
+        {
+            ynode *src_child = ymap_data(iter);
+            n += ynode_get(src_child, log);
+        }
+        break;
+    }
+    case YNODE_TYPE_LIST:
+    {
+        ylist_iter *iter;
+        for (iter = ylist_first(src->list);
+                !ylist_done(src->list, iter);
+                iter = ylist_next(src->list, iter))
+        {
+            ynode *src_child = ylist_data(iter);
+            n += ynode_get(src_child, log);
+        }
+        break;
+    }
+    case YNODE_TYPE_VAL:
+        break;
+    default:
+        assert(!YDB_E_TYPE_ERR);
+    }
+    ynode_log_update(log, src);
+    return n;
+}
+
 // create single ynode and attach to parent
 // return created ynode
 ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_log *log)
