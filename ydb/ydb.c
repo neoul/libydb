@@ -2735,7 +2735,7 @@ static ydb_res yconn_read(yconn *conn, char *inbuf, size_t inbuflen, char **outb
     datablock = conn->db;
     if (datablock->synccount > 0)
     {
-        res = yconn_sync(NULL, datablock, inbuf, inbuflen);
+        res = yconn_sync(conn, datablock, inbuf, inbuflen);
         if (res)
         {
             ylog_out();
