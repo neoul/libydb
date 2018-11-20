@@ -167,6 +167,8 @@ int test_ydb_read_write()
     ydb_fprintf(stdout, datablock, "system: {fan-speed, hostname}\n");
     ydb_fprintf(stdout, datablock, "system:\n");
 
+    ydb_path_fprintf(stdout, datablock, "/system");
+
     ydb_path_delete(datablock, "system/os");
 
 _done:

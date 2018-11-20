@@ -1428,6 +1428,52 @@ failed:
     return NULL;
 }
 
+int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
+{
+    ydb_res res = YDB_OK;
+    ynode *src = NULL;
+    FILE *fp;
+    char *path = NULL;
+    size_t pathlen = 0;
+    int ret = 0;
+
+    ylog_in();
+    YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
+    fp = open_memstream(&path, &pathlen);
+    YDB_FAIL(!fp, YDB_E_STREAM_FAILED);
+
+    va_list args;
+    va_start(args, format);
+    vfprintf(fp, format, args);
+    va_end(args);
+    fclose(fp);
+
+    src = ynode_top(ynode_create_path(path, NULL, NULL));
+    if (datablock->synccount > 0)
+    {
+        char buf[512];
+        int buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
+        res = yconn_sync(NULL, datablock, buf, buflen);
+        YDB_FAIL(res, res);
+    }
+    if (src)
+    {
+        if (ytrie_size(datablock->updater) > 0)
+            res = ydb_update(NULL, datablock, src);
+        ynode_remove(src);
+    }
+    src = ynode_search(datablock->top, path);
+    if (src)
+    {
+        int level = ynode_level(datablock->top, src);
+        ret = ynode_printf_to_fp(stream, src, 0-level, YDB_LEVEL_MAX);
+    }
+failed:
+    CLEAR_BUF(path, pathlen);
+    ylog_out();
+    return ret;
+}
+
 struct yconn_socket_head
 {
     struct

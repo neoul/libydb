@@ -2121,7 +2121,10 @@ int ynode_level(ynode *top, ynode *node)
         n = n->parent;
         level++;
     }
-    return level;
+    if (n)
+        return level;
+    else
+        return 0;
 }
 
 char *ynode_path(ynode *node, int level, int *pathlen)

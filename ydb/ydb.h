@@ -143,6 +143,8 @@ extern "C"
     // char *value = ydb_path_read(datablock, "/path/to/update")
     char *ydb_path_read(ydb *datablock, const char *format, ...);
 
+    int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...);
+
     ydb_res ydb_serve(ydb *datablock, int timeout);
 
     int ydb_fd(ydb *datablock);
