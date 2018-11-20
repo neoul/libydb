@@ -887,6 +887,7 @@ struct readhook
 
 struct ydb_update_params
 {
+    yconn *src_conn;
     ydb *datablock;
     bool updated;
     struct readhook *rhook;
@@ -948,7 +949,7 @@ static ydb_res ydb_update_rhook_exec(struct ydb_update_params *params, struct re
     if (top)
     {
         datablock->top = top;
-        yconn_publish(NULL, datablock, YOP_MERGE, buf, buflen);
+        yconn_publish(params->src_conn, datablock, YOP_MERGE, buf, buflen);
         params->updated = true;
     }
     else
@@ -1005,10 +1006,11 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
     return YDB_OK;
 }
 
-ydb_res ydb_update(ydb *datablock, ynode *target)
+ydb_res ydb_update(yconn *src_conn, ydb *datablock, ynode *target)
 {
     ydb_res res = YDB_OK;
     struct ydb_update_params params;
+    params.src_conn = src_conn;
     params.datablock = datablock;
     params.updated = false;
     params.rhook = NULL;
@@ -1202,7 +1204,7 @@ int ydb_read(ydb *datablock, const char *format, ...)
         YDB_FAIL(res, res);
     }
     if (ytrie_size(datablock->updater) > 0)
-        ydb_update(datablock, src);
+        ydb_update(NULL, datablock, src);
     res = ynode_traverse(src, ydb_read_sub, &data, flags);
     YDB_FAIL(res, res);
     ylog_debug("var read = %d\n", data.varnum);
@@ -1275,7 +1277,7 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
         YDB_FAIL(res || !src, res);
         CLEAR_BUF(buf, buflen);
         if (ytrie_size(datablock->updater) > 0)
-            ydb_update(datablock, src);
+            ydb_update(NULL, datablock, src);
         log = ynode_log_open(datablock->top, NULL);
         data.log = log;
         data.datablock = datablock;
@@ -1406,14 +1408,14 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
         if (datablock->synccount > 0)
         {
             char buf[512];
-            int buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 0, YDB_LEVEL_MAX);
+            int buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
             res = yconn_sync(NULL, datablock, buf, buflen);
             YDB_FAIL(res, res);
         }
         if (src)
         {
             if (ytrie_size(datablock->updater) > 0)
-                res = ydb_update(datablock, src);
+                res = ydb_update(NULL, datablock, src);
             ynode_remove(src);
         }
         src = ynode_search(datablock->top, path);
@@ -2467,6 +2469,7 @@ static ydb_res yconn_publish(yconn *src_target, ydb *datablock, yconn_op op, cha
     {
         ylist_push_back(publist, src_target);
     }
+    ylog_info("num to send: %d\n", ylist_size(publist));
     conn = ylist_pop_front(publist);
     while (conn)
     {
@@ -2733,7 +2736,7 @@ static ydb_res yconn_read(yconn *conn, char *inbuf, size_t inbuflen, char **outb
     ynode *src = NULL;
     ylog_in();
     datablock = conn->db;
-    if (datablock->synccount > 0)
+    // if (datablock->synccount > 0)
     {
         res = yconn_sync(conn, datablock, inbuf, inbuflen);
         if (res)
@@ -2756,7 +2759,7 @@ static ydb_res yconn_read(yconn *conn, char *inbuf, size_t inbuflen, char **outb
         ynode_log *log = NULL;
         struct ydb_fprintf_data data;
         if (ytrie_size(datablock->updater) > 0)
-            ydb_update(datablock, src);
+            ydb_update(conn, datablock, src);
         log = ynode_log_open(datablock->top, NULL);
         data.log = log;
         data.datablock = datablock;
@@ -2852,7 +2855,8 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
                 {
                     char *rbuf = NULL;
                     size_t rbuflen = 0;
-                    ydb_dumps(conn->db, &rbuf, &rbuflen);
+                    // ydb_dumps(conn->db, &rbuf, &rbuflen);
+                    res = yconn_read(conn, buf, buflen, &rbuf, &rbuflen);
                     yconn_response(conn, YOP_INIT, res ? false : true, rbuf, rbuflen);
                     CLEAR_BUF(rbuf, rbuflen);
                 }

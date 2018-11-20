@@ -1019,28 +1019,33 @@ void ynode_log_close(struct _ynode_log *log, char **buf, size_t *buflen)
     }
 }
 
-static void ynode_log_update(struct _ynode_log *log, ynode *cur)
+static void ynode_log_update(struct _ynode_log *log, ynode *cur, int indent)
 {
-    if (log && log->latest)
+    if (log)
     {
-        if (cur == log->latest)
+        int cnt;
+        for (cnt = 0; cnt < indent; cnt++)
         {
-            log->latest = cur->parent;
-            log->indent--;
+            if (cur != NULL)
+                cur = cur->parent;
         }
+        log->latest = cur;
+        log->indent -= indent;
     }
 }
 
-static void ynode_log_print(struct _ynode_log *log, ynode *cur)
+static int ynode_log_print(struct _ynode_log *log, ynode *cur)
 {
+    int indent_diff;
     ynode *n;
     ylist *nodes;
     if (!log)
-        return;
+        return 0;
     nodes = ylist_create();
     if (!nodes)
-        return;
+        return 0;
     n = cur;
+    indent_diff = log->indent;
 
     while (n)
     {
@@ -1087,9 +1092,10 @@ static void ynode_log_print(struct _ynode_log *log, ynode *cur)
         n = ylist_pop_front(nodes);
     }
     // update latest print node
+    indent_diff = log->indent - indent_diff;
     log->latest = cur;
     ylist_destroy(nodes);
-    return;
+    return indent_diff;
 }
 
 int ydb_log_err_yaml(yaml_parser_t *parser)
@@ -2213,6 +2219,7 @@ char *yhook_op_str(char op)
 static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ynode_log *log)
 {
     ynode *new = NULL;
+    int indent_diff = 0;
     char op;
     if (parent)
     {
@@ -2275,16 +2282,16 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     case YHOOK_OP_CREATE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
-        ynode_log_print(log, new);
+        indent_diff = ynode_log_print(log, new);
         break;
     case YHOOK_OP_REPLACE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
-        ynode_log_print(log, new);
+        indent_diff = ynode_log_print(log, new);
         break;
     case YHOOK_OP_DELETE:
         yhook_pre_run_for_delete(cur);
-        ynode_log_print(log, cur);
+        indent_diff = ynode_log_print(log, cur);
         break;
     case YHOOK_OP_NONE:
     default:
@@ -2345,21 +2352,21 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     switch (op)
     {
     case YHOOK_OP_CREATE:
-        ynode_log_update(log, new);
+        ynode_log_update(log, new, indent_diff);
         yhook_post_run(op, parent, cur, new);
         break;
     case YHOOK_OP_REPLACE:
-        ynode_log_update(log, new);
+        ynode_log_update(log, new, indent_diff);
         yhook_post_run(op, parent, cur, new);
         ynode_free(cur);
         break;
     case YHOOK_OP_DELETE:
-        ynode_log_update(log, cur);
+        ynode_log_update(log, cur, indent_diff);
         ynode_detach(cur);
         ynode_free(cur);
         break;
     case YHOOK_OP_NONE:
-        ynode_log_update(log, cur);
+        ynode_log_update(log, cur, indent_diff);
         break;
     default:
         break;
@@ -2372,9 +2379,10 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
 int ynode_get(ynode *src, ynode_log *log)
 {
     int n = 0;
+    int indent_diff = 0;
     if (!src)
         return 0;
-    ynode_log_print(log, src);
+    indent_diff = ynode_log_print(log, src);
     n += 1;
     switch (src->type)
     {
@@ -2415,7 +2423,7 @@ int ynode_get(ynode *src, ynode_log *log)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
-    ynode_log_update(log, src);
+    ynode_log_update(log, src, indent_diff);
     return n;
 }
 
