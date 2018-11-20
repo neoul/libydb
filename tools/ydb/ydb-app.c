@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/select.h>
 
+#include "config.h"
 #include "ylog.h"
 #include "ylist.h"
 #include "ydb.h"
@@ -20,7 +21,11 @@ void usage(char *argv_0)
 {
     char *p;
     char *pname = ((p = strrchr(argv_0, '/')) ? ++p : argv_0);
-    printf("Usage : %s --role=ROLE [OPTION...]\n", pname);
+    printf("\n");
+    printf(" version: %s\n", VERSION);
+    printf(" bug report: %s\n", PACKAGE_BUGREPORT);
+    printf("\n");
+    printf(" usage : %s --role=ROLE [OPTION...]\n", pname);
     printf("\n\
   -n, --name YDB_NAME              The name of created YDB (YAML DataBlock).\n\
   -r, --role (pub|sub|loc)         Set the role.\n\
@@ -39,7 +44,7 @@ void usage(char *argv_0)
   -d, --daemon                     Runs in daemon mode\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
     , --read  PATH/TO/DATA         Read data from YDB.\n\
-    , --write PATH/TO/DATA=DATA    Write data from YDB.\n\
+    , --write PATH/TO/DATA=DATA    Write data to YDB.\n\
     , --delete PATH/TO/DATA=DATA   Delete data from YDB.\n\
   -h, --help                       Display this help and exit\n\n");
 }
