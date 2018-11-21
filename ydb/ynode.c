@@ -2376,7 +2376,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
 
 // get the src nodes' data using the log (ynode_log).
 // return the number of nodes printed to the log (ynode_log).
-int ynode_get(ynode *src, ynode_log *log)
+int ynode_get(ynode *src, int *is_mine, ynode_log *log)
 {
     int n = 0;
     int indent_diff = 0;
@@ -2392,7 +2392,7 @@ int ynode_get(ynode *src, ynode_log *log)
         for (; iter != NULL; iter = ytree_next(src->map, iter))
         {
             ynode *src_child = ytree_data(iter);
-            n += ynode_get(src_child, log);
+            n += ynode_get(src_child, is_mine, log);
         }
         break;
     }
@@ -2402,7 +2402,7 @@ int ynode_get(ynode *src, ynode_log *log)
         for (; iter != NULL; iter = ymap_next(src->omap, iter))
         {
             ynode *src_child = ymap_data(iter);
-            n += ynode_get(src_child, log);
+            n += ynode_get(src_child, is_mine, log);
         }
         break;
     }
@@ -2414,7 +2414,7 @@ int ynode_get(ynode *src, ynode_log *log)
                 iter = ylist_next(src->list, iter))
         {
             ynode *src_child = ylist_data(iter);
-            n += ynode_get(src_child, log);
+            n += ynode_get(src_child, is_mine, log);
         }
         break;
     }
@@ -2424,6 +2424,8 @@ int ynode_get(ynode *src, ynode_log *log)
         assert(!YDB_E_TYPE_ERR);
     }
     ynode_log_update(log, src, indent_diff);
+    if (is_mine && src->origin == 0)
+        *is_mine = 1;
     return n;
 }
 
