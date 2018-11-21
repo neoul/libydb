@@ -116,11 +116,11 @@ int test_remote_hook()
         goto _done;
     }
 
-    res = ydb_connect(datablock, NULL, "pub:sync");
+    res = ydb_parses(datablock, example_yaml, strlen(example_yaml));
     if (res)
         goto _done;
-
-    res = ydb_parses(datablock, example_yaml, strlen(example_yaml));
+        
+    res = ydb_connect(datablock, NULL, "pub:sync");
     if (res)
         goto _done;
 
@@ -133,7 +133,7 @@ int test_remote_hook()
     signal(SIGINT, HANDLER_SIGINT);
     do
     {
-        res = ydb_serve(datablock, 5000);
+        res = ydb_serve(datablock, 10000);
         if (res)
             goto _done;
     } while (!done);
@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
 {
     if (argc >= 2)
     {
-        ylog_severity = YLOG_DEBUG;
+        ylog_severity = YLOG_INFO;
         TEST_FUNC(test_remote_hook);
     }
     else

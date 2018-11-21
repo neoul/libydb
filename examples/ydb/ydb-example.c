@@ -124,7 +124,8 @@ int test_ydb_read_write()
                     " hostname: %s\n"
                     " fan-speed: %d\n"
                     " fan-enable: %s\n"
-                    " os: linux\n",
+                    " os: linux\n"
+                    "h/w: unknown",
                     "my-machine",
                     100,
                     "True");
@@ -167,7 +168,9 @@ int test_ydb_read_write()
     ydb_fprintf(stdout, datablock, "system: {fan-speed, hostname}\n");
     ydb_fprintf(stdout, datablock, "system:\n");
 
+    ydb_path_fprintf(stdout, datablock, "/");
     ydb_path_fprintf(stdout, datablock, "/system");
+    ydb_path_fprintf(stdout, datablock, "/system/running");
 
     ydb_path_delete(datablock, "system/os");
 

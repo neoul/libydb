@@ -967,6 +967,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
 
     int pathlen = 0;
     char *path = ydb_path(datablock, cur, &pathlen);
+    ylog_info("path=%s\n", path?path:"null");
     if (path && pathlen > 0)
     {
         ylist *child_rhooks = ytrie_search_range(datablock->updater, path, pathlen);
@@ -1466,7 +1467,7 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
     if (src)
     {
         int level = ynode_level(datablock->top, src);
-        ret = ynode_printf_to_fp(stream, src, 0-level, YDB_LEVEL_MAX);
+        ret = ynode_printf_to_fp(stream, src, 1-level, YDB_LEVEL_MAX);
     }
 failed:
     CLEAR_BUF(path, pathlen);
@@ -2804,6 +2805,7 @@ static ydb_res yconn_read(yconn *conn, char *inbuf, size_t inbuflen, char **outb
         size_t buflen = 0;
         ynode_log *log = NULL;
         struct ydb_fprintf_data data;
+        ynode_dump(src, 0, 24);
         if (ytrie_size(datablock->updater) > 0)
             ydb_update(conn, datablock, src);
         log = ynode_log_open(datablock->top, NULL);
@@ -2899,12 +2901,10 @@ static ydb_res yconn_recv(yconn *conn, yconn_op *op, ymsg_type *type, int *next)
                 }
                 else
                 {
-                    char *rbuf = NULL;
-                    size_t rbuflen = 0;
-                    // ydb_dumps(conn->db, &rbuf, &rbuflen);
-                    res = yconn_read(conn, buf, buflen, &rbuf, &rbuflen);
-                    yconn_response(conn, YOP_INIT, res ? false : true, rbuf, rbuflen);
-                    CLEAR_BUF(rbuf, rbuflen);
+                    CLEAR_BUF(buf, buflen);
+                    ydb_dumps(conn->db, &buf, &buflen);
+                    yconn_response(conn, YOP_INIT, res ? false : true, buf, buflen);
+                    CLEAR_BUF(buf, buflen);
                 }
             }
             break;
