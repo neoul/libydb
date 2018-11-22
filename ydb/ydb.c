@@ -1464,6 +1464,8 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
     {
         char buf[512];
         int buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
+        if (buflen >= 0)
+            buf[buflen] = 0;
         res = yconn_sync(NULL, datablock, buf, buflen);
         YDB_FAIL(res && res != YDB_W_UPDATED, res);
     }

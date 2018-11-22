@@ -43,7 +43,8 @@ void usage(char *argv_0)
   -R, --reconnect                  Retry to reconnect upon the communication failure\n\
   -d, --daemon                     Runs in daemon mode\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
-    , --read  PATH/TO/DATA         Read data from YDB.\n\
+    , --read  PATH/TO/DATA         Read data (value only) from YDB.\n\
+    , --dump  PATH/TO/DATA         Print data from YDB.\n\
     , --write PATH/TO/DATA=DATA    Write data to YDB.\n\
     , --delete PATH/TO/DATA=DATA   Delete data from YDB.\n\
   -h, --help                       Display this help and exit\n\n");
@@ -72,6 +73,7 @@ typedef struct _ydbcmd
     enum
     {
         CMD_READ,
+        CMD_DUMP,
         CMD_WRITE,
         CMD_DELETE,
     } type;
@@ -126,6 +128,7 @@ int main(int argc, char *argv[])
             {"daemon", no_argument, 0, 'd'},
             {"verbose", required_argument, 0, 'v'},
             {"read", required_argument, 0, 0},
+            {"dump", required_argument, 0, 0},
             {"write", required_argument, 0, 0},
             {"delete", required_argument, 0, 0},
             {"help", no_argument, 0, 'h'},
@@ -149,6 +152,11 @@ int main(int argc, char *argv[])
                 if (strcmp(long_options[index].name, "read") == 0)
                 {
                     ycmd->type = CMD_READ;
+                    ylist_push_back(cmdlist, ycmd);
+                }
+                else if (strcmp(long_options[index].name, "dump") == 0)
+                {
+                    ycmd->type = CMD_DUMP;
                     ylist_push_back(cmdlist, ycmd);
                 }
                 else if (strcmp(long_options[index].name, "write") == 0)
@@ -331,16 +339,22 @@ int main(int argc, char *argv[])
                 ydbcmd *ycmd = ylist_pop_front(cmdlist);
                 while (ycmd)
                 {
-                    char *data;
                     switch (ycmd->type)
                     {
                     case CMD_READ:
-                        data = ydb_path_read(datablock, "%s", ycmd->data);
+                    {
+                        char *data = ydb_path_read(datablock, "%s", ycmd->data);
                         if (data)
                             fprintf(stdout, "%s", data);
                         else
                             res = YDB_E_NO_ENTRY;
                         break;
+                    }
+                    case CMD_DUMP:
+                    {
+                        ydb_path_fprintf(stdout, datablock, "%s", ycmd->data);
+                        break;
+                    }
                     case CMD_WRITE:
                         res = ydb_path_write(datablock, "%s", ycmd->data);
                         break;
