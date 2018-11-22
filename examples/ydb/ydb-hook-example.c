@@ -8,39 +8,18 @@
 #include "ydb.h"
 
 char *example_yaml =
-    "mgmt:\n"
+    "ge%d:\n"
     " description: \n"
     " enabled: true\n"
     " ipv4:\n"
     "  address:\n"
-    "   192.168.77.10:\n"
+    "   192.168.77.%d:\n"
     "    prefix-length: 16\n"
     "    secondary: false\n"
     " link-up-down-trap-enable: disabled\n"
-    " name: mgmt\n"
-    " type: mgmt\n"
-    "xe1:\n"
-    " description: \n"
-    " enabled: false\n"
-    " ethernet:\n"
-    "  auto-negotiation:\n"
-    "   enable: true\n"
-    "  duplex: full\n"
-    "  speed: 10.000\n"
-    " link-up-down-trap-enable: disabled\n"
-    " name: xe1\n"
-    " type: ethernetCsmacd\n"
-    "xe2:\n"
-    " description: \n"
-    " enabled: true\n"
-    " ethernet:\n"
-    "  auto-negotiation:\n"
-    "   enable: false\n"
-    "  duplex: full\n"
-    "  speed: 10.000\n"
-    " link-up-down-trap-enable: disabled\n"
-    " name: xe2\n"
-    " type: ethernetCsmacd\n";
+    " name: ge%d\n"
+    " type: mgmt\n";
+
 
 ydb_res update_hook(ydb *datablock, char *path, FILE *fp)
 {
@@ -48,11 +27,28 @@ ydb_res update_hook(ydb *datablock, char *path, FILE *fp)
     printf("HOOK %s path=%s\n", __func__, path);
     enabled = (enabled + 1) % 2;
     fprintf(fp,
-            "xe1:\n"
+            "ge1:\n"
             " enabled: %s\n",
             enabled ? "true" : "false");
     return YDB_OK;
 }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpointer-to-int-cast" // disable casting warning.
+ydb_res update_hook1(ydb *datablock, char *path, FILE *fp, void *U1)
+{
+    static int enabled;
+    int n = (int) U1;
+    printf("HOOK %s path=%s\n", __func__, path);
+    enabled = (enabled + 1) % 2;
+    fprintf(fp,
+            "ge%d:\n"
+            " enabled: %s\n",
+            n,
+            enabled ? "true" : "false");
+    return YDB_OK;
+}
+#pragma GCC diagnostic pop
 
 void notify_hook(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new)
 {
@@ -75,21 +71,27 @@ int test_hook()
         goto _done;
     }
 
-    res = ydb_parses(datablock, example_yaml, strlen(example_yaml));
-    if (res)
-        goto _done;
+    int n;
+    for (n = 1; n <= 3; n++)
+    {
+        char buf[1024];
+        sprintf(buf, example_yaml, n, n, n);
+        res = ydb_parses(datablock, buf, strlen(buf));
+        if (res)
+            goto _done;
+    }
 
-    ydb_read_hook_add(datablock, "/xe1/enabled", (ydb_read_hook)update_hook, 0);
-    ydb_write_hook_add(datablock, "/mgmt", (ydb_write_hook)notify_hook, NULL, 0);
+    ydb_read_hook_add(datablock, "/ge1/enabled", (ydb_read_hook)update_hook, 0);
+    ydb_write_hook_add(datablock, "/ge2", (ydb_write_hook)notify_hook, NULL, 0);
 
     char enabled[32] = {0};
-    ydb_read(datablock, "xe1: {enabled: %s}\n", enabled);
-    printf("/xe1/enabled=%s\n", enabled);
+    ydb_read(datablock, "ge1: {enabled: %s}\n", enabled);
+    printf("/ge1/enabled=%s\n", enabled);
 
     ydb_fprintf(stdout, datablock,
-                "xe1: {enabled}\n"
-                "xe2: {enabled}\n"
-                "mgmt:\n");
+                "ge1: {enabled}\n"
+                "ge2: {enabled}\n"
+                "ge3:\n");
     ydb_dump(datablock, stdout);
 _done:
     if (res)
@@ -104,7 +106,7 @@ void HANDLER_SIGINT(int param)
     done = 1;
 }
 
-int test_remote_hook()
+int test_remote_hook(int n)
 {
     ydb_res res = YDB_OK;
     printf("\n\n=== %s ===\n", __func__);
@@ -116,7 +118,9 @@ int test_remote_hook()
         goto _done;
     }
 
-    res = ydb_parses(datablock, example_yaml, strlen(example_yaml));
+    char buf[1024];
+    sprintf(buf, example_yaml, n, n, n);
+    res = ydb_parses(datablock, buf, strlen(buf));
     if (res)
         goto _done;
         
@@ -124,8 +128,10 @@ int test_remote_hook()
     if (res)
         goto _done;
 
-    ydb_read_hook_add(datablock, "/xe1/enabled", (ydb_read_hook)update_hook, 0);
-    ydb_write_hook_add(datablock, "/mgmt", (ydb_write_hook)notify_hook, NULL, 0);
+    char path[64];
+    sprintf(path, "/ge%d", n);
+    ydb_read_hook_add(datablock, path, (ydb_read_hook)update_hook1, 1, n);
+    // ydb_write_hook_add(datablock, "/mgmt", (ydb_write_hook)notify_hook, NULL, 0);
 
     // ignore SIGPIPE.
     signal(SIGPIPE, SIG_IGN);
@@ -145,27 +151,17 @@ _done:
     return res;
 }
 
-#define TEST_FUNC(func)                    \
-    do                                     \
-    {                                      \
-        if (func())                        \
-        {                                  \
-            printf("%s failed.\n", #func); \
-            return -1;                     \
-        }                                  \
-    } while (0)
-
 int main(int argc, char *argv[])
 {
     if (argc >= 2)
     {
         ylog_severity = YLOG_INFO;
-        TEST_FUNC(test_remote_hook);
+        test_remote_hook(atoi(argv[1]));
     }
     else
     {
         ylog_severity = YLOG_DEBUG;
-        TEST_FUNC(test_hook);
+        test_hook();
     }
     return 0;
 }

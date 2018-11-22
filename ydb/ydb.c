@@ -988,7 +988,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
             rhook = ytrie_best_match(datablock->updater, path, pathlen, &matched_len);
             if (rhook != params->rhook)
             {
-                if (rhook)
+                if (params->rhook)
                 {
                     // run rhook before change rhook
                     ylog_info("read hook (%s) %s\n", rhook->path, rhook ? "found" : "not found");
@@ -2914,7 +2914,7 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
             char *rbuf = NULL;
             size_t rbuflen = 0;
             res = yconn_sync_read(recv_conn, buf, buflen, &rbuf, &rbuflen);
-            yconn_response(recv_conn, YOP_SYNC, (res == YDB_W_UPDATED)? true: false, rbuf, rbuflen);
+            yconn_response(recv_conn, YOP_SYNC, (res == YDB_W_UPDATED) ? true : false, rbuf, rbuflen);
             CLEAR_BUF(rbuf, rbuflen);
             break;
         }
