@@ -2498,6 +2498,11 @@ static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, 
         return YDB_E_INVALID_ARGS;
     if (op != YOP_MERGE && op != YOP_DELETE)
         return YDB_E_INVALID_MSG;
+    if (buf == NULL || buflen <= 0)
+    {
+        ylog_info("datablock (%s) no data to publish.\n", datablock->name);
+        return YDB_OK;
+    }
     publist = ylist_create();
     if (!publist)
         return YDB_E_MEM_ALLOC;
