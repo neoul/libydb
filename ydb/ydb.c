@@ -2842,6 +2842,7 @@ static ydb_res yconn_sync_read(yconn *conn, char *inbuf, size_t inbuflen, char *
         }
         *outbuf = buf;
         *outbuflen = buflen;
+        ynode_remove(src);
     }
     ylog_out();
     if (ydb_updated)

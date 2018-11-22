@@ -111,6 +111,8 @@ int test_remote_hook(int n)
     ydb_res res = YDB_OK;
     printf("\n\n=== %s ===\n", __func__);
     ydb *datablock;
+
+    // ylog_file_open("ydb-remote-hook-%d.log", n);
     datablock = ydb_open("top");
     if (!datablock)
     {
@@ -118,11 +120,11 @@ int test_remote_hook(int n)
         goto _done;
     }
 
-    char buf[1024];
-    sprintf(buf, example_yaml, n, n, n);
-    res = ydb_parses(datablock, buf, strlen(buf));
-    if (res)
-        goto _done;
+    // char buf[1024];
+    // sprintf(buf, example_yaml, n, n, n);
+    // res = ydb_parses(datablock, buf, strlen(buf));
+    // if (res)
+    //     goto _done;
         
     res = ydb_connect(datablock, NULL, "pub:sync");
     if (res)
@@ -131,7 +133,6 @@ int test_remote_hook(int n)
     char path[64];
     sprintf(path, "/ge%d", n);
     ydb_read_hook_add(datablock, path, (ydb_read_hook)update_hook1, 1, n);
-    // ydb_write_hook_add(datablock, "/mgmt", (ydb_write_hook)notify_hook, NULL, 0);
 
     // ignore SIGPIPE.
     signal(SIGPIPE, SIG_IGN);
@@ -148,6 +149,7 @@ _done:
     if (res)
         fprintf(stderr, "%s failed. (%s)\n", __func__, ydb_res_str[res]);
     ydb_close(datablock);
+    // ylog_file_close();
     return res;
 }
 

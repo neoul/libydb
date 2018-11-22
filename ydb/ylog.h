@@ -21,6 +21,9 @@ extern unsigned int ylog_severity;
 typedef int (*ylog_func)(int severity, const char *func, int line, const char *format, ...);
 int ylog_register(ylog_func func);
 
+void ylog_file_open(const char *format, ...); // e.g. ylog_file_open("ylog%d.log", 1);
+void ylog_file_close();
+int ylog_file(int severity, const char *func, int line, const char *format, ...);
 int ylog_general(int severity, const char *func, int line, const char *format, ...);
 int ylog_quiet(int severity, const char *func, int line, const char *format, ...);
 
