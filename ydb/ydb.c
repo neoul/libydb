@@ -1224,8 +1224,10 @@ struct ydb_fprintf_data
     ynode_log *log;
     int is_mine;
     int num_of_nodes;
+    int origin;
 };
 
+extern int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log);
 static ydb_res ydb_fprintf_sub(ynode *cur, void *addition)
 {
     struct ydb_fprintf_data *data = addition;
@@ -1233,7 +1235,7 @@ static ydb_res ydb_fprintf_sub(ynode *cur, void *addition)
     if (node)
     {
         int is_mine = 0;
-        data->num_of_nodes += ynode_get(node, &is_mine, data->log);
+        data->num_of_nodes += ynode_get_with_origin(node, data->origin, &is_mine, data->log);
         if (is_mine)
             data->is_mine = 1;
     }
@@ -1289,6 +1291,7 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
         data.datablock = datablock;
         data.is_mine = 0;
         data.num_of_nodes = 0;
+        data.origin = -1;
         ynode_traverse(src, ydb_fprintf_sub, &data, YNODE_LEAF_ONLY);
         ynode_log_close(log, &buf, &buflen);
         if (buf)
@@ -2828,6 +2831,7 @@ static ydb_res yconn_sync_read(yconn *conn, char *inbuf, size_t inbuflen, char *
         data.datablock = datablock;
         data.is_mine = 0;
         data.num_of_nodes = 0;
+        data.origin = 0;
         ynode_traverse(src, ydb_fprintf_sub, &data, YNODE_LEAF_ONLY);
         ynode_log_close(log, &buf, &buflen);
         if (data.is_mine)
