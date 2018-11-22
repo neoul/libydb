@@ -125,6 +125,37 @@ int test_ydb_read_write()
                     " fan-speed: %d\n"
                     " fan-enable: %s\n"
                     " os: linux\n"
+                    "interface:\n"
+                    " line1:\n"
+                    "  line:\n"
+                    "   line:\n"
+                    "    channel:\n"
+                    "     status:\n"
+                    "      downstream:\n"
+                    "       net-data-rate: 10\n"
+                    "       expected-throughput: 20\n"
+                    "       gamma-data-rate: 30\n"
+                    "       attainable-net-data-rate: 40\n"
+                    "      upstream:\n" 
+                    "       net-data-rate: 400\n"
+                    "       expected-throughput: 300\n"
+                    "       gamma-data-rate: 200\n"
+                    "       attainable-net-data-rate: 100\n"
+                    " line2:\n"
+                    "  line:\n"
+                    "   line:\n"
+                    "    channel:\n"
+                    "     status:\n"
+                    "      downstream:\n"
+                    "       net-data-rate: 100\n"
+                    "       expected-throughput: 2000\n"
+                    "       gamma-data-rate: 3000\n"
+                    "       attainable-net-data-rate: 4000\n"
+                    "      upstream:\n" 
+                    "       net-data-rate: 4\n"
+                    "       expected-throughput: 3\n"
+                    "       gamma-data-rate: 2\n"
+                    "       attainable-net-data-rate: 1\n"
                     "h/w: unknown",
                     "my-machine",
                     100,
@@ -166,7 +197,10 @@ int test_ydb_read_write()
     printf("temporature=%d\n", atoi(temp));
 
     ydb_fprintf(stdout, datablock, "system: {fan-speed, hostname}\n");
-    ydb_fprintf(stdout, datablock, "system:\n");
+    ydb_fprintf(stdout, datablock, 
+        "system: {hostname}\n"
+        "interface: {line2}\n"
+        );
 
     ydb_path_fprintf(stdout, datablock, "/");
     ydb_path_fprintf(stdout, datablock, "/system");

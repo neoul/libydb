@@ -1350,17 +1350,36 @@ _done:
         v = NULL;     \
     } while (0)
 
+static ynode *ynode_find_child(ynode *node, char *key);
 static ynode *ynode_new_and_attach(unsigned char type, char *value, int origin, unsigned char flags, ynode *parent, char *key)
 {
-    ynode *new = ynode_new(type, value, origin, flags);
+    ynode *new, *old;
+    old = NULL;
+    if (parent && key)
+        old = ynode_find_child(parent, key);
+    if (old)
+    {
+        if (old->type != type)
+            goto create_new;
+        if (type == YNODE_TYPE_VAL)
+            goto create_new;
+        if (IS_SET(old->flags, YNODE_FLAG_SET) != IS_SET(flags, YNODE_FLAG_SET))
+            goto create_new;
+        if (IS_SET(old->flags, YNODE_FLAG_IMAP) != IS_SET(flags, YNODE_FLAG_IMAP))
+            goto create_new;
+        old->origin = origin;
+        return old;
+    }
+create_new:
+    new = ynode_new(type, value, origin, flags);
     if (new)
     {
-        ynode *old;
         old = ynode_attach(new, parent, key);
         ynode_free(old);
     }
     return new;
 }
+
 
 ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform)
 {
@@ -1709,7 +1728,7 @@ ydb_res ynode_scanf_from_fp(FILE *fp, ynode **n)
 {
     if (fp && n)
         return ynode_scan(fp, NULL, 0, 0, n, 0);
-        // return ynode_scan(fp, NULL, 0, fileno(fp), n, 0);
+    // return ynode_scan(fp, NULL, 0, fileno(fp), n, 0);
     return YDB_E_INVALID_ARGS;
 }
 
@@ -2220,7 +2239,6 @@ char *yhook_op_str(char op)
 static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ynode_log *log)
 {
     ynode *new = NULL;
-    int indent_diff = 0;
     char op;
     if (parent)
     {
@@ -2283,16 +2301,16 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     case YHOOK_OP_CREATE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
-        indent_diff = ynode_log_print(log, new);
+        ynode_log_print(log, new);
         break;
     case YHOOK_OP_REPLACE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
-        indent_diff = ynode_log_print(log, new);
+        ynode_log_print(log, new);
         break;
     case YHOOK_OP_DELETE:
         yhook_pre_run_for_delete(cur);
-        indent_diff = ynode_log_print(log, cur);
+        ynode_log_print(log, cur);
         break;
     case YHOOK_OP_NONE:
     default:
@@ -2353,21 +2371,21 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     switch (op)
     {
     case YHOOK_OP_CREATE:
-        ynode_log_update(log, new, indent_diff);
+        ynode_log_update(log, new, 1);
         yhook_post_run(op, parent, cur, new);
         break;
     case YHOOK_OP_REPLACE:
-        ynode_log_update(log, new, indent_diff);
+        ynode_log_update(log, new, 1);
         yhook_post_run(op, parent, cur, new);
         ynode_free(cur);
         break;
     case YHOOK_OP_DELETE:
-        ynode_log_update(log, cur, indent_diff);
+        ynode_log_update(log, cur, 1);
         ynode_detach(cur);
         ynode_free(cur);
         break;
     case YHOOK_OP_NONE:
-        ynode_log_update(log, cur, indent_diff);
+        ynode_log_update(log, cur, 1);
         break;
     default:
         break;
@@ -2413,8 +2431,8 @@ int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log)
     {
         ylist_iter *iter;
         for (iter = ylist_first(src->list);
-                !ylist_done(src->list, iter);
-                iter = ylist_next(src->list, iter))
+             !ylist_done(src->list, iter);
+             iter = ylist_next(src->list, iter))
         {
             ynode *src_child = ylist_data(iter);
             n += ynode_get_with_origin(src_child, origin, is_mine, log);

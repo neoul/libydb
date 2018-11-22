@@ -1,0 +1,20 @@
+---
+
+interface:
+  line:
+    a-type: ok
+interface:
+  line:
+    b-type: ok
+interface:
+  line:
+    c-type: ok
+interface:
+  list:
+    - entry1
+    - entry2
+    - entry3
+interface:
+  list:
+    - entry4
+...

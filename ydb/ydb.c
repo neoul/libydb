@@ -798,6 +798,7 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         YDB_FAIL(res || !src, res);
         CLEAR_BUF(buf, buflen);
         log = ynode_log_open(datablock->top, NULL);
+        // ynode_dump(src, 0, 24);
         top = ynode_merge(datablock->top, src, log);
         ynode_log_close(log, &buf, &buflen);
         YDB_FAIL(!top, YDB_E_MERGE_FAILED);
