@@ -3,7 +3,9 @@
 #include <string.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "ylog.h"
 
@@ -112,9 +114,23 @@ void ylog_file_open(const char *format, ...)
     va_start(args, format);
     vsnprintf(ylog_file_name, sizeof(ylog_file_name), format, args);
     va_end(args);
-    ylog_fp = fopen(ylog_file_name, "w");
+    if (strstr(ylog_file_name, ".fifo"))
+    {
+        if (access(ylog_file_name, F_OK) != 0)
+        {
+            if (mkfifo(ylog_file_name, 0666))
+                return;
+        }
+        int fd = open(ylog_file_name, O_WRONLY);
+        ylog_fp = fdopen(fd, "w");
+    }
+    else
+    {
+        ylog_fp = fopen(ylog_file_name, "w");
+    }
     if (ylog_fp)
     {
+        
         last_logger = ylog_logger;
         ylog_logger = ylog_file;
     }

@@ -2048,7 +2048,8 @@ ydb_res yconn_file_init(yconn *conn)
         ylog_debug("fi=%s, fo=%s\n", fi, fo);
         // open(fifo_path, O_RDONLY | O_NONBLOCK);
         conn->fd = open(fi, O_RDONLY | O_NONBLOCK);
-        head->send.fd = open(fo, O_RDWR);
+        // head->send.fd = open(fo, O_RDWR);
+        head->send.fd = open(fo, O_WRONLY);
         if (conn->fd < 0 || head->send.fd < 0)
         {
             if (conn->fd > 0)

@@ -38,7 +38,7 @@ int test_remote_hook(int n)
     printf("\n\n=== %s ===\n", __func__);
     ydb *datablock;
 
-    // ylog_file_open("ydb-remote-hook-%d.log", n);
+    ylog_file_open("ydb-write-example.log.fifo");
     datablock = ydb_open("top");
     if (!datablock)
     {
@@ -84,7 +84,7 @@ _done:
     if (res)
         fprintf(stderr, "%s failed. (%s)\n", __func__, ydb_res_str[res]);
     ydb_close(datablock);
-    // ylog_file_close();
+    ylog_file_close();
     return res;
 }
 
