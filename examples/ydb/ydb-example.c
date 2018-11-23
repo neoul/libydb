@@ -37,8 +37,8 @@ int test_ydb_open_close()
     block2 = ydb_open("/path/to/datablock2");
     block3 = ydb_open("/path/to/datablock3");
 
-    ydb *ref = ydb_get("test", NULL);
-    ydb_path_write(ref, "ok=%s", "okkk!");
+    // ydb *ref = ydb_get("test", NULL);
+    // ydb_path_write(ref, "ok=%s", "okkk!");
 
     ydb_close(block3);
     ydb_close(block2);
@@ -47,19 +47,21 @@ int test_ydb_open_close()
     return 0;
 }
 
-ydb_res update_hook(ydb *datablock, char *path, FILE *ydb_fp)
+ydb_res update_hook(ydb *datablock, char *path, FILE *ydb_fp, void *U1, void *U2, void *U3)
 {
-    printf("HOOK %s path=%s\n", __func__, path);
+    static int count;
+    printf("HOOK %s path=%s U1=%p U2=%p U3=%p\n", __func__, path, U1, U2, U3);
+    count++;
     fprintf(ydb_fp,
             "system:\n"
-            " hostname: my-pc\n");
+            " hostname: my-pc%d\n", count);
     return YDB_OK;
 }
 
-void notify_hook(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new)
+void notify_hook(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2)
 {
-    printf("HOOK %s (%c) cur=%s new=%s\n", __func__, op,
-           ydb_value(cur) ? ydb_value(cur) : "", ydb_value(_new) ? ydb_value(_new) : "");
+    fprintf(stdout, "HOOK %s (%c) cur=%s new=%s U0=%p U1=%p U2=%p\n", __func__, op,
+           ydb_value(cur) ? ydb_value(cur) : "", ydb_value(_new) ? ydb_value(_new) : "", datablock, U1, U2);
 }
 
 int test_ydb_read_write()
@@ -174,8 +176,8 @@ int test_ydb_read_write()
 
     ydb_delete(datablock, "system: {fan-enable: , }");
 
-    ydb_read_hook_add(datablock, "/system/hostname", (ydb_read_hook)update_hook, 0);
-    ydb_write_hook_add(datablock, "/system/hostname", (ydb_write_hook)notify_hook, NULL, 0);
+    ydb_read_hook_add(datablock, "/system/hostname", (ydb_read_hook)update_hook, 3, 1, 2, 3);
+    ydb_write_hook_add(datablock, "/system/hostname", (ydb_write_hook)notify_hook, NULL, 2, 1, 2);
 
     int speed = 0;
     char hostname[128] = {

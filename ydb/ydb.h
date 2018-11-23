@@ -40,6 +40,7 @@ extern "C"
         YDB_E_CONN_FAILED,
         YDB_E_CONN_CLOSED,
         YDB_E_FUNC,
+        YDB_E_HOOK_ADD,
         YDB_W_UPDATED,
         YDB_W_MORE_RECV,
     } ydb_res;

@@ -349,7 +349,8 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int use
     else
     {
         hook = malloc(sizeof(yhook) + sizeof(void *) * user_num);
-        memset(hook, 0x0, sizeof(yhook) + sizeof(void *) * user_num);
+        if (hook)
+            memset(hook, 0x0, sizeof(yhook) + sizeof(void *) * user_num);
     }
     if (!hook)
         return YDB_E_NO_ENTRY;
@@ -370,6 +371,16 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int use
     if (user_num > 0)
         memcpy(hook->user, user, sizeof(void *) * user_num);
     node->hook = hook;
+    if (YLOG_SEVERITY_INFO)
+    {
+        int pathlen = 0;
+        char *path = ynode_path(node, YDB_LEVEL_MAX, &pathlen);
+        if (path)
+        {
+            ylog_info("write hook (%p) added to %s (%d)\n", func, path, pathlen);
+            free(path);
+        }
+    }
     return YDB_OK;
 }
 
@@ -377,13 +388,32 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int use
 // return user data registered with the hook.
 void yhook_unregister(ynode *node)
 {
+    if (YLOG_SEVERITY_INFO && node->hook)
+    {
+        int pathlen = 0;
+        char *path = ynode_path(node, YDB_LEVEL_MAX, &pathlen);
+        if (path)
+        {
+            ylog_info("write hook (%p) deleted from %s (%d)\n", node->hook->func, path, pathlen);
+            free(path);
+        }
+    }
     yhook_delete(node);
 }
 
 static void yhook_func_exec(yhook *hook, char op, ydb_iter *cur, ydb_iter *_new)
 {
     assert(hook->func);
-    ylog_debug("user_num %d\n", hook->user_num);
+    if (YLOG_SEVERITY_INFO)
+    {
+        int pathlen = 0;
+        char *path = ynode_path(hook->node, YDB_LEVEL_MAX, &pathlen);
+        if (path)
+        {
+            ylog_info("write hook (%s) %s\n", path, hook ? "found" : "not found");
+            free(path);
+        }
+    }
     switch (hook->user_num)
     {
     case 0:
@@ -559,13 +589,15 @@ static void yhook_copy(ynode *dest, ynode *src)
     yhook *hook;
     if (!dest || !src)
         return;
-    yhook_delete(dest);
     if (!src->hook)
         return;
+    yhook_delete(dest);
     hook = malloc(sizeof(yhook) + sizeof(void *) * src->hook->user_num);
-    if (hook)
-        memcpy(hook, src->hook, sizeof(yhook) + sizeof(void *) * src->hook->user_num);
+    if (!hook)
+        return;
+    memcpy(hook, src->hook, sizeof(yhook) + sizeof(void *) * src->hook->user_num);
     dest->hook = hook;
+    hook->node = dest;
 }
 
 struct _ynode_record

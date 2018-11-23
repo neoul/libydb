@@ -117,6 +117,7 @@ char *ydb_res_str[] =
         YDB_ERR_NAME(YDB_E_CONN_FAILED),
         YDB_ERR_NAME(YDB_E_CONN_CLOSED),
         YDB_ERR_NAME(YDB_E_FUNC),
+        YDB_ERR_NAME(YDB_E_HOOK_ADD),
         YDB_ERR_NAME(YDB_W_UPDATED),
         YDB_ERR_NAME(YDB_W_MORE_RECV),
 };
@@ -968,7 +969,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
 
     int pathlen = 0;
     char *path = ydb_path(datablock, cur, &pathlen);
-    ylog_info("path=%s\n", path ? path : "null");
+    ylog_debug("path=%s\n", path ? path : "null");
     if (path && pathlen > 0)
     {
         ylist *child_rhooks = ytrie_search_range(datablock->updater, path, pathlen);
@@ -3068,7 +3069,7 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char
 {
     ydb_res res = YDB_OK;
     ynode *cur;
-    void *user[5];
+    void *user[5] = {0};
     unsigned int hook_flags = 0;
 
     ylog_in();
@@ -3122,12 +3123,13 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char
         for (i = 1; i < num; i++)
         {
             void *p = va_arg(ap, void *);
-            user[i + 1] = p;
+            user[i] = p;
             ylog_debug("user[%d]=%p\n", i, user[i]);
         }
         va_end(ap);
     }
-    return yhook_register(cur, hook_flags, (yhook_func)func, num, user);
+    res = yhook_register(cur, hook_flags, (yhook_func)func, num, user);
+    YDB_FAIL(res, YDB_E_HOOK_ADD);
 failed:
     ylog_out();
     return res;
