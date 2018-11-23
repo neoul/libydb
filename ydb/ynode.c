@@ -2310,6 +2310,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
         new = ynode_new(src->type, src->value, src->origin, src->flags);
         if (!new)
             return NULL;
+        yhook_copy(new, src);
     }
     else if (op == YHOOK_OP_NONE)
         new = cur;

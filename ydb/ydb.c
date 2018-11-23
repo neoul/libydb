@@ -3072,7 +3072,7 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char
     unsigned int hook_flags = 0;
 
     ylog_in();
-    YDB_FAIL(!datablock || !func || !path || num < 0, YDB_E_INVALID_ARGS);
+    YDB_FAIL(!datablock || !func || num < 0, YDB_E_INVALID_ARGS);
     YDB_FAIL(num > 4 || num < 0, YDB_E_INVALID_ARGS);
 
     if (!datablock || !func)
@@ -3089,7 +3089,24 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char
     if (path)
     {
         cur = ydb_search(datablock, path);
-        YDB_FAIL(!cur, YDB_E_NO_ENTRY);
+        if (!cur)
+        {
+            char *rbuf = NULL;
+            size_t rbuflen = 0;
+            ynode_log *log = NULL;
+            ynode *src = NULL;
+            log = ynode_log_open(datablock->top, NULL);
+            src = ynode_create_path(path, datablock->top, log);
+            ynode_log_close(log, &rbuf, &rbuflen);
+            if (rbuf)
+            {
+                if (src)
+                    yconn_publish(NULL, NULL, datablock, YOP_MERGE, rbuf, rbuflen);
+                free(rbuf);
+            }
+            cur = ydb_search(datablock, path);
+            YDB_FAIL(!cur, YDB_E_NO_ENTRY);
+        }
     }
     else
         cur = datablock->top;
