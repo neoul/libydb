@@ -972,8 +972,7 @@ struct _ynode_log
     char *buf;
     size_t buflen;
     ynode *top;
-    ynode *latest;
-    int indent;
+    ylist *printed_nodes;
     bool isdump;
 };
 
@@ -1003,6 +1002,8 @@ void ynode_log_close(struct _ynode_log *log, char **buf, size_t *buflen)
 {
     if (!log)
         return;
+    if (log->printed_nodes)
+        ylist_destroy(log->printed_nodes);
     if (log->fp && !log->isdump)
         fclose(log->fp);
     if (buf && buflen)
@@ -1019,50 +1020,90 @@ void ynode_log_close(struct _ynode_log *log, char **buf, size_t *buflen)
     }
 }
 
-static void ynode_log_update(struct _ynode_log *log, ynode *cur, int indent)
+static void ynode_log_print(struct _ynode_log *log, ynode *cur)
 {
-    if (log)
-    {
-        int cnt;
-        for (cnt = 0; cnt < indent; cnt++)
-        {
-            if (cur != NULL)
-                cur = cur->parent;
-        }
-        log->latest = cur;
-        log->indent -= indent;
-    }
-}
-
-static int ynode_log_print(struct _ynode_log *log, ynode *cur)
-{
-    int indent_diff;
-    ynode *n;
+    int indent = 0;
+    ynode *n, *last;
     ylist *nodes;
     if (!log)
-        return 0;
+        return;
     nodes = ylist_create();
     if (!nodes)
-        return 0;
+        return;
     n = cur;
-    indent_diff = log->indent;
 
+    // the ancestors of the current node
     while (n)
     {
         if (log->top == n)
-            break;
-        if (log->latest == n)
             break;
         ylist_push_front(nodes, n);
         n = n->parent;
     };
 
-    n = ylist_pop_front(nodes);
-    while (n)
+    // compare the current ancestors with the last printed ancestors.
+    ylist_iter *iter = NULL;
+#if 0 // compare nodes from the head to the tail.
+    iter = ylist_first(nodes);
+    last = ylist_pop_front(log->printed_nodes);
+    while (last)
+    {
+        n = ylist_data(iter);
+        if (n != last)
+            break;
+        indent++;
+        iter = ylist_next(nodes, iter);
+        last = ylist_pop_front(log->printed_nodes);
+    }
+#else
+    if (ylist_size(log->printed_nodes) == 0)
+    {
+        iter = ylist_first(nodes);
+        goto node_print;
+    }
+    else if (ylist_size(log->printed_nodes) < ylist_size(nodes))
+    {
+        int count = ylist_size(nodes);
+        iter = ylist_last(nodes);
+        while (ylist_size(log->printed_nodes) < count)
+        {
+            iter = ylist_prev(nodes, iter);
+            count--;
+        }
+    }
+    else
+    {
+        while (ylist_size(log->printed_nodes) > ylist_size(nodes))
+            ylist_pop_back(log->printed_nodes);
+        iter = ylist_last(nodes);
+    }
+
+    for (; !ylist_done(nodes, iter); iter = ylist_prev(nodes, iter))
+    {
+        last = ylist_back(log->printed_nodes);
+        n = ylist_data(iter);
+        if (!last || !n)
+            break;
+        if (last == n)
+        {
+            iter = ylist_next(nodes, iter);
+            break;
+        }
+        ylist_pop_back(log->printed_nodes);
+    }
+
+    indent = ylist_size(log->printed_nodes);
+    if (ylist_done(nodes, iter))
+        iter = ylist_first(nodes);
+node_print:
+#endif
+
+    for (; !ylist_done(nodes, iter); iter = ylist_next(nodes, iter))
     {
         int only_val = 0;
-        // print nodes and cur to fp using log->indent
-        fprintf(log->fp, "%.*s", log->indent, space);
+        n = ylist_data(iter);
+        // print nodes and cur to fp using indent
+        fprintf(log->fp, "%.*s", indent, space);
         // print key
         if (IS_SET(n->flags, YNODE_FLAG_KEY))
         {
@@ -1088,14 +1129,13 @@ static int ynode_log_print(struct _ynode_log *log, ynode *cur)
         }
         else
             fprintf(log->fp, "\n");
-        log->indent++;
-        n = ylist_pop_front(nodes);
+        indent++;
     }
-    // update latest print node
-    indent_diff = log->indent - indent_diff;
-    log->latest = cur;
-    ylist_destroy(nodes);
-    return indent_diff;
+
+    // update the printed_nodes
+    ylist_destroy(log->printed_nodes);
+    log->printed_nodes = nodes;
+    return;
 }
 
 int ydb_log_err_yaml(yaml_parser_t *parser)
@@ -1379,7 +1419,6 @@ create_new:
     }
     return new;
 }
-
 
 ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform)
 {
@@ -2371,21 +2410,17 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     switch (op)
     {
     case YHOOK_OP_CREATE:
-        ynode_log_update(log, new, 1);
         yhook_post_run(op, parent, cur, new);
         break;
     case YHOOK_OP_REPLACE:
-        ynode_log_update(log, new, 1);
         yhook_post_run(op, parent, cur, new);
         ynode_free(cur);
         break;
     case YHOOK_OP_DELETE:
-        ynode_log_update(log, cur, 1);
         ynode_detach(cur);
         ynode_free(cur);
         break;
     case YHOOK_OP_NONE:
-        ynode_log_update(log, cur, 1);
         break;
     default:
         break;
@@ -2398,12 +2433,11 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
 int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log)
 {
     int n = 0;
-    int indent_diff = 0;
     if (!src)
         return 0;
     if (src->origin != origin && origin > 0)
         return 0;
-    indent_diff = ynode_log_print(log, src);
+    ynode_log_print(log, src);
     n += 1;
     switch (src->type)
     {
@@ -2444,7 +2478,6 @@ int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
-    ynode_log_update(log, src, indent_diff);
     if (is_mine && src->origin == 0)
         *is_mine = 1;
     return n;
