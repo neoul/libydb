@@ -57,26 +57,29 @@ extern ylog_func ylog_logger;
             res = caused_res;                                                  \
             if (ylog_severity >= (YLOG_ERROR))                                 \
             {                                                                  \
-                ylog_logger(YLOG_ERROR, __func__, __LINE__, "'%s': %s (%s)\n", \
+                ylog_logger(YLOG_ERROR, __func__, __LINE__,                    \
+                            "ydb[%s] '%s': %s (%s)\n",                         \
                             #state, ydb_res_str[caused_res], strerror(errno)); \
             }                                                                  \
             goto failed;                                                       \
         }                                                                      \
     } while (0)
 
-#define YDB_FAIL(state, caused_res)                                       \
-    do                                                                    \
-    {                                                                     \
-        if (state)                                                        \
-        {                                                                 \
-            res = caused_res;                                             \
-            if (ylog_severity >= (YLOG_ERROR))                            \
-            {                                                             \
-                ylog_logger(YLOG_ERROR, __func__, __LINE__, "'%s': %s\n", \
-                            #state, ydb_res_str[caused_res]);             \
-            }                                                             \
-            goto failed;                                                  \
-        }                                                                 \
+#define YDB_FAIL(state, caused_res)                              \
+    do                                                           \
+    {                                                            \
+        if (state)                                               \
+        {                                                        \
+            res = caused_res;                                    \
+            if (ylog_severity >= (YLOG_ERROR))                   \
+            {                                                    \
+                ylog_logger(YLOG_ERROR, __func__, __LINE__,      \
+                            "ydb[%s] '%s': %s\n",                \
+                            datablock ? datablock->name : "...", \
+                            #state, ydb_res_str[caused_res]);    \
+            }                                                    \
+            goto failed;                                         \
+        }                                                        \
     } while (0)
 
 #define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
@@ -226,12 +229,14 @@ static ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, char *buf, size_t 
 static ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, char *buf, size_t buflen);
 static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type *type, int *next);
 
-#define yconn_errno(conn, res)        \
-    ylog(YLOG_ERROR, "%s: %s (%s)\n", \
+#define yconn_errno(conn, res)                  \
+    ylog(YLOG_ERROR, "ydb[%s] %s: %s (%s)\n",   \
+         (conn)->db ? (conn)->db->name : "...", \
          (conn)->address, ydb_res_str[res], strerror(errno));
 
-#define yconn_error(conn, res)   \
-    ylog(YLOG_ERROR, "%s: %s\n", \
+#define yconn_error(conn, res)                  \
+    ylog(YLOG_ERROR, "ydb[%s] %s: %s\n",        \
+         (conn)->db ? (conn)->db->name : "...", \
          (conn)->address, ydb_res_str[res]);
 
 struct _ydb
@@ -384,7 +389,7 @@ ydb_res ydb_connect(ydb *datablock, char *addr, char *flags)
     if (datablock->epollfd < 0)
     {
         datablock->epollfd = epoll_create(YDB_CONN_MAX);
-        ylog_info("open epollfd(%d)\n", datablock->epollfd);
+        ylog_info("ydb[%s] open epollfd(%d)\n", datablock->name, datablock->epollfd);
     }
     YDB_FAIL(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
 
@@ -423,7 +428,7 @@ ydb_res ydb_reconnect(ydb *datablock, char *addr, char *flags)
     if (datablock->epollfd < 0)
     {
         datablock->epollfd = epoll_create(YDB_CONN_MAX);
-        ylog_info("open epollfd(%d)\n", datablock->epollfd);
+        ylog_info("ydb[%s] open epollfd(%d)\n", datablock->name, datablock->epollfd);
     }
     YDB_FAIL(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
 
@@ -478,7 +483,7 @@ ydb_res ydb_disconnect(ydb *datablock, char *addr)
         if (ylist_empty(datablock->disconn) &&
             ytree_size(datablock->conn) <= 0)
         {
-            ylog_info("close epollfd(%d)\n", datablock->epollfd);
+            ylog_info("ydb[%s] close epollfd(%d)\n", datablock->name, datablock->epollfd);
             close(datablock->epollfd);
             datablock->epollfd = -1;
         }
@@ -969,7 +974,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
 
     int pathlen = 0;
     char *path = ydb_path(datablock, cur, &pathlen);
-    ylog_debug("path=%s\n", path ? path : "null");
+    ylog_info("ydb[%s] path=%s\n", datablock->name, path ? path : "null");
     if (path && pathlen > 0)
     {
         ylist *child_rhooks = ytrie_search_range(datablock->updater, path, pathlen);
@@ -978,10 +983,12 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
             while (!ylist_empty(child_rhooks))
             {
                 rhook = ylist_pop_front(child_rhooks);
-                ylog_info("read hook (%s) %s\n", rhook->path, rhook ? "found" : "not found");
+                ylog_info("ydb[%s] read hook (%s) %s\n", datablock->name,
+                          rhook->path, rhook ? "found" : "not found");
                 res = ydb_update_rhook_exec(params, rhook);
                 if (res)
-                    ylog_error("read hook (%s) failed with %s\n", rhook->path, ydb_res_str[res]);
+                    ylog_error("ydb[%s] read hook (%s) failed with %s\n",
+                               datablock->name, rhook->path, ydb_res_str[res]);
             }
         }
         else
@@ -993,10 +1000,12 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
                 if (params->rhook)
                 {
                     // run rhook before change rhook
-                    ylog_info("read hook (%s) %s\n", rhook->path, rhook ? "found" : "not found");
+                    ylog_info("ydb[%s] read hook (%s) %s\n",
+                              datablock->name, rhook->path, rhook ? "found" : "not found");
                     res = ydb_update_rhook_exec(params, rhook);
                     if (res)
-                        ylog_error("read hook (%s) failed with %s\n", rhook->path, ydb_res_str[res]);
+                        ylog_error("ydb[%s] read hook (%s) failed with %s\n",
+                                   datablock->name, rhook->path, ydb_res_str[res]);
                 }
                 params->rhook = rhook;
             }
@@ -1021,10 +1030,12 @@ ydb_res ydb_update(yconn *src_conn, ydb *datablock, ynode *target)
     if (params.rhook)
     {
         // run the last rhook.
-        ylog_info("read hook (%s) %s\n", params.rhook->path, params.rhook ? "found" : "not found");
+        ylog_info("ydb[%s] read hook (%s) %s\n",
+                  datablock->name, params.rhook->path, params.rhook ? "found" : "not found");
         res = ydb_update_rhook_exec(&params, params.rhook);
         if (res)
-            ylog_error("read hook (%s) failed with %s\n", params.rhook->path, ydb_res_str[res]);
+            ylog_error("ydb[%s] read hook (%s) failed with %s\n",
+                       datablock->name, params.rhook->path, ydb_res_str[res]);
     }
     if (params.updated)
         return YDB_W_UPDATED;
@@ -1069,7 +1080,8 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
             yfree(oldhook->path);
         free(oldhook);
     }
-    ylog_info("read hook (%p) added to %s (%d)\n", rhook->hook, path, pathlen);
+    ylog_info("ydb[%s] read hook (%p) added to %s (%d)\n",
+              datablock->name, rhook->hook, path, pathlen);
     ylog_out();
     return YDB_OK;
 failed:
@@ -1091,7 +1103,8 @@ void ydb_read_hook_delete(ydb *datablock, char *path)
     rhook = ytrie_delete(datablock->updater, path, pathlen);
     if (rhook)
     {
-        ylog_info("read hook (%p) deleted from %s (%d)\n", rhook->hook, path, pathlen);
+        ylog_info("ydb[%s] read hook (%p) deleted from %s (%d)\n",
+                  datablock->name, rhook->hook, path, pathlen);
         if (rhook->path)
             yfree(rhook->path);
         free(rhook);
@@ -1104,7 +1117,8 @@ static void ydb_read_hook_free(void *hook)
     struct readhook *rhook = hook;
     if (rhook)
     {
-        ylog_info("read hook (%p) deleted from %s (%d)\n", rhook->hook, rhook->path, rhook->pathlen);
+        ylog_info("ydb[...] read hook (%p) deleted from %s (%d)\n",
+                  rhook->hook, rhook->path, rhook->pathlen);
         if (rhook->path)
             yfree(rhook->path);
         free(hook);
@@ -1145,10 +1159,10 @@ static ydb_res ydb_read_sub(ynode *cur, void *addition)
         }
         else
         {
-            if (YLOG_SEVERITY_DEBUG)
+            if (YLOG_SEVERITY_INFO)
             {
                 char *path = ynode_path(cur, YDB_LEVEL_MAX, NULL);
-                ylog_debug("no data for (%s)\n", path);
+                ylog_info("ydb[%s] no data for (%s)\n", data->datablock->name, path);
                 free(path);
             }
         }
@@ -1243,10 +1257,10 @@ static ydb_res ydb_fprintf_sub(ynode *cur, void *addition)
     }
     else
     {
-        if (YLOG_SEVERITY_DEBUG)
+        if (YLOG_SEVERITY_INFO)
         {
             char *path = ynode_path(cur, YDB_LEVEL_MAX, NULL);
-            ylog_debug("no data for (%s)\n", path);
+            ylog_info("ydb[%s] no data for (%s)\n", data->datablock->name, path);
             free(path);
         }
     }
@@ -1768,16 +1782,19 @@ void yconn_default_recv_head(
                 UNSET_FLAG(*flags, YCONN_UNSUBSCRIBE);
         }
     }
-    ylog_info("head {seq: %u, type: %s, op: %s}\n",
+    ylog_info("ydb[%s] head {seq: %u, type: %s, op: %s}\n",
+              (conn->db) ? conn->db->name : "...",
               head->recv.seq, ymsg_str[*type], yconn_op_str[*op]);
     if (*flags)
     {
-        ylog_info("head {flags: %s%s%s}\n",
+        ylog_info("ydb[%s] head {flags: %s%s%s}\n",
+                  (conn->db) ? conn->db->name : "...",
                   IS_SET(*flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
                   IS_SET(*flags, YCONN_WRITABLE) ? "w" : "_",
                   IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
     }
-    ylog_info("data {\n%s}\n", *data ? *data : "");
+    ylog_info("ydb[%s] data {\n%s}\n",
+              conn->db->name, *data ? *data : "...");
     return;
 failed:
     *op = head->recv.op = YOP_NONE;
@@ -1947,7 +1964,8 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
                 ymsg_str[type],
                 yconn_op_str[op]);
 
-    ylog_info("head {seq: %u, type: %s, op: %s}\n",
+    ylog_info("ydb[%s] head {seq: %u, type: %s, op: %s}\n",
+              (conn->db) ? conn->db->name : "...",
               head->send.seq,
               ymsg_str[type],
               yconn_op_str[op]);
@@ -1959,7 +1977,8 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
                      IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
                      IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "_",
                      IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
-        ylog_info("head {flags: %s%s%s}\n",
+        ylog_info("ydb[%s] head {flags: %s%s%s}\n",
+                  (conn->db) ? conn->db->name : "...",
                   IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
                   IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "_",
                   IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
@@ -1979,7 +1998,8 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
         if (n < 0)
             goto conn_failed;
     }
-    ylog_info("data {\n%s}\n", data ? data : "");
+    ylog_info("ydb[%s] data {\n%s}\n",
+              (conn->db) ? conn->db->name : "...", data ? data : "");
     n = write(fd, "...\n", 4);
     if (n < 0)
         goto conn_failed;
@@ -2133,7 +2153,8 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
     if (!simple)
     {
         if (state)
-            ylog_logger(YLOG_INFO, func, line, "%s conn:\n", state);
+            ylog_logger(YLOG_INFO, func, line, "ydb[%s] %s conn:\n",
+                        conn->db ? conn->db->name : "...", state);
         ylog_logger(YLOG_INFO, func, line, " fd: %d\n", conn->fd);
         ylog_logger(YLOG_INFO, func, line, " address: %s\n", conn->address);
         if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
@@ -2163,7 +2184,9 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
     }
     else
     {
-        ylog_logger(YLOG_INFO, func, line, "conn: %s (%d)\n", conn->address, conn->fd);
+        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (%d)\n",
+                    conn->db ? conn->db->name : "...",
+                    conn->address, conn->fd);
     }
 }
 
@@ -2502,7 +2525,7 @@ static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, 
         return YDB_E_INVALID_MSG;
     if (buf == NULL || buflen <= 0)
     {
-        ylog_info("datablock (%s) no data to publish.\n", datablock->name);
+        ylog_info("ydb[%s] no data to publish.\n", datablock ? datablock->name : "...");
         return YDB_OK;
     }
     publist = ylist_create();
@@ -2536,7 +2559,8 @@ static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, 
     {
         ylist_push_back(publist, recv_conn);
     }
-    ylog_info("publish num: %d\n", ylist_size(publist));
+    ylog_info("ydb[%s] publish num: %d\n",
+              datablock ? datablock->name : "...", ylist_size(publist));
     conn = ylist_pop_front(publist);
     while (conn)
     {
@@ -2591,7 +2615,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buf
                 ytree_insert(synclist, &conn->fd, conn);
         }
     }
-    ylog_info("sync request num: %d\n", ytree_size(synclist));
+    ylog_info("ydb[%s] sync request num: %d\n", datablock->name, ytree_size(synclist));
     while (ytree_size(synclist) > 0)
     {
         int i, n;
@@ -2648,7 +2672,7 @@ failed:
         timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
         // ylog_debug("start time: %u.%u\n", start.tv_sec, start.tv_usec);
         // ylog_debug("end time: %u.%u\n", end.tv_sec, end.tv_usec);
-        ylog_info("sync elapsed time: %d ms\n", timeout);
+        ylog_info("ydb[%s] sync elapsed time: %d ms\n", datablock->name, timeout);
     }
     ytree_destroy(synclist);
     ylog_out();
@@ -2733,7 +2757,7 @@ failed:
         timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
         // ylog_debug("start time: %u.%u\n", start.tv_sec, start.tv_usec);
         // ylog_debug("end time: %u.%u\n", end.tv_sec, end.tv_usec);
-        ylog_info("init elapsed time: %d ms\n", timeout);
+        ylog_info("ydb[%s] init elapsed time: %d ms\n", datablock->name, timeout);
     }
     ylog_out();
     return res;
@@ -2989,7 +3013,7 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
                 yconn *conn = ylist_pop_front(datablock->disconn);
                 if (!conn)
                     break;
-                ylog_info("re-connect to %s ..\n", conn->address);
+                ylog_info("ydb[%s] re-connect to %s ..\n", datablock->name, conn->address);
                 yconn_reopen(conn, datablock); // conn will push back on failure
             }
             gettimeofday(&datablock->retrytime, NULL);
@@ -3019,7 +3043,7 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
         YDB_FAIL_ERRNO(n < 0, YDB_E_SYSTEM_FAILED, errno);
     }
     if (n > 0)
-        ylog_debug("event (n=%d) received\n", n);
+        ylog_debug("ydb[%s] event (n=%d) received\n", datablock->name, n);
     for (i = 0; i < n; i++)
     {
         yconn *conn = event[i].data.ptr;
