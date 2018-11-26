@@ -1,7 +1,12 @@
 bin_PROGRAMS = ymap-example ytree-example ytrie-example yalloc-example ylist-example \
     yarray-example ytrie2-example ynode-example ydb-example yipc-example \
-    ydb-hook-example ydb-write-example
+    ydb-hook-example ydb-write-example ylog-example
 
+ylog_example_SOURCES = ylog-example.c
+ylog_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ylog_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs \
+                  -lydb -lyaml -lm
+ylog_example_CFLAGS = -g -Wall
 
 ymap_example_SOURCES = ymap-example.c
 ymap_example_CPPFLAGS = -I $(top_srcdir)/ydb
