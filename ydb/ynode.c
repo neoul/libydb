@@ -2462,16 +2462,21 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
 }
 
 // get the src nodes' data using the log (ynode_log).
-// return the number of nodes printed to the log (ynode_log).
-int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log)
+// return the number of value nodes printed to the log (ynode_log).
+int ynode_get_with_origin(ynode *src, int origin, ynode_log *log)
 {
     int n = 0;
     if (!src)
         return 0;
-    if (src->origin != origin && origin > 0)
-        return 0;
+    if (src->type == YNODE_TYPE_VAL)
+    {
+        // doesn't print the value according to origin.
+        if (src->origin != origin && origin >= 0)
+            return 0;
+        n += 1;
+    }
+
     ynode_log_print(log, src);
-    n += 1;
     switch (src->type)
     {
     case YNODE_TYPE_MAP:
@@ -2480,7 +2485,7 @@ int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log)
         for (; iter != NULL; iter = ytree_next(src->map, iter))
         {
             ynode *src_child = ytree_data(iter);
-            n += ynode_get_with_origin(src_child, origin, is_mine, log);
+            n += ynode_get_with_origin(src_child, origin, log);
         }
         break;
     }
@@ -2490,7 +2495,7 @@ int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log)
         for (; iter != NULL; iter = ymap_next(src->omap, iter))
         {
             ynode *src_child = ymap_data(iter);
-            n += ynode_get_with_origin(src_child, origin, is_mine, log);
+            n += ynode_get_with_origin(src_child, origin, log);
         }
         break;
     }
@@ -2502,7 +2507,7 @@ int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log)
              iter = ylist_next(src->list, iter))
         {
             ynode *src_child = ylist_data(iter);
-            n += ynode_get_with_origin(src_child, origin, is_mine, log);
+            n += ynode_get_with_origin(src_child, origin, log);
         }
         break;
     }
@@ -2511,16 +2516,14 @@ int ynode_get_with_origin(ynode *src, int origin, int *is_mine, ynode_log *log)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
-    if (is_mine && src->origin == 0)
-        *is_mine = 1;
     return n;
 }
 
 // get the src nodes' data using the log (ynode_log).
-// return the number of nodes printed to the log (ynode_log).
+// return the number of value nodes printed to the log (ynode_log).
 int ynode_get(ynode *src, ynode_log *log)
 {
-    return ynode_get_with_origin(src, -1, NULL, log);
+    return ynode_get_with_origin(src, -1, log);
 }
 
 // create single ynode and attach to parent

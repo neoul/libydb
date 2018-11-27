@@ -21,7 +21,7 @@ extern "C"
 
 
     // get the src nodes' data using the log (ynode_log).
-    // return the number of nodes printed to the log (ynode_log).
+    // return the number of value nodes printed to the log (ynode_log).
     int ynode_get(ynode *src, ynode_log *log);
 
     // ynode operation (Create, Merge, Delete) interfaces

@@ -11,8 +11,8 @@ remove_bg()
     # echo $BG
     for BG in $BGLIST; do
         # echo $BG
-        kill -2 $BG
         sleep 1
+        kill -2 $BG
     done
 }
 
@@ -34,7 +34,7 @@ run_bg()
         sleep 1
     fi
     if [ "x$LAST_PID" != "x" ]; then
-        BGLIST="$BGLIST $LAST_PID"
+        BGLIST="$LAST_PID $BGLIST"
     fi
 }
 
