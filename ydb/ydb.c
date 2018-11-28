@@ -121,6 +121,7 @@ char *ydb_res_str[] =
         YDB_ERR_NAME(YDB_E_CONN_CLOSED),
         YDB_ERR_NAME(YDB_E_FUNC),
         YDB_ERR_NAME(YDB_E_HOOK_ADD),
+        YDB_ERR_NAME(YDB_E_UNKNOWN_TARGET),
         YDB_ERR_NAME(YDB_W_UPDATED),
         YDB_ERR_NAME(YDB_W_MORE_RECV),
 };
@@ -173,6 +174,7 @@ typedef enum
     YMSG_RESP_FAILED,
     YMSG_RESP_CONTINUED,
     YMSG_PUBLISH,
+    YMSG_WHISPER,
     YMSG_MAX,
 } ymsg_type;
 
@@ -183,14 +185,15 @@ char *ymsg_str[] = {
     "resp(failed)",
     "resp(continued)",
     "pubish",
+    "whisper",
 };
 
 #define YMSG_START_DELIMITER "\n---\n"
 #define YMSG_END_DELIMITER "\n...\n"
-#define YMSG_START_DELIMITER_LEN (sizeof(YMSG_START_DELIMITER)-1)
-#define YMSG_END_DELIMITER_LEN (sizeof(YMSG_END_DELIMITER)-1)
+#define YMSG_START_DELIMITER_LEN (sizeof(YMSG_START_DELIMITER) - 1)
+#define YMSG_END_DELIMITER_LEN (sizeof(YMSG_END_DELIMITER) - 1)
 #define YMSG_HEAD_DELIMITER "#]]>>\n"
-#define YMSG_HEAD_DELIMITER_LEN (sizeof(YMSG_HEAD_DELIMITER)-1)
+#define YMSG_HEAD_DELIMITER_LEN (sizeof(YMSG_HEAD_DELIMITER) - 1)
 
 typedef ydb_res (*yconn_func_send)(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
 typedef ydb_res (*yconn_func_recv)(
@@ -234,6 +237,7 @@ static ydb_res yconn_attach(yconn *conn, ydb *datablock);
 static ydb_res yconn_request(yconn *req_conn, yconn_op op, char *buf, size_t buflen);
 static ydb_res yconn_response(yconn *req_conn, yconn_op op, bool done, bool failed, char *buf, size_t buflen);
 static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, yconn_op op, char *buf, size_t buflen);
+static ydb_res yconn_whisper(int origin, ydb *datablock, yconn_op op, char *buf, size_t buflen);
 static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buflen);
 static ydb_res yconn_init(yconn *req_conn);
 static ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, char *buf, size_t buflen);
@@ -866,6 +870,56 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         YDB_FAIL(!top, YDB_E_MERGE_FAILED);
         datablock->top = top;
         yconn_publish(NULL, NULL, datablock, YOP_MERGE, buf, buflen);
+    }
+failed:
+    CLEAR_BUF(buf, buflen);
+    ynode_remove(src);
+    ylog_out();
+    return res;
+}
+
+// update the remote ydb targeted by origin.
+ydb_res ydb_whisper(ydb *datablock, char *path, const char *format, ...)
+{
+    ydb_res res = YDB_OK;
+    ynode *src = NULL;
+    ynode *target;
+
+    FILE *fp;
+    char *buf = NULL;
+    size_t buflen = 0;
+
+    ylog_in();
+    YDB_FAIL(!datablock || !path, YDB_E_INVALID_ARGS);
+
+    target = ynode_search(datablock->top, path);
+    YDB_FAIL(!target, YDB_E_NO_ENTRY);
+    YDB_FAIL(ynode_origin(target) == 0, YDB_E_UNKNOWN_TARGET);
+
+    fp = open_memstream(&buf, &buflen);
+    YDB_FAIL(!fp, YDB_E_STREAM_FAILED);
+
+    fprintf(fp, "+whisper-target: %s", path);
+
+    va_list args;
+    va_start(args, format);
+    vfprintf(fp, (const char *)format, args);
+    va_end(args);
+    fclose(fp);
+
+    {
+        ynode *top = NULL;
+        ynode_log *log = NULL;
+        res = ynode_scanf_from_buf(buf, buflen, 0, &src);
+        YDB_FAIL(res || !src, res);
+        CLEAR_BUF(buf, buflen);
+        log = ynode_log_open(datablock->top, NULL);
+        // ynode_dump(src, 0, 24);
+        top = ynode_merge(datablock->top, src, log);
+        ynode_log_close(log, &buf, &buflen);
+        YDB_FAIL(!top, YDB_E_MERGE_FAILED);
+        datablock->top = top;
+        yconn_whisper(ynode_origin(target), datablock, YOP_MERGE, buf, buflen);
     }
 failed:
     CLEAR_BUF(buf, buflen);
@@ -2624,6 +2678,34 @@ static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, 
     return YDB_OK;
 }
 
+static ydb_res yconn_whisper(int origin, ydb *datablock, yconn_op op, char *buf, size_t buflen)
+{
+    yconn *tar_conn;
+    ylog_inout();
+    if (!buf || !datablock)
+        return YDB_E_INVALID_ARGS;
+    if (op != YOP_MERGE && op != YOP_DELETE)
+        return YDB_E_INVALID_MSG;
+    if (buf == NULL || buflen <= 0)
+    {
+        ylog_info("ydb[%s] no data to whisper.\n", datablock->name);
+        return YDB_OK;
+    }
+    datablock = datablock;
+    tar_conn = ytree_search(datablock->conn, &origin);
+    if (!tar_conn)
+    {
+        ylog_info("ydb[%s] no origin to whisper.\n", datablock->name);
+        return YDB_E_NO_CONN;
+    }
+
+    ylog_in();
+    YCONN_SIMPLE_INFO(tar_conn);
+    tar_conn->func_send(tar_conn, op, YMSG_WHISPER, buf, buflen);
+    ylog_out();
+    return YDB_OK;
+}
+
 static char *yconn_remove_head_tail(char *buf, size_t buflen, size_t *outbuflen)
 {
     // removed the head from buf.
@@ -2644,8 +2726,8 @@ static char *yconn_remove_head_tail(char *buf, size_t buflen, size_t *outbuflen)
     rbuflen = buflen - (rbuf - buf);
     if (rbuflen > YMSG_HEAD_DELIMITER_LEN)
     {
-        if (strncmp(&rbuf[rbuflen - YMSG_HEAD_DELIMITER_LEN], 
-            YMSG_HEAD_DELIMITER, YMSG_HEAD_DELIMITER_LEN) == 0)
+        if (strncmp(&rbuf[rbuflen - YMSG_HEAD_DELIMITER_LEN],
+                    YMSG_HEAD_DELIMITER, YMSG_HEAD_DELIMITER_LEN) == 0)
         {
             rbuf[rbuflen - YMSG_HEAD_DELIMITER_LEN] = 0;
         }
@@ -2664,7 +2746,6 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buf
     char *rbuf = buf;
     size_t rbuflen = buflen;
     int timeout;
-    
 
     ylog_in();
     YDB_FAIL(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
@@ -2672,12 +2753,12 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buf
     YDB_FAIL(!synclist, YDB_E_SYSTEM_FAILED);
 
     gettimeofday(&start, NULL);
-    iter = ytree_first(datablock->conn);
     if (req_conn)
     {
         // removed the head from buf.
         rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
     }
+    iter = ytree_first(datablock->conn);
     for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
     {
         yconn *conn = ytree_data(iter);
@@ -3084,6 +3165,49 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
         break;
     case YMSG_RESP_FAILED:
         break;
+    case YMSG_WHISPER:
+    {
+        char *dest;
+        char path[512];
+        path[0] = 0;
+        dest = strstr(buf, "+whisper-target:");
+        if (dest)
+        {
+            ynode *target;
+            ydb *datablock = recv_conn->db;
+            if (!datablock)
+                break;
+            sscanf(dest, "+whisper-target: %s", path);
+            target = ynode_search(datablock->top, path);
+            if (target && ynode_origin(target) != 0)
+            {
+                char *rbuf;
+                size_t rbuflen = 0;
+                rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
+                yconn_whisper(ynode_origin(target), recv_conn->db, *op, rbuf, rbuflen);
+            }
+            else if (target && ynode_origin(target) == 0)
+            {
+                char *rbuf = strchr(dest, '\n');
+                size_t rbuflen = buflen;
+                if (!rbuf)
+                    break;
+                rbuflen = rbuflen - (rbuf - buf);
+                switch (*op)
+                {
+                case YOP_MERGE:
+                    yconn_merge(recv_conn, NULL, rbuf, rbuflen);
+                    break;
+                case YOP_DELETE:
+                    yconn_delete(recv_conn, NULL, rbuf, rbuflen);
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+    break;
     default:
         break;
     }

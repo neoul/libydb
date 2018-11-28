@@ -41,6 +41,7 @@ extern "C"
         YDB_E_CONN_CLOSED,
         YDB_E_FUNC,
         YDB_E_HOOK_ADD,
+        YDB_E_UNKNOWN_TARGET,
         YDB_W_UPDATED,
         YDB_W_MORE_RECV,
     } ydb_res;
@@ -188,6 +189,8 @@ extern "C"
 
     ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, int num, ...);
     void ydb_write_hook_delete(ydb *datablock, char *path);
+
+    ydb_res ydb_whisper(ydb *datablock, char *path, const char *format, ...);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

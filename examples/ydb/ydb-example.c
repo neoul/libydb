@@ -32,17 +32,19 @@ char *example_yaml2 =
 int test_ydb_open_close()
 {
     printf("\n\n=== %s ===\n", __func__);
-    ydb *block1, *block2, *block3;
-    block1 = ydb_open("/path/to/datablock1");
-    block2 = ydb_open("/path/to/datablock2");
-    block3 = ydb_open("/path/to/datablock3");
-
-    // ydb *ref = ydb_get("test", NULL);
-    // ydb_path_write(ref, "ok=%s", "okkk!");
-
-    ydb_close(block3);
-    ydb_close(block2);
-    ydb_close(block1);
+    ydb *b1;
+    b1 = ydb_open("system-info");
+    ydb_write(b1, 
+        "hostname: %s\n"
+        "nic:\n"
+        " name: eth0\n"
+        " ip:\n"
+        "  - 10.10.1.2\n"
+        "  - 10.10.1.3\n",
+        "myhost"
+    );
+    ydb_dump(b1, stdout);
+    ydb_close(b1);
     printf("\n");
     return 0;
 }
@@ -230,6 +232,8 @@ int main(int argc, char *argv[])
 {
     ylog_severity = YLOG_DEBUG;
     TEST_FUNC(test_ydb_open_close);
+
+    ylog_severity = YLOG_INFO;
     TEST_FUNC(test_ydb_read_write);
     return 0;
 }
