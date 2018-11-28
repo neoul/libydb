@@ -185,6 +185,11 @@ char *ymsg_str[] = {
     "pubish",
 };
 
+#define YAML_START_DELIMITER "\n---\n"
+#define YAML_END_DELIMITER "\n...\n"
+#define YAML_START_DELIMITER_LEN 5
+#define YAML_END_DELIMITER_LEN 5
+
 typedef ydb_res (*yconn_func_send)(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
 typedef ydb_res (*yconn_func_recv)(
     yconn *conn, yconn_op *op, ymsg_type *type,
@@ -1774,10 +1779,10 @@ void yconn_default_recv_head(
     char opstr[32];
     char typestr[32];
     head = conn->head;
-    recvdata = strstr(*data, "---\n");
+    recvdata = strstr(*data, YAML_START_DELIMITER);
     if (!recvdata)
         goto failed;
-    recvdata += 4;
+    recvdata += YAML_START_DELIMITER_LEN;
     n = sscanf(recvdata,
                "#seq: %u\n"
                "#type: %s\n"
@@ -1854,10 +1859,10 @@ ydb_res yconn_default_recv(
     if (head->recv.next && head->recv.fp && head->recv.buf)
     {
         start = head->recv.buf;
-        end = strstr(start, "...\n");
+        end = strstr(start, YAML_END_DELIMITER);
         if (end)
         {
-            clen = (end + 4) - start;
+            clen = (end + YAML_END_DELIMITER_LEN) - start;
             fclose(head->recv.fp);
             start = head->recv.buf;
             len = head->recv.len;
@@ -1891,14 +1896,13 @@ ydb_res yconn_default_recv(
         if (!head->recv.fp)
             goto conn_failed;
     }
-    if (head->recv.buf && head->recv.len >= 3)
+    if (head->recv.buf && head->recv.len >= (YAML_END_DELIMITER_LEN - 1))
     {
-        // copy the last 3 bytes to check the message end.
-        recvbuf[0] = head->recv.buf[head->recv.len - 3];
-        recvbuf[1] = head->recv.buf[head->recv.len - 2];
-        recvbuf[2] = head->recv.buf[head->recv.len - 1];
-        recvbuf[3] = 0;
-        start = &recvbuf[3];
+        int copybytes = YAML_END_DELIMITER_LEN - 1;
+        // copy the last YAML_END_DELIMITER_LEN - 1 bytes to check the message end.
+        memcpy(recvbuf, &head->recv.buf[head->recv.len - copybytes], copybytes);
+        recvbuf[copybytes] = 0;
+        start = &recvbuf[copybytes];
     }
     else
         start = recvbuf;
@@ -1920,10 +1924,10 @@ ydb_res yconn_default_recv(
             goto conn_failed;
     }
     start[len] = 0;
-    end = strstr(recvbuf, "...\n");
+    end = strstr(recvbuf, YAML_END_DELIMITER);
     if (!end)
         goto keep_data;
-    clen = (end + 4) - start;
+    clen = (end + YAML_END_DELIMITER_LEN) - start;
     if (fwrite(start, clen, 1, head->recv.fp) != 1)
         goto conn_failed;
     fclose(head->recv.fp);
@@ -1989,7 +1993,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     head = (struct yconn_socket_head *)conn->head;
     head->send.seq++;
     n = sprintf(msghead,
-                "---\n"
+                YAML_START_DELIMITER
                 "#seq: %u\n"
                 "#type: %s\n"
                 "#op: %s\n",
@@ -2031,9 +2035,9 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
         if (n < 0)
             goto conn_failed;
     }
-    ylog_info("ydb[%s] data {\n%s}\n",
-              (conn->db) ? conn->db->name : "...", data ? data : "");
-    n = write(fd, "...\n", 4);
+    ylog_info("ydb[%s] data {\n%s%s%s}\n",
+              (conn->db) ? conn->db->name : "...", msghead, data ? data : "", "\n...\n");
+    n = write(fd, YAML_END_DELIMITER, YAML_END_DELIMITER_LEN);
     if (n < 0)
         goto conn_failed;
     ylog_out();
@@ -2103,7 +2107,7 @@ ydb_res yconn_file_init(yconn *conn)
         // open(fifo_path, O_RDONLY | O_NONBLOCK);
         conn->fd = open(fi, O_RDONLY | O_NONBLOCK);
         head->send.fd = open(fo, O_RDWR);
-        // head->send.fd = open(fo, O_WRONLY); // It would be pending if WRONLY... mode...
+        // head->send.fd = open(fo, O_WRONLY); // It would be pending if WRONLY mode
         if (conn->fd < 0 || head->send.fd < 0)
         {
             if (conn->fd > 0)
