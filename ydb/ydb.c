@@ -155,6 +155,7 @@ typedef enum
     YOP_MERGE,
     YOP_DELETE,
     YOP_SYNC,
+    YOP_MAX,
 } yconn_op;
 
 char *yconn_op_str[] = {
@@ -172,6 +173,7 @@ typedef enum
     YMSG_RESP_FAILED,
     YMSG_RESP_CONTINUED,
     YMSG_PUBLISH,
+    YMSG_MAX,
 } ymsg_type;
 
 char *ymsg_str[] = {
@@ -231,13 +233,13 @@ static ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, char *buf, size_t 
 static ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, char *buf, size_t buflen);
 static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type *type, int *next);
 
-#define yconn_errno(conn, res)                  \
-    ylog(YLOG_ERROR, "ydb[%s] %s (%d): %s (%s)\n",   \
-         (conn)->db ? (conn)->db->name : "...", \
+#define yconn_errno(conn, res)                     \
+    ylog(YLOG_ERROR, "ydb[%s] %s (%d): %s (%s)\n", \
+         (conn)->db ? (conn)->db->name : "...",    \
          (conn)->address, (conn)->fd, ydb_res_str[res], strerror(errno));
 
 #define yconn_error(conn, res)                  \
-    ylog(YLOG_ERROR, "ydb[%s] %s (%d): %s\n",        \
+    ylog(YLOG_ERROR, "ydb[%s] %s (%d): %s\n",   \
          (conn)->db ? (conn)->db->name : "...", \
          (conn)->address, (conn)->fd, ydb_res_str[res]);
 
@@ -255,8 +257,10 @@ struct _ydb
     struct timeval retrytime;
 };
 
-ytrie *ydb_pool;
-ytrie *yconn_pool;
+static ytrie *ydb_pool;
+static ytrie *yconn_pool;
+static ytrie *ymsg_pool;
+static ytrie *yop_pool;
 
 int yconn_cmp(int *fd1, int *fd2)
 {
@@ -268,6 +272,18 @@ int yconn_cmp(int *fd1, int *fd2)
         return 0;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wint-conversion" // disable casting warning.
+static ymsg_type ydb_get_ymsg(char *typestr)
+{
+    return (ymsg_type)ytrie_search(ymsg_pool, typestr, strlen(typestr));
+}
+
+static yconn_op ydb_get_yop(char *opstr)
+{
+    return (ymsg_type)ytrie_search(yop_pool, opstr, strlen(opstr));
+}
+
 static ydb_res ypool_create()
 {
     if (!ydb_pool)
@@ -276,6 +292,28 @@ static ydb_res ypool_create()
         if (!ydb_pool)
         {
             return YDB_E_MEM_ALLOC;
+        }
+        if (!ymsg_pool)
+        {
+            int j;
+            ymsg_pool = ytrie_create();
+            if (!ymsg_pool)
+            {
+                return YDB_E_MEM_ALLOC;
+            }
+            for (j = YMSG_NONE; j < YMSG_MAX; j++)
+                ytrie_insert(ymsg_pool, ymsg_str[j], strlen(ymsg_str[j]), j);
+        }
+        if (!yop_pool)
+        {
+            int j;
+            yop_pool = ytrie_create();
+            if (!yop_pool)
+            {
+                return YDB_E_MEM_ALLOC;
+            }
+            for (j = YOP_NONE; j < YOP_MAX; j++)
+                ytrie_insert(yop_pool, yconn_op_str[j], strlen(yconn_op_str[j]), j);
         }
     }
     if (!yconn_pool)
@@ -288,18 +326,29 @@ static ydb_res ypool_create()
     }
     return YDB_OK;
 }
+#pragma GCC diagnostic pop
 
 static void ypool_destroy()
 {
-    if (ydb_pool && ytrie_size(ydb_pool) <= 0)
-    {
-        ytrie_destroy(ydb_pool);
-        ydb_pool = NULL;
-    }
     if (yconn_pool && ytrie_size(yconn_pool) <= 0)
     {
         ytrie_destroy(yconn_pool);
         yconn_pool = NULL;
+    }
+    if (ydb_pool && ytrie_size(ydb_pool) <= 0)
+    {
+        ytrie_destroy(ydb_pool);
+        ydb_pool = NULL;
+        if (ymsg_pool)
+        {
+            ytrie_destroy(ymsg_pool);
+            ymsg_pool = NULL;
+        }
+        if (yop_pool)
+        {
+            ytrie_destroy(yop_pool);
+            yop_pool = NULL;
+        }
     }
 }
 
@@ -1719,7 +1768,6 @@ void yconn_default_recv_head(
     yconn *conn, yconn_op *op, ymsg_type *type,
     unsigned int *flags, char **data, size_t *datalen)
 {
-    int j;
     int n = 0;
     struct yconn_socket_head *head;
     char *recvdata;
@@ -1740,19 +1788,9 @@ void yconn_default_recv_head(
     if (n != 3)
         goto failed;
     // Operation type
-    for (j = YOP_SYNC; j > YOP_NONE; j--)
-    {
-        if (strcmp(opstr, yconn_op_str[j]) == 0)
-            break;
-    }
-    *op = head->recv.op = j;
+    *op = head->recv.op = ydb_get_yop(opstr);
     // message type (request/response/publish)
-    for (j = YMSG_PUBLISH; j > YMSG_NONE; j--)
-    {
-        if (strcmp(typestr, ymsg_str[j]) == 0)
-            break;
-    }
-    *type = head->recv.type = j;
+    *type = head->recv.type = ydb_get_ymsg(typestr);
 
     if (head->recv.op == YOP_INIT)
     {
@@ -1789,7 +1827,7 @@ void yconn_default_recv_head(
                   IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
     }
     ylog_info("ydb[%s] data {\n%s}\n",
-              conn->db->name, *data ? *data : "...");
+              (conn->db) ? conn->db->name : "...", *data ? *data : "...");
     return;
 failed:
     *op = head->recv.op = YOP_NONE;
@@ -2990,8 +3028,8 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
             if (req_conn && *op == YOP_SYNC)
             {
                 ylog_info("ydb[%s] relay response from %d to %d\n",
-                    req_conn->db?req_conn->db->name:"...",
-                    recv_conn->fd, req_conn->fd);
+                          req_conn->db ? req_conn->db->name : "...",
+                          recv_conn->fd, req_conn->fd);
                 yconn_response(req_conn, *op, false, true, buf, buflen);
             }
         }
