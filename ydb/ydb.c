@@ -185,10 +185,12 @@ char *ymsg_str[] = {
     "pubish",
 };
 
-#define YAML_START_DELIMITER "\n---\n"
-#define YAML_END_DELIMITER "\n...\n"
-#define YAML_START_DELIMITER_LEN 5
-#define YAML_END_DELIMITER_LEN 5
+#define YMSG_START_DELIMITER "\n---\n"
+#define YMSG_END_DELIMITER "\n...\n"
+#define YMSG_START_DELIMITER_LEN (sizeof(YMSG_START_DELIMITER)-1)
+#define YMSG_END_DELIMITER_LEN (sizeof(YMSG_END_DELIMITER)-1)
+#define YMSG_HEAD_DELIMITER "#]]>>\n"
+#define YMSG_HEAD_DELIMITER_LEN (sizeof(YMSG_HEAD_DELIMITER)-1)
 
 typedef ydb_res (*yconn_func_send)(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen);
 typedef ydb_res (*yconn_func_recv)(
@@ -1779,10 +1781,10 @@ void yconn_default_recv_head(
     char opstr[32];
     char typestr[32];
     head = conn->head;
-    recvdata = strstr(*data, YAML_START_DELIMITER);
+    recvdata = strstr(*data, YMSG_START_DELIMITER);
     if (!recvdata)
         goto failed;
-    recvdata += YAML_START_DELIMITER_LEN;
+    recvdata += YMSG_START_DELIMITER_LEN;
     n = sscanf(recvdata,
                "#seq: %u\n"
                "#type: %s\n"
@@ -1859,10 +1861,10 @@ ydb_res yconn_default_recv(
     if (head->recv.next && head->recv.fp && head->recv.buf)
     {
         start = head->recv.buf;
-        end = strstr(start, YAML_END_DELIMITER);
+        end = strstr(start, YMSG_END_DELIMITER);
         if (end)
         {
-            clen = (end + YAML_END_DELIMITER_LEN) - start;
+            clen = (end + YMSG_END_DELIMITER_LEN) - start;
             fclose(head->recv.fp);
             start = head->recv.buf;
             len = head->recv.len;
@@ -1896,10 +1898,10 @@ ydb_res yconn_default_recv(
         if (!head->recv.fp)
             goto conn_failed;
     }
-    if (head->recv.buf && head->recv.len >= (YAML_END_DELIMITER_LEN - 1))
+    if (head->recv.buf && head->recv.len >= (YMSG_END_DELIMITER_LEN - 1))
     {
-        int copybytes = YAML_END_DELIMITER_LEN - 1;
-        // copy the last YAML_END_DELIMITER_LEN - 1 bytes to check the message end.
+        int copybytes = YMSG_END_DELIMITER_LEN - 1;
+        // copy the last YMSG_END_DELIMITER_LEN - 1 bytes to check the message end.
         memcpy(recvbuf, &head->recv.buf[head->recv.len - copybytes], copybytes);
         recvbuf[copybytes] = 0;
         start = &recvbuf[copybytes];
@@ -1924,10 +1926,10 @@ ydb_res yconn_default_recv(
             goto conn_failed;
     }
     start[len] = 0;
-    end = strstr(recvbuf, YAML_END_DELIMITER);
+    end = strstr(recvbuf, YMSG_END_DELIMITER);
     if (!end)
         goto keep_data;
-    clen = (end + YAML_END_DELIMITER_LEN) - start;
+    clen = (end + YMSG_END_DELIMITER_LEN) - start;
     if (fwrite(start, clen, 1, head->recv.fp) != 1)
         goto conn_failed;
     fclose(head->recv.fp);
@@ -1993,7 +1995,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     head = (struct yconn_socket_head *)conn->head;
     head->send.seq++;
     n = sprintf(msghead,
-                YAML_START_DELIMITER
+                YMSG_START_DELIMITER
                 "#seq: %u\n"
                 "#type: %s\n"
                 "#op: %s\n",
@@ -2023,6 +2025,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     default:
         break;
     }
+    n += sprintf(msghead + n, "%s", YMSG_HEAD_DELIMITER);
     fd = conn->fd;
     if (head->send.fd > 0)
         fd = head->send.fd;
@@ -2037,7 +2040,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     }
     ylog_info("ydb[%s] data {\n%s%s%s}\n",
               (conn->db) ? conn->db->name : "...", msghead, data ? data : "", "\n...\n");
-    n = write(fd, YAML_END_DELIMITER, YAML_END_DELIMITER_LEN);
+    n = write(fd, YMSG_END_DELIMITER, YMSG_END_DELIMITER_LEN);
     if (n < 0)
         goto conn_failed;
     ylog_out();
@@ -2621,6 +2624,36 @@ static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, 
     return YDB_OK;
 }
 
+static char *yconn_remove_head_tail(char *buf, size_t buflen, size_t *outbuflen)
+{
+    // removed the head from buf.
+    char *rbuf;
+    size_t rbuflen;
+    if (!buf || buflen <= 0)
+    {
+        *outbuflen = buflen;
+        return buf;
+    }
+    rbuf = strstr(buf, YMSG_HEAD_DELIMITER);
+    if (!rbuf)
+    {
+        *outbuflen = buflen;
+        return buf;
+    }
+    rbuf = rbuf + YMSG_HEAD_DELIMITER_LEN;
+    rbuflen = buflen - (rbuf - buf);
+    if (rbuflen > YMSG_HEAD_DELIMITER_LEN)
+    {
+        if (strncmp(&rbuf[rbuflen - YMSG_HEAD_DELIMITER_LEN], 
+            YMSG_HEAD_DELIMITER, YMSG_HEAD_DELIMITER_LEN) == 0)
+        {
+            rbuf[rbuflen - YMSG_HEAD_DELIMITER_LEN] = 0;
+        }
+    }
+    *outbuflen = rbuflen;
+    return rbuf;
+}
+
 static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buflen)
 {
     ydb_res res = YDB_OK;
@@ -2628,7 +2661,10 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buf
     ytree *synclist = NULL;
     struct timeval start, end;
     bool ydb_updated = false;
+    char *rbuf = buf;
+    size_t rbuflen = buflen;
     int timeout;
+    
 
     ylog_in();
     YDB_FAIL(datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
@@ -2637,6 +2673,11 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buf
 
     gettimeofday(&start, NULL);
     iter = ytree_first(datablock->conn);
+    if (req_conn)
+    {
+        // removed the head from buf.
+        rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
+    }
     for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
     {
         yconn *conn = ytree_data(iter);
@@ -2655,7 +2696,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buf
                 continue;
         }
         YCONN_SIMPLE_INFO(conn);
-        res = yconn_request(conn, YOP_SYNC, buf, buflen);
+        res = yconn_request(conn, YOP_SYNC, rbuf, rbuflen);
         if (!res)
         {
             if (synclist)
@@ -3034,7 +3075,10 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
                 ylog_info("ydb[%s] relay response from %d to %d\n",
                           req_conn->db ? req_conn->db->name : "...",
                           recv_conn->fd, req_conn->fd);
-                yconn_response(req_conn, *op, false, true, buf, buflen);
+                char *rbuf;
+                size_t rbuflen = 0;
+                rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
+                yconn_response(req_conn, *op, false, true, rbuf, rbuflen);
             }
         }
         break;
