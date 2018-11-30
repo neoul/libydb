@@ -76,7 +76,7 @@ int ylog_general(
         fp = stdout;
     if (ferror(fp))
         goto end_log;
-    len = fprintf(fp, "__%s::%s::%s:%d: ", ylog_pname(), ylog_severity_str(severity), func, line);
+    len = fprintf(fp, "++ %s::%s::%s:%d: ", ylog_pname(), ylog_severity_str(severity), func, line);
     n += len;
     va_start(args, format);
     len = vfprintf(fp, format, args);
@@ -161,7 +161,7 @@ int ylog_file(int severity, const char *func, int line, const char *format, ...)
         va_list args;
         if (ferror(ylog_fp))
             goto close_fp;
-        len = fprintf(ylog_fp, "__%s::%s::%s:%d: ", ylog_pname(), ylog_severity_str(severity), func, line);
+        len = fprintf(ylog_fp, "++ %s::%s::%s:%d: ", ylog_pname(), ylog_severity_str(severity), func, line);
         if (len < 0)
             goto close_fp;
         n += len;

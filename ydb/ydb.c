@@ -3043,7 +3043,6 @@ static ydb_res yconn_sync_read(yconn *conn, char *inbuf, size_t inbuflen, char *
     res = yconn_sync(conn, datablock, inbuf, inbuflen);
     if (res == YDB_W_UPDATED)
         ydb_updated = true;
-    printf("inbuf=`%s` inbuflen=%d\n", inbuf, inbuflen);
     res = ynode_scanf_from_buf(inbuf, inbuflen, conn->fd, &src);
     if (res)
     {
