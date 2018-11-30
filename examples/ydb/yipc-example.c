@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
+#include "ylog.h"
 #include "yipc.h"
 
 static int done;

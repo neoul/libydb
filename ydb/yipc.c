@@ -54,14 +54,9 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
 
     if (!src_id || !dest_id)
         return -1;
-    snprintf(path, sizeof(path), "%s/+meta/%s", src_id, dest_id);
-    datablock = ydb_get(path, &idb);
+    datablock = ydb_get(src_id, NULL);
     if (!datablock)
         return -1;
-
-    // check dest_id
-    if (!idb)
-        return -2;
 
     fp = open_memstream(&buf, &buflen);
     if (!fp)
@@ -75,19 +70,20 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
 
     if (!buf)
         return 0;
-
-    res =
-        ydb_write(datablock,
+    if (buflen <= 0)
+    {
+        free(buf);
+        return 0;
+    }
+    snprintf(path, sizeof(path), "/+meta/%s", dest_id);
+    res = ydb_whisper(datablock,
+                    path,
                   "+msg:\n"
                   " src: %s\n"
                   " dest: %s\n"
                   "%s\n",
                   src_id, dest_id, buf);
     CLEAR_BUF(buf, buflen);
-
-    // printf("SEND =====\n");
-    // ydb_dump(datablock, stdout);
-    // printf("=====\n\n");
 
     idb = ydb_down(ydb_top(datablock));
     while (idb)
@@ -144,9 +140,9 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
     if (res && res != YDB_W_MORE_RECV)
         return -2;
 
-    // printf("RECV =====\n");
-    // ydb_dump(db, stdout);
-    // printf("=====\n\n");
+    printf("RECV =====\n");
+    ydb_dump(db, stdout);
+    printf("=====\n\n");
 
     idb = ydb_search(db, "+msg/dest");
     if (idb)

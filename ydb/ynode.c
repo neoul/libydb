@@ -2345,7 +2345,12 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
         yhook_copy(new, cur);
     }
     else if (op == YHOOK_OP_NONE)
+    {
         new = cur;
+        // update origin for value nodes
+        if (src->type == YNODE_TYPE_VAL)
+            new->origin = src->origin;
+    }
 
     if (YLOG_SEVERITY_DEBUG)
     {
