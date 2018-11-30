@@ -401,7 +401,7 @@ void yhook_unregister(ynode *node)
     yhook_delete(node);
 }
 
-static void yhook_func_exec(yhook *hook, char op, ydb_iter *cur, ydb_iter *_new)
+static void yhook_func_exec(yhook *hook, char op, ynode *cur, ynode *_new)
 {
     assert(hook->func);
     if (YLOG_SEVERITY_INFO)

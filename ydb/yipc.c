@@ -46,7 +46,7 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
 {
     ydb_res res = YDB_OK;
     ydb *datablock = NULL;
-    ydb_iter *idb = NULL;
+    ydb_node *node = NULL;
     FILE *fp;
     char *buf = NULL;
     size_t buflen = 0;
@@ -85,21 +85,21 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
                   src_id, dest_id, buf);
     CLEAR_BUF(buf, buflen);
 
-    idb = ydb_down(ydb_top(datablock));
-    while (idb)
+    node = ydb_down(ydb_top(datablock));
+    while (node)
     {
-        char *key = ydb_key(idb);
+        char *key = ydb_key(node);
         if (!key)
             break;
         if (strcmp(key, "+meta") != 0)
         {
-            ydb_iter *idb_next;
-            idb_next = ydb_next(idb);
-            ynode_remove(idb);
-            idb = idb_next;
+            ydb_node *idb_next;
+            idb_next = ydb_next(node);
+            ynode_remove(node);
+            node = idb_next;
         }
         else
-            idb = ydb_next(idb);
+            node = ydb_next(node);
     }
     if (res)
         return -4;
@@ -111,7 +111,7 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
 {
     ydb_res res = YDB_OK;
     ydb *db;
-    ydb_iter *idb;
+    ydb_node *node;
     if (!src_id || !datablock)
         return -1;
     db = ydb_get(src_id, NULL);
@@ -119,21 +119,21 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
         return -1;
 
     *datablock = NULL;
-    idb = ydb_down(ydb_top(db));
-    while (idb)
+    node = ydb_down(ydb_top(db));
+    while (node)
     {
-        char *key = ydb_key(idb);
+        char *key = ydb_key(node);
         if (!key)
             break;
         if (strcmp(key, "+meta") != 0)
         {
-            ydb_iter *idb_next;
-            idb_next = ydb_next(idb);
-            ynode_remove(idb);
-            idb = idb_next;
+            ydb_node *idb_next;
+            idb_next = ydb_next(node);
+            ynode_remove(node);
+            node = idb_next;
         }
         else
-            idb = ydb_next(idb);
+            node = ydb_next(node);
     }
 
     res = ydb_recv(db, timeout, true);
@@ -144,10 +144,10 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
     ydb_dump(db, stdout);
     printf("=====\n\n");
 
-    idb = ydb_search(db, "+msg/dest");
-    if (idb)
+    node = ydb_search(db, "+msg/dest");
+    if (node)
     {
-        if (strcmp(ydb_value(idb), src_id) == 0)
+        if (strcmp(ydb_value(node), src_id) == 0)
         {
             *datablock = db;
         }

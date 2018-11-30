@@ -60,7 +60,7 @@ ydb_res update_hook(ydb *datablock, char *path, FILE *ydb_fp, void *U1, void *U2
     return YDB_OK;
 }
 
-void notify_hook(ydb *datablock, char op, ydb_iter *cur, ydb_iter *_new, void *U1, void *U2)
+void notify_hook(ydb *datablock, char op, ydb_node *cur, ydb_node *_new, void *U1, void *U2)
 {
     fprintf(stdout, "HOOK %s (%c) cur=%s new=%s U0=%p U1=%p U2=%p\n", __func__, op,
            ydb_value(cur) ? ydb_value(cur) : "", ydb_value(_new) ? ydb_value(_new) : "", datablock, U1, U2);
@@ -167,9 +167,9 @@ int test_ydb_read_write()
     if (res)
         goto _done;
 
-    ydb_iter *iter = NULL;
+    ydb_node *iter = NULL;
     ydb_dump(ydb_get("/path/to/data/system/hostname", &iter), stdout);
-    printf("ydb_iter = %s\n", ydb_value(iter));
+    printf("ydb_node = %s\n", ydb_value(iter));
     int pathlen = 0;
     char *path = ydb_path(datablock, iter, &pathlen);
     printf("ydb_path=%s\n", path);

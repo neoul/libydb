@@ -193,7 +193,7 @@ char *ymsg_str[] = {
 #define YMSG_END_DELIMITER "\n...\n"
 #define YMSG_START_DELIMITER_LEN (sizeof(YMSG_START_DELIMITER) - 1)
 #define YMSG_END_DELIMITER_LEN (sizeof(YMSG_END_DELIMITER) - 1)
-#define YMSG_HEAD_DELIMITER "#]]>>\n"
+#define YMSG_HEAD_DELIMITER "#_______\n"
 #define YMSG_HEAD_DELIMITER_LEN (sizeof(YMSG_HEAD_DELIMITER) - 1)
 #define YMSG_WHISPER_DELIMITER "+whisper-target:"
 #define YMSG_WHISPER_DELIMITER_LEN (sizeof(YMSG_WHISPER_DELIMITER) - 1)
@@ -676,7 +676,7 @@ ynode *ydb_root(ydb *datablock)
     return ynode_top(datablock->top);
 }
 
-// return 1 if ydb_iter is empty.
+// return 1 if ydb_node is empty.
 int ydb_empty(ynode *node)
 {
     return ynode_empty(node);
@@ -2755,7 +2755,7 @@ static char *yconn_remove_head_tail(char *buf, size_t buflen, size_t *outbuflen)
                     YMSG_END_DELIMITER, YMSG_END_DELIMITER_LEN) == 0)
         {
             rbuflen = rbuflen - YMSG_END_DELIMITER_LEN;
-            rbuf[rbuflen] = 0;
+            // rbuf[rbuflen] = 0; // only change rbuflen;
         }
     }
     *outbuflen = rbuflen;
@@ -3043,6 +3043,7 @@ static ydb_res yconn_sync_read(yconn *conn, char *inbuf, size_t inbuflen, char *
     res = yconn_sync(conn, datablock, inbuf, inbuflen);
     if (res == YDB_W_UPDATED)
         ydb_updated = true;
+    printf("inbuf=`%s` inbuflen=%d\n", inbuf, inbuflen);
     res = ynode_scanf_from_buf(inbuf, inbuflen, conn->fd, &src);
     if (res)
     {
