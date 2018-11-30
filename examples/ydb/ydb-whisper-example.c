@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    ylog_severity = YLOG_DEBUG;
+    // ylog_severity = YLOG_DEBUG;
     datablock = ydb_open("top");
     if (!datablock)
     {
@@ -74,7 +74,12 @@ int main(int argc, char *argv[])
     }
 
     buf = get_stdin_to_buf(&buflen);
-    printf("buf (%ld) =%s\n", buflen, buf);
+    
+    if (!buf || buflen <= 0)
+    {
+        fprintf(stderr, "no input\n");
+        goto failed;
+    }
 
     // ignore SIGPIPE.
     signal(SIGPIPE, SIG_IGN);
@@ -95,7 +100,6 @@ int main(int argc, char *argv[])
     // set the whispering target.
     snprintf(dest, sizeof(dest), "/+id/%s", argv[3]);
 
-    fprintf(stdout, )
     do
     {
         static int whispered;
