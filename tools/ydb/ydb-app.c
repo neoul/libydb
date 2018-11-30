@@ -25,7 +25,7 @@ void usage(char *argv_0)
     printf(" version: %s\n", VERSION);
     printf(" bug report: %s\n", PACKAGE_BUGREPORT);
     printf("\n");
-    printf(" usage : %s --role=ROLE [OPTION...]\n", pname);
+    printf(" usage : %s [OPTION...]\n", pname);
     printf("\n\
   -n, --name YDB_NAME              The name of created YDB (YAML DataBlock).\n\
   -r, --role (pub|sub|loc)         Set the role.\n\
@@ -97,6 +97,12 @@ int main(int argc, char *argv[])
     int daemon = 0;
     ylist *filelist = NULL;
     ylist *cmdlist = NULL;
+
+    if (argc <= 1)
+    {
+        usage(argv[0]);
+        return 0;
+    }
 
     filelist = ylist_create();
     if (!filelist)

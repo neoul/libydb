@@ -2346,10 +2346,10 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     }
     else if (op == YHOOK_OP_NONE)
     {
-        new = cur;
         // update origin for value nodes
-        if (src->type == YNODE_TYPE_VAL)
-            new->origin = src->origin;
+        if (src->type == YNODE_TYPE_VAL && cur->origin != 0)
+            cur->origin = src->origin;
+        new = cur;
     }
 
     if (YLOG_SEVERITY_DEBUG)

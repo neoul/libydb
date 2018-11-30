@@ -190,7 +190,9 @@ extern "C"
     ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, char *flags, int num, ...);
     void ydb_write_hook_delete(ydb *datablock, char *path);
 
-    ydb_res ydb_whisper(ydb *datablock, char *path, const char *format, ...);
+    // update and delete the remote ydb targeted by origin.
+    ydb_res ydb_whisper_merge(ydb *datablock, char *path, const char *format, ...);
+    ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

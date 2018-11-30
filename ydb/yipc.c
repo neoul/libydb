@@ -76,7 +76,7 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
         return 0;
     }
     snprintf(path, sizeof(path), "/+meta/%s", dest_id);
-    res = ydb_whisper(datablock,
+    res = ydb_whisper_merge(datablock,
                     path,
                   "+msg:\n"
                   " src: %s\n"

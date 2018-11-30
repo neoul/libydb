@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     }
 
     buf = get_stdin_to_buf(&buflen);
-    
+
     if (!buf || buflen <= 0)
     {
         fprintf(stderr, "no input\n");
@@ -106,11 +106,13 @@ int main(int argc, char *argv[])
         // check the whispering target exists and whisper my data once.
         if (!whispered)
         {
-            res = ydb_whisper(datablock, dest, "%s", buf);
+            ylog_severity = YLOG_CRITICAL;
+            res = ydb_whisper_merge(datablock, dest, "%s", buf);
+            ylog_severity = YLOG_ERROR;
             if (!res)
             {
                 whispered = 1;
-                fprintf(stdout, "ydb_whisper ok!\n");
+                fprintf(stdout, "ydb_whisper_merge from %s to %s\n", argv[2], argv[3]);
             }
         }
         res = ydb_serve(datablock, 1000);
@@ -120,6 +122,7 @@ int main(int argc, char *argv[])
 
     if (buf)
         free(buf);
+    ydb_dump(datablock, stdout);
     ydb_close(datablock);
     return 0;
 
