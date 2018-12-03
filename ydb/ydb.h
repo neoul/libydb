@@ -56,11 +56,11 @@ extern "C"
     ydb *ydb_open(char *name);
 
     // Get YAML DataBlock and also return ydb_node
-    ydb *ydb_get(char *name_and_path, ydb_node **iter);
+    ydb *ydb_get(char *name_and_path, ydb_node **node);
 
-    // return the new string consisting of the YDB name and the path to the iter.
+    // return the new string consisting of the YDB name and the path to the node.
     // the return string must be free.
-    char *ydb_name_and_path(ydb_node *iter, int *pathlen);
+    char *ydb_name_and_path(ydb_node *node, int *pathlen);
 
     // Get the name of the YAML DataBlock
     char *ydb_name(ydb *datablock);
@@ -76,15 +76,17 @@ extern "C"
     ydb_res ydb_reconnect(ydb *datablock, char *addr, char *flags);
     ydb_res ydb_disconnect(ydb *datablock, char *addr);
 
+    int ydb_is_connected(ydb *datablock, char *addr);
+
     // Clear all data in the YAML DataBlock
     ydb_res ydb_clear(ydb *datablock);
     // Close the YAML DataBlock
     void ydb_close(ydb *datablock);
 
     // return the path of the node. (the path must be free.)
-    char *ydb_path(ydb *datablock, ydb_node *iter, int *pathlen);
+    char *ydb_path(ydb *datablock, ydb_node *node, int *pathlen);
     // return the path of the node. (the path must be free.)
-    char *ydb_path_and_value(ydb *datablock, ydb_node *iter, int *pathlen);
+    char *ydb_path_and_value(ydb *datablock, ydb_node *node, int *pathlen);
     // return the node in the path of the yaml data block.
     ydb_node *ydb_search(ydb *datablock, char *path);
 
@@ -93,28 +95,28 @@ extern "C"
     // return the root node of the yaml data block.
     ydb_node *ydb_root(ydb *datablock);
     // return 1 if the node has no child.
-    int ydb_empty(ydb_node *iter);
+    int ydb_empty(ydb_node *node);
 
     // return the parent node of the node.
-    ydb_node *ydb_up(ydb_node *iter);
+    ydb_node *ydb_up(ydb_node *node);
     // return the first child node of the node.
-    ydb_node *ydb_down(ydb_node *iter);
+    ydb_node *ydb_down(ydb_node *node);
     // return the previous sibling node of the node.
-    ydb_node *ydb_prev(ydb_node *iter);
+    ydb_node *ydb_prev(ydb_node *node);
     // return the next sibling node of the node.
-    ydb_node *ydb_next(ydb_node *iter);
+    ydb_node *ydb_next(ydb_node *node);
     // return the first sibling node of the node.
-    ydb_node *ydb_first(ydb_node *iter);
+    ydb_node *ydb_first(ydb_node *node);
     // return the last sibling node of the node.
-    ydb_node *ydb_last(ydb_node *iter);
+    ydb_node *ydb_last(ydb_node *node);
     // return node type
-    int ydb_type(ydb_node *iter);
+    int ydb_type(ydb_node *node);
     // return node value if that is a leaf.
-    char *ydb_value(ydb_node *iter);
+    char *ydb_value(ydb_node *node);
     // return node key if that has a hash key.
-    char *ydb_key(ydb_node *iter);
+    char *ydb_key(ydb_node *node);
     // return node index if the nodes' parent is a list.
-    int ydb_index(ydb_node *iter);
+    int ydb_index(ydb_node *node);
 
     // update the data in the ydb using file stream
     ydb_res ydb_parse(ydb *datablock, FILE *stream);

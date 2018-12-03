@@ -561,6 +561,19 @@ failed:
     return res;
 }
 
+int ydb_is_connected(ydb *datablock, char *addr)
+{
+    yconn *conn = NULL;
+    conn = yconn_get(addr);
+    if (conn)
+    {
+        if (IS_SET(conn->flags, STATUS_DISCONNECT))
+            return 0;
+        return 1;
+    }
+    return 0;
+}
+
 // Clear all data in YAML DataBlock
 ydb_res ydb_clear(ydb *datablock)
 {
