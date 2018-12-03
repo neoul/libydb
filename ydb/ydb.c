@@ -263,7 +263,7 @@ struct _ydb
     ynode *top;
     ytrie *updater;
     ytree *conn;
-    ylist *disconn;
+    ylist *reconn;
     int epollfd;
     int epollcount;
     int synccount;
@@ -375,10 +375,10 @@ static void ydb_print(ydb *datablock, const char *func, int line, char *state)
     ylog_logger(YLOG_INFO, func, line, "  epollfd: %d\n", datablock->epollfd);
     ylog_logger(YLOG_INFO, func, line, "  epollcount: %d\n", datablock->epollcount);
     ylog_logger(YLOG_INFO, func, line, "  synccount: %d\n", datablock->synccount);
-    if (!ylist_empty(datablock->disconn))
+    if (!ylist_empty(datablock->reconn))
     {
         ylog_logger(YLOG_INFO, func, line,
-                    "  disconn: %d\n", ylist_size(datablock->disconn));
+                    "  reconn: %d\n", ylist_size(datablock->reconn));
     }
     if (ytree_size(datablock->conn) > 0)
     {
@@ -419,8 +419,8 @@ ydb *ydb_open(char *name)
     YDB_FAIL(!datablock->conn, YDB_E_SYSTEM_FAILED);
     datablock->top = ynode_create_path(name, NULL, NULL);
     YDB_FAIL(!datablock->top, YDB_E_SYSTEM_FAILED);
-    datablock->disconn = ylist_create();
-    YDB_FAIL(!datablock->disconn, YDB_E_SYSTEM_FAILED);
+    datablock->reconn = ylist_create();
+    YDB_FAIL(!datablock->reconn, YDB_E_SYSTEM_FAILED);
     datablock->updater = ytrie_create();
     YDB_FAIL(!datablock->updater, YDB_E_SYSTEM_FAILED);
     ytrie_insert(ydb_pool, datablock->name, namelen, datablock);
@@ -471,7 +471,7 @@ failed:
     yconn_close(conn);
     if (datablock->epollfd > 0)
     {
-        if (ylist_empty(datablock->disconn) &&
+        if (ylist_empty(datablock->reconn) &&
             ytree_size(datablock->conn) <= 0)
         {
             close(datablock->epollfd);
@@ -514,7 +514,7 @@ ydb_res ydb_reconnect(ydb *datablock, char *addr, char *flags)
 failed:
     if (datablock->epollfd > 0)
     {
-        if (ylist_empty(datablock->disconn) &&
+        if (ylist_empty(datablock->reconn) &&
             ytree_size(datablock->conn) <= 0)
         {
             close(datablock->epollfd);
@@ -528,7 +528,7 @@ failed:
 ydb_res ydb_disconnect(ydb *datablock, char *addr)
 {
     ydb_res res = YDB_E_NO_ENTRY;
-    yconn *disconn = NULL;
+    yconn *reconn = NULL;
     char _addr[256];
     ylog_in();
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
@@ -537,15 +537,15 @@ ydb_res ydb_disconnect(ydb *datablock, char *addr)
         snprintf(_addr, sizeof(_addr), "uss://%s", datablock->name);
         addr = _addr;
     }
-    disconn = yconn_get(addr);
-    if (disconn)
+    reconn = yconn_get(addr);
+    if (reconn)
     {
-        yconn_close(disconn);
+        yconn_close(reconn);
         res = YDB_OK;
     }
     if (datablock->epollfd > 0)
     {
-        if (ylist_empty(datablock->disconn) &&
+        if (ylist_empty(datablock->reconn) &&
             ytree_size(datablock->conn) <= 0)
         {
             ylog_info("ydb[%s] close epollfd(%d)\n", datablock->name, datablock->epollfd);
@@ -609,8 +609,8 @@ void ydb_close(ydb *datablock)
     {
         YDB_INFO(datablock, "closed");
         ytrie_delete(ydb_pool, datablock->name, strlen(datablock->name));
-        if (datablock->disconn)
-            ylist_destroy_custom(datablock->disconn, (user_free)yconn_free);
+        if (datablock->reconn)
+            ylist_destroy_custom(datablock->reconn, (user_free)yconn_free);
         if (datablock->conn)
             ytree_destroy_custom(datablock->conn, (user_free)yconn_free);
         if (datablock->updater)
@@ -2511,7 +2511,7 @@ static ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
     {
         if (IS_SET(conn->flags, YCONN_RECONNECT))
         {
-            if (ylist_push_back(datablock->disconn, conn))
+            if (ylist_push_back(datablock->reconn, conn))
                 return YDB_OK;
         }
         yconn_free(conn);
@@ -2542,7 +2542,7 @@ static ydb_res yconn_reopen(yconn *conn, ydb *datablock)
     {
         if (IS_SET(conn->flags, YCONN_RECONNECT))
         {
-            if (ylist_push_back(datablock->disconn, conn))
+            if (ylist_push_back(datablock->reconn, conn))
                 return YDB_OK;
         }
         yconn_free(conn);
@@ -3163,7 +3163,7 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
             ydb *datablock = yconn_detach(recv_conn);
             if (datablock)
             {
-                if (ylist_push_back(datablock->disconn, recv_conn))
+                if (ylist_push_back(datablock->reconn, recv_conn))
                     return YDB_OK;
             }
         }
@@ -3297,7 +3297,7 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
     YDB_FAIL(datablock->epollfd < 0, YDB_E_NO_CONN);
 
-    n = ylist_size(datablock->disconn);
+    n = ylist_size(datablock->reconn);
     if (n > 0)
     {
         int retry_ms;
@@ -3309,7 +3309,7 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
         {
             for (i = 0; i < n; i++)
             {
-                yconn *conn = ylist_pop_front(datablock->disconn);
+                yconn *conn = ylist_pop_front(datablock->reconn);
                 if (!conn)
                     break;
                 ylog_info("ydb[%s] re-connect to %s ..\n", datablock->name, conn->address);
@@ -3328,7 +3328,7 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
     }
 
     res = YDB_OK;
-    n = ylist_size(datablock->disconn);
+    n = ylist_size(datablock->reconn);
     if (n > 0)
     {
         if (timeout < 0 || timeout > YDB_TIMEOUT)
