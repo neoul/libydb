@@ -90,9 +90,9 @@ char *ydb_res_str(ydb_res res)
     switch (res)
     {
         YDB_ERR_STRING(YDB_OK, "ok")
-        YDB_ERR_STRING(YDB_W_UPDATED, "warning (datablock updated)")
-        YDB_ERR_STRING(YDB_W_MORE_RECV, "warning: need to receive more")
-        YDB_ERR_STRING(YDB_W_RETRY_CONN, "warning: retry to reconnect")
+        YDB_ERR_STRING(YDB_W_UPDATED, "datablock updated)")
+        YDB_ERR_STRING(YDB_W_MORE_RECV, "need to receive more")
+        YDB_ERR_STRING(YDB_W_RETRY_CONN, "retry to reconnect")
         YDB_ERR_STRING(YDB_ERROR, "error")
         YDB_ERR_STRING(YDB_E_DB_CTRL_ERROR, "datablock ctrl error")
         YDB_ERR_STRING(YDB_E_SYSTEM_FAILED, "syscall error")
@@ -188,7 +188,7 @@ char *ymsg_str[] = {
 #define YMSG_END_DELIMITER "\n...\n"
 #define YMSG_START_DELIMITER_LEN (sizeof(YMSG_START_DELIMITER) - 1)
 #define YMSG_END_DELIMITER_LEN (sizeof(YMSG_END_DELIMITER) - 1)
-#define YMSG_HEAD_DELIMITER "#_______\n"
+#define YMSG_HEAD_DELIMITER "#_-_-_-_\n"
 #define YMSG_HEAD_DELIMITER_LEN (sizeof(YMSG_HEAD_DELIMITER) - 1)
 #define YMSG_WHISPER_DELIMITER "+whisper-target:"
 #define YMSG_WHISPER_DELIMITER_LEN (sizeof(YMSG_WHISPER_DELIMITER) - 1)
@@ -259,7 +259,7 @@ struct _ydb
     int epollfd;
     int epollcount;
     int synccount;
-    yconn *under_recv;
+    yconn *more_recv;
     struct timeval retrytime;
 };
 
@@ -2233,7 +2233,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
             n = sprintf(flagstr, "SUB");
         n += sprintf(flagstr + n, "(%s", IS_SET(conn->flags, YCONN_WRITABLE) ? "write" : "-");
         n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-");
-        n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_RECONNECT) ? "disconn" : "-");
+        n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_RECONNECT) ? "reconn" : "-");
         n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, YCONN_UNREADABLE) ? "no-read" : "-");
         n += sprintf(flagstr + n, "/%s) ", IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "");
         ylog_logger(YLOG_INFO, func, line, " flags: %s\n", flagstr);
@@ -3119,6 +3119,8 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
     char *buf = NULL;
     size_t buflen = 0;
     unsigned int flags = 0x0;
+
+    *next = 0;
     if (IS_SET(recv_conn->flags, STATUS_DISCONNECT))
         return YDB_E_CONN_FAILED;
     YCONN_SIMPLE_INFO(recv_conn);
@@ -3276,17 +3278,23 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
             gettimeofday(&datablock->retrytime, NULL);
         }
     }
-    if (datablock->under_recv)
+    if (once_recv && datablock->more_recv)
     {
         int next = 0;
         yconn_op op = YOP_NONE;
         ymsg_type type = YMSG_NONE;
-        res = yconn_recv(datablock->under_recv, NULL, &op, &type, &next);
+        res = yconn_recv(datablock->more_recv, NULL, &op, &type, &next);
         if (res)
         {
-            res = yconn_disconnect(datablock->under_recv, res);
+            ylog_out();
+            return yconn_disconnect(datablock->more_recv, res);
         }
-        datablock->under_recv = NULL;
+        if (next)
+        {
+            ylog_out();
+            return YDB_W_MORE_RECV;
+        }
+        datablock->more_recv = NULL;
     }
 
     res = YDB_OK;
@@ -3304,7 +3312,7 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
         YDB_FAIL(n < 0, YDB_E_SYSTEM_FAILED);
     }
     if (n > 0)
-        ylog_debug("ydb[%s] event (n=%d) received\n", datablock->name, n);
+        ylog_debug("ydb[%s] %d events received\n", datablock->name, n);
     for (i = 0; i < n; i++)
     {
         yconn *conn = event[i].data.ptr;
@@ -3315,32 +3323,22 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
             int next = 0;
             yconn_op op = YOP_NONE;
             ymsg_type type = YMSG_NONE;
-            if (once_recv)
+        recv_again:
+            res = yconn_recv(conn, NULL, &op, &type, &next);
+            if (res)
             {
-                res = yconn_recv(conn, NULL, &op, &type, &next);
-                if (res)
-                {
-                    res = yconn_disconnect(conn, res);
-                    break;
-                }
-                if (next)
-                    datablock->under_recv = conn;
-                if (i + 1 < n || next)
-                    res = YDB_W_MORE_RECV;
+                res = yconn_disconnect(conn, res);
                 break;
             }
-            else
+            if (once_recv)
             {
-                do
-                {
-                    res = yconn_recv(conn, NULL, &op, &type, &next);
-                    if (res)
-                    {
-                        res = yconn_disconnect(conn, res);
-                        break;
-                    }
-                } while (next);
+                if (next)
+                    datablock->more_recv = conn;
+                res = YDB_W_MORE_RECV;
+                break;
             }
+            if (next)
+                goto recv_again;
         }
     }
 failed:

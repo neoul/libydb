@@ -332,6 +332,23 @@ static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
     return old;
 }
 
+void ynode_move_child(ynode *dest, ynode *src)
+{
+    ynode *n;
+    if (!dest || !src)
+        return;
+    n = ynode_down(src);
+    while (n)
+    {
+        char *key = ystrdup(ynode_key(n));
+        printf("KEY %s\n", key);
+        ynode *old = ynode_attach(n, dest, key);
+        yfree(key);
+        ynode_free(old);
+        n = ynode_down(src);
+    }
+}
+
 // register the hook func to the target ynode.
 ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int user_num, void *user[])
 {
@@ -1465,10 +1482,11 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     yaml_parser_t parser;
     yaml_token_t token;
     int next_node_type = YNODE_TYPE_NONE;
-    bool ignore_block_map = false;
+    yaml_token_type_t ignore_block_map = YAML_NO_TOKEN;
     unsigned int flags = 0x0;
     bool scalar_next = false;
     bool token_save = false;
+    bool multiple_anchor_reference = false;
     ytrie *anchors = NULL;
 
     if ((!fp && !buf) || !n)
@@ -1559,13 +1577,20 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         case YAML_BLOCK_MAPPING_START_TOKEN:
         case YAML_FLOW_MAPPING_START_TOKEN:
         {
+            if (key && strcmp(key, "<<") == 0)
+            {
+                // ignore flow sequence end token
+                ignore_block_map = YAML_FLOW_SEQUENCE_END_TOKEN;
+                multiple_anchor_reference = true;
+                break;
+            }
             if (top && top->type == YNODE_TYPE_OMAP)
             {
-                // ignore YAML_BLOCK_MAPPING_START_TOKEN
+                // ignore block end token
                 if (last_token == YAML_BLOCK_ENTRY_TOKEN &&
                     token.type == YAML_BLOCK_MAPPING_START_TOKEN)
                 {
-                    ignore_block_map = true;
+                    ignore_block_map = YAML_BLOCK_END_TOKEN;
                     break;
                 }
             }
@@ -1581,8 +1606,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
             flags = 0x0;
             next_node_type = YNODE_TYPE_NONE;
-            ylog_debug("%d_%.*s%s %s (created)\n", level, level, space,
-                       ynode_type_str[new->type], key ? key : "no-key");
+            ylog_debug("%d_%.*s%s %s (created %p)\n", level, level, space,
+                       ynode_type_str[new->type], key ? key : "no-key", new);
             CLEAR_YSTR(key);
             top = new;
             break;
@@ -1603,9 +1628,10 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         case YAML_BLOCK_END_TOKEN:
         case YAML_FLOW_MAPPING_END_TOKEN:
         case YAML_FLOW_SEQUENCE_END_TOKEN:
-            if (ignore_block_map && token.type == YAML_BLOCK_END_TOKEN)
+            if (ignore_block_map == token.type)
             {
-                ignore_block_map = false;
+                ignore_block_map = YAML_NO_TOKEN;
+                multiple_anchor_reference = false;
                 break;
             }
             if (key || scalar_next)
@@ -1732,8 +1758,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         {
             char *path;
             char *alias;
-            ynode *root = ynode_top(top);
-            ynode *copy, *old;
+            ynode *copy, *old = NULL;
             alias = (char *)token.data.alias.value;
             if (!anchors)
                 break;
@@ -1743,20 +1768,19 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ylog_debug("no anchor for (%s) ...\n", alias);
                 break;
             }
-            copy = ynode_copy(ynode_search(root, path));
+            copy = ynode_copy(ynode_search(ynode_top(top), path));
             if (!copy)
                 break;
-            if (strcmp(key, "<<") == 0)
+            if ((key && strcmp(key, "<<") == 0) || multiple_anchor_reference)
             {
-                if (!top->parent)
-                    break;
-                old = ynode_attach(copy, top->parent, top->key);
-                top = copy;
+                ynode_move_child(top, copy);
+                if (multiple_anchor_reference)
+                    scalar_next = false;
             }
             else
                 old = ynode_attach(copy, top, key);
             if (copy)
-                ylog_debug("anchor (%s, %s) loaded\n", alias, path);
+                ylog_debug("anchor (%s, %s) loaded (key %s)\n", alias, path, key);
             ynode_free(old);
             CLEAR_YSTR(key);
             token_save = false;
