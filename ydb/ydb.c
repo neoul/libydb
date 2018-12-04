@@ -501,17 +501,17 @@ failed:
     return res;
 }
 
-int ydb_is_connected(ydb *datablock, char *addr)
+ydb_res ydb_is_connected(ydb *datablock, char *addr)
 {
     yconn *conn = NULL;
     conn = yconn_get(addr);
     if (conn)
     {
         if (IS_SET(conn->flags, STATUS_DISCONNECT))
-            return 0;
-        return 1;
+            return YDB_E_CONN_FAILED;
+        return YDB_OK;
     }
-    return 0;
+    return YDB_E_NO_CONN;
 }
 
 // Clear all data in YAML DataBlock
