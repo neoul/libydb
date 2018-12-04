@@ -1068,7 +1068,7 @@ void ynode_log_close(struct _ynode_log *log, char **buf, size_t *buflen)
     }
 }
 
-static void ynode_log_print(struct _ynode_log *log, ynode *cur)
+static void ynode_log_print(struct _ynode_log *log, ynode *_cur, ynode *_new)
 {
     int indent = 0;
     ynode *n, *last;
@@ -1078,7 +1078,17 @@ static void ynode_log_print(struct _ynode_log *log, ynode *cur)
     nodes = ylist_create();
     if (!nodes)
         return;
-    n = cur;
+    if (_new) {
+        n = _new;
+        if (_cur && (log->top == _cur))
+        {
+            log->top = _new;
+        }
+    }
+    else if (_cur)
+        n = _cur;
+    else
+        return;
 
     // the ancestors of the current node
     while (n)
@@ -1775,12 +1785,14 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ynode_move_child(top, copy);
                 if (multiple_anchor_reference)
                     scalar_next = false;
+                ynode_free(copy); // remove remains.
             }
             else
+            {
                 old = ynode_attach(copy, top, key);
-            if (copy)
-                ylog_debug("anchor (%s, %s) loaded (key %s)\n", alias, path, key);
-            ynode_free(old);
+                ynode_free(old);
+            }
+            ylog_debug("anchor (%s, %s) loaded (key %s)\n", alias, path, key);
             CLEAR_YSTR(key);
             token_save = false;
             break;
@@ -2401,16 +2413,16 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     case YHOOK_OP_CREATE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
-        ynode_log_print(log, new);
+        ynode_log_print(log, cur, new);
         break;
     case YHOOK_OP_REPLACE:
         ynode_attach(new, parent, key);
         yhook_pre_run(op, parent, cur, new);
-        ynode_log_print(log, new);
+        ynode_log_print(log, cur, new);
         break;
     case YHOOK_OP_DELETE:
         yhook_pre_run_for_delete(cur);
-        ynode_log_print(log, cur);
+        ynode_log_print(log, cur, new);
         break;
     case YHOOK_OP_NONE:
     default:
@@ -2504,7 +2516,7 @@ int ynode_get_with_origin(ynode *src, int origin, ynode_log *log)
         n += 1;
     }
 
-    ynode_log_print(log, src);
+    ynode_log_print(log, src, NULL);
     switch (src->type)
     {
     case YNODE_TYPE_MAP:
