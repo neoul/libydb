@@ -248,14 +248,12 @@ static ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, bool not_publish, 
 static ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen);
 static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type *type, int *next);
 
-#define yconn_errno(conn, res)                     \
-    ylog(YLOG_ERROR, "ydb[%s] %s (%d): %s (%s)\n", \
-         (conn)->datablock ? (conn)->datablock->name : "...",    \
+#define yconn_errno(conn, res)             \
+    ylog(YLOG_ERROR, "%s (%d): %s (%s)\n", \
          (conn)->address, (conn)->fd, ydb_res_str[res], strerror(errno));
 
-#define yconn_error(conn, res)                  \
-    ylog(YLOG_ERROR, "ydb[%s] %s (%d): %s\n",   \
-         (conn)->datablock ? (conn)->datablock->name : "...", \
+#define yconn_error(conn, res)        \
+    ylog(YLOG_ERROR, "%s (%d): %s\n", \
          (conn)->address, (conn)->fd, ydb_res_str[res]);
 
 struct _ydb
@@ -958,7 +956,6 @@ failed:
     ylog_out();
     return res;
 }
-
 
 struct ydb_delete_data
 {
@@ -2871,6 +2868,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, char *buf, size_t buf
                     if (res)
                     {
                         ytree_delete(synclist, &recv_conn->fd);
+                        yconn_disconnect(recv_conn, recv_conn->datablock);
                     }
                     else if (op == YOP_SYNC && type != YMSG_RESP_CONTINUED)
                     {
@@ -2957,10 +2955,14 @@ static ydb_res yconn_init(yconn *req_conn)
                 do
                 {
                     res = yconn_recv(recv_conn, req_conn, &op, &type, &next);
-                    if (recv_conn == req_conn)
+                    if (res)
                     {
-                        if (res)
+                        if (recv_conn == req_conn)
                             done = true;
+                        yconn_disconnect(recv_conn, recv_conn->datablock);
+                    }
+                    else if (recv_conn == req_conn)
+                    {
                         if (op == YOP_INIT && (type == YMSG_RESPONSE || type == YMSG_RESP_FAILED))
                             done = true;
                         ylog_debug("init responsed (res=%d, op=%d, type=%d)\n", res, op, type);
@@ -3162,7 +3164,6 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
     if (res)
     {
         CLEAR_BUF(buf, buflen);
-        yconn_disconnect(recv_conn, recv_conn->datablock);
         return res;
     }
     switch (*type)
@@ -3317,7 +3318,11 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
         int next = 0;
         yconn_op op = YOP_NONE;
         ymsg_type type = YMSG_NONE;
-        yconn_recv(datablock->under_recv, NULL, &op, &type, &next);
+        res = yconn_recv(datablock->under_recv, NULL, &op, &type, &next);
+        if (res)
+        {
+            yconn_disconnect(datablock->under_recv, datablock);
+        }
         datablock->under_recv = NULL;
     }
 
@@ -3349,7 +3354,12 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
             ymsg_type type = YMSG_NONE;
             if (once_recv)
             {
-                yconn_recv(conn, NULL, &op, &type, &next);
+                res = yconn_recv(conn, NULL, &op, &type, &next);
+                if (res)
+                {
+                    yconn_disconnect(conn, datablock);
+                    break;
+                }
                 if (next)
                     datablock->under_recv = conn;
                 if (i + 1 < n || next)
@@ -3360,7 +3370,12 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
             {
                 do
                 {
-                    yconn_recv(conn, NULL, &op, &type, &next);
+                    res = yconn_recv(conn, NULL, &op, &type, &next);
+                    if (res)
+                    {
+                        yconn_disconnect(conn, datablock);
+                        break;
+                    }
                 } while (next);
             }
         }
