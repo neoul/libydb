@@ -10,6 +10,10 @@ r4=`ydb -r local -f ../examples/yaml/yaml-set.yaml -N --read '/set/baseball play
 r5=`ydb -r local -f ../examples/yaml/yaml-map.yaml -N --read '/map/Block style/Oren' --read '/map/Flow style/Clark'`
 r6=`ydb -r local -f ../examples/yaml/yaml-omap.yaml -N --read '/omap/Bestiary/anaconda' --read '/omap/Numbers/two'`
 r7=`ydb -r local -f ../examples/yaml/yaml-empty-list.yaml -N --read '/0' --read '/2'`
+r8=`ydb -r local -f ../examples/yaml/yaml-anchor-reference1.yaml -N --read '/foo/K1'`
+r9=`ydb -r local -f ../examples/yaml/yaml-anchor-reference2.yaml -N --read '/5/step/instrument'`
+r10=`ydb -r local -f ../examples/yaml/yaml-anchor-reference3.yaml -N --read '/merge/5/r'`
+
 
 [ "x$r1" != "xvalue-only" ]     && echo " - r1 TEST: failed ($r1)" && exit 1
 [ "x$r2" != "xVAL" ]             && echo " - r2 TEST: failed ($r2)" && exit 1
@@ -18,6 +22,9 @@ r7=`ydb -r local -f ../examples/yaml/yaml-empty-list.yaml -N --read '/0' --read 
 [ "x$r5" != "xBen-Kiki Evans" ]  && echo " - r5 TEST: failed ($r5)" && exit 1
 [ "x$r6" != "xSouth-American constrictor snake. Scaly. 2" ] && echo " - r6 TEST: failed ($r6)" && exit 1
 [ "x$r7" != "x value2" ]  && echo " - r7 TEST: failed ($r7)" && exit 1
+[ "x$r8" != "xOne" ]  && echo " - r8 TEST: failed ($r8)" && exit 1
+[ "x$r9" != "xLasik 2000" ]  && echo " - r9 TEST: failed ($r9)" && exit 1
+[ "x$r10" != "x10" ]  && echo " - r10 TEST: failed ($r10)" && exit 1
 
 echo "ok"
 

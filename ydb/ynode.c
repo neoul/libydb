@@ -341,7 +341,6 @@ void ynode_move_child(ynode *dest, ynode *src)
     while (n)
     {
         char *key = ystrdup(ynode_key(n));
-        printf("KEY %s\n", key);
         ynode *old = ynode_attach(n, dest, key);
         yfree(key);
         ynode_free(old);
