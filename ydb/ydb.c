@@ -2441,16 +2441,24 @@ static ydb_res yconn_disconnect(yconn *conn, ydb_res disconn_res)
             ylist_push_back(datablock->disconn, conn);
             return YDB_W_RETRY_CONN;
         }
-        yconn_detach(conn);
-        yconn_free(conn);
-        return disconn_res;
     }
     else
     {
-        yconn_detach(conn);
-        yconn_free(conn);
-        return YDB_OK;
+        disconn_res = YDB_OK;
     }
+    yconn_detach(conn);
+    yconn_free(conn);
+    if (datablock->epollfd > 0)
+    {
+        if (ylist_empty(datablock->disconn) &&
+            ytree_size(datablock->conn) <= 0)
+        {
+            ylog_info("ydb[%s] close epollfd(%d)\n", datablock->name, datablock->epollfd);
+            close(datablock->epollfd);
+            datablock->epollfd = -1;
+        }
+    }
+    return disconn_res;
 }
 
 static ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
