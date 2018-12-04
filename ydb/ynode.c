@@ -1410,7 +1410,7 @@ _done:
             ylog(YLOG_ERROR, "%s(%s)\n", failpath, key ? key : ""); \
             free(failpath);                                         \
         }                                                           \
-        ylog(YLOG_ERROR, "'%s': %s\n", #cond, ydb_res_str[res]);    \
+        ylog(YLOG_ERROR, "'%s': %s\n", #cond, ydb_res_str(res));    \
         break;                                                      \
     }
 

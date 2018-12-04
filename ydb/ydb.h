@@ -19,7 +19,14 @@ extern "C"
     typedef enum _ydb_res
     {
         YDB_OK = 0,
+        YDB_W_UPDATED,
+        YDB_W_MORE_RECV,
+        YDB_W_RETRY_CONN,
+        YDB_WARNING_MIN = YDB_W_UPDATED,
+        YDB_WARNING_MAX = YDB_W_RETRY_CONN,
+        
         YDB_ERROR,
+        YDB_E_DB_CTRL_ERROR,
         YDB_E_SYSTEM_FAILED,
         YDB_E_STREAM_FAILED,
         YDB_E_PERSISTENCY_ERR,
@@ -42,11 +49,13 @@ extern "C"
         YDB_E_FUNC,
         YDB_E_HOOK_ADD,
         YDB_E_UNKNOWN_TARGET,
-        YDB_W_UPDATED,
-        YDB_W_MORE_RECV,
     } ydb_res;
 
-    extern char *ydb_res_str[];
+#define YDB_SUCCESS(res) ((res) == 0)
+#define YDB_WARNING(res) ((res) >= YDB_WARNING_MIN && (res) <= YDB_WARNING_MAX)
+#define YDB_FAILED(res) ((res) >= YDB_ERROR)
+
+    char *ydb_res_str(ydb_res res);
 
     // YAML DataBlock structure
     typedef struct _ydb ydb;
@@ -73,9 +82,7 @@ extern "C"
     //        u(unsubscribe): disable the subscription of the change
     // e.g. ydb_connect(db, "us:///tmp/ydb_channel", "sub:w")
     ydb_res ydb_connect(ydb *datablock, char *addr, char *flags);
-    ydb_res ydb_reconnect(ydb *datablock, char *addr, char *flags);
     ydb_res ydb_disconnect(ydb *datablock, char *addr);
-
     int ydb_is_connected(ydb *datablock, char *addr);
 
     // Clear all data in the YAML DataBlock

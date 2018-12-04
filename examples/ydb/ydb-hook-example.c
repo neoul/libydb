@@ -95,7 +95,7 @@ int test_hook()
     ydb_dump(datablock, stdout);
 _done:
     if (res)
-        fprintf(stderr, "%s failed. (%s)\n", __func__, ydb_res_str[res]);
+        fprintf(stderr, "%s failed. (%s)\n", __func__, ydb_res_str(res));
     ydb_close(datablock);
     return res;
 }
@@ -147,7 +147,7 @@ int test_remote_hook(int n)
 
 _done:
     if (res)
-        fprintf(stderr, "%s failed. (%s)\n", __func__, ydb_res_str[res]);
+        fprintf(stderr, "%s failed. (%s)\n", __func__, ydb_res_str(res));
     ydb_close(datablock);
     // ylog_file_close();
     return res;

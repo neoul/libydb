@@ -290,7 +290,7 @@ int main(int argc, char *argv[])
             res = ydb_connect(datablock, "file://stdout", "w:");
             if (res)
             {
-                fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
+                fprintf(stderr, "ydb error: %s\n", ydb_res_str(res));
                 goto end;
             }
         }
@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
             res = ydb_connect(datablock, addr, flags);
             if (res)
             {
-                fprintf(stderr, "ydb error: %s\n", ydb_res_str[res]);
+                fprintf(stderr, "ydb error: %s\n", ydb_res_str(res));
                 goto end;
             }
         }
@@ -319,7 +319,7 @@ int main(int argc, char *argv[])
                     fclose(fp);
                 if (res)
                 {
-                    printf("\nydb error: %s %s\n", ydb_res_str[res], fname);
+                    printf("\nydb error: %s %s\n", ydb_res_str(res), fname);
                     goto end;
                 }
                 fname = ylist_pop_front(filelist);
@@ -331,10 +331,14 @@ int main(int argc, char *argv[])
             do
             {
                 res = ydb_serve(datablock, timeout);
-                if (res)
+                if (YDB_FAILED(res))
                 {
-                    printf("\nydb error: %s\n", ydb_res_str[res]);
+                    fprintf(stderr, "\nydb error: %s\n", ydb_res_str(res));
                     goto end;
+                }
+                else if(YDB_WARNING(res))
+                {
+                    printf("\nydb warning: %s\n", ydb_res_str(res));
                 }
             } while (!done);
         }
@@ -370,7 +374,7 @@ int main(int argc, char *argv[])
                     }
                     if (res)
                     {
-                        printf("\nydb error: %s (%s)\n", ydb_res_str[res], ycmd->data);
+                        printf("\nydb error: %s (%s)\n", ydb_res_str(res), ycmd->data);
                         free(ycmd);
                         goto end;
                     }
