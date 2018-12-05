@@ -3365,11 +3365,12 @@ int ydb_fd(ydb *datablock)
     return -1;
 }
 
-ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, int num, ...)
+ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write_hook func, int num, ...)
 {
     ydb_res res = YDB_OK;
     ynode *cur;
     void *user[5] = {0};
+    unsigned int flags = 0x0;
 
     ylog_in();
     YDB_FAIL(!datablock || !func || num < 0, YDB_E_INVALID_ARGS);
@@ -3377,6 +3378,10 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, int 
 
     if (!datablock || !func)
         return YDB_E_INVALID_ARGS;
+
+    if (suppressed)
+        SET_FLAG(flags, YNODE_SUPPRESS_HOOK);
+
 
     if (path)
     {
@@ -3419,7 +3424,7 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, int 
         }
         va_end(ap);
     }
-    res = yhook_register(cur, 0x0, (yhook_func)func, num, user);
+    res = yhook_register(cur, flags, (yhook_func)func, num, user);
     YDB_FAIL(res, YDB_E_HOOK_ADD);
 failed:
     ylog_out();

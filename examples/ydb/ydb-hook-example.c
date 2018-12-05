@@ -86,7 +86,7 @@ int test_hook()
     }
 
     ydb_read_hook_add(datablock, "/ge1/enabled", (ydb_read_hook)update_hook, 0);
-    ydb_write_hook_add(datablock, "/ge1", (ydb_write_hook)notify_hook, 0);
+    ydb_write_hook_add(datablock, "/ge1", 0, (ydb_write_hook)notify_hook, 0);
 
     char enabled[32] = {0};
     ydb_read(datablock, "ge1: {enabled: %s}\n", enabled);

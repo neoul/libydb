@@ -199,9 +199,14 @@ typedef void (*ydb_write_hook1)(ydb *datablock, char op, ynode *_base, ynode *_c
 typedef void (*ydb_write_hook2)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1, void *U2);
 typedef void (*ydb_write_hook3)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1, void *U2, void *U3);
 typedef void (*ydb_write_hook4)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1, void *U2, void *U3, void *U4);
+typedef void (*ydb_write_suppressed_hook0)(ydb *datablock, char op, ynode *_base);
+typedef void (*ydb_write_suppressed_hook1)(ydb *datablock, char op, ynode *_base, void *U1);
+typedef void (*ydb_write_suppressed_hook2)(ydb *datablock, char op, ynode *_base, void *U1, void *U2);
+typedef void (*ydb_write_suppressed_hook3)(ydb *datablock, char op, ynode *_base, void *U1, void *U2, void *U3);
+typedef void (*ydb_write_suppressed_hook4)(ydb *datablock, char op, ynode *_base, void *U1, void *U2, void *U3, void *U4);
 typedef ydb_write_hook1 ydb_write_hook;
 
-ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, int num, ...);
+ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write_hook func, int num, ...);
 void ydb_write_hook_delete(ydb *datablock, char *path);
 
 // update and delete the remote ydb targeted by origin.
