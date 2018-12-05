@@ -146,12 +146,12 @@ char *yhook_op_str(char op);
 #define YNODE_VAL_ONLY 0x2
 #define YNODE_LEAF_ONLY 0x4
 
-typedef void (*yhook_func0)(char op, ynode *cur, ynode *_new);
-typedef void (*yhook_func1)(void *U0, char op, ynode *cur, ynode *_new);
-typedef void (*yhook_func2)(void *U0, char op, ynode *cur, ynode *_new, void *U1);
-typedef void (*yhook_func3)(void *U0, char op, ynode *cur, ynode *_new, void *U1, void *U2);
-typedef void (*yhook_func4)(void *U0, char op, ynode *cur, ynode *_new, void *U1, void *U2, void *U3);
-typedef void (*yhook_func5)(void *U0, char op, ynode *cur, ynode *_new, void *U1, void *U2, void *U3, void *U4);
+typedef void (*yhook_func0)(          char op, ynode *base, ynode *cur, ynode *_new);
+typedef void (*yhook_func1)(void *U0, char op, ynode *base, ynode *cur, ynode *_new);
+typedef void (*yhook_func2)(void *U0, char op, ynode *base, ynode *cur, ynode *_new, void *U1);
+typedef void (*yhook_func3)(void *U0, char op, ynode *base, ynode *cur, ynode *_new, void *U1, void *U2);
+typedef void (*yhook_func4)(void *U0, char op, ynode *base, ynode *cur, ynode *_new, void *U1, void *U2, void *U3);
+typedef void (*yhook_func5)(void *U0, char op, ynode *base, ynode *cur, ynode *_new, void *U1, void *U2, void *U3, void *U4);
 typedef yhook_func2 yhook_func;
 
 // register the hook func to the target ynode.

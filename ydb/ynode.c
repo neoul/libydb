@@ -429,22 +429,22 @@ static void yhook_func_exec(yhook *hook, char op, ynode *cur, ynode *_new)
     switch (hook->user_num)
     {
     case 0:
-        hook->func0(op, cur, _new);
+        hook->func0(op, hook->node, cur, _new);
         break;
     case 1:
-        hook->func1(hook->user[0], op, cur, _new);
+        hook->func1(hook->user[0], op, hook->node, cur, _new);
         break;
     case 2:
-        hook->func2(hook->user[0], op, cur, _new, hook->user[1]);
+        hook->func2(hook->user[0], op, hook->node, cur, _new, hook->user[1]);
         break;
     case 3:
-        hook->func3(hook->user[0], op, cur, _new, hook->user[1], hook->user[2]);
+        hook->func3(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2]);
         break;
     case 4:
-        hook->func4(hook->user[0], op, cur, _new, hook->user[1], hook->user[2], hook->user[3]);
+        hook->func4(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2], hook->user[3]);
         break;
     case 5:
-        hook->func5(hook->user[0], op, cur, _new, hook->user[1], hook->user[2], hook->user[3], hook->user[4]);
+        hook->func5(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2], hook->user[3], hook->user[4]);
         break;
     default:
         break;

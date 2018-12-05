@@ -60,10 +60,14 @@ ydb_res update_hook(ydb *datablock, char *path, FILE *ydb_fp, void *U1, void *U2
     return YDB_OK;
 }
 
-void notify_hook(ydb *datablock, char op, ydb_node *cur, ydb_node *_new, void *U1, void *U2)
+void notify_hook(ydb *datablock, char op, ydb_node *base, ydb_node *cur, ydb_node *_new, void *U1, void *U2)
 {
-    fprintf(stdout, "HOOK %s (%c) cur=%s new=%s U0=%p U1=%p U2=%p\n", __func__, op,
+    char *path = ydb_path(datablock, base, NULL);
+    fprintf(stdout, "HOOK %s (%c) base=%s cur=%s new=%s U0=%p U1=%p U2=%p\n", __func__, op,
+            path ? path: "unknown path",
            ydb_value(cur) ? ydb_value(cur) : "", ydb_value(_new) ? ydb_value(_new) : "", datablock, U1, U2);
+    if (path)
+        free(path);
 }
 
 int test_ydb_read_write()

@@ -24,7 +24,7 @@ typedef enum _ydb_res
     YDB_W_RETRY_CONN,
     YDB_WARNING_MIN = YDB_W_UPDATED,
     YDB_WARNING_MAX = YDB_W_RETRY_CONN,
-    
+
     YDB_ERROR,
     YDB_E_DB_CTRL_ERROR,
     YDB_E_SYSTEM_FAILED,
@@ -161,7 +161,7 @@ ydb_res ydb_serve(ydb *datablock, int timeout);
 int ydb_fd(ydb *datablock);
 
 // ydb_read_hook: The callback executed by ydb_read() to update the datablock at reading.
-//  - ydb_read_hook0 - 4: The callback prototype according to the USER (U1-4) number.                                                            
+//  - ydb_read_hook0 - 4: The callback prototype according to the USER (U1-4) number.
 //  - path: The path of ydb_read_hook registered
 //  - stream: The stream to write the data into the datablock.
 //        YAML format stream should be written by the ydb_read_hook.
@@ -188,11 +188,11 @@ void ydb_read_hook_delete(ydb *datablock, char *path);
 //  - path: The path of ydb_write_hook registered
 //  - num: The number of the user-defined data (U1-4)
 
-typedef void (*ydb_write_hook0)(ydb *datablock, char op, ydb_node *_cur, ydb_node *_new);
-typedef void (*ydb_write_hook1)(ydb *datablock, char op, ydb_node *_cur, ydb_node *_new, void *U1);
-typedef void (*ydb_write_hook2)(ydb *datablock, char op, ydb_node *_cur, ydb_node *_new, void *U1, void *U2);
-typedef void (*ydb_write_hook3)(ydb *datablock, char op, ydb_node *_cur, ydb_node *_new, void *U1, void *U2, void *U3);
-typedef void (*ydb_write_hook4)(ydb *datablock, char op, ydb_node *_cur, ydb_node *_new, void *U1, void *U2, void *U3, void *U4);
+typedef void (*ydb_write_hook0)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new);
+typedef void (*ydb_write_hook1)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new, void *U1);
+typedef void (*ydb_write_hook2)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new, void *U1, void *U2);
+typedef void (*ydb_write_hook3)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new, void *U1, void *U2, void *U3);
+typedef void (*ydb_write_hook4)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new, void *U1, void *U2, void *U3, void *U4);
 typedef ydb_write_hook1 ydb_write_hook;
 
 ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, int num, ...);

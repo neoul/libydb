@@ -211,7 +211,7 @@ int test_ynode_crud()
 	return 0;
 }
 
-void ynode_hooker(char op, ynode *cur, ynode *new, void *user)
+void ynode_hooker(char op, ynode *base, ynode *cur, ynode *new, void *user)
 {
 	printf("== %s: %s ==\n", __func__, yhook_op_str(op));
 	if (op == YHOOK_OP_CREATE || op == YHOOK_OP_REPLACE)
