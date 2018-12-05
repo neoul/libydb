@@ -187,7 +187,7 @@ void ydb_read_hook_delete(ydb *datablock, char *path);
 //  - U1-4: The user-defined data
 //  - path: The path of ydb_write_hook registered
 //  - num: The number of the user-defined data (U1-4)
-//  - flags: leaf-only (The node doesn't have any child.), val-only (The node has the data.)
+//  - flags: leaf-first (The node doesn't have any child.), val-only (The node has the data.)
 
 typedef void (*ydb_write_hook0)(ydb *datablock, char op, ydb_node *_cur, ydb_node *_new);
 typedef void (*ydb_write_hook1)(ydb *datablock, char op, ydb_node *_cur, ydb_node *_new, void *U1);
