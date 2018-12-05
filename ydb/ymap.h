@@ -1,7 +1,7 @@
 #ifndef __YMAP__
 #define __YMAP__
 
-// ymap is the ordered map constructed by yarray and 
+// ymap is the ordered map constructed by ylist and 
 // ytree in order to support YAML ordered map.
 // - the data ordered by the insert sequence.
 // - each data is unique by the key in ymap.

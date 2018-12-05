@@ -32,6 +32,12 @@ struct _yhook
         yhook_func4 func4;
         yhook_func5 func5;
         yhook_func2 func;
+        yhook_suppressed_func0 agg_func0;
+        yhook_suppressed_func1 agg_func1;
+        yhook_suppressed_func2 agg_func2;
+        yhook_suppressed_func3 agg_func3;
+        yhook_suppressed_func4 agg_func4;
+        yhook_suppressed_func5 agg_func5;
     };
     unsigned int flags;
     int user_num;
@@ -377,6 +383,11 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int use
     else
         UNSET_FLAG(hook->flags, YNODE_VAL_ONLY);
 
+    if (IS_SET(flags, YNODE_SUPPRESS_HOOK))
+        SET_FLAG(hook->flags, YNODE_SUPPRESS_HOOK);
+    else
+        UNSET_FLAG(hook->flags, YNODE_SUPPRESS_HOOK);
+
     hook->node = node;
     hook->func = func;
     hook->user_num = user_num;
@@ -426,49 +437,88 @@ static void yhook_func_exec(yhook *hook, char op, ynode *cur, ynode *_new)
             free(path);
         }
     }
-    switch (hook->user_num)
+    if (IS_SET(hook->flags, YNODE_SUPPRESS_HOOK))
     {
-    case 0:
-        hook->func0(op, hook->node, cur, _new);
-        break;
-    case 1:
-        hook->func1(hook->user[0], op, hook->node, cur, _new);
-        break;
-    case 2:
-        hook->func2(hook->user[0], op, hook->node, cur, _new, hook->user[1]);
-        break;
-    case 3:
-        hook->func3(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2]);
-        break;
-    case 4:
-        hook->func4(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2], hook->user[3]);
-        break;
-    case 5:
-        hook->func5(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2], hook->user[3], hook->user[4]);
-        break;
-    default:
-        break;
+        switch (hook->user_num)
+        {
+        case 0:
+            hook->agg_func0(op, hook->node);
+            break;
+        case 1:
+            hook->agg_func1(hook->user[0], op, hook->node);
+            break;
+        case 2:
+            hook->agg_func2(hook->user[0], op, hook->node, hook->user[1]);
+            break;
+        case 3:
+            hook->agg_func3(hook->user[0], op, hook->node, hook->user[1], hook->user[2]);
+            break;
+        case 4:
+            hook->agg_func4(hook->user[0], op, hook->node, hook->user[1], hook->user[2], hook->user[3]);
+            break;
+        case 5:
+            hook->agg_func5(hook->user[0], op, hook->node, hook->user[1], hook->user[2], hook->user[3], hook->user[4]);
+            break;
+        default:
+            break;
+        }
+    }
+    else
+    {
+        switch (hook->user_num)
+        {
+        case 0:
+            hook->func0(op, hook->node, cur, _new);
+            break;
+        case 1:
+            hook->func1(hook->user[0], op, hook->node, cur, _new);
+            break;
+        case 2:
+            hook->func2(hook->user[0], op, hook->node, cur, _new, hook->user[1]);
+            break;
+        case 3:
+            hook->func3(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2]);
+            break;
+        case 4:
+            hook->func4(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2], hook->user[3]);
+            break;
+        case 5:
+            hook->func5(hook->user[0], op, hook->node, cur, _new, hook->user[1], hook->user[2], hook->user[3], hook->user[4]);
+            break;
+        default:
+            break;
+        }
     }
 }
 
-static int yhook_pre_run_for_delete(ynode *cur);
+static void yhook_push_for_pending(yhook *hook, ytree **hook_pool)
+{
+    if (!hook_pool)
+        return;
+    if (!(*hook_pool))
+        *hook_pool = ytree_create(NULL, NULL);
+    if (*hook_pool)
+        ytree_insert(*hook_pool, hook->node, hook);
+}
+
+static int yhook_pre_run_for_delete(ynode *cur, ytree **hook_pool);
 static int yhook_pre_run_for_delete_dict(void *key, void *data, void *addition)
 {
     ynode *cur = data;
+    ytree **hook_pool = addition;
     key = (void *)key;
-    addition = (void *)addition;
-    return yhook_pre_run_for_delete(cur);
+    return yhook_pre_run_for_delete(cur, hook_pool);
 }
 
 static int yhook_pre_run_for_delete_list(void *data, void *addition)
 {
     ynode *cur = data;
-    addition = (void *)addition;
-    return yhook_pre_run_for_delete(cur);
+    ytree **hook_pool = addition;
+    return yhook_pre_run_for_delete(cur, hook_pool);
 }
 
 // call the pre / post hook for deleting cur ynode.
-static int yhook_pre_run_for_delete(ynode *cur)
+static int yhook_pre_run_for_delete(ynode *cur, ytree **hook_pool)
 {
     ydb_res res;
     ynode *node;
@@ -477,13 +527,13 @@ static int yhook_pre_run_for_delete(ynode *cur)
     switch (cur->type)
     {
     case YNODE_TYPE_MAP:
-        res = ytree_traverse(cur->map, yhook_pre_run_for_delete_dict, NULL);
+        res = ytree_traverse(cur->map, yhook_pre_run_for_delete_dict, hook_pool);
         break;
     case YNODE_TYPE_OMAP:
-        res = ymap_traverse(cur->omap, yhook_pre_run_for_delete_dict, NULL);
+        res = ymap_traverse(cur->omap, yhook_pre_run_for_delete_dict, hook_pool);
         break;
     case YNODE_TYPE_LIST:
-        res = ylist_traverse(cur->list, yhook_pre_run_for_delete_list, NULL);
+        res = ylist_traverse(cur->list, yhook_pre_run_for_delete_list, hook_pool);
         break;
     case YNODE_TYPE_VAL:
         res = YDB_OK;
@@ -497,25 +547,33 @@ static int yhook_pre_run_for_delete(ynode *cur)
         yhook *hook = node->hook;
         if (hook)
         {
+            if (IS_SET(hook->flags, YNODE_SUPPRESS_HOOK))
+            {
+                yhook_push_for_pending(hook, hook_pool);
+                break;
+            }
             if (cur->type == YNODE_TYPE_VAL || !IS_SET(hook->flags, YNODE_VAL_ONLY))
                 yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
             break;
         }
         node = node->parent;
     }
+    
     return res;
 }
 
-static void yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
+static yhook *yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
 {
     yhook *hook;
     if (op != YHOOK_OP_CREATE && op != YHOOK_OP_REPLACE)
-        return;
+        return NULL;
     if (cur)
     {
         hook = cur->hook;
         if (hook)
         {
+            if (IS_SET(hook->flags, YNODE_SUPPRESS_HOOK))
+                return hook;
             if (cur->type == YNODE_TYPE_VAL ||
                 (new && new->type == YNODE_TYPE_VAL) ||
                 !IS_SET(hook->flags, YNODE_VAL_ONLY))
@@ -527,6 +585,8 @@ static void yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
         hook = parent->hook;
         if (hook)
         {
+            if (IS_SET(hook->flags, YNODE_SUPPRESS_HOOK))
+                return hook;
             if ((cur && cur->type == YNODE_TYPE_VAL) ||
                 (new && new->type == YNODE_TYPE_VAL) ||
                 !IS_SET(hook->flags, YNODE_VAL_ONLY))
@@ -535,11 +595,47 @@ static void yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
         }
         parent = parent->parent;
     }
+    return NULL;
 }
 
-static void yhook_post_run(char op, ynode *parent, ynode *cur, ynode *new)
+static void yhook_post_run(char op, ynode *cur, bool end_of_run, ytree **hook_pool)
 {
+    yhook *hook;
+    if (!hook_pool || !(*hook_pool))
+        return;
+    if (op != YHOOK_OP_DELETE)
+    {
+        if (end_of_run)
+        {
+            while (cur)
+            {
+                hook = ytree_delete(*hook_pool, cur);
+                if (hook)
+                    yhook_func_exec(hook, op, NULL, NULL);
+                cur = cur->parent;
+            }
+        }
+        else
+        {
+            hook = ytree_delete(*hook_pool, cur);
+            if (hook)
+                yhook_func_exec(hook, op, NULL, NULL);
+        }
+    }
 
+    if (end_of_run)
+    {
+        ytree_iter *iter = ytree_top(*hook_pool);
+        while (iter)
+        {
+            hook = ytree_remove(*hook_pool, iter);
+            if (hook)
+                yhook_func_exec(hook, op, NULL, NULL);
+            iter = ytree_top(*hook_pool);
+        }
+        ytree_destroy(*hook_pool);
+        *hook_pool = NULL;
+    }
 }
 
 static void yhook_delete(ynode *cur)
@@ -1028,7 +1124,8 @@ static void ynode_log_print(struct _ynode_log *log, ynode *_cur, ynode *_new)
     nodes = ylist_create();
     if (!nodes)
         return;
-    if (_new) {
+    if (_new)
+    {
         n = _new;
         if (_cur && (log->top == _cur))
         {
@@ -2292,9 +2389,12 @@ char *yhook_op_str(char op)
     }
 }
 
-static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ynode_log *log)
+static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ytree **hook_pool, ynode_log *log)
 {
+    yhook *hook;
+    ytree *hpool = NULL;
     ynode *new = NULL;
+    bool start_point = false;
     char op;
     if (parent)
     {
@@ -2358,20 +2458,30 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
             free(path);
     }
 
+    if (!hook_pool)
+    {
+        hook_pool = &hpool;
+        start_point = true;
+    }
+
     switch (op)
     {
     case YHOOK_OP_CREATE:
         ynode_attach(new, parent, key);
-        yhook_pre_run(op, parent, cur, new);
+        hook = yhook_pre_run(op, parent, cur, new);
+        if (hook)
+            yhook_push_for_pending(hook, hook_pool);
         ynode_log_print(log, cur, new);
         break;
     case YHOOK_OP_REPLACE:
         ynode_attach(new, parent, key);
-        yhook_pre_run(op, parent, cur, new);
+        hook = yhook_pre_run(op, parent, cur, new);
+        if (hook)
+            yhook_push_for_pending(hook, hook_pool);
         ynode_log_print(log, cur, new);
         break;
     case YHOOK_OP_DELETE:
-        yhook_pre_run_for_delete(cur);
+        yhook_pre_run_for_delete(cur, hook_pool);
         ynode_log_print(log, cur, new);
         break;
     case YHOOK_OP_NONE:
@@ -2390,7 +2500,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
             {
                 ynode *src_child = ytree_data(iter);
                 ynode *cur_child = ynode_find_child(new, src_child->key);
-                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, log);
+                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, hook_pool, log);
                 if (!new_child)
                     ylog_error("unable to add child node (src_child->key: %s)\n");
             }
@@ -2403,7 +2513,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
             {
                 ynode *src_child = ymap_data(iter);
                 ynode *cur_child = ynode_find_child(new, src_child->key);
-                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, log);
+                ynode *new_child = ynode_control(cur_child, src_child, new, src_child->key, hook_pool, log);
                 if (!new_child)
                     ylog_error("unable to add child node (src_child->key: %s)\n");
             }
@@ -2417,7 +2527,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
                  iter = ylist_next(src->list, iter))
             {
                 ynode *src_child = ylist_data(iter);
-                ynode *new_child = ynode_control(NULL, src_child, new, NULL, log);
+                ynode *new_child = ynode_control(NULL, src_child, new, NULL, hook_pool, log);
                 if (!new_child)
                     ylog_error("unable to add child node (src_child->key: %s)\n");
             }
@@ -2433,17 +2543,19 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yn
     switch (op)
     {
     case YHOOK_OP_CREATE:
-        yhook_post_run(op, parent, cur, new);
+        yhook_post_run(YHOOK_OP_MERGE, new, start_point,  hook_pool);
         break;
     case YHOOK_OP_REPLACE:
-        yhook_post_run(op, parent, cur, new);
+        yhook_post_run(YHOOK_OP_MERGE, new, start_point, hook_pool);
         ynode_free(cur);
         break;
     case YHOOK_OP_DELETE:
+        yhook_post_run(YHOOK_OP_DELETE, cur, start_point, hook_pool);
         ynode_detach(cur);
         ynode_free(cur);
         break;
     case YHOOK_OP_NONE:
+        yhook_post_run(YHOOK_OP_MERGE, cur, start_point, hook_pool);
         break;
     default:
         break;
@@ -2522,7 +2634,7 @@ ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, y
 {
     ynode *cur, *new;
     new = ynode_new(type, value, 0, 0);
-    cur = ynode_control(NULL, new, parent, key, log);
+    cur = ynode_control(NULL, new, parent, key, NULL, log);
     ynode_free(new);
     return cur;
 }
@@ -2531,7 +2643,7 @@ ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, y
 // return created ynode top
 ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_log *log)
 {
-    return ynode_control(NULL, src, parent, key, log);
+    return ynode_control(NULL, src, parent, key, NULL, log);
 }
 
 // create new ynodes using path
@@ -2706,7 +2818,7 @@ ynode *ynode_merge(ynode *dest, ynode *src, ynode_log *log)
     }
 
     parent = dest->parent;
-    parent = ynode_control(dest, src, parent, dest->key, log);
+    parent = ynode_control(dest, src, parent, dest->key, NULL, log);
     return parent;
 }
 
@@ -2744,7 +2856,7 @@ ynode *ynode_merge_new(ynode *dest, ynode *src)
 void ynode_delete(ynode *cur, ynode_log *log)
 {
     if (cur)
-        ynode_control(cur, NULL, cur->parent, cur->key, log);
+        ynode_control(cur, NULL, cur->parent, cur->key, NULL, log);
 }
 
 struct ynode_traverse_data

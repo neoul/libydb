@@ -213,11 +213,38 @@ int test_ynode_crud()
 
 void ynode_hooker(char op, ynode *base, ynode *cur, ynode *new, void *user)
 {
-	printf("== %s: %s ==\n", __func__, yhook_op_str(op));
-	if (op == YHOOK_OP_CREATE || op == YHOOK_OP_REPLACE)
-		ynode_dump(new, 0, 0);
-	else
-		ynode_dump(cur, 0, 0);
+	char *path;
+	printf("%s (op=%c)\n", __func__, op);
+	path = ynode_path_and_val(base, YDB_LEVEL_MAX, NULL);
+	if (path)
+	{
+		printf(" base: %s\n", path);
+		free(path);
+	}
+	path = ynode_path_and_val(cur, YDB_LEVEL_MAX, NULL);
+	if (path)
+	{
+		printf(" cur: %s\n", path);
+		free(path);
+	}
+	path = ynode_path_and_val(new, YDB_LEVEL_MAX, NULL);
+	if (path)
+	{
+		printf(" new: %s\n", path);
+		free(path);
+	}
+}
+
+void ynode_hooker_suppressed(char op, ynode *base, void *user)
+{
+	char *path;
+	printf("%s\n", __func__);
+	path = ynode_path_and_val(base, YDB_LEVEL_MAX, NULL);
+	if (path)
+	{
+		printf(" base: %s\n", path);
+		free(path);
+	}
 }
 
 int test_yhook()
@@ -248,10 +275,14 @@ int test_yhook()
 	ynode_scanf_from_buf(sample, strlen(sample), 0, &top);
 	ynode_dump(top, 1, YDB_LEVEL_MAX);
 
+	yhook_register(ynode_search(top, "/1"), YNODE_SUPPRESS_HOOK, (yhook_func) ynode_hooker_suppressed, 0, NULL);
+	yhook_register(ynode_search(top, "/2"), YNODE_SUPPRESS_HOOK, (yhook_func) ynode_hooker_suppressed, 0, NULL);
+
+
 	// move to 1-2 node
 	top = ynode_search(top, "1/1-2");
-	ynode_dump(top, 0, 0);
 	yhook_register(top, 0x0, (yhook_func) ynode_hooker, 0, NULL);
+	
 
 	printf("== ynode_create to check yhook ==\n");
 	ynode_create(YNODE_TYPE_VAL, "1-2-4", "v13", top, NULL);
@@ -324,13 +355,13 @@ int main(int argc, char *argv[])
 	// 	printf("test_ynode_path() failed.\n");
 	// }
 
-	ylog_severity = YLOG_DEBUG;
-	if(test_ynode_crud())
-	{
-		printf("test_ynode_crud() failed.\n");
-	}
+	// ylog_severity = YLOG_DEBUG;
+	// if(test_ynode_crud())
+	// {
+	// 	printf("test_ynode_crud() failed.\n");
+	// }
 
-	ylog_severity = YLOG_DEBUG;
+	// ylog_severity = YLOG_INFO;
 	if(test_yhook())
 	{
 		printf("test_yhook() failed.\n");

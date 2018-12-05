@@ -138,6 +138,7 @@ char *ynode_path_and_val(ynode *node, int level, int *pathlen);
 #define YHOOK_OP_CREATE 'c'
 #define YHOOK_OP_REPLACE 'r'
 #define YHOOK_OP_DELETE 'd'
+#define YHOOK_OP_MERGE 'm' // mean something changed
 char *yhook_op_str(char op);
 
 // flags for ynode hook and traverse func
@@ -145,6 +146,7 @@ char *yhook_op_str(char op);
 #define YNODE_LEAF_FIRST 0x1
 #define YNODE_VAL_ONLY 0x2
 #define YNODE_LEAF_ONLY 0x4
+#define YNODE_SUPPRESS_HOOK 0x8
 
 typedef void (*yhook_func0)(          char op, ynode *base, ynode *cur, ynode *_new);
 typedef void (*yhook_func1)(void *U0, char op, ynode *base, ynode *cur, ynode *_new);
@@ -152,6 +154,13 @@ typedef void (*yhook_func2)(void *U0, char op, ynode *base, ynode *cur, ynode *_
 typedef void (*yhook_func3)(void *U0, char op, ynode *base, ynode *cur, ynode *_new, void *U1, void *U2);
 typedef void (*yhook_func4)(void *U0, char op, ynode *base, ynode *cur, ynode *_new, void *U1, void *U2, void *U3);
 typedef void (*yhook_func5)(void *U0, char op, ynode *base, ynode *cur, ynode *_new, void *U1, void *U2, void *U3, void *U4);
+typedef void (*yhook_suppressed_func0)(          char op, ynode *base);
+typedef void (*yhook_suppressed_func1)(void *U0, char op, ynode *base);
+typedef void (*yhook_suppressed_func2)(void *U0, char op, ynode *base, void *U1);
+typedef void (*yhook_suppressed_func3)(void *U0, char op, ynode *base, void *U1, void *U2);
+typedef void (*yhook_suppressed_func4)(void *U0, char op, ynode *base, void *U1, void *U2, void *U3);
+typedef void (*yhook_suppressed_func5)(void *U0, char op, ynode *base, void *U1, void *U2, void *U3, void *U4);
+
 typedef yhook_func2 yhook_func;
 
 // register the hook func to the target ynode.
