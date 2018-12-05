@@ -615,6 +615,11 @@ char *ydb_path_and_value(ydb *datablock, ynode *node, int *pathlen)
     return ynode_path_and_val(node, ynode_level(datablock->top, node), pathlen);
 }
 
+char *ydb_path_nodes(ynode *ancestor, ynode *descendant, int *pathlen)
+{
+    return ynode_path(descendant, ynode_level(ancestor, descendant), pathlen);
+}
+
 // return the top node of the yaml data block.
 ynode *ydb_top(ydb *datablock)
 {
@@ -629,7 +634,7 @@ ynode *ydb_root(ydb *datablock)
     return ynode_top(datablock->top);
 }
 
-// return 1 if ydb_node is empty.
+// return 1 if ynode is empty.
 int ydb_empty(ynode *node)
 {
     return ynode_empty(node);

@@ -50,14 +50,17 @@ ydb_res update_hook1(ydb *datablock, char *path, FILE *fp, void *U1)
 }
 #pragma GCC diagnostic pop
 
-void notify_hook(ydb *datablock, char op, ydb_node *base, ydb_node *cur, ydb_node *_new)
+void notify_hook(ydb *datablock, char op, ynode *base, ynode *cur, ynode *_new)
 {
-    printf("HOOK %s (%c) base=%s cur={%s:%s} new={%s:%s}\n", __func__, op,
-           ydb_key(base) ? ydb_key(base) : "",
+    char *path = ydb_path(datablock, base, NULL);
+    fprintf(stdout, "HOOK %s (%c) cur={%s:%s} new={%s:%s}\n",
+            path ? path: "unknown", op,
            ydb_key(cur) ? ydb_key(cur) : "",
            ydb_value(cur) ? ydb_value(cur) : "",
            ydb_key(_new) ? ydb_key(_new) : "",
            ydb_value(_new) ? ydb_value(_new) : "");
+    if (path)
+        free(path);
 }
 
 int test_hook()

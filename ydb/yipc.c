@@ -46,7 +46,7 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
 {
     ydb_res res = YDB_OK;
     ydb *datablock = NULL;
-    ydb_node *node = NULL;
+    ynode *node = NULL;
     FILE *fp;
     char *buf = NULL;
     size_t buflen = 0;
@@ -93,7 +93,7 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
             break;
         if (strcmp(key, "+meta") != 0)
         {
-            ydb_node *idb_next;
+            ynode *idb_next;
             idb_next = ydb_next(node);
             ynode_remove(node);
             node = idb_next;
@@ -111,7 +111,7 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
 {
     ydb_res res = YDB_OK;
     ydb *db;
-    ydb_node *node;
+    ynode *node;
     if (!src_id || !datablock)
         return -1;
     db = ydb_get(src_id, NULL);
@@ -127,7 +127,7 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
             break;
         if (strcmp(key, "+meta") != 0)
         {
-            ydb_node *idb_next;
+            ynode *idb_next;
             idb_next = ydb_next(node);
             ynode_remove(node);
             node = idb_next;

@@ -59,17 +59,17 @@ char *ydb_res_str(ydb_res res);
 
 // YAML DataBlock structure
 typedef struct _ydb ydb;
-typedef struct _ynode ydb_node; // The node reference of YDB
+typedef struct _ynode ynode; // The node of YDB
 
 // Open YAML DataBlock
 ydb *ydb_open(char *name);
 
-// Get YAML DataBlock and also return ydb_node
-ydb *ydb_get(char *name_and_path, ydb_node **node);
+// Get YAML DataBlock and also return ynode
+ydb *ydb_get(char *name_and_path, ynode **node);
 
 // return the new string consisting of the YDB name and the path to the node.
 // the return string must be free.
-char *ydb_name_and_path(ydb_node *node, int *pathlen);
+char *ydb_name_and_path(ynode *node, int *pathlen);
 
 // Get the name of the YAML DataBlock
 char *ydb_name(ydb *datablock);
@@ -91,39 +91,45 @@ ydb_res ydb_clear(ydb *datablock);
 void ydb_close(ydb *datablock);
 
 // return the path of the node. (the path must be free.)
-char *ydb_path(ydb *datablock, ydb_node *node, int *pathlen);
+char *ydb_path(ydb *datablock, ynode *node, int *pathlen);
 // return the path of the node. (the path must be free.)
-char *ydb_path_and_value(ydb *datablock, ydb_node *node, int *pathlen);
+char *ydb_path_and_value(ydb *datablock, ynode *node, int *pathlen);
 // return the node in the path of the yaml data block.
-ydb_node *ydb_search(ydb *datablock, char *path);
+ynode *ydb_search(ydb *datablock, char *path);
+
+// return the path between ancestor and descendant;
+char *ydb_path_nodes(ynode *ancestor, ynode *descendant, int *pathlen);
 
 // return the top node of the yaml data block.
-ydb_node *ydb_top(ydb *datablock);
+ynode *ydb_top(ydb *datablock);
 // return the root node of the yaml data block.
-ydb_node *ydb_root(ydb *datablock);
+ynode *ydb_root(ydb *datablock);
 // return 1 if the node has no child.
-int ydb_empty(ydb_node *node);
+int ydb_empty(ynode *node);
 
 // return the parent node of the node.
-ydb_node *ydb_up(ydb_node *node);
+ynode *ydb_up(ynode *node);
 // return the first child node of the node.
-ydb_node *ydb_down(ydb_node *node);
+ynode *ydb_down(ynode *node);
 // return the previous sibling node of the node.
-ydb_node *ydb_prev(ydb_node *node);
+ynode *ydb_prev(ynode *node);
 // return the next sibling node of the node.
-ydb_node *ydb_next(ydb_node *node);
+ynode *ydb_next(ynode *node);
 // return the first sibling node of the node.
-ydb_node *ydb_first(ydb_node *node);
+ynode *ydb_first(ynode *node);
 // return the last sibling node of the node.
-ydb_node *ydb_last(ydb_node *node);
+ynode *ydb_last(ynode *node);
 // return node type
-int ydb_type(ydb_node *node);
+int ydb_type(ynode *node);
 // return node value if that is a leaf.
-char *ydb_value(ydb_node *node);
+char *ydb_value(ynode *node);
 // return node key if that has a hash key.
-char *ydb_key(ydb_node *node);
+char *ydb_key(ynode *node);
 // return node index if the nodes' parent is a list.
-int ydb_index(ydb_node *node);
+int ydb_index(ynode *node);
+
+// read the data from the node
+int ynode_read(ynode *n, const char *format, ...);
 
 // update the data in the ydb using file stream
 ydb_res ydb_parse(ydb *datablock, FILE *stream);
@@ -188,11 +194,11 @@ void ydb_read_hook_delete(ydb *datablock, char *path);
 //  - path: The path of ydb_write_hook registered
 //  - num: The number of the user-defined data (U1-4)
 
-typedef void (*ydb_write_hook0)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new);
-typedef void (*ydb_write_hook1)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new, void *U1);
-typedef void (*ydb_write_hook2)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new, void *U1, void *U2);
-typedef void (*ydb_write_hook3)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new, void *U1, void *U2, void *U3);
-typedef void (*ydb_write_hook4)(ydb *datablock, char op, ydb_node *_base, ydb_node *_cur, ydb_node *_new, void *U1, void *U2, void *U3, void *U4);
+typedef void (*ydb_write_hook0)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new);
+typedef void (*ydb_write_hook1)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1);
+typedef void (*ydb_write_hook2)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1, void *U2);
+typedef void (*ydb_write_hook3)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1, void *U2, void *U3);
+typedef void (*ydb_write_hook4)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1, void *U2, void *U3, void *U4);
 typedef ydb_write_hook1 ydb_write_hook;
 
 ydb_res ydb_write_hook_add(ydb *datablock, char *path, ydb_write_hook func, int num, ...);
