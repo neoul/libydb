@@ -141,8 +141,13 @@ int test_remote_hook(int n)
     do
     {
         res = ydb_serve(datablock, 10000);
-        if (res)
+        if (YDB_FAILED(res))
+        {
+            fprintf(stderr, "error: %s\n", ydb_res_str(res));
             goto _done;
+        }
+        else if (YDB_WARNING(res))
+            fprintf(stdout, "warning: %s\n", ydb_res_str(res));
     } while (!done);
 
 _done:

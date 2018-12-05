@@ -3334,6 +3334,8 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
             {
                 if (next)
                     datablock->more_recv = conn;
+                else
+                    datablock->more_recv = NULL;
                 res = YDB_W_MORE_RECV;
                 break;
             }

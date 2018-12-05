@@ -163,7 +163,7 @@ int ydb_fd(ydb *datablock);
 // ydb_read_hook: The callback executed by ydb_read() to update the datablock at reading.
 //  - ydb_read_hook0 - 4: The callback prototype according to the USER (U1-4) number.
 //  - path: The path of ydb_read_hook registered
-//  - fp: The stream to write the data into the datablock.
+//  - stream: The stream to write the data into the datablock.
 //        YAML format stream should be written by the ydb_read_hook.
 //  - U1-4: The user-defined data
 //  - num: The number of the user-defined data (U1-4)

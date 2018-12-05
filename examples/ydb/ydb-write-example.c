@@ -68,7 +68,7 @@ int test_remote_hook(int n)
         int timeout;
         gettimeofday(&end, NULL);
         res = ydb_serve(datablock, 1000);
-        if (res)
+        if (YDB_FAILED(res))
             goto _done;
         timeout = (end.tv_sec - start.tv_sec) * 1000;
         timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;

@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
             }
         }
         res = ydb_serve(datablock, 1000);
-        if (res)
+        if (YDB_FAILED(res))
             break;
     } while (!done);
 
