@@ -372,10 +372,6 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int use
         return YDB_E_NO_ENTRY;
 
     hook->flags = 0x0;
-    if (IS_SET(flags, YNODE_LEAF_FIRST))
-        SET_FLAG(hook->flags, YNODE_LEAF_FIRST);
-    else
-        UNSET_FLAG(hook->flags, YNODE_LEAF_FIRST);
     if (IS_SET(flags, YNODE_VAL_ONLY))
         SET_FLAG(hook->flags, YNODE_VAL_ONLY);
     else
@@ -475,22 +471,9 @@ static int yhook_pre_run_for_delete_list(void *data, void *addition)
 static int yhook_pre_run_for_delete(ynode *cur)
 {
     ydb_res res;
-    ynode *node = cur;
+    ynode *node;
     if (!cur)
         return YDB_E_NO_ENTRY;
-    while (node)
-    {
-        yhook *hook = node->hook;
-        if (hook && !(IS_SET(hook->flags, YNODE_LEAF_FIRST)))
-        {
-            if (cur->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
-            else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
-            break;
-        }
-        node = node->parent;
-    }
     switch (cur->type)
     {
     case YNODE_TYPE_MAP:
@@ -512,11 +495,9 @@ static int yhook_pre_run_for_delete(ynode *cur)
     while (node)
     {
         yhook *hook = node->hook;
-        if (hook && IS_SET(hook->flags, YNODE_LEAF_FIRST))
+        if (hook)
         {
-            if (cur->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
-            else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
+            if (cur->type == YNODE_TYPE_VAL || !IS_SET(hook->flags, YNODE_VAL_ONLY))
                 yhook_func_exec(hook, YHOOK_OP_DELETE, cur, NULL);
             break;
         }
@@ -525,33 +506,30 @@ static int yhook_pre_run_for_delete(ynode *cur)
     return res;
 }
 
-// return ynode is changed or not.
 static void yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
 {
     yhook *hook;
+    if (op != YHOOK_OP_CREATE && op != YHOOK_OP_REPLACE)
+        return;
     if (cur)
     {
         hook = cur->hook;
-        if (hook && !(IS_SET(hook->flags, YNODE_LEAF_FIRST)))
+        if (hook)
         {
-            if (cur->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, op, cur, new);
-            else if (new && new->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, op, cur, new);
-            else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
+            if (cur->type == YNODE_TYPE_VAL ||
+                (new && new->type == YNODE_TYPE_VAL) ||
+                !IS_SET(hook->flags, YNODE_VAL_ONLY))
                 yhook_func_exec(hook, op, cur, new);
         }
     }
     while (parent)
     {
         hook = parent->hook;
-        if (hook && !(IS_SET(hook->flags, YNODE_LEAF_FIRST)))
+        if (hook)
         {
-            if (cur && cur->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, op, cur, new);
-            else if (new && new->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, op, cur, new);
-            else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
+            if ((cur && cur->type == YNODE_TYPE_VAL) ||
+                (new && new->type == YNODE_TYPE_VAL) ||
+                !IS_SET(hook->flags, YNODE_VAL_ONLY))
                 yhook_func_exec(hook, op, cur, new);
             break;
         }
@@ -561,35 +539,7 @@ static void yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
 
 static void yhook_post_run(char op, ynode *parent, ynode *cur, ynode *new)
 {
-    yhook *hook;
-    if (cur)
-    {
-        hook = cur->hook;
-        if (hook && IS_SET(hook->flags, YNODE_LEAF_FIRST))
-        {
-            if (cur->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, op, cur, new);
-            else if (new && new->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, op, cur, new);
-            else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                yhook_func_exec(hook, op, cur, new);
-        }
-    }
-    while (parent)
-    {
-        hook = parent->hook;
-        if (hook && IS_SET(hook->flags, YNODE_LEAF_FIRST))
-        {
-            if (cur && cur->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, op, cur, new);
-            else if (new && new->type == YNODE_TYPE_VAL)
-                yhook_func_exec(hook, op, cur, new);
-            else if (!IS_SET(hook->flags, YNODE_VAL_ONLY))
-                yhook_func_exec(hook, op, cur, new);
-            break;
-        }
-        parent = parent->parent;
-    }
+
 }
 
 static void yhook_delete(ynode *cur)

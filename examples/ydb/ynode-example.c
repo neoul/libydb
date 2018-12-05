@@ -251,7 +251,7 @@ int test_yhook()
 	// move to 1-2 node
 	top = ynode_search(top, "1/1-2");
 	ynode_dump(top, 0, 0);
-	yhook_register(top, YNODE_LEAF_FIRST, (yhook_func) ynode_hooker, 0, NULL);
+	yhook_register(top, 0x0, (yhook_func) ynode_hooker, 0, NULL);
 
 	printf("== ynode_create to check yhook ==\n");
 	ynode_create(YNODE_TYPE_VAL, "1-2-4", "v13", top, NULL);
