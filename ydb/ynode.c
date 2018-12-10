@@ -2248,7 +2248,7 @@ ynode *ynode_last(ynode *node)
 
 int ynode_path_fprintf(FILE *fp, ynode *node, int level)
 {
-    if (node && level >= 0)
+    if (node && level > 0)
     {
         int len, curlen;
         len = ynode_path_fprintf(fp, node->parent, level - 1);
