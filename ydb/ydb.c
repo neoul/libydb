@@ -1137,11 +1137,19 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
 {
     ydb_res res;
     int pathlen;
+    char *realpath = NULL;
     struct readhook *rhook, *oldhook;
     ylog_in();
     YDB_FAIL(!datablock || !func || !path || num < 0, YDB_E_INVALID_ARGS);
     YDB_FAIL(num > 4 || num < 0, YDB_E_INVALID_ARGS);
     pathlen = strlen(path);
+    if (path[0] != '/')
+    {
+        realpath = malloc(pathlen+4);
+        sprintf(realpath, "/%s", path);
+        path = realpath;
+        pathlen = pathlen + 1;
+    }
     rhook = ytrie_search(datablock->updater, path, pathlen);
     // YDB_FAIL(rhook, YDB_E_ENTRY_EXISTS);
     if (!rhook)
@@ -1173,9 +1181,13 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
     }
     ylog_info("ydb[%s] read hook (%p) added to %s (%d)\n",
               datablock->name, rhook->hook, path, pathlen);
+    if (realpath)
+        free(realpath);
     ylog_out();
     return YDB_OK;
 failed:
+    if (realpath)
+        free(realpath);
     ylog_out();
     return res;
 }
@@ -1183,6 +1195,7 @@ failed:
 void ydb_read_hook_delete(ydb *datablock, char *path)
 {
     int pathlen;
+    char *realpath = NULL;
     struct readhook *rhook;
     ylog_in();
     if (!datablock || !path)
@@ -1191,6 +1204,14 @@ void ydb_read_hook_delete(ydb *datablock, char *path)
         return;
     }
     pathlen = strlen(path);
+    if (path[0] != '/')
+    {
+        realpath = malloc(pathlen+4);
+        sprintf(realpath, "/%s", path);
+        path = realpath;
+        pathlen = pathlen + 1;
+    }
+
     rhook = ytrie_delete(datablock->updater, path, pathlen);
     if (rhook)
     {
@@ -1200,6 +1221,8 @@ void ydb_read_hook_delete(ydb *datablock, char *path)
             yfree(rhook->path);
         free(rhook);
     }
+    if (realpath)
+        free(realpath);
     ylog_out();
 }
 
