@@ -1,6 +1,8 @@
 #ifndef __YNODE__
 #define __YNODE__
 
+#include <ydb.h>
+
 #ifdef __cplusplus
 extern "C"
 {
