@@ -61,6 +61,13 @@ void notify_hook(ydb *datablock, char op, ynode *base, ynode *cur, ynode *_new)
            ydb_value(_new) ? ydb_value(_new) : "");
     if (path)
         free(path);
+    // cascaded hooking
+    // if (op == 'c')
+    // {
+    //     path = ydb_path(datablock, _new, NULL);
+    //     ydb_write_hook_add(datablock, path, 0, (ydb_write_hook)notify_hook, 0);
+    //     free(path);
+    // }
 }
 
 int test_hook()
@@ -75,6 +82,8 @@ int test_hook()
         goto _done;
     }
 
+    ydb_write_hook_add(datablock, "/ge2", 0, (ydb_write_hook)notify_hook, 0);
+
     int n;
     for (n = 1; n <= 3; n++)
     {
@@ -86,7 +95,7 @@ int test_hook()
     }
 
     ydb_read_hook_add(datablock, "/ge1/enabled", (ydb_read_hook)update_hook, 0);
-    ydb_write_hook_add(datablock, "/ge1", 0, (ydb_write_hook)notify_hook, 0);
+    // ydb_write_hook_add(datablock, "/ge1", 0, (ydb_write_hook)notify_hook, 0);
 
     char enabled[32] = {0};
     ydb_read(datablock, "ge1: {enabled: %s}\n", enabled);
