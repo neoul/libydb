@@ -1,0 +1,12 @@
+interfaces:
+  interface:
+    ge1:
+      description: GE1 Interface!
+      enabled: false
+      ipv4:
+        address:
+          192.168.77.10:
+            prefix-length: 8
+            secondary: false
+      link-up-down-trap-enable: disabled
+      name: ge1

@@ -578,6 +578,7 @@ static yhook *yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
                 (new && new->type == YNODE_TYPE_VAL) ||
                 !IS_SET(hook->flags, YNODE_VAL_ONLY))
                 yhook_func_exec(hook, op, cur, new);
+            return NULL;
         }
     }
     while (parent)

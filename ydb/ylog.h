@@ -48,6 +48,10 @@ extern ylog_func ylog_logger;
 #define YLOG_SEVERITY_DEBUG (ylog_severity >= YLOG_DEBUG)
 #define YLOG_SEVERITY_INFO (ylog_severity >= YLOG_INFO)
 
+// internal functions
+char *ylog_severity_str(int severity);
+char *ylog_pname();
+
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif
