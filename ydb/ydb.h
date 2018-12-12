@@ -213,6 +213,11 @@ void ydb_write_hook_delete(ydb *datablock, char *path);
 ydb_res ydb_whisper_merge(ydb *datablock, char *path, const char *format, ...);
 ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...);
 
+// synchornize the remote ydb manually.
+ydb_res ydb_sync(ydb *datablock, const char *format, ...);
+ydb_res ydb_path_sync(ydb *datablock, const char *format, ...);
+
+
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif

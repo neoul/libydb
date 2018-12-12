@@ -45,6 +45,7 @@ run_fg()
         LOGCOUNT=`expr $LOGCOUNT + 1`
         # echo "valgrind --log-file=$TESTNAME.memcheck.$LOGCOUNT.log '$1 > $2'"
         eval "valgrind --log-file=$TESTNAME.memcheck.$LOGCOUNT.log $@"
+        sleep 1
         return $?
     else
         # /bin/sh -c "$1 > $2"
@@ -68,4 +69,5 @@ test_init()
 test_deinit()
 {
     remove_bg
+    sleep 1
 }

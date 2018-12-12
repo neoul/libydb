@@ -46,10 +46,11 @@ void usage(char *argv_0)
   -d, --daemon                     Runs in daemon mode\n\
   -i, --interpret                  Interpret mode\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
-    , --read PATH/TO/DATA         Read data (value only) from YDB.\n\
-    , --print PATH/TO/DATA        Print data from YDB.\n\
+    , --read PATH/TO/DATA          Read data (value only) from YDB.\n\
+    , --print PATH/TO/DATA         Print data from YDB.\n\
     , --write PATH/TO/DATA=DATA    Write data to YDB.\n\
     , --delete PATH/TO/DATA=DATA   Delete data from YDB.\n\
+    , --sync PATH/TO/DATA=DATA     Update data using sync message.\n\
   -h, --help                       Display this help and exit\n\n");
 }
 
@@ -209,6 +210,7 @@ typedef struct _ydbcmd
         CMD_PRINT,
         CMD_WRITE,
         CMD_DELETE,
+        CMD_SYNC,
     } type;
     char *data;
 } ydbcmd;
@@ -272,6 +274,7 @@ int main(int argc, char *argv[])
             {"print", required_argument, 0, 0},
             {"write", required_argument, 0, 0},
             {"delete", required_argument, 0, 0},
+            {"sync", required_argument, 0, 0},
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
@@ -308,6 +311,11 @@ int main(int argc, char *argv[])
                 else if (strcmp(long_options[index].name, "delete") == 0)
                 {
                     ycmd->type = CMD_DELETE;
+                    ylist_push_back(cmdlist, ycmd);
+                }
+                else if (strcmp(long_options[index].name, "sync") == 0)
+                {
+                    ycmd->type = CMD_SYNC;
                     ylist_push_back(cmdlist, ycmd);
                 }
                 else
@@ -408,7 +416,9 @@ int main(int argc, char *argv[])
             {
                 ydbcmd *ycmd = ylist_data(iter);
                 printf("   - {%s: %s}\n",
-                       (ycmd->type == CMD_READ) ? "read" : (ycmd->type == CMD_WRITE) ? "write" : "delete",
+                       (ycmd->type == CMD_READ) ? "read" :
+                       (ycmd->type == CMD_WRITE) ? "write" :
+                       (ycmd->type == CMD_SYNC) ? "sync" : "delete",
                        (char *)ycmd->data);
             }
         }
@@ -569,13 +579,17 @@ int main(int argc, char *argv[])
                     case CMD_DELETE:
                         res = ydb_path_delete(datablock, "%s", ycmd->data);
                         break;
+                    case CMD_SYNC:
+                        res = ydb_path_sync(datablock, "%s", ycmd->data);
+                        break;
+                    default:
+                        break;
                     }
-                    if (res)
-                    {
+                    if (YDB_FAILED(res))
                         printf("\nydb error: %s (%s)\n", ydb_res_str(res), ycmd->data);
-                        free(ycmd);
-                        goto end;
-                    }
+                    // else if (YDB_WARNING(res))
+                    //     printf("\nydb warning: %s (%s)\n", ydb_res_str(res), ycmd->data);
+
                     free(ycmd);
                     ycmd = ylist_pop_front(cmdlist);
                     if (ycmd)
