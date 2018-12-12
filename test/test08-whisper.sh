@@ -2,8 +2,8 @@
 . ./util.sh
 test_init $0 $1
 echo -n "TEST: $TESTNAME : "
-run_bg "ydb -r pub -d -a uss://top -s -N > $TESTNAME.PUB1.log"
-run_bg "ydb -r pub -d -a uss://top -s -N > $TESTNAME.PUB2.log"
+run_bg "ydb -r pub -d -a uss://top -s > $TESTNAME.PUB1.log"
+run_bg "ydb -r pub -d -a uss://top -s > $TESTNAME.PUB2.log"
 
 MEMCHECK=0
 run_bg 'echo \\n\

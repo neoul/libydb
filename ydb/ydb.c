@@ -1145,7 +1145,7 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
     pathlen = strlen(path);
     if (path[0] != '/')
     {
-        realpath = malloc(pathlen+4);
+        realpath = malloc(pathlen + 4);
         sprintf(realpath, "/%s", path);
         path = realpath;
         pathlen = pathlen + 1;
@@ -1206,7 +1206,7 @@ void ydb_read_hook_delete(ydb *datablock, char *path)
     pathlen = strlen(path);
     if (path[0] != '/')
     {
-        realpath = malloc(pathlen+4);
+        realpath = malloc(pathlen + 4);
         sprintf(realpath, "/%s", path);
         path = realpath;
         pathlen = pathlen + 1;
@@ -3404,7 +3404,6 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write
 
     if (suppressed)
         SET_FLAG(flags, YNODE_SUPPRESS_HOOK);
-
 
     if (path)
     {

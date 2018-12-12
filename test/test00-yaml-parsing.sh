@@ -3,16 +3,16 @@
 test_init $0 $1
 echo -n "TEST: $TESTNAME : "
 
-r1=`ydb -r local -f ../examples/yaml/yaml-value.yaml -N --read /`
-r2=`ydb -r local -f ../examples/yaml/yaml-key-value.yaml -N --read /KEY`
-r3=`ydb -r local -f ../examples/yaml/yaml-sequence.yaml -N --read '/seq/Block style/3' --read '/seq/Flow style/3'`
-r4=`ydb -r local -f ../examples/yaml/yaml-set.yaml -N --read '/set/baseball players/Sammy Sosa' --read '/set/baseball teams/New York Yankees'`
-r5=`ydb -r local -f ../examples/yaml/yaml-map.yaml -N --read '/map/Block style/Oren' --read '/map/Flow style/Clark'`
-r6=`ydb -r local -f ../examples/yaml/yaml-omap.yaml -N --read '/omap/Bestiary/anaconda' --read '/omap/Numbers/two'`
-r7=`ydb -r local -f ../examples/yaml/yaml-empty-list.yaml -N --read '/0' --read '/2'`
-r8=`ydb -r local -f ../examples/yaml/yaml-anchor-reference1.yaml -N --read '/foo/K1'`
-r9=`ydb -r local -f ../examples/yaml/yaml-anchor-reference2.yaml -N --read '/5/step/instrument'`
-r10=`ydb -r local -f ../examples/yaml/yaml-anchor-reference3.yaml -N --read '/merge/5/r'`
+r1=`ydb -r local -f ../examples/yaml/yaml-value.yaml --read /`
+r2=`ydb -r local -f ../examples/yaml/yaml-key-value.yaml --read /KEY`
+r3=`ydb -r local -f ../examples/yaml/yaml-sequence.yaml --read '/seq/Block style/3' --read '/seq/Flow style/3'`
+r4=`ydb -r local -f ../examples/yaml/yaml-set.yaml --read '/set/baseball players/Sammy Sosa' --read '/set/baseball teams/New York Yankees'`
+r5=`ydb -r local -f ../examples/yaml/yaml-map.yaml --read '/map/Block style/Oren' --read '/map/Flow style/Clark'`
+r6=`ydb -r local -f ../examples/yaml/yaml-omap.yaml --read '/omap/Bestiary/anaconda' --read '/omap/Numbers/two'`
+r7=`ydb -r local -f ../examples/yaml/yaml-empty-list.yaml --read '/0' --read '/2'`
+r8=`ydb -r local -f ../examples/yaml/yaml-anchor-reference1.yaml --read '/foo/K1'`
+r9=`ydb -r local -f ../examples/yaml/yaml-anchor-reference2.yaml --read '/5/step/instrument'`
+r10=`ydb -r local -f ../examples/yaml/yaml-anchor-reference3.yaml --read '/merge/5/r'`
 
 
 [ "x$r1" != "xvalue-only" ]     && echo " - r1 TEST: failed ($r1)" && exit 1
