@@ -46,8 +46,8 @@ void usage(char *argv_0)
   -d, --daemon                     Runs in daemon mode\n\
   -i, --interpret                  Interpret mode\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
-    , --read  PATH/TO/DATA         Read data (value only) from YDB.\n\
-    , --dump  PATH/TO/DATA         Print data from YDB.\n\
+    , --read PATH/TO/DATA         Read data (value only) from YDB.\n\
+    , --print PATH/TO/DATA        Print data from YDB.\n\
     , --write PATH/TO/DATA=DATA    Write data to YDB.\n\
     , --delete PATH/TO/DATA=DATA   Delete data from YDB.\n\
   -h, --help                       Display this help and exit\n\n");
@@ -206,7 +206,7 @@ typedef struct _ydbcmd
     enum
     {
         CMD_READ,
-        CMD_DUMP,
+        CMD_PRINT,
         CMD_WRITE,
         CMD_DELETE,
     } type;
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
             {"interpret", no_argument, 0, 'i'},
             {"verbose", required_argument, 0, 'v'},
             {"read", required_argument, 0, 0},
-            {"dump", required_argument, 0, 0},
+            {"print", required_argument, 0, 0},
             {"write", required_argument, 0, 0},
             {"delete", required_argument, 0, 0},
             {"help", no_argument, 0, 'h'},
@@ -295,9 +295,9 @@ int main(int argc, char *argv[])
                     ycmd->type = CMD_READ;
                     ylist_push_back(cmdlist, ycmd);
                 }
-                else if (strcmp(long_options[index].name, "dump") == 0)
+                else if (strcmp(long_options[index].name, "print") == 0)
                 {
-                    ycmd->type = CMD_DUMP;
+                    ycmd->type = CMD_PRINT;
                     ylist_push_back(cmdlist, ycmd);
                 }
                 else if (strcmp(long_options[index].name, "write") == 0)
@@ -485,7 +485,7 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "\nydb error: %s\n", ydb_res_str(res));
                     goto end;
                 }
-                else if(YDB_WARNING(res))
+                else if (YDB_WARNING(res))
                 {
                     printf("\nydb warning: %s\n", ydb_res_str(res));
                 }
@@ -558,7 +558,7 @@ int main(int argc, char *argv[])
                             res = YDB_E_NO_ENTRY;
                         break;
                     }
-                    case CMD_DUMP:
+                    case CMD_PRINT:
                     {
                         ydb_path_fprintf(stdout, datablock, "%s", ycmd->data);
                         break;

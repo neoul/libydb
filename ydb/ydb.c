@@ -1065,9 +1065,14 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
 
     int pathlen = 0;
     char *path = ydb_path(datablock, cur, &pathlen);
-    ylog_info("ydb[%s] path=%s\n", datablock->name, path ? path : "null");
+    if (!path)
+    {
+        path = strdup("/");
+        pathlen = 1;
+    }
     if (path && pathlen > 0)
     {
+        ylog_info("ydb[%s] path=%s\n", datablock->name, path);
         ylist *child_rhooks = ytrie_search_range(datablock->updater, path, pathlen);
         if (ylist_size(child_rhooks) > 0)
         {
@@ -1544,7 +1549,9 @@ char *ydb_path_read(ydb *datablock, const char *format, ...)
         if (datablock->synccount > 0)
         {
             char buf[512];
-            int buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
+            int buflen;
+            buf[0] = 0;
+            buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
             res = yconn_sync(NULL, datablock, buf, buflen);
             YDB_FAIL(res && res != YDB_W_UPDATED, res);
         }
@@ -1588,7 +1595,9 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
     if (datablock->synccount > 0)
     {
         char buf[512];
-        int buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
+        int buflen;
+        buf[0] = 0;
+        buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
         if (buflen >= 0)
             buf[buflen] = 0;
         res = yconn_sync(NULL, datablock, buf, buflen);
@@ -3067,6 +3076,10 @@ static ydb_res yconn_sync_read(yconn *conn, char *inbuf, size_t inbuflen, char *
         ynode_remove(src);
         ylog_out();
         return res;
+    }
+    if (!src)
+    {
+        src = ynode_top(ynode_create_path("/", NULL, NULL));
     }
     if (src)
     {
