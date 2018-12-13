@@ -1496,7 +1496,6 @@ _done:
         v = NULL;     \
     } while (0)
 
-static ynode *ynode_find_child(ynode *node, char *key);
 static ynode *ynode_new_and_attach(unsigned char type, char *value, int origin, unsigned char flags, ynode *parent, char *key)
 {
     ynode *new, *old;
@@ -1916,7 +1915,7 @@ void ynode_remove(ynode *n)
     ynode_free(n);
 }
 
-static ynode *ynode_find_child(ynode *node, char *key)
+ynode *ynode_find_child(ynode *node, char *key)
 {
     switch (node->type)
     {

@@ -640,6 +640,11 @@ int ydb_empty(ynode *node)
     return ynode_empty(node);
 }
 
+ynode *ydb_find_child(ynode *base, char *key)
+{
+    return ynode_find_child(base, key);
+}
+
 // return the parent node of the node.
 ynode *ydb_up(ynode *node)
 {

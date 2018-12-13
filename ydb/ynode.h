@@ -109,6 +109,9 @@ int ynode_index(ynode *node);
 // return ynodes' origin
 int ynode_origin(ynode *node);
 
+// return the found child by the key.
+ynode *ynode_find_child(ynode *node, char *key);
+
 // return the top node of the ynode.
 ynode *ynode_top(ynode *node);
 // return the parent node of the ynode.

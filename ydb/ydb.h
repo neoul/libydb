@@ -107,6 +107,9 @@ ynode *ydb_root(ydb *datablock);
 // return 1 if the node has no child.
 int ydb_empty(ynode *node);
 
+
+// return the found child by the key.
+ynode *ydb_find_child(ynode *base, char *key);
 // return the parent node of the node.
 ynode *ydb_up(ynode *node);
 // return the first child node of the node.
