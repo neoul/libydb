@@ -15,7 +15,6 @@
 static int done;
 void HANDLER_SIGINT(int param)
 {
-    // printf("SIGINT!!\n");
     done = 1;
 }
 
@@ -42,7 +41,6 @@ void usage(char *argv_0)
   -w, --writeable                  Write data to the remote YDB\n\
   -u, --unsubscribe                Disable subscription\n\
   -S, --sync-before-read           update YDB from remotes before read\n\
-  -R, --reconnect                  Retry to reconnect upon the communication failure\n\
   -d, --daemon                     Runs in daemon mode\n\
   -i, --interpret                  Interpret mode\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
@@ -266,7 +264,6 @@ int main(int argc, char *argv[])
             {"writeable", no_argument, 0, 'w'},
             {"unsubscribe", no_argument, 0, 'u'},
             {"sync-before-read", no_argument, 0, 'S'},
-            {"reconnect", no_argument, 0, 'R'},
             {"daemon", no_argument, 0, 'd'},
             {"interpret", no_argument, 0, 'i'},
             {"verbose", required_argument, 0, 'v'},
@@ -366,9 +363,6 @@ int main(int argc, char *argv[])
             break;
         case 'S':
             strcat(flags, ":sync-before-read");
-            break;
-        case 'R':
-            strcat(flags, ":r");
             break;
         case 'd':
             daemon = 1;
@@ -495,10 +489,8 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "\nydb error: %s\n", ydb_res_str(res));
                     goto end;
                 }
-                else if (YDB_WARNING(res))
-                {
+                else if (YDB_WARNING(res) && (verbose == YLOG_DEBUG))
                     printf("\nydb warning: %s\n", ydb_res_str(res));
-                }
             } while (!done);
         }
         else if (interpret)

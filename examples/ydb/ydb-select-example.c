@@ -28,14 +28,12 @@ int main(int argc, char *argv[])
         fprintf(stdout,
                 " [%s]\n"
                 "   ydb + select() example\n"
-                "   The timeout of select() should be used for reconnect option support.\n"
                 "   ydb_server() retry to open the disconnected communication.\n\n",
                 argv[0]);
         fprintf(stdout, " [usage]\n");
-        fprintf(stdout, "   %s (--reconnect|) ADDR1 (ADDR2 ...)\n\n", argv[0]);
+        fprintf(stdout, "   %s ADDR1 (ADDR2 ...)\n\n", argv[0]);
         fprintf(stdout, " [example]\n");
         fprintf(stdout, "   %s uss://top uss://hello\n", argv[0]);
-        fprintf(stdout, "   %s --reconnect uss://top\n\n", argv[0]);
         return 0;
     }
 
@@ -50,15 +48,9 @@ int main(int argc, char *argv[])
     }
 
     int n = 1;
-    int reconn = 0;
     for (; n < argc; n++)
     {
-        if (strcmp(argv[n], "--reconnect") == 0)
-        {
-            reconn = 1;
-            continue;
-        }
-        res = ydb_connect(datablock, argv[n], reconn ? "sub:reconn" : "sub");
+        res = ydb_connect(datablock, argv[n], "sub");
         if (YDB_FAILED(res))
             goto failed;
     }
