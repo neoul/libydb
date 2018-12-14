@@ -12,7 +12,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/un.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -368,7 +367,7 @@ static void ypool_destroy()
     }
 }
 
-ydb_res ydb_epoll_create(ydb *datablock)
+static ydb_res ydb_epoll_create(ydb *datablock)
 {
     if (datablock->epollfd < 0)
     {
@@ -380,7 +379,7 @@ ydb_res ydb_epoll_create(ydb *datablock)
     return YDB_OK;
 }
 
-void ydb_epoll_destroy(ydb *datablock)
+static void ydb_epoll_destroy(ydb *datablock)
 {
     if (datablock->epollfd > 0)
     {
@@ -394,7 +393,7 @@ void ydb_epoll_destroy(ydb *datablock)
     }
 }
 
-ydb_res ydb_epoll_attach(ydb *datablock, yconn *conn, int fd)
+static ydb_res ydb_epoll_attach(ydb *datablock, yconn *conn, int fd)
 {
     struct epoll_event event;
     if (!IS_SET(conn->flags, YCONN_UNREADABLE))
@@ -410,7 +409,7 @@ ydb_res ydb_epoll_attach(ydb *datablock, yconn *conn, int fd)
     return YDB_OK;
 }
 
-ydb_res ydb_epoll_detach(ydb *datablock, yconn *conn, int fd)
+static ydb_res ydb_epoll_detach(ydb *datablock, yconn *conn, int fd)
 {
     struct epoll_event event;
     if (!IS_SET(conn->flags, YCONN_UNREADABLE))
@@ -424,6 +423,22 @@ ydb_res ydb_epoll_detach(ydb *datablock, yconn *conn, int fd)
         }
     }
     return YDB_OK;
+}
+
+static void ydb_time_set_base(struct timespec *base)
+{
+    clock_gettime(CLOCK_MONOTONIC, base);
+}
+
+static int ydb_time_get_elapsed(struct timespec *base)
+{
+    int timeout;
+    struct timespec cur;
+    clock_gettime(CLOCK_MONOTONIC, &cur);
+
+    timeout = (cur.tv_sec - base->tv_sec) * 1000;
+    timeout = timeout + (cur.tv_nsec - base->tv_nsec) / 10e5;
+    return timeout;
 }
 
 static void ydb_print(ydb *datablock, const char *func, int line, char *state)
@@ -2310,8 +2325,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         if (state)
             ylog_logger(YLOG_INFO, func, line, "ydb[%s] %s conn:\n",
                         conn->datablock ? conn->datablock->name : "...", state);
-        ylog_logger(YLOG_INFO, func, line, " fd: %d\n", conn->fd);
-        ylog_logger(YLOG_INFO, func, line, " address: %s\n", conn->address);
+        ylog_logger(YLOG_INFO, func, line, " address: %s (fd: %d)\n", conn->address, conn->fd);
         if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
             n = sprintf(flagstr, "PUB");
         else
@@ -2896,18 +2910,16 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
     ydb_res res = YDB_OK;
     ytree_iter *iter;
     ytree *synclist = NULL;
-    struct timeval start, end;
+    struct timespec base;
     bool ydb_updated = false;
     char *rbuf = buf;
     size_t rbuflen = buflen;
     int timeout;
-
     ylog_in();
     YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
     synclist = ytree_create((ytree_cmp)yconn_cmp, NULL);
     YDB_FAIL(!synclist, YDB_E_MEM_ALLOC);
-
-    gettimeofday(&start, NULL);
+    ydb_time_set_base(&base);
     if (req_conn)
     {
         // removed the head from buf.
@@ -2944,9 +2956,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
     {
         int i, n;
         struct epoll_event event[YDB_CONN_MAX];
-        gettimeofday(&end, NULL);
-        timeout = (end.tv_sec - start.tv_sec) * 1000;
-        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
+        int timeout = ydb_time_get_elapsed(&base);
         timeout = YDB_TIMEOUT - timeout;
         if (timeout > YDB_TIMEOUT || timeout < 0)
             break;
@@ -2998,11 +3008,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
 failed:
     if (YLOG_SEVERITY_INFO)
     {
-        gettimeofday(&end, NULL);
-        timeout = (end.tv_sec - start.tv_sec) * 1000;
-        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
-        // ylog_debug("start time: %u.%u\n", start.tv_sec, start.tv_usec);
-        // ylog_debug("end time: %u.%u\n", end.tv_sec, end.tv_usec);
+        timeout = ydb_time_get_elapsed(&base);
         ylog_info("ydb[%s] sync elapsed time: %d ms\n", datablock->name, timeout);
     }
     ytree_destroy(synclist);
@@ -3015,7 +3021,7 @@ failed:
 static ydb_res yconn_init(yconn *req_conn)
 {
     ydb_res res = YDB_OK;
-    struct timeval start, end;
+    struct timespec base;
     struct epoll_event event[YDB_CONN_MAX];
     int i, n, timeout, done = false;
     ydb *datablock = req_conn->datablock;
@@ -3023,8 +3029,7 @@ static ydb_res yconn_init(yconn *req_conn)
         return YDB_OK;
     ylog_in();
     YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
-    gettimeofday(&start, NULL);
-
+    ydb_time_set_base(&base);
     // send
     {
         char *buf = NULL;
@@ -3040,9 +3045,7 @@ static ydb_res yconn_init(yconn *req_conn)
     // recv
     do
     {
-        gettimeofday(&end, NULL);
-        timeout = (end.tv_sec - start.tv_sec) * 1000;
-        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
+        int timeout = ydb_time_get_elapsed(&base);
         timeout = YDB_TIMEOUT - timeout;
         if (timeout > YDB_TIMEOUT || timeout < 0)
             break;
@@ -3093,9 +3096,7 @@ static ydb_res yconn_init(yconn *req_conn)
 failed:
     if (YLOG_SEVERITY_INFO)
     {
-        gettimeofday(&end, NULL);
-        timeout = (end.tv_sec - start.tv_sec) * 1000;
-        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
+        timeout = ydb_time_get_elapsed(&base);
         // ylog_debug("start time: %u.%u\n", start.tv_sec, start.tv_usec);
         // ylog_debug("end time: %u.%u\n", end.tv_sec, end.tv_usec);
         ylog_info("ydb[%s] init elapsed time: %d ms\n", datablock->name, timeout);

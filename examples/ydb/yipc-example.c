@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include <sys/time.h>
+#include <time.h>
 
 #include "ylog.h"
 #include "yipc.h"
@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 {
 	char *src, *dest;
 	int ipcfd, ret, send_interval = 0;
-	struct timeval sent, cur;
+	struct timespec sent, cur;
 	static int send_count;
 
 	if (argc <= 3)
@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
 	// add a signal handler to quit this program.
 	signal(SIGINT, HANDLER_SIGINT);
 
-	gettimeofday(&cur, NULL);
-	gettimeofday(&sent, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &cur);
+	clock_gettime(CLOCK_MONOTONIC, &sent);
 
 	do
 	{
@@ -70,9 +70,9 @@ int main(int argc, char *argv[])
 					 &count);
 			fprintf(stdout, "RECV %d from %s\n", count, sender);
 		}
-		gettimeofday(&cur, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &cur);
 		send_interval = (cur.tv_sec - sent.tv_sec) * 1000;
-		send_interval = send_interval + (cur.tv_usec - sent.tv_usec) / 1000;
+		send_interval = send_interval + (cur.tv_nsec - sent.tv_nsec) / 10e5;
 		if (send_interval < 0 || send_interval > YDB_TIMEOUT)
 		{
 			send_count++;
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 						"foo:\n"
 						" bar: %d\n",
 						send_count);
-			gettimeofday(&sent, NULL);
+			clock_gettime(CLOCK_MONOTONIC, &sent);
 		}
 	} while (!done);
 	yipc_destroy(src);

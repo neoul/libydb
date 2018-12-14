@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include <sys/time.h>
+#include <time.h>
 
 #include "ylog.h"
 #include "ydb.h"
@@ -60,23 +60,23 @@ int test_remote_hook(int n)
     signal(SIGPIPE, SIG_IGN);
     // add a signal handler to quit this program.
     signal(SIGINT, HANDLER_SIGINT);
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
     do
     {
         static int c;
         int timeout;
-        gettimeofday(&end, NULL);
+        clock_gettime(CLOCK_MONOTONIC, &end);
         res = ydb_serve(datablock, 1000);
         if (YDB_FAILED(res))
             goto _done;
         timeout = (end.tv_sec - start.tv_sec) * 1000;
-        timeout = timeout + (end.tv_usec - start.tv_usec) / 1000;
+        timeout = timeout + (end.tv_nsec - start.tv_nsec) / 10e5;
         if (timeout > 5000 || timeout < 0)
         {
             c++;
             ydb_write(datablock, example_yaml, n,c,c,c,c,c,c,c,c);
-            gettimeofday(&start, NULL);
+            clock_gettime(CLOCK_MONOTONIC, &start);
         }
     } while (!done);
 
