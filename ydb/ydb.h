@@ -220,6 +220,25 @@ ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...);
 ydb_res ydb_sync(ydb *datablock, const char *format, ...);
 ydb_res ydb_path_sync(ydb *datablock, const char *format, ...);
 
+// Travese all child branches and leaves of a node.
+//  - datablock: The datablock to traverse.
+//  - cur: The current node to be traversed
+//  - cb: The callback function invoked on each child node
+//  - flags: The options to configure the travesing rule.
+//    - leaf-only: The cb is invoked only if the traversing node is a leaf node.
+//    - val-only: The cb is invoked only if the traversing node is a value node.
+//    - leaf-first: Leaf nodes are traversed prior to branches.
+//    - NULL: no-flags (treverse all branches and leaves.)
+//  - num: The number of the user-defined data
+//  - U1-4: The user-defined data
+typedef ydb_res (*ydb_traverse_callback0)(ydb *datablock, ynode *cur);
+typedef ydb_res (*ydb_traverse_callback1)(ydb *datablock, ynode *cur, void *U1);
+typedef ydb_res (*ydb_traverse_callback2)(ydb *datablock, ynode *cur, void *U1, void *U2);
+typedef ydb_res (*ydb_traverse_callback3)(ydb *datablock, ynode *cur, void *U1, void *U2, void *U3);
+typedef ydb_res (*ydb_traverse_callback4)(ydb *datablock, ynode *cur, void *U1, void *U2, void *U3, void *U4);
+typedef ydb_traverse_callback1 ydb_traverse_callback;
+ydb_res ydb_traverse(ydb *datablock, ynode *cur, ydb_traverse_callback func, char *flags, int num, ...);
+
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

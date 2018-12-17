@@ -83,7 +83,6 @@ int main(int argc, char *argv[])
         {
             if (FD_ISSET(fd, &read_set))
             {
-                static int end;
                 FD_CLR(fd, &read_set);
                 // ydb_serve() called on which the timer expired or fd event set.
                 res = ydb_serve(datablock, 0);

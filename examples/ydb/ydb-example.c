@@ -70,6 +70,16 @@ void notify_hook(ydb *datablock, char op, ynode *base, ynode *cur, ynode *_new, 
         free(path);
 }
 
+ydb_res ydb_traverse_cb(ydb *datablock, ynode *cur, void *U1, void *U2, void *U3, void *U4)
+{
+    char *path = ydb_path(datablock, cur, NULL);
+    fprintf(stdout,
+        "HOOK %s path=%s U1=%p U2=%p U3=%p U4=%p\n", __func__, path, U1, U2, U3, U4);
+    if (path)
+        free(path);
+    return YDB_OK;
+}
+
 int test_ydb_read_write()
 {
     int num;
@@ -215,6 +225,10 @@ int test_ydb_read_write()
     ydb_path_fprintf(stdout, datablock, "/system/running");
 
     ydb_path_delete(datablock, "system/os");
+
+    ydb_traverse(datablock, ydb_search(datablock, "/system"), 
+        (ydb_traverse_callback) ydb_traverse_cb, "leaf-only", 4, 1, 2, 3, 4);
+    
 
 _done:
     ydb_close(datablock);

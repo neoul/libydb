@@ -2597,7 +2597,7 @@ static ydb_res yconn_reopen(yconn *conn, ydb *datablock)
     ydb_res res;
     uint64_t expired;
     ylog_inout();
-    
+
     len = read(conn->timerfd, &expired, sizeof(uint64_t));
     if (len != sizeof(uint64_t))
     {
@@ -2998,7 +2998,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
                         ydb_updated = true;
                     ytree_delete(synclist, &recv_conn->fd);
                     ylog_debug("sync responsed (ydb_updated=%s, op=%d, type=%d)\n",
-                                ydb_updated ? "yes" : "no", op, type);
+                               ydb_updated ? "yes" : "no", op, type);
                 }
                 if (next)
                     goto recv_again;
@@ -3650,4 +3650,80 @@ failed:
     ynode_remove(src);
     ylog_out();
     return res;
+}
+
+struct ydb_traverse_data
+{
+    union {
+        ydb_traverse_callback0 cb0;
+        ydb_traverse_callback1 cb1;
+        ydb_traverse_callback2 cb2;
+        ydb_traverse_callback3 cb3;
+        ydb_traverse_callback4 cb4;
+        ydb_traverse_callback cb;
+    };
+    int num;
+    void *user[4];
+    ydb *datablock;
+};
+
+ydb_res ydb_traverse_sub(ynode *cur, void *U1)
+{
+    struct ydb_traverse_data *pd = U1;
+    switch (pd->num)
+    {
+    case 0:
+        return pd->cb0(pd->datablock, cur);
+    case 1:
+        return pd->cb1(pd->datablock, cur, pd->user[0]);
+    case 2:
+        return pd->cb2(pd->datablock, cur, pd->user[0], pd->user[1]);
+    case 3:
+        return pd->cb3(pd->datablock, cur, pd->user[0], pd->user[1], pd->user[2]);
+    case 4:
+        return pd->cb4(pd->datablock, cur, pd->user[0], pd->user[1], pd->user[2], pd->user[3]);
+    default:
+        break;
+    }
+    return YDB_E_FUNC;
+}
+
+ydb_res ydb_traverse(ydb *datablock, ynode *cur, ydb_traverse_callback func, char *flags, int num, ...)
+{
+    unsigned int trflags = 0x0;
+    struct ydb_traverse_data data;
+    if (!datablock || !func || num < 0)
+        return YDB_E_INVALID_ARGS;
+    if (num > 4 || num < 0)
+        return YDB_E_INVALID_ARGS;
+    if (!cur)
+        cur = datablock->top;
+    if (flags)
+    {
+        if (strstr(flags, "leaf-first"))
+            SET_FLAG(trflags, YNODE_LEAF_FIRST);
+        if (strstr(flags, "leaf-only"))
+            SET_FLAG(trflags, YNODE_LEAF_ONLY);
+        else if (strstr(flags, "val-only"))
+            SET_FLAG(trflags, YNODE_VAL_ONLY);
+    }
+    memset(&data, 0x0, sizeof(struct ydb_traverse_data));
+    data.cb = func;
+    data.num = num;
+    data.datablock = datablock;
+
+    {
+        int i;
+        va_list ap;
+        va_start(ap, num);
+        ylog_debug("user total = %d\n", num);
+        for (i = 0; i < num; i++)
+        {
+            void *p = va_arg(ap, void *);
+            data.user[i] = p;
+            ylog_debug("user[%d]=%p\n", i, data.user[i]);
+        }
+        va_end(ap);
+    }
+    return ynode_traverse(cur, ydb_traverse_sub, &data, trflags);
 }
