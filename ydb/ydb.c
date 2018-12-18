@@ -222,6 +222,14 @@ struct _yconn
     void *head;
 };
 
+static bool ydb_conn_log;
+void ydb_connection_log(int enable)
+{
+    if (enable)
+        ydb_conn_log = true;
+    else
+        ydb_conn_log = false;
+}
 static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple);
 #define YCONN_INFO(conn, state) \
     yconn_print(conn, __func__, __LINE__, state, false)
@@ -2341,18 +2349,37 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         n += sprintf(flagstr + n, "/%s", IS_SET(conn->flags, STATUS_CLIENT) ? "client" : "-");
         n += sprintf(flagstr + n, "/%s)", IS_SET(conn->flags, STATUS_COND_CLIENT) ? "connected" : "-");
         ylog_logger(YLOG_INFO, func, line, " status: %s\n", flagstr);
-        if (conn->datablock)
+        ylog_logger(YLOG_INFO, func, line,
+                    " ydb(epollfd): %s(%d)\n",
+                    conn->datablock->name, conn->datablock->epollfd);
+        ylog_logger(YLOG_INFO, func, line,
+                    " ydb(synccount): %d\n", conn->datablock->synccount);
+        if (ydb_conn_log)
         {
-            ylog_logger(YLOG_INFO, func, line,
-                        " ydb(epollfd): %s(%d)\n",
-                        conn->datablock->name, conn->datablock->epollfd);
-            ylog_logger(YLOG_INFO, func, line,
-                        " ydb(synccount): %d\n", conn->datablock->synccount);
+            FILE *fp;
+            char connlog[256];
+            snprintf(connlog, sizeof(connlog), "/tmp/ydb.conn.%d.log", getpid());
+            fp = fopen(connlog, "a");
+            if (fp)
+            {
+                fprintf(fp, "%s:ydb[%s]:%d:%s(%d):%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
+                        ylog_pname(), conn->datablock->name, conn->datablock->epollfd,
+                        conn->address, conn->fd, state,
+                        IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "pub" : "sub",
+                        IS_SET(conn->flags, YCONN_WRITABLE) ? "writable" : "-",
+                        IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-",
+                        IS_SET(conn->flags, YCONN_UNREADABLE) ? "no-read" : "-",
+                        IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "minor",
+                        IS_SET(conn->flags, STATUS_SERVER) ? "server" : "-",
+                        IS_SET(conn->flags, STATUS_CLIENT) ? "client" : "-",
+                        IS_SET(conn->flags, STATUS_COND_CLIENT) ? "connected" : "-");
+                fclose(fp);
+            }
         }
     }
     else
     {
-        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (%d)\n",
+        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (fd: %d)\n",
                     conn->datablock ? conn->datablock->name : "...",
                     conn->address, conn->fd);
     }
@@ -3187,7 +3214,7 @@ static ydb_res yconn_sync_read(yconn *conn, char *inbuf, size_t inbuflen, char *
     bool ydb_updated = false;
     ylog_in();
     datablock = conn->datablock;
-    res = yconn_sync(conn, datablock, false, (YDB_TIMEOUT - (YDB_TIMEOUT/5)), inbuf, inbuflen);
+    res = yconn_sync(conn, datablock, false, (YDB_TIMEOUT - (YDB_TIMEOUT / 5)), inbuf, inbuflen);
     if (res == YDB_W_UPDATED)
         ydb_updated = true;
     res = ynode_scanf_from_buf(inbuf, inbuflen, conn->fd, &src);
@@ -3344,6 +3371,7 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
                     yconn_response(recv_conn, YOP_INIT, true, res ? false : true, buf, buflen);
                     CLEAR_BUF(buf, buflen);
                 }
+                YCONN_INFO(recv_conn, "updated");
             }
             break;
         default:

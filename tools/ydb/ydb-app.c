@@ -440,6 +440,7 @@ int main(int argc, char *argv[])
 
         if (change_log)
         {
+            ydb_connection_log(1);
             res = ydb_connect(datablock, "file://stdout", "w:");
             if (res)
             {
@@ -451,6 +452,7 @@ int main(int argc, char *argv[])
         if (strncmp(role, "loc", 3) != 0)
         {
             strcat(flags, role);
+            ydb_connection_log(1);
             res = ydb_connect(datablock, addr, flags);
             if (res)
             {

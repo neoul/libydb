@@ -56,6 +56,7 @@ typedef enum _ydb_res
 #define YDB_FAILED(res) ((res) >= YDB_ERROR)
 
 char *ydb_res_str(ydb_res res);
+void ydb_connection_log(int enable);
 
 // YAML DataBlock structure
 typedef struct _ydb ydb;
