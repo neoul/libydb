@@ -38,22 +38,22 @@ char *ylog_pname()
     {
         FILE *stream;
         char *pname = NULL;
-        char cmdline[256];
+        char line[256];
         pid_t pid = getpid();
-        snprintf(cmdline, sizeof(cmdline), "/proc/%d/cmdline", pid);
-        stream = fopen(cmdline, "r");
+        snprintf(line, sizeof(line), "/proc/%d/cmdline", pid);
+        stream = fopen(line, "r");
         if (stream)
         {
-            pname = fgets(unit, sizeof(unit), stream);
+            pname = fgets(line, sizeof(line), stream);
             pname = basename(pname);
+            snprintf(unit, sizeof(unit), "%s(%d)", pname, pid);
             fclose(stream);
         }
         else
         {
             snprintf(unit, sizeof(unit), "%d", pid);
-            pname = unit;
         }
-        return pname;
+        return unit;
     }
     else
         return unit;
