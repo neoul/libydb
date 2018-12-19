@@ -1,0 +1,1650 @@
+# top
+fast:
+ quality:
+  fast-rate-adaptation-profile:
+   default:
+    name: default
+   full-band:
+    name: full-band
+  fast-retrain-policy-profile:
+   default:
+    name: default
+   full-band:
+    name: full-band
+  noise-margin-profile:
+   default:
+    name: default
+   full-band:
+    name: full-band
+  retransmission-profile:
+   default:
+    name: default
+   full-band:
+    name: full-band
+  vectoring-profile:
+   default:
+    name: default
+   full-band:
+    name: full-band
+ service:
+  downstream-data-rate-profile:
+   default:
+    maximum-net-data-rate: 3000000
+    minimum-expected-throughput: 0
+   full-band:
+    maximum-net-data-rate: 3000000
+    minimum-expected-throughput: 0
+  time-division-duplexing-profile:
+   default:
+    cyclic-extension: 10
+    downstream-symbol-periods: 27
+    total-symbol-periods: 36
+   full-band:
+    cyclic-extension: 10
+    downstream-symbol-periods: 27
+    total-symbol-periods: 36
+  upstream-data-rate-profile:
+   default:
+    maximum-net-data-rate: 3000000
+    minimum-expected-throughput: 0
+   full-band:
+    maximum-net-data-rate: 3000000
+    minimum-expected-throughput: 0
+ spectrum:
+  line-spectrum-profile:
+   default:
+    downstream:
+     carmask:
+      1:
+       start-index: 1
+       stop-index: 579
+     maximum-aggregate-transmit-power: 40
+     mibpsdmask:
+      2048:
+       psd-level: 152
+       sub-carrier-index: 2048
+      4095:
+       psd-level: 158
+       sub-carrier-index: 4095
+      43:
+       psd-level: 180
+       sub-carrier-index: 43
+      63:
+       psd-level: 130
+       sub-carrier-index: 63
+    profiles: all
+    upstream:
+     carmask:
+      1:
+       start-index: 1
+       stop-index: 579
+     maximum-aggregate-transmit-power: 40
+     mibpsdmask:
+      2048:
+       psd-level: 152
+       sub-carrier-index: 2048
+      4095:
+       psd-level: 158
+       sub-carrier-index: 4095
+      43:
+       psd-level: 180
+       sub-carrier-index: 43
+      63:
+       psd-level: 130
+       sub-carrier-index: 63
+   full-band:
+    downstream:
+     maximum-aggregate-transmit-power: 40
+     mibpsdmask:
+      2048:
+       psd-level: 152
+       sub-carrier-index: 2048
+      4095:
+       psd-level: 158
+       sub-carrier-index: 4095
+      43:
+       psd-level: 130
+       sub-carrier-index: 43
+      579:
+       psd-level: 130
+       sub-carrier-index: 579
+      580:
+       psd-level: 146
+       sub-carrier-index: 580
+    profiles: all
+    upstream:
+     maximum-aggregate-transmit-power: 40
+     mibpsdmask:
+      2048:
+       psd-level: 152
+       sub-carrier-index: 2048
+      4095:
+       psd-level: 158
+       sub-carrier-index: 4095
+      43:
+       psd-level: 130
+       sub-carrier-index: 43
+      579:
+       psd-level: 130
+       sub-carrier-index: 579
+      580:
+       psd-level: 146
+       sub-carrier-index: 580
+  radio-frequency-interference-profile:
+   default:
+    iarbands: kHz-1800-2000
+   full-band:
+    iarbands: kHz-1800-2000
+  upstream-power-back-off-profile:
+   default:
+    upbo-force-electrical-length: false
+    upbo-reference-electrical-length: 0
+    upbo-upstream-electrical-length: 0
+    upbopsd-a: 0
+    upbopsd-b: 0
+   full-band:
+    upbo-force-electrical-length: false
+    upbo-reference-electrical-length: 0
+    upbo-upstream-electrical-length: 0
+    upbopsd-a: 0
+    upbopsd-b: 0
+ vectors:
+  line-config-vector:
+   default:
+    downstream-data-rate-profile: default
+    fast-rate-adaptation-profile: default
+    fast-retrain-policy-profile: default
+    line-spectrum-profile: default
+    noise-margin-profile: default
+    radio-frequency-interference-profile: default
+    retransmission-profile: default
+    time-division-duplexing-profile: default
+    upstream-data-rate-profile: default
+    upstream-power-back-off-profile: default
+    vectoring-profile: default
+   full-band:
+    downstream-data-rate-profile: full-band
+    fast-rate-adaptation-profile: full-band
+    fast-retrain-policy-profile: full-band
+    line-spectrum-profile: full-band
+    noise-margin-profile: full-band
+    radio-frequency-interference-profile: full-band
+    retransmission-profile: full-band
+    time-division-duplexing-profile: full-band
+    upstream-data-rate-profile: full-band
+    upstream-power-back-off-profile: full-band
+    vectoring-profile: full-band
+interfaces:
+ interface:
+  Vlan1:
+   description: 
+   enabled: true
+   link-up-down-trap-enable: disabled
+   name: Vlan1
+   type: l2vlan
+  Vlan160:
+   description: 
+   enabled: true
+   link-up-down-trap-enable: disabled
+   name: Vlan160
+   type: l2vlan
+  Vlan200:
+   description: 
+   enabled: true
+   link-up-down-trap-enable: disabled
+   name: Vlan200
+   type: l2vlan
+  Vlan4094:
+   description: 
+   enabled: true
+   ipv4:
+    address:
+     10.10.10.100:
+      prefix-length: 24
+      secondary: false
+   link-up-down-trap-enable: disabled
+   name: Vlan4094
+   type: l2vlan
+  Vlan600:
+   description: 
+   enabled: true
+   link-up-down-trap-enable: disabled
+   name: Vlan600
+   type: l2vlan
+  Vlan700:
+   description: 
+   enabled: true
+   link-up-down-trap-enable: disabled
+   name: Vlan700
+   type: l2vlan
+  ge1:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge1
+   type: ethernetCsmacd
+  ge10:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge10
+   type: ethernetCsmacd
+  ge11:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge11
+   type: ethernetCsmacd
+  ge12:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge12
+   type: ethernetCsmacd
+  ge13:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge13
+   type: ethernetCsmacd
+  ge14:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge14
+   type: ethernetCsmacd
+  ge15:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge15
+   type: ethernetCsmacd
+  ge16:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge16
+   type: ethernetCsmacd
+  ge17:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge17
+   type: ethernetCsmacd
+  ge18:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge18
+   type: ethernetCsmacd
+  ge19:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge19
+   type: ethernetCsmacd
+  ge2:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge2
+   type: ethernetCsmacd
+  ge20:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge20
+   type: ethernetCsmacd
+  ge21:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge21
+   type: ethernetCsmacd
+  ge22:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge22
+   type: ethernetCsmacd
+  ge23:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge23
+   type: ethernetCsmacd
+  ge24:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge24
+   type: ethernetCsmacd
+  ge3:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge3
+   type: ethernetCsmacd
+  ge4:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge4
+   type: ethernetCsmacd
+  ge5:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge5
+   type: ethernetCsmacd
+  ge6:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge6
+   type: ethernetCsmacd
+  ge7:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge7
+   type: ethernetCsmacd
+  ge8:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge8
+   type: ethernetCsmacd
+  ge9:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: ge9
+   type: ethernetCsmacd
+  line1:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line1
+   type: fastdsl
+  line10:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line10
+   type: fastdsl
+  line11:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line11
+   type: fastdsl
+  line12:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line12
+   type: fastdsl
+  line13:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line13
+   type: fastdsl
+  line14:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line14
+   type: fastdsl
+  line15:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line15
+   type: fastdsl
+  line16:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line16
+   type: fastdsl
+  line17:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line17
+   type: fastdsl
+  line18:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line18
+   type: fastdsl
+  line19:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line19
+   type: fastdsl
+  line2:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line2
+   type: fastdsl
+  line20:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line20
+   type: fastdsl
+  line21:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line21
+   type: fastdsl
+  line22:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line22
+   type: fastdsl
+  line23:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line23
+   type: fastdsl
+  line24:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line24
+   type: fastdsl
+  line3:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line3
+   type: fastdsl
+  line4:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line4
+   type: fastdsl
+  line5:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line5
+   type: fastdsl
+  line6:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line6
+   type: fastdsl
+  line7:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line7
+   type: fastdsl
+  line8:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line8
+   type: fastdsl
+  line9:
+   enabled: true
+   line:
+    configured-mode: mode-fast
+    line:
+     line-config-vector: default
+    supported-mode: mode-fast
+   name: line9
+   type: fastdsl
+  loopback0:
+   description: 
+   enabled: true
+   link-up-down-trap-enable: disabled
+   name: loopback0
+   type: softwareLoopback
+  mgmt:
+   description: 
+   enabled: true
+   ipv4:
+    address:
+     192.168.77.10:
+      prefix-length: 16
+      secondary: false
+   link-up-down-trap-enable: disabled
+   name: mgmt
+   type: mgmt
+  po1:
+   description: 
+   enabled: false
+   link-up-down-trap-enable: disabled
+   name: po1
+   type: ieee8023adLag
+  xe1:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 10.000
+   link-up-down-trap-enable: disabled
+   name: xe1
+   type: ethernetCsmacd
+  xe2:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: false
+    duplex: full
+    speed: 10.000
+   link-up-down-trap-enable: disabled
+   name: xe2
+   type: ethernetCsmacd
+  xe3:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: true
+    duplex: full
+    speed: 1.000
+   link-up-down-trap-enable: disabled
+   name: xe3
+   type: ethernetCsmacd
+  xe4:
+   description: 
+   enabled: true
+   ethernet:
+    auto-negotiation:
+     enable: false
+    duplex: full
+    speed: 10.000
+   link-up-down-trap-enable: disabled
+   name: xe4
+   type: ethernetCsmacd
+interfaces-state:
+ interface:
+  Vlan1:
+   admin-status: up
+   if-index: 25001
+   last-change: 2018-12-19T09:43:18+09:00
+   oper-status: up
+   phys-address: 00:00:00:00:00:00
+   speed: 10000000000
+   statistics: 
+   type: l2vlan
+  Vlan160:
+   admin-status: up
+   if-index: 25160
+   last-change: 2018-12-19T09:43:18+09:00
+   oper-status: up
+   phys-address: 00:00:00:00:00:00
+   speed: 10000000000
+   statistics: 
+   type: l2vlan
+  Vlan200:
+   admin-status: up
+   if-index: 25200
+   last-change: 2018-12-19T09:43:18+09:00
+   oper-status: up
+   phys-address: 00:00:00:00:00:00
+   speed: 10000000000
+   statistics: 
+   type: l2vlan
+  Vlan4094:
+   admin-status: up
+   if-index: 29094
+   last-change: 2018-12-19T09:44:52+09:00
+   oper-status: up
+   phys-address: 00:00:00:00:00:00
+   speed: 1000000000
+   statistics: 
+   type: l2vlan
+  Vlan600:
+   admin-status: up
+   if-index: 25600
+   last-change: 2018-12-19T09:43:18+09:00
+   oper-status: up
+   phys-address: 00:00:00:00:00:00
+   speed: 10000000000
+   statistics: 
+   type: l2vlan
+  Vlan700:
+   admin-status: up
+   if-index: 25700
+   last-change: 2018-12-19T09:43:18+09:00
+   oper-status: up
+   phys-address: 00:00:00:00:00:00
+   speed: 10000000000
+   statistics: 
+   type: l2vlan
+  ge1:
+   admin-status: up
+   if-index: 5001
+   last-change: 2018-12-19T09:44:52+09:00
+   lower-layer-if: line1
+   oper-status: up
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge10:
+   admin-status: up
+   if-index: 5010
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line10
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge11:
+   admin-status: up
+   if-index: 5011
+   last-change: 2018-12-19T09:44:52+09:00
+   lower-layer-if: line11
+   oper-status: up
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge12:
+   admin-status: up
+   if-index: 5012
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line12
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge13:
+   admin-status: up
+   if-index: 5013
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line13
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge14:
+   admin-status: up
+   if-index: 5014
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line14
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge15:
+   admin-status: up
+   if-index: 5015
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line15
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge16:
+   admin-status: up
+   if-index: 5016
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line16
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge17:
+   admin-status: up
+   if-index: 5017
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line17
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge18:
+   admin-status: up
+   if-index: 5018
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line18
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge19:
+   admin-status: up
+   if-index: 5019
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line19
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge2:
+   admin-status: up
+   if-index: 5002
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line2
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge20:
+   admin-status: up
+   if-index: 5020
+   last-change: 2018-12-19T09:44:52+09:00
+   lower-layer-if: line20
+   oper-status: up
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge21:
+   admin-status: up
+   if-index: 5021
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line21
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge22:
+   admin-status: up
+   if-index: 5022
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line22
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge23:
+   admin-status: up
+   if-index: 5023
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line23
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge24:
+   admin-status: up
+   if-index: 5024
+   last-change: 2018-12-19T09:44:52+09:00
+   lower-layer-if: line24
+   oper-status: up
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge3:
+   admin-status: up
+   if-index: 5003
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line3
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge4:
+   admin-status: up
+   if-index: 5004
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line4
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge5:
+   admin-status: up
+   if-index: 5005
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line5
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge6:
+   admin-status: up
+   if-index: 5006
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line6
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge7:
+   admin-status: up
+   if-index: 5007
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line7
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge8:
+   admin-status: up
+   if-index: 5008
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line8
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  ge9:
+   admin-status: up
+   if-index: 5009
+   last-change: 2018-12-19T09:43:10+09:00
+   lower-layer-if: line9
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  line1:
+   last-change: 2018-12-19T09:44:52+09:00
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: 1173871
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: 1172579
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: 1172579
+        net-data-rate: 1173871
+       upstream:
+        attainable-net-data-rate: 265725
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: 265432
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: 265432
+        net-data-rate: 265725
+   oper-status: up
+  line10:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line11:
+   last-change: 2018-12-19T09:44:52+09:00
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: 1287255
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: 1196569
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: 1196569
+        net-data-rate: 1197887
+       upstream:
+        attainable-net-data-rate: 370992
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: 370583
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: 370583
+        net-data-rate: 370992
+   oper-status: up
+  line12:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line13:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line14:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line15:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line16:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line17:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line18:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line19:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line2:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line20:
+   last-change: 2018-12-19T09:44:52+09:00
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: 1256542
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: 1196561
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: 1196561
+        net-data-rate: 1197879
+       upstream:
+        attainable-net-data-rate: 351124
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: 348480
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: 348480
+        net-data-rate: 348864
+   oper-status: up
+  line21:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line22:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line23:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line24:
+   last-change: 2018-12-19T09:44:52+09:00
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: 1249917
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: 1196569
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: 1196569
+        net-data-rate: 1197887
+       upstream:
+        attainable-net-data-rate: 360007
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: 359854
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: 359854
+        net-data-rate: 360251
+   oper-status: up
+  line3:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line4:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line5:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line6:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line7:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line8:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  line9:
+   line:
+    line:
+     channel:
+      status:
+       downstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+       upstream:
+        attainable-net-data-rate: undetermined
+        dtu-fec-codeword-length: 255
+        dtu-fec-redundancy: 8
+        expected-throughput: undetermined
+        fec-codewords-per-dtu: 8
+        gamma-data-rate: undetermined
+        net-data-rate: undetermined
+  loopback0:
+   admin-status: up
+   if-index: 1
+   last-change: 2018-12-19T09:43:06+09:00
+   oper-status: up
+   phys-address: 00:00:00:00:00:00
+   speed: 0
+   statistics: 
+   type: softwareLoopback
+  mgmt:
+   admin-status: up
+   if-index: 2
+   last-change: 2018-12-19T09:43:06+09:00
+   oper-status: up
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 96000
+   statistics: 
+   type: mgmt
+  po1:
+   admin-status: down
+   if-index: 0
+   last-change: 2018-12-19T09:43:10+09:00
+   oper-status: down
+   phys-address: 00:00:00:00:00:00
+   speed: 0
+   statistics: 
+   type: ieee8023adLag
+  xe1:
+   admin-status: up
+   if-index: 5025
+   last-change: 2018-12-19T09:43:10+09:00
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 10000000000
+   statistics: 
+   type: ethernetCsmacd
+  xe2:
+   admin-status: up
+   if-index: 5026
+   last-change: 2018-12-19T09:43:10+09:00
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 10000000000
+   statistics: 
+   type: ethernetCsmacd
+  xe3:
+   admin-status: up
+   if-index: 5027
+   last-change: 2018-12-19T09:43:18+09:00
+   oper-status: up
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 1000000000
+   statistics: 
+   type: ethernetCsmacd
+  xe4:
+   admin-status: up
+   if-index: 5028
+   last-change: 2018-12-19T09:43:10+09:00
+   oper-status: down
+   phys-address: 00:23:aa:2a:c0:a0
+   speed: 10000000000
+   statistics: 
+   type: ethernetCsmacd
+notification:
+ vlan-up:
+  id: 4094
+system:
+ hostname: HN5124D
+vlans:
+ vlan:
+  1: 
+  160: 
+  200: 
+  4094: 
+  600: 
+  700: 

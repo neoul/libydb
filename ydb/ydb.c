@@ -2326,7 +2326,31 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
 {
     int n;
     char flagstr[128];
-    if (!conn || !YLOG_SEVERITY_INFO || !ylog_logger)
+    if (!conn || !ylog_logger)
+        return;
+    if (!simple && ydb_conn_log)
+    {
+        FILE *fp;
+        char connlog[256];
+        snprintf(connlog, sizeof(connlog), "/tmp/ydb.conn.%d.log", getpid());
+        fp = fopen(connlog, "a");
+        if (fp)
+        {
+            fprintf(fp, "%s:ydb[%s]:%d:%s(%d):%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
+                    ylog_pname(), conn->datablock->name, conn->datablock->epollfd,
+                    conn->address, conn->fd, state?state:"???",
+                    IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "pub" : "sub",
+                    IS_SET(conn->flags, YCONN_WRITABLE) ? "writable" : "-",
+                    IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-",
+                    IS_SET(conn->flags, YCONN_UNREADABLE) ? "no-read" : "-",
+                    IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "minor",
+                    IS_SET(conn->flags, STATUS_SERVER) ? "server" : "-",
+                    IS_SET(conn->flags, STATUS_CLIENT) ? "client" : "-",
+                    IS_SET(conn->flags, STATUS_COND_CLIENT) ? "connected" : "-");
+            fclose(fp);
+        }
+    }
+    if (!YLOG_SEVERITY_INFO)
         return;
     if (!simple)
     {
@@ -2354,28 +2378,6 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
                     conn->datablock->name, conn->datablock->epollfd);
         ylog_logger(YLOG_INFO, func, line,
                     " ydb(synccount): %d\n", conn->datablock->synccount);
-        if (ydb_conn_log)
-        {
-            FILE *fp;
-            char connlog[256];
-            snprintf(connlog, sizeof(connlog), "/tmp/ydb.conn.%d.log", getpid());
-            fp = fopen(connlog, "a");
-            if (fp)
-            {
-                fprintf(fp, "%s:ydb[%s]:%d:%s(%d):%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
-                        ylog_pname(), conn->datablock->name, conn->datablock->epollfd,
-                        conn->address, conn->fd, state,
-                        IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "pub" : "sub",
-                        IS_SET(conn->flags, YCONN_WRITABLE) ? "writable" : "-",
-                        IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-",
-                        IS_SET(conn->flags, YCONN_UNREADABLE) ? "no-read" : "-",
-                        IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "minor",
-                        IS_SET(conn->flags, STATUS_SERVER) ? "server" : "-",
-                        IS_SET(conn->flags, STATUS_CLIENT) ? "client" : "-",
-                        IS_SET(conn->flags, STATUS_COND_CLIENT) ? "connected" : "-");
-                fclose(fp);
-            }
-        }
     }
     else
     {
