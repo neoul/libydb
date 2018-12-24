@@ -46,20 +46,21 @@ int main(int argc, char *argv[])
 
 In this example, you will create an YDB datablock (`ydb_open`) and then write some data into the datablock using YAML format (`ydb_write`). After written, each data can be read from the datablock (`ydb_read`) like as `scanf` C function.
 
-To compile the example, these libraries should be installed into your system.
-
-- YAML library (http://pyyaml.org/wiki/LibYAML): C Fast YAML 1.1
-- YDB library (This library)
-
 ```shell
-neoul@neoul-dev:~/projects/study-c$ gcc ydb-example1.c -lydb -lyaml
-neoul@neoul-dev:~/projects/study-c$ ./a.out 
+$ gcc ydb-example1.c -lydb -lyaml
+$ ./a.out 
 fan_speed 100, fan_enabled false
-neoul@neoul-dev:~/projects/study-c$
+$
 ```
 
 
 ## YDB Library Installation
+
+To compile the above example, these libraries should be installed into your system.
+
+- YAML library (http://pyyaml.org/wiki/LibYAML): C Fast YAML 1.1
+- YDB library (This library)
+
 
 YDB library uses libyaml (http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, libyaml should be installed before the YDB library installation. 
 
