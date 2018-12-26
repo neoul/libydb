@@ -60,9 +60,9 @@ void *yalloc(size_t s)
     return p;
 }
 
-const char *ystrdup(char *src)
+
+const char *ystrndup(char *src, int srclen)
 {
-    int srclen;
     struct ystr_alloc *ykey;
     if(src == NULL)
     {
@@ -72,7 +72,6 @@ const char *ystrdup(char *src)
 #endif
         return empty.key;
     }
-    srclen = strlen(src);
     if (srclen <= 0)
     {
         empty.ref++;
@@ -102,7 +101,7 @@ const char *ystrdup(char *src)
         ykey = malloc(sizeof(struct ystr_alloc));
         if (!ykey)
             return NULL;
-        ykey->key = strdup(src);
+        ykey->key = strndup(src, srclen);
         if (!ykey->key)
         {
             free(ykey);
@@ -129,7 +128,12 @@ const char *ystrdup(char *src)
     return ykey->key;
 }
 
-void yfree(void *src)
+const char *ystrdup(char *src)
+{
+    return ystrndup(src, src?strlen(src):0);
+}
+
+void yfree(const void *src)
 {
     if(!src)
     {
@@ -210,7 +214,7 @@ void yfree(void *src)
     if(src)
     {
         mem_count--;
-        free(src);
+        free((void *) src);
     }
 #endif
 }

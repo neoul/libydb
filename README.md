@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 }
 ```
 
-In this example, you will create an YDB datablock (`ydb_open`) and then write some data into the datablock using YAML format (`ydb_write`). After written, each data can be read from the datablock (`ydb_read`) like as `scanf` C function.
+In this example, you will create an YDB datablock (`ydb_open`) and then write some data into the datablock using YAML format (`ydb_write`) such as `printf`. After written, each data can be read from the datablock (`ydb_read`) like as `scanf`.
 
 ```shell
 $ gcc ydb-example1.c -lydb -lyaml
@@ -52,7 +52,6 @@ $ ./a.out
 fan_speed 100, fan_enabled false
 $
 ```
-
 
 ## YDB Library Installation
 
@@ -85,6 +84,18 @@ $ ./configure or $ ./configure CFLAGS="-g -Wall"
 $ make
 $ make install
 ```
+
+## Dump YAML DataBlock
+
+```c
+ydb_dump(datablock, stdout);
+```
+
+## Read YAML data from a file
+
+
+
+
 
 ## Limitation
 

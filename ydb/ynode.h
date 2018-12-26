@@ -28,11 +28,11 @@ int ynode_get(ynode *src, ynode_log *log);
 // ynode operation (Create, Merge, Delete) interfaces
 // create single ynode and attach to parent.
 // return created ynode.
-ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_log *log);
+ynode *ynode_create(unsigned char type, const char *key, char *value, ynode *parent, ynode_log *log);
 
 // create new ynodes to parent using src.
 // return created ynode top.
-ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_log *log);
+ynode *ynode_create_copy(ynode *src, ynode *parent, const char *key, ynode_log *log);
 
 // create new ynodes using path.
 // return the last created ynode.
@@ -101,16 +101,16 @@ int ynode_empty(ynode *node);
 int ynode_size(ynode *node);
 
 // return ynodes' value if that is a leaf.
-char *ynode_value(ynode *node);
+const char *ynode_value(ynode *node);
 // return ynodes' key if that has a hash key.
-char *ynode_key(ynode *node);
+const char *ynode_key(ynode *node);
 // return ynodes' index if the nodes' parent is a list.
 int ynode_index(ynode *node);
 // return ynodes' origin
 int ynode_origin(ynode *node);
 
 // return the found child by the key.
-ynode *ynode_find_child(ynode *node, char *key);
+ynode *ynode_find_child(ynode *node, const char *key);
 
 // return the top node of the ynode.
 ynode *ynode_top(ynode *node);

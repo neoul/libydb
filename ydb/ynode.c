@@ -54,14 +54,14 @@ typedef struct _yhook yhook;
 struct _ynode
 {
     union {
-        char *key;
+        const char *key;
         ylist_iter *iter;
     };
     union {
         ylist *list;
         ytree *map;
         ymap *omap;
-        char *value;
+        const char *value;
         void *data;
     };
     unsigned char flags;
@@ -84,7 +84,7 @@ static char *ynode_type_str[] = {
 #define UNSET_FLAG(flag, v) ((flag) = ((flag) & (~v)))
 #define IS_SET(flag, v) ((flag) & (v))
 
-static char *ystr_convert(char *str)
+static char *ystr_convert(const char *str)
 {
     int slen = 0;
     unsigned int spacectrl = 0;
@@ -207,7 +207,7 @@ static int imap_cmp(char *a, char *b)
 }
 
 // create ynode
-static ynode *ynode_new(unsigned char type, char *value, int origin, unsigned char flags)
+static ynode *ynode_new(unsigned char type, const char *value, int origin, unsigned char flags)
 {
     ynode *node = malloc(sizeof(ynode));
     if (!node)
@@ -216,7 +216,7 @@ static ynode *ynode_new(unsigned char type, char *value, int origin, unsigned ch
     switch (type)
     {
     case YNODE_TYPE_VAL:
-        node->value = ystrdup(value);
+        node->value = ystrdup((char *)value);
         if (!node->value)
             goto _error;
         break;
@@ -265,7 +265,7 @@ static ynode *ynode_detach(ynode *node)
     {
     case YNODE_TYPE_MAP:
         assert(node->key && YDB_E_NO_ENTRY);
-        searched_node = ytree_delete(parent->map, node->key);
+        searched_node = ytree_delete(parent->map, (void *) node->key);
         UNSET_FLAG(node->flags, YNODE_FLAG_KEY);
         // if (IS_SET(parent->flags, YNODE_FLAG_SET))
         // {
@@ -278,7 +278,7 @@ static ynode *ynode_detach(ynode *node)
         break;
     case YNODE_TYPE_OMAP:
         assert(node->key && YDB_E_NO_ENTRY);
-        searched_node = ymap_delete(parent->omap, node->key);
+        searched_node = ymap_delete(parent->omap, (void *) node->key);
         UNSET_FLAG(node->flags, YNODE_FLAG_KEY);
         node->key = NULL;
         assert(searched_node && YDB_E_NO_ENTRY);
@@ -299,7 +299,7 @@ static ynode *ynode_detach(ynode *node)
 
 // insert the ynode to the parent, the key is used for map type.
 // return old ynode that was being attached to the parent.
-static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
+static ynode *ynode_attach(ynode *node, ynode *parent, const char *key)
 {
     ynode *old = NULL;
     if (!node || !parent)
@@ -312,8 +312,8 @@ static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
     {
     case YNODE_TYPE_MAP:
         SET_FLAG(node->flags, YNODE_FLAG_KEY);
-        node->key = ystrdup(key);
-        old = ytree_insert(parent->map, node->key, node);
+        node->key = ystrdup((char*) key);
+        old = ytree_insert(parent->map, (void *) node->key, node);
         // if (IS_SET(parent->flags, YNODE_FLAG_SET))
         // {
         //     yfree(node->value);
@@ -322,8 +322,8 @@ static ynode *ynode_attach(ynode *node, ynode *parent, char *key)
         break;
     case YNODE_TYPE_OMAP:
         SET_FLAG(node->flags, YNODE_FLAG_KEY);
-        node->key = ystrdup(key);
-        old = ymap_insert_back(parent->omap, node->key, node);
+        node->key = ystrdup((char*) key);
+        old = ymap_insert_back(parent->omap, (void *) node->key, node);
         break;
     case YNODE_TYPE_LIST:
         // ignore key.
@@ -346,7 +346,8 @@ void ynode_move_child(ynode *dest, ynode *src)
     n = ynode_down(src);
     while (n)
     {
-        char *key = ystrdup(ynode_key(n));
+        const char *key;
+        key = ystrdup((char *) ynode_key(n));
         ynode *old = ynode_attach(n, dest, key);
         yfree(key);
         ynode_free(old);
@@ -610,7 +611,7 @@ static void yhook_post_run(char op, ynode *cur, bool end_of_run, ytree **hook_po
         {
             while (cur)
             {
-                hook = ytree_delete(*hook_pool, cur);
+                hook = ytree_delete(*hook_pool, (void *) cur);
                 if (hook)
                     yhook_func_exec(hook, op, NULL, NULL);
                 cur = cur->parent;
@@ -618,7 +619,7 @@ static void yhook_post_run(char op, ynode *cur, bool end_of_run, ytree **hook_po
         }
         else
         {
-            hook = ytree_delete(*hook_pool, cur);
+            hook = ytree_delete(*hook_pool, (void *) cur);
             if (hook)
                 yhook_func_exec(hook, op, NULL, NULL);
         }
@@ -1496,7 +1497,7 @@ _done:
         v = NULL;     \
     } while (0)
 
-static ynode *ynode_new_and_attach(unsigned char type, char *value, int origin, unsigned char flags, ynode *parent, char *key)
+static ynode *ynode_new_and_attach(unsigned char type, char *value, int origin, unsigned char flags, ynode *parent, const char *key)
 {
     ynode *new, *old;
     old = NULL;
@@ -1531,7 +1532,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     int level = 0;
     ynode *top = NULL;
     ynode *new = NULL;
-    char *key = NULL;
+    const char *key = NULL;
     char *scalar = NULL;
     struct ynode_query_data qdata;
     yaml_token_type_t last_token;
@@ -1803,7 +1804,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 ylog_debug("anchor (%s) ignored ...\n", anchor);
                 break;
             }
-            path = ytrie_insert(anchors, anchor, strlen(anchor), ystrdup(anchor_path));
+            path = ytrie_insert(anchors, anchor, strlen(anchor), (void *) ystrdup(anchor_path));
             if (path) // free old anchor
                 yfree(path);
             ylog_debug("anchor (%s: %s) stored\n", anchor, anchor_path);
@@ -1868,7 +1869,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         top = NULL;
     }
     if (anchors)
-        ytrie_destroy_custom(anchors, yfree);
+        ytrie_destroy_custom(anchors, (user_free) yfree);
     // ynode_dump(top, 0, 24);
     CLEAR_YSTR(key);
     *n = top;
@@ -1915,14 +1916,14 @@ void ynode_remove(ynode *n)
     ynode_free(n);
 }
 
-ynode *ynode_find_child(ynode *node, char *key)
+ynode *ynode_find_child(ynode *node, const char *key)
 {
     switch (node->type)
     {
     case YNODE_TYPE_MAP:
-        return ytree_search(node->map, key);
+        return ytree_search(node->map, (char *) key);
     case YNODE_TYPE_OMAP:
-        return ymap_search(node->omap, key);
+        return ymap_search(node->omap, (char *) key);
     case YNODE_TYPE_LIST:
     {
         int count = 0;
@@ -2063,7 +2064,7 @@ int ynode_size(ynode *node)
 }
 
 // return ynodes' value if that is a leaf.
-char *ynode_value(ynode *node)
+const char *ynode_value(ynode *node)
 {
     if (node && node->type == YNODE_TYPE_VAL)
         return node->value;
@@ -2071,7 +2072,7 @@ char *ynode_value(ynode *node)
 }
 
 // return ynodes' key if that has a hash key.
-char *ynode_key(ynode *node)
+const char *ynode_key(ynode *node)
 {
     if (!node || !node->parent)
         return NULL;
@@ -2159,13 +2160,13 @@ ynode *ynode_prev(ynode *node)
     {
     case YNODE_TYPE_MAP:
     {
-        ytree_iter *iter = ytree_find(node->parent->map, node->key);
+        ytree_iter *iter = ytree_find(node->parent->map, (void *) node->key);
         iter = ytree_prev(node->parent->map, iter);
         return ytree_data(iter);
     }
     case YNODE_TYPE_OMAP:
     {
-        ymap_iter *iter = ymap_find(node->parent->omap, node->key);
+        ymap_iter *iter = ymap_find(node->parent->omap, (void *) node->key);
         iter = ymap_prev(node->parent->omap, iter);
         return ymap_data(iter);
     }
@@ -2187,13 +2188,13 @@ ynode *ynode_next(ynode *node)
     {
     case YNODE_TYPE_MAP:
     {
-        ytree_iter *iter = ytree_find(node->parent->map, node->key);
+        ytree_iter *iter = ytree_find(node->parent->map, (void *) node->key);
         iter = ytree_next(node->parent->map, iter);
         return ytree_data(iter);
     }
     case YNODE_TYPE_OMAP:
     {
-        ymap_iter *iter = ymap_find(node->parent->omap, node->key);
+        ymap_iter *iter = ymap_find(node->parent->omap, (void *) node->key);
         iter = ymap_next(node->parent->omap, iter);
         return ymap_data(iter);
     }
@@ -2389,7 +2390,7 @@ char *yhook_op_str(char op)
     }
 }
 
-static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, ytree **hook_pool, ynode_log *log)
+static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *key, ytree **hook_pool, ynode_log *log)
 {
     yhook *hook;
     ytree *hpool = NULL;
@@ -2407,11 +2408,11 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, char *key, yt
             break;
         case YNODE_TYPE_MAP:
             if (!cur && key)
-                cur = ytree_search(parent->map, key);
+                cur = ytree_search(parent->map, (void *) key);
             break;
         case YNODE_TYPE_OMAP:
             if (!cur && key)
-                cur = ymap_search(parent->omap, key);
+                cur = ymap_search(parent->omap, (void *) key);
             break;
         case YNODE_TYPE_VAL:
             return NULL;
@@ -2630,7 +2631,7 @@ int ynode_get(ynode *src, ynode_log *log)
 
 // create single ynode and attach to parent
 // return created ynode
-ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, ynode_log *log)
+ynode *ynode_create(unsigned char type, const char *key, char *value, ynode *parent, ynode_log *log)
 {
     ynode *cur, *new;
     new = ynode_new(type, value, 0, 0);
@@ -2641,7 +2642,7 @@ ynode *ynode_create(unsigned char type, char *key, char *value, ynode *parent, y
 
 // create new ynodes to parent using src
 // return created ynode top
-ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_log *log)
+ynode *ynode_create_copy(ynode *src, ynode *parent, const char *key, ynode_log *log)
 {
     return ynode_control(NULL, src, parent, key, NULL, log);
 }
@@ -2651,7 +2652,7 @@ ynode *ynode_create_copy(ynode *src, ynode *parent, char *key, ynode_log *log)
 ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
 {
     int i, j;
-    char *key = NULL;
+    const char *key = NULL;
     ynode *new = NULL;
     ynode *node = NULL;
     char token[512];
@@ -3181,7 +3182,7 @@ struct ynode_read_data
 ydb_res ynode_traverse_to_read(ynode *cur, void *addition)
 {
     struct ynode_read_data *data = addition;
-    char *value = ynode_value(cur);
+    const char *value = ynode_value(cur);
     if (value && strncmp(value, "+", 1) == 0)
     {
         ynode *n = ynode_lookup(data->top, cur, 0);

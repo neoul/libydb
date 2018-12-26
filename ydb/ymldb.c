@@ -1000,13 +1000,13 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
                 }
                 else if (type == YMLDB_LEAFLIST)
                 {
-                    ydb->value = ystrdup(key);
+                    ydb->value = (char *) ystrdup(key);
                     if (!ydb->value)
                         goto free_ydb;
                 }
                 else
                 {
-                    ydb->value = ystrdup(value);
+                    ydb->value = (char *) ystrdup(value);
                     if (!ydb->value)
                         goto free_ydb;
                 }
@@ -1017,7 +1017,7 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
                 if (strcmp(ydb->value, value) != 0)
                 {
                     yfree(ydb->value);
-                    ydb->value = ystrdup(value);
+                    ydb->value = (char *) ystrdup(value);
                     _ymldb_node_merge_reply(params, ydb);
                 }
             }
@@ -1031,7 +1031,7 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
         goto free_ydb;
     memset(ydb, 0, sizeof(struct ynode));
     ydb->type = type;
-    ydb->key = ystrdup(key);
+    ydb->key = (char *) ystrdup(key);
     if (!ydb->key)
         goto free_ydb;
 
@@ -1043,13 +1043,13 @@ struct ynode *_ymldb_node_merge(struct ymldb_params *params, struct ynode *paren
     }
     else if (type == YMLDB_LEAFLIST)
     {
-        ydb->value = ystrdup(key);
+        ydb->value = (char *) ystrdup(key);
         if (!ydb->value)
             goto free_ydb;
     }
     else
     {
-        ydb->value = ystrdup(value);
+        ydb->value = (char *) ystrdup(value);
         if (!ydb->value)
             goto free_ydb;
     }

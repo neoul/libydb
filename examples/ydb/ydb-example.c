@@ -211,7 +211,7 @@ int test_ydb_read_write()
     ydb_path_write(datablock, "system/temporature=%d", 60);
     ydb_path_write(datablock, "system/running=%s", "2 hours");
 
-    char *temp = ydb_path_read(datablock, "system/temporature");
+    const char *temp = ydb_path_read(datablock, "system/temporature");
     printf("temporature=%d\n", atoi(temp));
 
     ydb_fprintf(stdout, datablock, "system: {fan-speed, hostname}\n");

@@ -3,8 +3,9 @@
 #include <stdlib.h>
 
 void *yalloc(size_t s);
-char *ystrdup(char *src);
-void yfree(void *src);
+const char *ystrdup(char *src);
+const char *ystrndup(char *src, int srclen);
+void yfree(const void *src);
 void yalloc_destroy();
 void ystrprint();
 

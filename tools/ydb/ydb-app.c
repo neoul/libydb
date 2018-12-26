@@ -89,7 +89,7 @@ ydb_res interpret_mode_run(ydb *datablock)
     int n = 0;
     char op = 0;
     char buf[512];
-    char *value;
+    const char *value;
     char *path;
     char *cmd;
 
@@ -555,7 +555,7 @@ int main(int argc, char *argv[])
                     {
                     case CMD_READ:
                     {
-                        char *data = ydb_path_read(datablock, "%s", ycmd->data);
+                        const char *data = ydb_path_read(datablock, "%s", ycmd->data);
                         if (data)
                             fprintf(stdout, "%s", data);
                         else

@@ -88,7 +88,7 @@ int yipc_send(char *src_id, char *dest_id, const char *format, ...)
     node = ydb_down(ydb_top(datablock));
     while (node)
     {
-        char *key = ydb_key(node);
+        const char *key = ydb_key(node);
         if (!key)
             break;
         if (strcmp(key, "+meta") != 0)
@@ -122,7 +122,7 @@ int yipc_recv(char *src_id, int timeout, ydb **datablock)
     node = ydb_down(ydb_top(db));
     while (node)
     {
-        char *key = ydb_key(node);
+        const char *key = ydb_key(node);
         if (!key)
             break;
         if (strcmp(key, "+meta") != 0)

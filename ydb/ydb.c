@@ -209,7 +209,7 @@ typedef void (*yconn_func_deinit)(yconn *conn);
 struct _yconn
 {
     ydb *datablock;
-    char *address;
+    const char *address;
     unsigned int flags;
     int fd;
     int timerfd;
@@ -236,8 +236,8 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
 #define YCONN_SIMPLE_INFO(conn) \
     yconn_print(conn, __func__, __LINE__, NULL, true)
 
-static unsigned int yconn_flags(char *address, char *flagstr);
-static yconn *yconn_new(char *address, unsigned int flags, ydb *datablock);
+static unsigned int yconn_flags(const char *address, char *flagstr);
+static yconn *yconn_new(const char *address, unsigned int flags, ydb *datablock);
 static void yconn_free(yconn *conn);
 static void yconn_free_with_deinit(yconn *conn);
 static void yconn_close(yconn *conn);
@@ -270,7 +270,7 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
 
 struct _ydb
 {
-    char *name;
+    const char *name;
     ynode *top;
     ytrie *updater;
     ytree *conn;
@@ -661,7 +661,7 @@ char *ydb_name_and_path(ynode *node, int *pathlen)
     return ynode_path(node, YDB_LEVEL_MAX, pathlen);
 }
 
-char *ydb_name(ydb *datablock)
+const char *ydb_name(ydb *datablock)
 {
     return datablock->name;
 }
@@ -757,13 +757,13 @@ int ydb_type(ynode *node)
 }
 
 // return node value if that is a leaf.
-char *ydb_value(ynode *node)
+const char *ydb_value(ynode *node)
 {
     return ynode_value(node);
 }
 
 // return node key if that has a hash key.
-char *ydb_key(ynode *node)
+const char *ydb_key(ynode *node)
 {
     return ynode_key(node);
 }
@@ -1043,7 +1043,7 @@ failed:
 
 struct readhook
 {
-    char *path;
+    const char *path;
     size_t pathlen;
     union {
         ydb_read_hook hook;
@@ -1329,7 +1329,7 @@ struct ydb_read_data
 static ydb_res ydb_read_sub(ynode *cur, void *addition)
 {
     struct ydb_read_data *data = addition;
-    char *value = ynode_value(cur);
+    const char *value = ynode_value(cur);
 
     if (value && strncmp(value, "+", 1) == 0)
     {
@@ -1600,7 +1600,7 @@ failed:
 
 // read the value from ydb using input path
 // char *value = ydb_path_read(datablock, "/path/to/update")
-char *ydb_path_read(ydb *datablock, const char *format, ...)
+const char *ydb_path_read(ydb *datablock, const char *format, ...)
 {
     ydb_res res = YDB_OK;
     ynode *src = NULL;
@@ -1747,7 +1747,7 @@ ydb_res yconn_socket_init(yconn *conn)
         struct sockaddr_in in;
     } addr;
 
-    char *address = conn->address;
+    const char *address = conn->address;
     unsigned int flags = conn->flags;
     if (!IS_SET(flags, STATUS_DISCONNECT))
         return YDB_OK;
@@ -1802,7 +1802,7 @@ ydb_res yconn_socket_init(yconn *conn)
     }
     else if (strncmp(address, "uss://", strlen("uss://")) == 0)
     {
-        char *sname = &(address[strlen("uss://")]);
+        const char *sname = &(address[strlen("uss://")]);
         addr.un.sun_family = AF_UNIX;
         snprintf(addr.un.sun_path, sizeof(addr.un.sun_path), "#%s", sname);
         addr.un.sun_path[0] = 0;
@@ -1810,7 +1810,7 @@ ydb_res yconn_socket_init(yconn *conn)
     }
     else
     {
-        char *sname = &(address[strlen("us://")]);
+        const char *sname = &(address[strlen("us://")]);
         addr.un.sun_family = AF_UNIX;
         if (access(sname, F_OK) == 0)
             unlink(sname);
@@ -2194,8 +2194,8 @@ conn_failed:
 
 ydb_res yconn_file_init(yconn *conn)
 {
-    char *fname;
-    char *address = conn->address;
+    const char *fname;
+    const char *address = conn->address;
     unsigned int flags = conn->flags;
     struct yconn_socket_head *head;
     if (!IS_SET(flags, STATUS_DISCONNECT))
@@ -2387,7 +2387,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
     }
 }
 
-static unsigned int yconn_flags(char *address, char *flagstr)
+static unsigned int yconn_flags(const char *address, char *flagstr)
 {
     unsigned int flags = 0;
     char flagbuf[256];
@@ -2443,7 +2443,7 @@ static unsigned int yconn_flags(char *address, char *flagstr)
     return flags;
 }
 
-static yconn *yconn_new(char *address, unsigned int flags, ydb *datablock)
+static yconn *yconn_new(const char *address, unsigned int flags, ydb *datablock)
 {
     yconn_func_init func_init = NULL;
     yconn_func_deinit func_deinit = NULL;
@@ -2478,7 +2478,7 @@ static yconn *yconn_new(char *address, unsigned int flags, ydb *datablock)
     if (!conn)
         return NULL;
     memset(conn, 0x0, sizeof(struct _yconn));
-    conn->address = ystrdup(address);
+    conn->address = ystrdup((char *)address);
     conn->flags = flags;
     conn->fd = -1;
     conn->timerfd = -1;

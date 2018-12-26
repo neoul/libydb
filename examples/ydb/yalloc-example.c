@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 		char *newline = strchr(line, '\n');
 		if(newline)
 			*newline=0;
-		key = ystrdup(line);
+		key = (char *) ystrdup(line);
 		ylist_push_back(list, key);
 	}
 
