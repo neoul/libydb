@@ -274,7 +274,7 @@ static int leaf_matches(const art_leaf *n, const unsigned char *key, int key_len
 void* art_search(const art_tree *t, const unsigned char *key, int key_len) {
     art_node **child;
     art_node *n = t->root;
-    int prefix_len, depth = 0;
+    int prefix_len = 0, depth = 0;
     while (n) {
         // Might be a leaf
         if (IS_LEAF(n)) {
@@ -295,7 +295,8 @@ void* art_search(const art_tree *t, const unsigned char *key, int key_len) {
         }
 
         // Recursively search
-        child = find_child(n, key[depth]);
+        // [neoul@ymail.com] input 0 to find_child if key_len is over for exact matching
+        child = find_child(n, (depth < key_len)?key[depth]:0x0);
         n = (child) ? *child : NULL;
         depth++;
     }
@@ -422,7 +423,8 @@ void* art_best_match(const art_tree *t, const unsigned char *key, int key_len, i
         // Recursively search
         best = minimum(n);
         best_depth = depth;
-        child = find_child(n, key[depth]);
+        // [neoul@ymail.com] input 0 to find_child if key_len is over for exact matching
+        child = find_child(n, (depth < key_len)?key[depth]:0x0);
         n = (child) ? *child : NULL;
         depth++;
     }
@@ -703,7 +705,8 @@ static void* recursive_insert(art_node *n, art_node **ref, const unsigned char *
 RECURSE_SEARCH:;
 
     // Find a child to recurse to
-    art_node **child = find_child(n, key[depth]);
+    // [neoul@ymail.com] input 0 to find_child if key_len is over for exact matching
+    art_node **child = find_child(n, (depth < key_len)?key[depth]:0x0);
     if (child) {
         return recursive_insert(*child, child, key, key_len, value, depth+1, old);
     }
@@ -863,7 +866,8 @@ static art_leaf* recursive_delete(art_node *n, art_node **ref, const unsigned ch
     }
 
     // Find child node
-    art_node **child = find_child(n, key[depth]);
+    // [neoul@ymail.com] input 0 to find_child if key_len is over for exact matching
+    art_node **child = find_child(n, (depth < key_len)?key[depth]:0x0);
     if (!child) return NULL;
 
     // If the child is leaf, delete from this node
@@ -1035,7 +1039,8 @@ int art_iter_prefix(art_tree *t, const unsigned char *key, int key_len, art_call
         }
 
         // Recursively search
-        child = find_child(n, key[depth]);
+        // [neoul@ymail.com] input 0 to find_child if key_len is over for exact matching
+        child = find_child(n, (depth < key_len)?key[depth]:0x0);
         n = (child) ? *child : NULL;
         depth++;
     }
@@ -1141,7 +1146,8 @@ int art_iter_prefix_leaf(art_tree *t, const unsigned char *key, int key_len, art
         }
 
         // Recursively search
-        child = find_child(n, key[depth]);
+        // [neoul@ymail.com] input 0 to find_child if key_len is over for exact matching
+        child = find_child(n, (depth < key_len)?key[depth]:0x0);
         n = (child) ? *child : NULL;
         depth++;
     }

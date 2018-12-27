@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <assert.h>
 #ifdef YALLOC_DEBUG
 #include "ylog.h"
 #endif
@@ -102,25 +102,10 @@ const char *ystrndup(char *src, int srclen)
         if (!ykey)
             return NULL;
         ykey->key = strndup(src, srclen);
-        if (!ykey->key)
-        {
-            free(ykey);
-#ifdef YALLOC_DEBUG
-            ylog_debug("[pid %d] ystrdup failed to strdup\n", getpid());
-#endif
-            return NULL;
-        }
+        assert(ykey->key);
         ykey->ref = 1;
-        void *res = ytrie_insert(string_pool, ykey->key, strlen(ykey->key), ykey);
-        if (res != NULL)
-        {
-            free(ykey->key);
-            free(ykey);
-#ifdef YALLOC_DEBUG
-            ylog_debug("[pid %d] ystrdup failed to insert\n", getpid());
-#endif
-            return NULL;
-        }
+        void *old_ykey = ytrie_insert(string_pool, ykey->key, strlen(ykey->key), ykey);
+        assert(old_ykey == NULL);
     }
 #ifdef YALLOC_DEBUG
     ylog_debug("[pid %d] ystrdup ykey=%p key=%s (%p) ref=%d \n", getpid(), ykey, ykey->key, ykey->key, ykey->ref);

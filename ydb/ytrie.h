@@ -31,7 +31,7 @@ void *ytrie_search(ytrie *trie, const void *key, int key_len);
 void *ytrie_best_match(ytrie *trie, const void *key, int key_len, int *matched_len);
 
 // callback function for ytrie *iteration
-typedef int(*ytrie_callback)(void *arg, const void *key, int key_len, void *value);
+typedef int(*ytrie_callback)(void *addition, const void *key, int key_len, void *value);
 
 // Iterates through the entries pairs in the map
 int ytrie_traverse(ytrie *trie, ytrie_callback cb, void *addition);

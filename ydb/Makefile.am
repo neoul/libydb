@@ -16,4 +16,4 @@ libydb_la_SOURCES = \
 libydb_la_CPPFLAGS = -Iutilities
 libydb_la_CFLAGS = -g -Wall -std=c99 -D_GNU_SOURCE
 libydb_la_LDFLAGS = -version-info 1:0:0
-include_HEADERS = ynode.h ydb.h ylist.h ytree.h ytrie.h yarray.h ymap.h yipc.h ylog.h ymldb.h
+include_HEADERS = ynode.h ydb.h ylist.h ytree.h ytrie.h yarray.h ymap.h yipc.h ylog.h ymldb.h yalloc.h
