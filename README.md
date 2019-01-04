@@ -1,9 +1,27 @@
 # YDB (YAML DataBlock)
 
-**YAML DataBlock (YDB)** is a library to manage the hierarchical configuration and statistical data simply and clearly using YAML format input/output.
+**YAML DataBlock (YDB)**는 hierarchical configuration and statistical data를 간단하고 명료하게 관리하기 위한 library 입니다. YDB는 YAML format의 serialized data stream을 입력받아 내부 data block을 동적으로 구성하고, 이를 쉽게 조회하거나 탐색할 수 API를 제공합니다. 입력된 data stream은 다음과 같은 세가지 형태의 operation에 의해 내부 data block에 적절히 반영되므로, 사용자가 직접 세세하게 data block 할당, 해제하거나 조작할 필요가 없습니다.
 
-The following example shows you what YDB is briefly.
+There are three types of operations in order to manage the internal data block.
 
+- Create (ydb_write)
+- Replace (ydb_write)
+- Delete (ydb_delete)
+
+YDB는 YAML을 내부 data block에 대한 기본 입출력 포멧으로 사용합니다. YAML은 a human friendly data serialization 언어로 다음과 같은 이유로 YDB에서 사용하였습니다.
+
+- hierarchical configuration and statistical data를 유연하게 표한 가능함.
+- Easy to read and write
+- XML보다 덜 복잡함.
+
+다음 website에서 좀 더 YAML에 대한 좀 더 유용한 정보를 얻을 수 있습니다.
+
+- Official website: https://yaml.org/
+- Wiki: https://en.wikipedia.org/wiki/YAML
+
+## First example of YDB usage
+
+The following example shows you how to use YDB briefly.
 
 ``` c
 // ydb-example1.c
@@ -26,10 +44,10 @@ int main(int argc, char *argv[])
               100,
               "false",
               "linux");
-    
+
     int fan_speed = 0;
     char fan_enabled[32] = {0};
-    
+
     ydb_read(datablock,
             "system:\n"
             " fan-speed: %d\n"
@@ -44,45 +62,143 @@ int main(int argc, char *argv[])
 }
 ```
 
-In this example, you will create an YDB datablock (`ydb_open`) and then write some data into the datablock using YAML format (`ydb_write`) such as `printf`. After written, each data can be read from the datablock (`ydb_read`) like as `scanf`.
+In this example, fan information exists in the system category. If you want to get the fan information, you just need to read the data from the data block using `ydb_read` after `ydb_write` to construct the data block. `ydb_read` is working such as `scanf` that we frequently use.
 
-```shell
-$ gcc ydb-example1.c -lydb -lyaml
-$ ./a.out 
-fan_speed 100, fan_enabled false
-$
+**YAML DataBlock (YDB)** is a library to manage the hierarchical configuration and statistical data simply and clearly using YAML input/output.
+
+YDB internally builds the hierarchical data block from the serialized input data formed as YAML. And it supports the inquiry and the iteration of each internal data block using API.
+
+It also supports the inter-process communication (IPC)
+
+## Why does YDB come out?
+
+Embedded system 에서 하나의 application을 개발하다보면, 매번 똑같은 일을 반복하게 됩니다. 우선, 사용할 data의 type과 data structure를 정의하고, data의 life cycle에 따라 할당/해제하고, data의 type과 data structure를 관리할 인터페이스 함수를 만들고, 이를 시스템의 다른 기능에 연결하고, 정보를 조회할 수 있도록 show나 configuration 파일을 생성합니다. 이러한 과정은 매번 번거럽고 반복적인 작업이 아닐 수 없습니다. 이러한 반복되는 작업에서 최소화 할 수 있을까? YDB는 이 물음에 대한 해법의 하나로 시작했습니다.
+
+### Less consideration for the data type
+
+우리는 매번 내부적으로 사용되는 data type을 정의하고, data 관리 인터페이스를 구현합니다만, 사실 내부적으로 사용되는 data의 저장 형태 (type)는 크게 중요하지 않습니다. 대신 입력된 data를 읽는 시점에서 값의 의미를 해석하고 적절한 동작을 수행하는 것이 중요합니다. 가령, 아래 예제와 같은 fan control 기능의 admin 정보는 boolean (true/false), integer (0/1) 또는 string ("enable"/"disable") 과 같은 어려가지 형태로 표현할 수 있지만, 개발자가 integer (0/1) 이라고 admin 정보를 입력했다면, 읽는 시점에서도 동일하게 integer (0/1) 인지를 확인하고, 해당 값에 맞춰 fan을 동작 시키는 것이 admin 기능의 핵심일 것입니다.
+
+YDB는 내부적으로 모든 data를 string으로 저장하고, 꺼내오는 시점에 사용자의 요구에 맞춰 형변환 (such as `scanf`)을 수행하도록 설계되었습니다. 만약 입력시 사용된 변수가 integer라면, 읽어올 때도 동일하게 integer 변수로 읽어오면 됩니다. YDB는 개발자가 내부적으로 사용되는 data type에 대한 고려보다도 수행해야 하는 동작에 초점을 맞출 수 있도록 도와줍니다.
+
+```c
+// read the current status of the fan from hardware
+int fan_current_admin = read_current_fan_state(); // 1: enabled, 0: disabled
+// store the current status to the current fan admin 
+// for fan-control initialization.
+ydb_write(datablock,
+    "system:\n"
+    "  fan-control:\n"
+    "   admin: %d\n",
+    fan_current_admin);
 ```
+
+```c
+// read the current status of the fan admin
+int fan_config_admin = 1;
+int fan_current_admin = 0;
+ydb_read(datablock,
+    "system:\n"
+    "  fan-control:\n"
+    "   admin: %d\n",
+    &fan_current_admin);
+if (!fan_current_admin && fan_config_admin)
+{
+    // enable the target fan
+}
+else if (...) // ...
+```
+
+### Less consideration for the data structure
+
+우리는 일반적으로 사용할 data structure를 아래와 같이 type으로 정의하고, 이를 이미 구현되거나 또는 구현할 다른 data structure 안에 포함할 것입니다.
+
+
+```c
+typedef struct fan_ctrl_s
+{
+    enum {
+        FAN_DISABLED,
+        FAN_ENABLED,
+    } admin,
+    unsigned int conf_speed;
+    unsigned int current_speed;
+} fan_ctrl_t;
+
+struct system
+{
+    // ...
+    fan_ctrl_t fan[2];
+    // ...
+};
+```
+
+만약, 이러한 정의없이 단순히 YAML로 fan 정보를 간단히 표현한다면, 다음과 같을 겁니다.
+
+```yaml
+system:
+  fan-control:
+    1:
+      admin: true
+      config_speed: 100
+      current_speed: 50
+    2:
+      admin: true
+      config_speed: 200
+      current_speed: 100
+```
+
+입력은 이렇게
+
+조회는 이렇게 ...
+
 
 ## YDB Library Installation
 
 To compile the above example, these libraries should be installed into your system.
 
 - YAML library (http://pyyaml.org/wiki/LibYAML): C Fast YAML 1.1
-- YDB library (This library)
+- YDB (YAML DataBlock) library
 
+> YDB library uses libyaml (http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, libyaml should be installed before the YDB.
 
-YDB library uses libyaml (http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, libyaml should be installed before the YDB library installation. 
+### 1. YAML library installation
 
-```
-$ wget http://pyyaml.org/download/libyaml/yaml-0.2.1.tar.gz
-$ tar xvfz yaml-0.2.1.tar.gz
-$ cd yaml-0.2.1
-$ ./configure
-$ make
-$ make install
-```
+#### YAML library installation from the source
 
 ```shell
-$ sudo apt-get install autoconf libtool
-$ sudo apt-get install -y libyaml-dev
+wget http://pyyaml.org/download/libyaml/yaml-0.2.1.tar.gz
+tar xvfz yaml-0.2.1.tar.gz
+cd yaml-0.2.1
+./configure
+make
+make install
 ```
 
+#### YAML library installation using apt-get
 
 ```shell
-$ autoreconf -i -f
-$ ./configure or $ ./configure CFLAGS="-g -Wall"
-$ make
-$ make install
+sudo apt-get install autoconf libtool
+sudo apt-get install -y libyaml-dev
+```
+
+### 2. YDB library installation
+
+```shell
+git clone https://github.com/neoul/libydb.git
+cd libydb
+autoreconf -i -f
+./configure CFLAGS="-g -Wall"
+make
+make install
+```
+
+### 3. The above example compilation
+
+```shell
+$ gcc ydb-example1.c -lydb -lyaml
+$ ./a.out
+fan_speed 100, fan_enabled false
+$
 ```
 
 ## Dump YAML DataBlock
