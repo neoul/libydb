@@ -1,20 +1,14 @@
 # YDB (YAML DataBlock)
 
-**YAML DataBlock (YDB)**는 hierarchical configuration and statistical data를 간단하고 명료하게 관리하기 위한 library 입니다. YDB는 YAML format의 serialized data stream을 입력받아 내부 data block을 동적으로 구성하고, 이를 쉽게 조회하거나 탐색할 수 API를 제공합니다. 입력된 data stream은 다음과 같은 세가지 형태의 operation에 의해 내부 data block에 적절히 반영되므로, 사용자가 직접 세세하게 data block 할당, 해제하거나 조작할 필요가 없습니다.
+**YAML DataBlock (YDB)** is a library to manage the hierarchical configuration and statistical data simply and clearly using YAML input/output. YDB internally builds the hierarchical data block from the serialized input stream formed as YAML. And it supports the facilities to search, inquiry and iterate each internal data in YDB using the API. The input YAML stream is applied to the data block by the the following three types of operations properly. So, you don't need to allocate, free and manipulate each data block manually.
 
-There are three types of operations in order to manage the internal data block.
+[Three types of operations in order to manage YDB]
 
 - Create (ydb_write)
 - Replace (ydb_write)
 - Delete (ydb_delete)
 
-YDB는 YAML을 내부 data block에 대한 기본 입출력 포멧으로 사용합니다. YAML은 a human friendly data serialization 언어로 다음과 같은 이유로 YDB에서 사용하였습니다.
-
-- hierarchical configuration and statistical data를 유연하게 표한 가능함.
-- Easy to read and write
-- XML보다 덜 복잡함.
-
-다음 website에서 좀 더 YAML에 대한 좀 더 유용한 정보를 얻을 수 있습니다.
+In order to use **YAML DataBlock (YDB)** in your project, you need to have the knowledge of **YAML (YAML Ain't Markup Language)** that is used to the input and the output of YDB. Please, see the following website to get more information about YAML. 
 
 - Official website: https://yaml.org/
 - Wiki: https://en.wikipedia.org/wiki/YAML
@@ -62,13 +56,7 @@ int main(int argc, char *argv[])
 }
 ```
 
-In this example, fan information exists in the system category. If you want to get the fan information, you just need to read the data from the data block using `ydb_read` after `ydb_write` to construct the data block. `ydb_read` is working such as `scanf` that we frequently use.
-
-**YAML DataBlock (YDB)** is a library to manage the hierarchical configuration and statistical data simply and clearly using YAML input/output.
-
-YDB internally builds the hierarchical data block from the serialized input data formed as YAML. And it supports the inquiry and the iteration of each internal data block using API.
-
-It also supports the inter-process communication (IPC)
+In this example, fan information exists in the system category. If you want to get the fan information, you just need to read the data from the data block using `ydb_read` after `ydb_write`. `ydb_read` is working such as `scanf` that we frequently use.
 
 ## Why does YDB come out?
 
