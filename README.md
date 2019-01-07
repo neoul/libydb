@@ -109,7 +109,9 @@ $
 
 ## Working with YDB
 
-If you develop a C application with YDB, you need to categorize the data where that belongs to instead of considering the data type, structuring and data manipulation. Let's assume we develop a fan control logic as follows.
+If you develop a C application with YDB, you just need to categorize the data where that belongs to instead of considering the data type, structuring and data manipulation. Let's assume we develop a fan control logic as follows.
+
+> YAML listes and hashes can contain nested lists and hashes, forming a tree structure. The data categorization (the hierarchical configuration and statistical data) can be accomplished by the lists and hashes nesting.
 
 ```c
 typedef struct fan_ctrl_s
@@ -157,7 +159,7 @@ ydb_write(datablock,
     fan_cur_speed);
 ```
 
-Just read the fan data like as you write when you need.
+Just read the fan data like as you write when you need. If there is no data in your data block, ydb_read doesn't update any variables.
 
 ```c
 char fan_admin[32] = {0};
@@ -181,22 +183,34 @@ Just remove the data when you don't need it.
 ydb_delete(datablock, "system {fan-control: }\n");
 ```
 
+As the example, YDB can make you be free from the data type definition, structuring and the data manipulation. It will save your time you spent for them.
+
 ## YDB over multiple processes
 
+**YAML DataBlock (YDB)** has the facilities to communicate among processes.
+
+### YDB IPC (Inter-Process Communication) feature specification
+
+- Publish & Subscribe fashion
+- Change notification
+- Dynamic update
 
 
+## Performance
 
-## Dump YAML DataBlock
-
-```c
-ydb_dump(datablock, stdout);
-```
-
-## Read YAML data from a file
-
-
-
-
+- string pool for memory saving
+  - All strings allocated in YDB are mamaged by string_pool.
+  - string_pool once allocates a string if the string is not in string_pool.
+  - string_pool returns the allocated string for the same string allocation with increasing the reference count.
+  - The string is freed upon the reference count to be zero.
+- YDB node implemented by AVL tree
+  - AVL tree (Search/Insert/Delete) performance is O(log n).
+  - Each branch node of YDB is constructed by this AVL tree.
+  - For simple calculation, let’s assume each branch node has the same number of child nodes.
+  - In this case, YDB performance is in O (log n).
+    - `y = L * log (m) = log ( m ** L)`
+    - where m is the number of child nodes of a branch node and
+    - L is the depth of the YDB hierarchy.
 
 ## Limitation
 
