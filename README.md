@@ -58,6 +58,55 @@ int main(int argc, char *argv[])
 
 In this example, fan information exists in the system category. If you want to get the fan information, you just need to read the data from the data block using `ydb_read` after `ydb_write`. `ydb_read` is working such as `scanf` that we frequently use.
 
+## YDB Library Installation
+
+To compile the above example, these libraries should be installed into your system.
+
+- YAML library (http://pyyaml.org/wiki/LibYAML): C Fast YAML 1.1
+- YDB (YAML DataBlock) library
+
+> YDB library uses libyaml (http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, the libyaml should be installed before YDB installation.
+
+### 1. YAML library installation
+
+#### YAML library installation from the source
+
+```shell
+wget http://pyyaml.org/download/libyaml/yaml-0.2.1.tar.gz
+tar xvfz yaml-0.2.1.tar.gz
+cd yaml-0.2.1
+./configure
+make
+make install
+```
+
+#### YAML library installation using apt-get
+
+```shell
+sudo apt-get install autoconf libtool
+sudo apt-get install -y libyaml-dev
+```
+
+### 2. YDB library installation
+
+```shell
+git clone https://github.com/neoul/libydb.git
+cd libydb
+autoreconf -i -f
+./configure CFLAGS="-g -Wall"
+make
+make install
+```
+
+### 3. The above example compilation
+
+```shell
+$ gcc ydb-example1.c -lydb -lyaml
+$ ./a.out
+fan_speed 100, fan_enabled false
+$
+```
+
 ## Working with YDB
 
 If you develop a C application with YDB, you need to categorize the data where that belongs to instead of considering the data type, structuring and data manipulation. Let's assume we develop a fan control logic as follows.
@@ -81,7 +130,7 @@ struct system
 };
 ```
 
-If we re-design the data structure to an YAML input for YDB, it would be like this.
+If we re-design the data structure to an YAML input for YDB, it would be like this. The fan control data would belong to the system category.
 
 ```yaml
 system:
@@ -126,54 +175,16 @@ ydb_read(datablock,
     &fan_cur_speed);
 ```
 
-## YDB Library Installation
+Just remove the data when you don't need it.
 
-To compile the above example, these libraries should be installed into your system.
-
-- YAML library (http://pyyaml.org/wiki/LibYAML): C Fast YAML 1.1
-- YDB (YAML DataBlock) library
-
-> YDB library uses libyaml (http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, libyaml should be installed before the YDB.
-
-### 1. YAML library installation
-
-#### YAML library installation from the source
-
-```shell
-wget http://pyyaml.org/download/libyaml/yaml-0.2.1.tar.gz
-tar xvfz yaml-0.2.1.tar.gz
-cd yaml-0.2.1
-./configure
-make
-make install
+```c
+ydb_delete(datablock, "system {fan-control: }\n");
 ```
 
-#### YAML library installation using apt-get
+## YDB over multiple processes
 
-```shell
-sudo apt-get install autoconf libtool
-sudo apt-get install -y libyaml-dev
-```
 
-### 2. YDB library installation
 
-```shell
-git clone https://github.com/neoul/libydb.git
-cd libydb
-autoreconf -i -f
-./configure CFLAGS="-g -Wall"
-make
-make install
-```
-
-### 3. The above example compilation
-
-```shell
-$ gcc ydb-example1.c -lydb -lyaml
-$ ./a.out
-fan_speed 100, fan_enabled false
-$
-```
 
 ## Dump YAML DataBlock
 
