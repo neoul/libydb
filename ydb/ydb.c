@@ -338,13 +338,13 @@ static ydb_res ypool_create()
             for (j = YOP_NONE; j < YOP_MAX; j++)
                 ytrie_insert(yop_pool, yconn_op_str[j], strlen(yconn_op_str[j]), j);
         }
-    }
-    if (!yconn_pool)
-    {
-        yconn_pool = ytrie_create();
         if (!yconn_pool)
         {
-            return YDB_E_MEM_ALLOC;
+            yconn_pool = ytrie_create();
+            if (!yconn_pool)
+            {
+                return YDB_E_MEM_ALLOC;
+            }
         }
     }
     return YDB_OK;
@@ -353,15 +353,13 @@ static ydb_res ypool_create()
 
 static void ypool_destroy()
 {
-    if (yconn_pool && ytrie_size(yconn_pool) <= 0)
-    {
-        ytrie_destroy(yconn_pool);
-        yconn_pool = NULL;
-    }
     if (ydb_pool && ytrie_size(ydb_pool) <= 0)
     {
-        ytrie_destroy(ydb_pool);
-        ydb_pool = NULL;
+        if (yconn_pool)
+        {
+            ytrie_destroy(yconn_pool);
+            yconn_pool = NULL;
+        }
         if (ymsg_pool)
         {
             ytrie_destroy(ymsg_pool);
@@ -372,6 +370,8 @@ static void ypool_destroy()
             ytrie_destroy(yop_pool);
             yop_pool = NULL;
         }
+        ytrie_destroy(ydb_pool);
+        ydb_pool = NULL;
     }
 }
 
@@ -2338,7 +2338,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         {
             fprintf(fp, "%s:ydb[%s]:%d:%s(%d):%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
                     ylog_pname(), conn->datablock->name, conn->datablock->epollfd,
-                    conn->address, conn->fd, state?state:"???",
+                    conn->address, conn->fd, state ? state : "???",
                     IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "pub" : "sub",
                     IS_SET(conn->flags, YCONN_WRITABLE) ? "writable" : "-",
                     IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-",
@@ -2564,7 +2564,9 @@ static ydb_res yconn_accept(yconn *conn)
 
 static yconn *yconn_get(char *address)
 {
-    return ytrie_search(yconn_pool, address, strlen(address));
+    if (yconn_pool)
+        return ytrie_search(yconn_pool, address, strlen(address));
+    return NULL;
 }
 
 // detach from conn and then attach to disconn
