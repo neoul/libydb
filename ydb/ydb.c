@@ -667,9 +667,31 @@ const char *ydb_name(ydb *datablock)
 }
 
 // return the node in the path of the yaml data block.
-ynode *ydb_search(ydb *datablock, char *path)
+ynode *ydb_search(ydb *datablock, const char *format, ...)
 {
-    return ynode_search(datablock->top, path);
+    char *path = NULL;
+    size_t pathlen = 0;
+    FILE *fp;
+    if (!datablock || !format)
+        return NULL;
+    fp = open_memstream(&path, &pathlen);
+    if (!fp)
+        return NULL;
+    {
+        va_list args;
+        va_start(args, format);
+        vfprintf(fp, format, args);
+        va_end(args);
+        fclose(fp);
+    }
+    if (path)
+    {
+        ynode *node;
+        node = ynode_search(datablock->top, path);
+        free(path);
+        return node;
+    }
+    return NULL;
 }
 
 // return the path of the node. (the path must be free.)
@@ -3540,7 +3562,7 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write
 
     if (path)
     {
-        cur = ydb_search(datablock, path);
+        cur = ynode_search(datablock->top, path);
         if (!cur)
         {
             char *rbuf = NULL;
@@ -3556,7 +3578,7 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write
                     yconn_publish(NULL, NULL, datablock, YOP_MERGE, rbuf, rbuflen);
                 free(rbuf);
             }
-            cur = ydb_search(datablock, path);
+            cur = ynode_search(datablock->top, path);
             YDB_FAIL(!cur, YDB_E_NO_ENTRY);
         }
     }
@@ -3593,7 +3615,7 @@ void ydb_write_hook_delete(ydb *datablock, char *path)
         return;
     if (path)
     {
-        cur = ydb_search(datablock, path);
+        cur = ynode_search(datablock->top, path);
         if (!cur)
             return;
     }

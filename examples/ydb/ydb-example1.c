@@ -5,9 +5,8 @@
 int main(int argc, char *argv[])
 {
     ydb *datablock;
-
     datablock = ydb_open("system");
-
+    
     ydb_write(datablock,
               "system:\n"
               " hostname: %s\n"

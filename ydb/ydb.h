@@ -96,7 +96,7 @@ char *ydb_path(ydb *datablock, ynode *node, int *pathlen);
 // return the path of the node. (the path must be free.)
 char *ydb_path_and_value(ydb *datablock, ynode *node, int *pathlen);
 // return the node in the path of the yaml data block.
-ynode *ydb_search(ydb *datablock, char *path);
+ynode *ydb_search(ydb *datablock, const char *format, ...);
 
 // return the path between ancestor and descendant;
 char *ydb_path_nodes(ynode *ancestor, ynode *descendant, int *pathlen);

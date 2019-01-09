@@ -87,7 +87,8 @@ int ynode_read(ynode *n, const char *format, ...);
 // [ynode searching & traveling]
 
 // lookup an ynode in the path
-ynode *ynode_search(ynode *node, char *path);
+ynode *ynode_search_best(ynode *base, char *path, int *matched);
+ynode *ynode_search(ynode *base, char *path);
 
 // find the ref ynode on the same position if val_search = false.
 // find the ref ynode on the same key and value node if val_search = true.
