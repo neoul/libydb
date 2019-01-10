@@ -1015,7 +1015,7 @@ static ydb_res ydb_delete_sub(ynode *cur, void *addition)
 {
     struct ydb_delete_data *pddata = (void *)addition;
     ynode *n = pddata->node;
-    ynode *target = ynode_lookup(n, cur, 0);
+    ynode *target = ynode_lookup(n, cur, 1);
     if (target)
         ynode_delete(target, pddata->log);
     return YDB_OK;

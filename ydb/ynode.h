@@ -90,9 +90,9 @@ int ynode_read(ynode *n, const char *format, ...);
 ynode *ynode_search_best(ynode *base, char *path, int *matched);
 ynode *ynode_search(ynode *base, char *path);
 
-// find the ref ynode on the same position if val_search = false.
-// find the ref ynode on the same key and value node if val_search = true.
-ynode *ynode_lookup(ynode *target, ynode *ref, int val_search);
+// find the ref ynode in target ynode tree.
+// if ignore_index set, the first entry of the list are selected.
+ynode *ynode_lookup(ynode *target, ynode *ref, int ignore_index);
 
 // return ynodes' type
 int ynode_type(ynode *node);
