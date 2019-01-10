@@ -1015,7 +1015,7 @@ static ydb_res ydb_delete_sub(ynode *cur, void *addition)
 {
     struct ydb_delete_data *pddata = (void *)addition;
     ynode *n = pddata->node;
-    ynode *target = ynode_lookup(n, cur, 1);
+    ynode *target = ynode_lookup(n, cur, 0);
     if (target)
         ynode_delete(target, pddata->log);
     return YDB_OK;
@@ -1050,7 +1050,7 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
         CLEAR_BUF(buf, buflen);
         ddata.log = ynode_log_open(datablock->top, NULL);
         ddata.node = datablock->top;
-        flags = YNODE_LEAF_FIRST | YNODE_VAL_ONLY;
+        flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
         ynode_log_close(ddata.log, &buf, &buflen);
         if (res)
@@ -3217,7 +3217,7 @@ static ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish,
         ddata.log = ynode_log_open(recv_conn->datablock->top, NULL);
         ddata.node = recv_conn->datablock->top;
         YCONN_SIMPLE_INFO(recv_conn);
-        flags = YNODE_LEAF_FIRST | YNODE_VAL_ONLY;
+        flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
         ynode_log_close(ddata.log, &logbuf, &logbuflen);
         ynode_remove(src);

@@ -89,5 +89,16 @@ ydb_ex_path_CPPFLAGS = -I $(top_srcdir)/ydb
 ydb_ex_path_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml
 ydb_ex_path_CFLAGS = -g -Wall
 
+bin_PROGRAMS += ydb-ex-seq
+ydb_ex_seq_SOURCES = ydb-ex-seq.c
+ydb_ex_seq_CPPFLAGS = -I $(top_srcdir)/ydb
+ydb_ex_seq_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml
+ydb_ex_seq_CFLAGS = -g -Wall
+
+bin_PROGRAMS += ydb-ex-map
+ydb_ex_map_SOURCES = ydb-ex-map.c
+ydb_ex_map_CPPFLAGS = -I $(top_srcdir)/ydb
+ydb_ex_map_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml
+ydb_ex_map_CFLAGS = -g -Wall
 
 # dist_pkgdata_DATA = ytrie-input.txt

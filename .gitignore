@@ -47,3 +47,6 @@ ex-ynode
 ydb-app
 ymldb-agent
 tools/ydb/ydb
+examples/ydb/ydb-ex-path
+examples/ydb/ydb-ex-seq
+examples/ydb/ydb-ex-map
