@@ -1535,6 +1535,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     const char *key = NULL;
     char *scalar = NULL;
     struct ynode_query_data qdata;
+    yaml_token_type_t stored_token;
     yaml_token_type_t last_token;
     yaml_parser_t parser;
     yaml_token_t token;
@@ -1579,6 +1580,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             yaml_parser_set_input_string(&parser, (const unsigned char *)buf, (size_t)buflen);
     }
 
+    stored_token = YAML_NO_TOKEN;
     last_token = YAML_NO_TOKEN;
 
     do
@@ -1644,7 +1646,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             if (top && top->type == YNODE_TYPE_OMAP)
             {
                 // ignore block end token
-                if (last_token == YAML_BLOCK_ENTRY_TOKEN &&
+                if (stored_token == YAML_BLOCK_ENTRY_TOKEN &&
                     token.type == YAML_BLOCK_MAPPING_START_TOKEN)
                 {
                     ignore_block_map = YAML_BLOCK_END_TOKEN;
@@ -1705,7 +1707,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             token_save = false;
             scalar_next = false;
             scalar = (char *)token.data.scalar.value;
-            switch (last_token)
+            switch (stored_token)
             {
             case YAML_KEY_TOKEN:
                 ylog_debug("%d_%.*s%s (new key)\n", level, level, space, scalar);
@@ -1851,9 +1853,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         default:
             break;
         }
-
+        last_token = token.type;
         if (token_save)
-            last_token = token.type;
+            stored_token = token.type;
         if (res)
             break;
 
@@ -2710,86 +2712,81 @@ ynode *ynode_create_copy(ynode *src, ynode *parent, const char *key, ynode_log *
 // return the last created ynode.
 ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
 {
-    int i, j;
-    const char *key = NULL;
+    ylist *keylist;
+    ynode *found = parent;
     ynode *new = NULL;
-    ynode *node = NULL;
-    char token[512];
+    char *key = NULL;
+    char *val = NULL;
     if (!path)
         return NULL;
-    i = 0;
-    j = 0;
+    keylist = ynode_path_tokenize(path, &val);
+    if (!keylist)
+        return NULL;
     if (parent)
         new = ynode_new(parent->type, NULL, 0, 0);
     else
         new = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
     if (!new)
-        return NULL;
+        goto failed;
 
-    if (path[0] == '/') // ignore first '/'
-        i = 1;
-    for (; path[i]; i++)
+    key = ylist_pop_front(keylist);
+    while (key)
     {
-        if (path[i] == '/') // '/' is working as delimiter
+        ynode *node;
+        found = ynode_find_child(found, key);
+        if (found)
         {
-            token[j] = 0;
-            ylog_debug("token: %s\n", token);
-            node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
-            ynode_attach(node, new, token);
-            new = node;
-            j = 0;
-        }
-        else if (path[i] == '=')
-        {
-            if (key) // '=' is represented twice.
-                goto _fail;
-            token[j] = 0;
-            ylog_debug("token: %s\n", token);
-            key = ystrdup(token);
-            if (!key)
-                goto _fail;
-            j = 0;
+            // check type
+            if (ylist_empty(keylist))
+            {
+                node = ynode_new(YNODE_TYPE_VAL, val, 0, 0);
+                ynode_attach(node, new, key);
+            }
+            else
+            {
+                if (found->type == YNODE_TYPE_VAL)
+                {
+                    node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+                    ynode_attach(node, new, key);
+                }
+                else
+                {
+                    node = ynode_new(found->type, NULL, 0, 0);
+                    ynode_attach(node, new, key);
+                }
+            }
         }
         else
         {
-            token[j] = path[i];
-            j++;
+            if (ylist_empty(keylist))
+            {
+                node = ynode_new(YNODE_TYPE_VAL, val, 0, 0);
+                ynode_attach(node, new, key);
+            }
+            else
+            {
+                node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+                ynode_attach(node, new, key);
+            }
         }
-    }
-    // lookup the last token of the path.
-    if (j > 0)
-    {
-        token[j] = 0;
-        if (key)
-        {
-            ylog_debug("key: %s, token: %s\n", key, token);
-            node = ynode_new(YNODE_TYPE_VAL, token, 0, 0);
-            ynode_attach(node, new, key);
-            yfree(key);
-            key = NULL;
-        }
-        else
-        {
-            ylog_debug("token: %s\n", token);
-            node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
-            ynode_attach(node, new, token);
-        }
+        free(key);
+        if (!node)
+            goto failed;
         new = node;
+        key = ylist_pop_front(keylist);
     }
+    ylist_destroy_custom(keylist, free);
     if (parent)
     {
         new = ynode_top(new);
         ynode_merge(parent, new, log);
         ynode_free(new);
-        if (key)
-            yfree(key);
         return ynode_search(parent, path);
     }
     return new;
-_fail:
-    if (key)
-        yfree(key);
+failed:
     ynode_free(ynode_top(new));
+    ylist_destroy_custom(keylist, free);
     return NULL;
 }
 

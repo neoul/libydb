@@ -49,6 +49,7 @@ typedef enum _ydb_res
     YDB_E_FUNC,
     YDB_E_HOOK_ADD,
     YDB_E_UNKNOWN_TARGET,
+    YDB_E_DENIED_DELETE,
 } ydb_res;
 
 #define YDB_SUCCESS(res) ((res) == 0)

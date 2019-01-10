@@ -117,6 +117,7 @@ char *ydb_res_str(ydb_res res)
         YDB_ERR_STRING(YDB_E_FUNC, "no callback function")
         YDB_ERR_STRING(YDB_E_HOOK_ADD, "hook add failed")
         YDB_ERR_STRING(YDB_E_UNKNOWN_TARGET, "unknown target node")
+        YDB_ERR_STRING(YDB_E_DENIED_DELETE, "delete not allowed")
     default:
         return "unknown";
     }
@@ -1604,11 +1605,17 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
         log = ynode_log_open(datablock->top, NULL);
         target = ynode_search(datablock->top, buf);
         if (target)
-            ynode_delete(target, log);
+        {
+            int index = ynode_index(target);
+            if (index <= 0)
+                ynode_delete(target, log);
+            else
+                res = YDB_E_DENIED_DELETE;
+        }
         ynode_log_close(log, &rbuf, &rbuflen);
         if (rbuf)
         {
-            if (target)
+            if (rbuflen > 0)
                 yconn_publish(NULL, NULL, datablock, YOP_DELETE, rbuf, rbuflen);
             free(rbuf);
         }
