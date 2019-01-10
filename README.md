@@ -4,14 +4,14 @@
 
 [Three types of operations in order to manage YDB]
 
-- Create (ydb_write)
-- Replace (ydb_write)
-- Delete (ydb_delete)
+- Create (`ydb_write`)
+- Replace (`ydb_write`)
+- Delete (`ydb_delete`)
 
 In order to use **YAML DataBlock (YDB)** in your project, you need to have the knowledge of **YAML (YAML Ain't Markup Language)** that is used to the input and the output of YDB. Please, see the following website to get more information about YAML. 
 
-- Official website: https://yaml.org/
-- Wiki: https://en.wikipedia.org/wiki/YAML
+- *Official website*: https://yaml.org/
+- *Wiki*: https://en.wikipedia.org/wiki/YAML
 
 ## First example of YDB usage
 
@@ -56,16 +56,16 @@ int main(int argc, char *argv[])
 }
 ```
 
-In this example, fan information exists in the system category. If you want to get the fan information, you just need to read the data from the data block using `ydb_read` after `ydb_write`. `ydb_read` is working such as `scanf` that we frequently use.
+In this example, fan data exists in a system category. If you want to get the fan information, you just need to read the data from the data block using `ydb_read` after `ydb_write`. `ydb_read` is working such as `scanf` that we often use.
 
 ## YDB Library Installation
 
-To compile the above example, these libraries should be installed into your system.
+To compile the above example, these following libraries should be installed into your system.
 
 - YAML library (http://pyyaml.org/wiki/LibYAML): C Fast YAML 1.1
 - YDB (YAML DataBlock) library
 
-> YDB library uses libyaml (http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, the libyaml should be installed before YDB installation.
+> YDB library uses libyaml (http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, the libyaml should be installed before YDB library installation.
 
 ### 1. YAML library installation
 
@@ -109,9 +109,9 @@ $
 
 ## Working with YDB
 
-If you develop a C application with YDB, you just need to categorize the data where that belongs to instead of considering the data type, structuring and data manipulation. Let's assume we develop a fan control logic as follows.
+If you make a C application with YDB, you just need to categorize the data, where that belongs to, instead of considering the data type, structuring and data manipulation. Let's assume we make a fan control logic as follows.
 
-> YAML listes and hashes can contain nested lists and hashes, forming a tree structure. The data categorization (the hierarchical configuration and statistical data) can be accomplished by the lists and hashes nesting.
+> YAML listes and hashes can contain nested lists and hashes, forming a tree structure. The data categorization (or constructing the tree structure of the hierarchical configuration and statistical data) can be accomplished by the YAML lists and hashes nesting.
 
 ```c
 typedef struct fan_ctrl_s
@@ -159,7 +159,7 @@ ydb_write(datablock,
     fan_cur_speed);
 ```
 
-Just read the fan data like as you write when you need. If there is no data in your data block, ydb_read doesn't update any variables.
+Just read the fan data like as you use `scanf`. If there is no data in your data block, `ydb_read` doesn't update any variables.
 
 ```c
 char fan_admin[32] = {0};
@@ -177,13 +177,42 @@ ydb_read(datablock,
     &fan_cur_speed);
 ```
 
-Just remove the data when you don't need it.
+Just remove the data if you don't need it.
 
 ```c
 ydb_delete(datablock, "system {fan-control: }\n");
 ```
 
-As the example, YDB can make you be free from the data type definition, structuring and the data manipulation. It will save your time you spent for them.
+As the example, YDB can make you be free from the data type definition, structuring and manipulation. It will save your development time you spent for them.
+
+### YDB example for YAML map (hash)
+
+YDB supports YAML sequence known as the hash, map or dictionary
+
+### YDB example for YAML sequences (lists)
+
+YDB supports YAML sequences known as lists or tuples in Python and arrays in Java. Here is the sample of the YAML sequences. 
+
+```yaml
+favorite-movies:
+ block-style:
+  - Casablanca
+  - North by Northwest
+  - The Man Who Wasn't There
+ flow-style:
+  [ Bohemian Rhapsody, Rocketman, Six Sense ]
+```
+
+YDB handles these YAML sequences (lists) in the manner of FIFO. The insertion of the list is only allowed in the tail of the list. The deletion of the list is only allowed from the head of the list. The list entries can be identified and accessed by the index but, there is no way to represent the index of the list entries in a YAML document. So, YDB restricts the YAML sequence manipulation like belows.
+
+- `ydb_write`: Push all inserting data back to the list.
+- `ydb_delete`: Pop a number of entries from the head of the list.
+- `ydb_read`: Read a number of entries from the head of the list.
+- `ydb_path_write`: Push the data into the tail of the list.
+- `ydb_path_delete`: Only delete the first entry of the list.
+- `ydb_path_read`: Read the target entry by the index.
+
+[YAML sequence example](examples/ydb/ydb-ex-seq.c)
 
 ## YDB over multiple processes
 
