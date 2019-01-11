@@ -84,20 +84,37 @@ static char *ynode_type_str[] = {
 #define UNSET_FLAG(flag, v) ((flag) = ((flag) & (~v)))
 #define IS_SET(flag, v) ((flag) & (v))
 
+// Chapter 5. Characters
+// 5.1. Character Set
+// To ensure readability, YAML streams use only the printable subset of the Unicode character set. The allowed character range explicitly excludes the C0 control block #x0-#x1F (except for TAB #x9, LF #xA, and CR #xD which are allowed), DEL #x7F, the C1 control block #x80-#x9F (except for NEL #x85 which is allowed), the surrogate block #xD800-#xDFFF, #xFFFE, and #xFFFF.
+// On input, a YAML processor must accept all Unicode characters except those explicitly excluded above.
+// On output, a YAML processor must only produce acceptable characters. Any excluded characters must be presented using escape sequences. In addition, any allowed characters known to be non-printable should also be escaped. This isn’t mandatory since a full implementation would require extensive character property tables.
+// [1]	c-printable	::=	  #x9 | #xA | #xD | [#x20-#x7E]          /* 8 bit */
+//                      | #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD] /* 16 bit */
+//                      | [#x10000-#x10FFFF]                     /* 32 bit */	 
+// To ensure JSON compatibility, YAML processors must allow all non-control characters inside quoted scalars. To ensure readability, non-printable characters should be escaped on output, even inside such scalars. Note that JSON quoted scalars cannot span multiple lines or contain tabs, but YAML quoted scalars can.
+// [2]	nb-json	::=	#x9 | [#x20-#x10FFFF]
+
 static char *ystr_convert(const char *str)
 {
-    int slen = 0;
+    int slen;
     unsigned int spacectrl = 0;
     unsigned int space = 0;
     unsigned int ctrl = 0;
 
     for (slen = 0; str[slen]; slen++)
     {
-        if (!isgraph(str[slen]))
+        int c = str[slen] & 0xff;
+        if (isgraph(c))
         {
-            if (isspace(str[slen]))
+            if (c == '"')
+                spacectrl++;
+        }
+        else if (c <= 0x7F)
+        {
+            if (isspace(c))
             {
-                if (str[slen] == ' ')
+                if (c == ' ')
                     space++;
                 else
                     spacectrl++;
@@ -107,28 +124,35 @@ static char *ystr_convert(const char *str)
         }
     }
 
+    // printf("\nspace=%d, ctrl=%d, spacectrl=%d, str=%s strlen=%d\n", space, ctrl, spacectrl, str, strlen(str));
     if (space == 0 && ctrl == 0 && spacectrl == 0)
         return NULL;
     else
     {
         int len = 0;
-        char *newstr = malloc((slen + spacectrl + (ctrl * 3) + 4));
+        char *newstr;
+        newstr = malloc((slen + spacectrl + (ctrl * 4) + 4));
         if (!newstr)
             return NULL;
         newstr[len] = '"';
         len++;
         for (slen = 0; str[slen]; slen++)
         {
-            if (isprint(str[slen]))
+            int c = str[slen] & 0xff;
+            if (c == '"')
             {
-                newstr[len] = str[slen];
+                newstr[len] = '\\';
+                newstr[len+1] = c;
+                len += 2;
+            }
+            else if (isprint(c) || c >= 0xA0)
+            {
+                newstr[len] = c;
                 len++;
             }
-            else if (isspace(str[slen]))
+            else if (isspace(c))
             {
-                int n;
-                char c;
-                switch (str[slen])
+                switch (c)
                 {
                 case 0x09:
                     c = 't';
@@ -146,19 +170,16 @@ static char *ystr_convert(const char *str)
                     c = 'r';
                     break;
                 default:
-                    c = ' ';
-                    break;
+                    assert(!YDB_E_SYSTEM_FAILED);
                 }
-                n = sprintf(newstr + len, "\\%c", c);
-                if (n <= 0)
-                    break;
-                len = len + n;
+                newstr[len] = '\\';
+                newstr[len+1] = c;
+                len += 2;
             }
             else
             {
-                int n = sprintf(newstr + len, "\\x%02X", str[slen]);
-                if (n <= 0)
-                    break;
+                int n = sprintf(newstr + len, "\\x%02X", c);
+                assert(n == 4 && "reach to unexpected error");
                 len = len + n;
             }
         }

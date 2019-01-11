@@ -41,22 +41,11 @@ int main(int argc, char *argv[])
     fprintf(stdout, "\n");
     fprintf(stdout, "YDB example for YAML sequence (list)\n");
     fprintf(stdout, "=============================\n");
-    fprintf(stdout, " - YDB handles YAML sequence (list) data in the manner of FIFO.\n"
-                    "   The insertion of the list is only allowed on the tail of the list.\n"
-                    "   The deletion of the list is only allowed from the head of the list.\n"
-                    "   The entires of the list can be identified and accessed by the index\n"
-                    "   but, there is no way to represent the index of the entries in YAML document.\n"
-                    "   So, YDB restricts the YAML sequence manipulation like belows.\n");
-    fprintf(stdout, "\n");
-    fprintf(stdout, " - ydb_write: Push all inserting data back to the target list.\n");
-    fprintf(stdout, " - ydb_delete: Pop a number of entries from the head of the target list.\n");
-    fprintf(stdout, " - ydb_read: Read a number of entries from the head of the target list.\n");
-    fprintf(stdout, " - ydb_path_write: Push the data into the tail of the list.\n");
-    fprintf(stdout, " - ydb_path_delete: Only delete the first entry of the list.\n");
-    fprintf(stdout, " - ydb_path_read: Read the target entry by the index.\n");
 
+    ylog_severity = YLOG_DEBUG;
     fprintf(stdout, "\n[ydb_parses]\n");
     ydb_parses(datablock, yaml_seq1, strlen(yaml_seq1));
+    ylog_severity = YLOG_ERROR;
     ydb_dump(datablock, stdout);
 
     fprintf(stdout, "\n[ydb_write] (push them to the tail)\n");
