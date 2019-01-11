@@ -2738,6 +2738,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
     ynode *new = NULL;
     char *key = NULL;
     char *val = NULL;
+    int type;
     if (!path)
         return NULL;
     keylist = ynode_path_tokenize(path, &val);
@@ -2760,28 +2761,26 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
             // check type
             if (ylist_empty(keylist))
             {
-                node = ynode_new(YNODE_TYPE_VAL, val, 0, 0);
+                type = val?YNODE_TYPE_VAL:YNODE_TYPE_MAP;
+                node = ynode_new(type, val, 0, 0);
                 ynode_attach(node, new, key);
             }
             else
             {
                 if (found->type == YNODE_TYPE_VAL)
-                {
-                    node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
-                    ynode_attach(node, new, key);
-                }
+                    type = YNODE_TYPE_MAP;
                 else
-                {
-                    node = ynode_new(found->type, NULL, 0, 0);
-                    ynode_attach(node, new, key);
-                }
+                    type = found->type;
+                node = ynode_new(type, val, 0, 0);
+                ynode_attach(node, new, key);
             }
         }
         else
         {
             if (ylist_empty(keylist))
             {
-                node = ynode_new(YNODE_TYPE_VAL, val, 0, 0);
+                type = val?YNODE_TYPE_VAL:YNODE_TYPE_MAP;
+                node = ynode_new(type, val, 0, 0);
                 ynode_attach(node, new, key);
             }
             else
