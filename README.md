@@ -316,11 +316,30 @@ else
 // ...
 ```
 
-Please, see the following code if you want to check how to control the mapping data in YDB.
+or you can access the inet data using the simple path string as the following example.
+
+```c
+const char *data;
+data = ydb_path_read(datablock, "/system/interfaces/eth0/ipaddr/inet");
+fprintf(stdout, "/system/interfaces/eth0/ipaddr/inet=%s\n", data);
+```
+
+> **YDB path** is a string that list the keys to access the target data with '`/`' delimiter. '`=`' is used to identify the value to be inserted to the target data node.
+
+Please, see the following code if you want to check how to manage the mapping data in YDB.
 
 > [examples/ydb/ydb-ex-map.c](examples/ydb/ydb-ex-map.c)
 
 ### YAML ordered mapping
+
+
+## YDB path for single data access
+
+## Traversing all data in YDB
+
+## YNODE (The node of YDB tree structure)
+
+## ydb_traverse()
 
 ## YDB over multiple processes
 
