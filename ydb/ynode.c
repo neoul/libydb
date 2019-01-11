@@ -91,7 +91,7 @@ static char *ynode_type_str[] = {
 // On output, a YAML processor must only produce acceptable characters. Any excluded characters must be presented using escape sequences. In addition, any allowed characters known to be non-printable should also be escaped. This isn’t mandatory since a full implementation would require extensive character property tables.
 // [1]	c-printable	::=	  #x9 | #xA | #xD | [#x20-#x7E]          /* 8 bit */
 //                      | #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD] /* 16 bit */
-//                      | [#x10000-#x10FFFF]                     /* 32 bit */	 
+//                      | [#x10000-#x10FFFF]                     /* 32 bit */
 // To ensure JSON compatibility, YAML processors must allow all non-control characters inside quoted scalars. To ensure readability, non-printable characters should be escaped on output, even inside such scalars. Note that JSON quoted scalars cannot span multiple lines or contain tabs, but YAML quoted scalars can.
 // [2]	nb-json	::=	#x9 | [#x20-#x10FFFF]
 
@@ -142,7 +142,7 @@ static char *ystr_convert(const char *str)
             if (c == '"')
             {
                 newstr[len] = '\\';
-                newstr[len+1] = c;
+                newstr[len + 1] = c;
                 len += 2;
             }
             else if (isprint(c) || c >= 0xA0)
@@ -173,7 +173,7 @@ static char *ystr_convert(const char *str)
                     assert(!YDB_E_SYSTEM_FAILED);
                 }
                 newstr[len] = '\\';
-                newstr[len+1] = c;
+                newstr[len + 1] = c;
                 len += 2;
             }
             else
@@ -2015,7 +2015,7 @@ static ylist *ynode_path_tokenize(char *path, char **val)
         {
             is_val = true;
         }
-        path = token+1;
+        path = token + 1;
         token = strpbrk(path, "/=");
     }
     if (path[0] && !token)
@@ -2056,7 +2056,7 @@ ynode *ynode_search_best(ynode *base, char *path, int *matched)
     keylist = ynode_path_tokenize(path, NULL);
     if (!keylist)
         return NULL;
-    
+
     if (matched)
         *matched = 1;
     found = base;
@@ -3095,7 +3095,7 @@ ynode *ynode_lookup(ynode *target, ynode *ref, int ignore_index)
         if (index >= 0)
         {
             char key[64];
-            sprintf(key, "%d", ignore_index?0:index);
+            sprintf(key, "%d", ignore_index ? 0 : index);
             target = ynode_find_child(target, key);
         }
         else

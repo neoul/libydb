@@ -10,8 +10,8 @@
 
 In order to use **YAML DataBlock (YDB)** in your project, you need to have the knowledge of **YAML (YAML Ain't Markup Language)** that is used to the input and the output of YDB. Please, see the following website to get more information about YAML. 
 
-- *Official website*: https://yaml.org/
-- *Wiki*: https://en.wikipedia.org/wiki/YAML
+- [https://en.wikipedia.org/wiki/YAML](https://en.wikipedia.org/wiki/YAML)
+- [https://yaml.org](https://yaml.org)
 
 ## First example of YDB usage
 
@@ -62,10 +62,10 @@ In this example, fan data exists in a system category. If you want to get the fa
 
 To compile the above example, these following libraries should be installed into your system.
 
-- YAML library (http://pyyaml.org/wiki/LibYAML): C Fast YAML 1.1
+- YAML library: [http://pyyaml.org/wiki/LibYAML](http://pyyaml.org/wiki/LibYAML)
 - YDB (YAML DataBlock) library
 
-> YDB library uses libyaml (http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, the libyaml should be installed before YDB library installation.
+> YDB library uses [libyaml](http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, the libyaml should be installed before YDB library installation.
 
 ### 1. YAML library installation
 
@@ -111,7 +111,7 @@ $
 
 If you make a C application with YDB, you just need to categorize the data, where that belongs to, instead of considering the data type, structuring and data manipulation. Let's assume we make a fan control logic as follows.
 
-> YAML listes and hashes can contain nested lists and hashes, forming a tree structure. The data categorization (or constructing the tree structure of the hierarchical configuration and statistical data) can be accomplished by the YAML lists and hashes nesting.
+> YAML listes and hashes can contain nested lists and hashes, forming a tree structure. The data categorization (in other words, constructing the tree structure of the hierarchical configuration and statistical data) can be accomplished by the YAML lists and hashes nesting.
 
 ```c
 typedef struct fan_ctrl_s
@@ -143,7 +143,7 @@ system:
       current_speed: Y
 ```
 
-Just write the fan data into your data block as follows. You don't need to allocate memories and manipulate them.
+Just write the fan data into your data block like as you use `printf`. You don't need to allocate memories and handle them.
 
 ```c
 ydb_write(datablock,
@@ -180,39 +180,149 @@ ydb_read(datablock,
 Just remove the data if you don't need it.
 
 ```c
+// flow style
 ydb_delete(datablock, "system {fan-control: }\n");
+// block style
+ydb_delete(datablock,
+    "system:\n"
+    "  fan-control:\n");
 ```
 
 As the example, YDB can make you be free from the data type definition, structuring and manipulation. It will save your development time you spent for them.
 
-### YDB example for YAML map (hash)
+## YDB input/output format (YAML)
 
-YDB supports YAML sequence known as the hash, map or dictionary
+YDB input/output is a stream of an YAML document. the YAML document represents a number of YAML nodes that have content of one of three kinds: scalar, sequence, or mapping.
 
-### YDB example for YAML sequences (lists)
+### YAML Scalar node (data)
 
-YDB supports YAML sequences known as lists or tuples in Python and arrays in Java. Here is the sample of the YAML sequences. 
+The content of a YAML scalar node is an opaque datum that can be presented as a series of zero or more Unicode characters. In YDB, the scalar node can be the value that the user want to store and the key that is used to access or identify the value. The following sample shows an YAML mapping node (key and value pair data) that consists of two scalar nodes.
 
 ```yaml
-favorite-movies:
- block-style:
-  - Casablanca
-  - North by Northwest
-  - The Man Who Wasn't There
- flow-style:
-  [ Bohemian Rhapsody, Rocketman, Six Sense ]
+name: willing
 ```
 
-YDB handles these YAML sequences (lists) in the manner of FIFO. The insertion of the list is only allowed in the tail of the list. The deletion of the list is only allowed from the head of the list. The list entries can be identified and accessed by the index but, there is no way to represent the index of the list entries in a YAML document. So, YDB restricts the YAML sequence manipulation like belows.
+### YAML Sequence node (list)
 
-- `ydb_write`: Push all inserting data back to the list.
-- `ydb_delete`: Pop a number of entries from the head of the list.
-- `ydb_read`: Read a number of entries from the head of the list.
-- `ydb_path_write`: Push the data into the tail of the list.
-- `ydb_path_delete`: Only delete the first entry of the list.
+The content of a YAML sequence node is an ordered series of zero or more nodes. In particular, a sequence may contain the same node more than once. It could even contain itself (directly or indirectly). In YDB, the sequence nodes can be only accessed by the index because, the sequence nodes don't have keys to identify them. Here is the sample of the sequence nodes. the YAML sequence nodes would be known as lists or tuples in Python and arrays in Java.
+
+```yaml
+block-style:
+ - entry1
+ - entry2
+ - entry3
+flow-style:
+ [ entry1, entry2, entry3 ]
+```
+
+YDB handles these sequence nodes in the manner of FIFO. The entry insertion to the sequence is only allowed in the tail of the sequence. The entry deletion from the sequence is only allowed in the head of the sequence. The sequence entries can be identified and accessed by the index but, there is no way to represent the index of the sequence entries in a YAML document. So, YDB restricts the sequence manipulation like belows.
+
+- `ydb_write`: Push all inserting entries back to the sequence.
+- `ydb_delete`: Pop a number of entries from the head of the sequence.
+- `ydb_read`: Read a number of entries from the head of the sequence.
+- `ydb_path_write`: Push an entry into the tail of the sequence.
+- `ydb_path_delete`: Only delete the first entry of the sequence.
 - `ydb_path_read`: Read the target entry by the index.
 
-[YAML sequence example](examples/ydb/ydb-ex-seq.c)
+Please, see the following code if you want to check how to control the sequence in YDB.
+
+> [examples/ydb/ydb-ex-seq.c](examples/ydb/ydb-ex-seq.c)
+
+```shell
+# examples/ydb/ydb-ex-seq.c result
+
+YDB example for YAML sequence (list)
+=============================
+
+[ydb_parses]
+- 
+- entry1
+- entry2
+- entry3
+
+[ydb_write] (push two entries to the tail)
+- 
+- entry1
+- entry2
+- entry3
+- entry4
+- entry5
+
+[ydb_delete] (pop two entries from the head)
+- entry2
+- entry3
+- entry4
+- entry5
+
+[ydb_read] (read two entries from the head)
+e1=entry2, e2=entry3
+
+[ydb_read] (read 3th entry from the head)
+e3=entry4
+
+[ydb_read] (read 3th entry using yaml flow sequence format)
+e3=entry4
+
+[ydb_path_read] (read 3th entry using ydb path)
+/2=entry4
+
+[ydb_path_delete] only delete the first entry. others are not allowed.
+delete /3 ==> delete not allowed
+delete /0 ==> ok
+
+[ydb_path_write] push an entry to the tail. 
+write /0=abc ==> ok
+- entry3
+- entry4
+- entry5
+- abc
+
+```
+
+### YAML Mapping (hash)
+
+The content of a YAML mapping node is an unordered set of `{key: value}` node pairs, with the restriction that each of the keys is unique. YAML places no further restrictions on the nodes. In particular, keys may be arbitrary nodes, the same node may be used as the value of several `{key: value}` pairs, and a mapping could even contain itself as a key or a value (directly or indirectly). In YDB, the YAML manpping nodes are used to categorize and construct the tree structure of the hierarchical configuration and statistical data. here is an sample of the mapping nodes.
+
+```yaml
+system:
+ interfaces:
+  eth0:
+   ipaddr:
+    inet: 172.17.0.1
+    netmask: 255.255.0.0
+  eth1:
+   ipaddr:
+    inet: 172.18.0.1
+    netmask: 255.255.0.0
+```
+
+In this example, a number of mapping nodes are nested to categorize the data. The keys of the nested mapping nodes are used to access each value. for instance, to access the inet data of eth1 interface, you need `system`, `interfaces`, `eth1`, `ipaddr` and `inet` keys. The following example shows you how to get the inet data using `ydb_read` API.
+
+```c
+int n;
+char addr[32];
+n = ydb_read(datablock,
+    "system:\n"
+    " interfaces:\n"
+    "  eth0:\n"
+    "   ipaddr:\n"
+    "    inet: %s\n",
+    addr);
+
+if (n != 1)
+    fprintf(stderr, "no data\n");
+else
+    fprintf(stdout, "%s\n", addr);
+// ...
+```
+
+Please, see the following code if you want to check how to control the mapping data in YDB.
+
+> [examples/ydb/ydb-ex-map.c](examples/ydb/ydb-ex-map.c)
+
+### YAML ordered mapping
+
+
 
 ## YDB over multiple processes
 

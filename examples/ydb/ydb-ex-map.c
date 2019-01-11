@@ -1,78 +1,83 @@
-// ydb-ex-list.c
+// ydb-ex-map.c
 
 #include <stdio.h>
 #include <string.h>
 #include <ylog.h>
 #include <ydb.h>
 
-char *yaml_map1 =
-"interfaces:\n"
-"  interface:\n"
-"    ge1:\n"
-"      statistics:\n"
-"        discontinuity-time: 2018-12-13T11:03:52+09:00\n"
-"        in-broadcast-pkts: 13462\n"
-"        in-discards: 13462\n"
-"        in-errors: 0\n"
-"        in-multicast-pkts: 0\n"
-"        in-octets: 81433798\n"
-"        in-unicast-pkts: 350463\n"
-"        in-unknown-protos: 0\n"
-"        out-broadcast-pkts: 40378\n"
-"        out-discards: 0\n"
-"        out-errors: 0\n"
-"        out-multicast-pkts: 0\n"
-"        out-octets: 47815244\n"
-"        out-unicast-pkts: 350459\n"
-"      description: ge1 interface!\n"
-"      enabled: false\n"
-"      ipv4:\n"
-"        address:\n"
-"          192.168.1.10:\n"
-"            prefix-length: 24\n"
-"            secondary: false\n"
-"      name: ge1\n";
+// yaml block mapping format
+const char *yaml_map1 =
+    "system:\n"
+    " interfaces:\n"
+    "  %s:\n"
+    "   ipaddr:\n"
+    "    inet: %s\n"
+    "    netmask: %s\n";
 
-char *yaml_map2 =
-"interfaces:\n"
-"  interface:\n"
-"    ge2:\n"
-"      statistics:\n"
-"      description: ge2 interface!\n"
-"      enabled: false\n"
-"      ipv4:\n"
-"        address:\n"
-"          192.168.2.10:\n"
-"            prefix-length: 24\n"
-"            secondary: false\n"
-"      name: ge2\n";
-
-char *yaml_map3 =
-"interfaces:\n"
-"  interface:\n"
-"    ge2:\n"
-"      statistics:\n"
-"      description: ge2 interface!\n"
-"      enabled: false\n"
-"      ipv4:\n"
-"      name: ge2\n";
+const char *yaml_map2 =
+    "system:\n"
+    " interfaces:\n"
+    "  %s:\n"
+    "   ipaddr:\n";
 
 int main(int argc, char *argv[])
 {
     ydb *datablock;
     datablock = ydb_open("demo");
-    
-    ylog_severity = YLOG_DEBUG;
-    fprintf(stdout, "[merge - ydb_parses]\n");
-    ydb_parses(datablock, yaml_map1, strlen(yaml_map1));
-    fprintf(stdout, "[merge - ydb_write]\n");
-    ydb_write(datablock, yaml_map2);
-    
-    fprintf(stdout, "[merge - ydb_delete]\n");
-    ydb_delete(datablock, yaml_map3);
-    
+
+    fprintf(stdout, "\n");
+    fprintf(stdout, "YDB example for YAML mapping (list)\n");
+    fprintf(stdout, "=============================\n");
+
+    // ylog_severity = YLOG_DEBUG;
+    fprintf(stdout, "\n[ydb_write]\n");
+
+    ydb_write(datablock, yaml_map1, "eth0", "172.17.0.1", "255.255.0.0");
+    ydb_write(datablock, yaml_map1, "eth1", "172.18.0.1", "255.255.0.0");
     ydb_dump(datablock, stdout);
 
+    fprintf(stdout, "\n[ydb_write] update eth0\n");
+    ydb_write(datablock, yaml_map1, "eth1", "192.168.0.10", "255.255.0.0");
+
+    // print all the node of the target yaml data.
+    ydb_fprintf(stdout, datablock,
+                "system:\n"
+                " interfaces:\n"
+                "  %s:\n",
+                "eth1");
+
+    fprintf(stdout, "\n[ydb_read] read the inet of eth1\n");
+    int n;
+    char addr[32];
+    n = ydb_read(datablock,
+                 "system:\n"
+                 " interfaces:\n"
+                 "  eth0:\n"
+                 "   ipaddr:\n"
+                 "    inet: %s\n",
+                 addr);
+    if (n != 1)
+        fprintf(stderr, "no data\n");
+    else
+        fprintf(stdout, "%s\n", addr);
+
+    fprintf(stdout, "\n[ydb_delete] delete ipaddr of eth1\n");
+    ydb_delete(datablock, yaml_map2, "eth1");
+    ydb_dump(datablock, stdout);
+
+    fprintf(stdout, "\n[ydb_delete] add eth1 data again using path\n");
+    ydb_path_write(datablock, "/system/interfaces/eth1/ipaddr/inet=192.168.1.111");
+    ydb_path_write(datablock, "/system/interfaces/eth1/ipaddr/netmask=255.255.0.0");
+
+    fprintf(stdout, "\n[ydb_path_read] read ipaddr of eth1 using path\n");
+    const char *data;
+    data = ydb_path_read(datablock, "/system/interfaces/eth0/ipaddr/inet");
+    fprintf(stdout, "/system/interfaces/eth0/ipaddr/inet=%s\n", data);
+
+    fprintf(stdout, "\n[ydb_path_read] delete ipaddr of eth1 using path\n");
+    ydb_path_delete(datablock, "/system/interfaces/eth1/ipaddr");
+
+    ydb_dump(datablock, stdout);
     ydb_close(datablock);
     return 0;
 }

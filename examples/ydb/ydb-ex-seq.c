@@ -5,23 +5,23 @@
 #include <ylog.h>
 #include <ydb.h>
 
+// yaml block sequence format
 char *yaml_seq1 =
-    " - \n"
-    " - entry1\n"
-    " - entry2\n"
-    " - entry3\n";
+    "- entry1\n"
+    "- entry2\n"
+    "- entry3\n";
 
+// yaml flow sequence format
 char *yaml_seq2 =
-    " - entry4\n"
-    " - entry5\n";
+    "[entry4, entry5]\n";
 
 char *yaml_seq3 =
-    " - \n"
-    " - \n";
+    "- \n"
+    "- \n";
 
 char *yaml_seq4 =
-    " - %s\n"
-    " - %s\n";
+    "- %s\n"
+    "- %s\n";
 
 // yaml block sequence format
 char *yaml_seq5 =
@@ -42,17 +42,16 @@ int main(int argc, char *argv[])
     fprintf(stdout, "YDB example for YAML sequence (list)\n");
     fprintf(stdout, "=============================\n");
 
-    ylog_severity = YLOG_DEBUG;
+    // ylog_severity = YLOG_DEBUG;
     fprintf(stdout, "\n[ydb_parses]\n");
     ydb_parses(datablock, yaml_seq1, strlen(yaml_seq1));
-    ylog_severity = YLOG_ERROR;
     ydb_dump(datablock, stdout);
 
-    fprintf(stdout, "\n[ydb_write] (push them to the tail)\n");
+    fprintf(stdout, "\n[ydb_write] (push two entries to the tail)\n");
     ydb_write(datablock, yaml_seq2);
     ydb_dump(datablock, stdout);
 
-    fprintf(stdout, "\n[ydb_delete] (pop them from the head)\n");
+    fprintf(stdout, "\n[ydb_delete] (pop two entries from the head)\n");
     ydb_delete(datablock, yaml_seq3);
     ydb_dump(datablock, stdout);
 
@@ -69,14 +68,13 @@ int main(int argc, char *argv[])
 
     fprintf(stdout, "\n[ydb_read] (read 3th entry using yaml flow sequence format)\n");
     e3[0] = 0;
-    // ylog_severity = YLOG_DEBUG;
     ydb_read(datablock, yaml_seq6, e3);
     printf("e3=%s\n", e3);
 
     fprintf(stdout, "\n[ydb_path_read] (read 3th entry using ydb path)\n");
     const char *data;
     data = ydb_path_read(datablock, "/2");
-    fprintf(stdout, "/2=%s\n",data);
+    fprintf(stdout, "/2=%s\n", data);
 
     fprintf(stdout, "\n[ydb_path_delete] only delete the first entry. others are not allowed.\n");
     ydb_res res;
@@ -87,7 +85,7 @@ int main(int argc, char *argv[])
     res = ydb_path_delete(datablock, "/0");
     fprintf(stdout, "delete /0 ==> %s\n", ydb_res_str(res));
 
-    fprintf(stdout, "\n[ydb_path_write] push the data to the tail. \n");
+    fprintf(stdout, "\n[ydb_path_write] push an entry to the tail. \n");
 
     // append the data to the list regardless of the index.
     res = ydb_path_write(datablock, "/0=abc");
