@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     datablock = ydb_open("demo");
 
     fprintf(stdout, "\n");
-    fprintf(stdout, "YDB example for YAML mapping (list)\n");
+    fprintf(stdout, "YDB example for YAML mapping (hash)\n");
     fprintf(stdout, "=============================\n");
 
     // ylog_severity = YLOG_DEBUG;

@@ -322,8 +322,6 @@ Please, see the following code if you want to check how to control the mapping d
 
 ### YAML ordered mapping
 
-
-
 ## YDB over multiple processes
 
 **YAML DataBlock (YDB)** has the facilities to communicate among processes.
@@ -333,6 +331,10 @@ Please, see the following code if you want to check how to control the mapping d
 - Publish & Subscribe fashion
 - Change notification
 - Dynamic update
+
+## YDB read hook for dynamic YDB update
+
+## YDB write hook for change notification
 
 
 ## Performance
@@ -367,3 +369,9 @@ Please, see the following code if you want to check how to control the mapping d
 - anchor and alias with `<<` merge key
 - all other types are supported as string type.
 - !!imap (a map indexed by integer key)
+
+## next work items
+
+- type control (!!str ... etc..)
+- Performance enhancement for YDB iteration
+- JSON parser & emitter
