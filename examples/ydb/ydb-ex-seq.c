@@ -79,8 +79,8 @@ int main(int argc, char *argv[])
     fprintf(stdout, "\n[ydb_path_delete] only delete the first entry. others are not allowed.\n");
     ydb_res res;
 
-    res = ydb_path_delete(datablock, "/3");
-    fprintf(stdout, "delete /3 ==> %s\n", ydb_res_str(res));
+    res = ydb_path_delete(datablock, "/2");
+    fprintf(stdout, "delete /2 ==> %s\n", ydb_res_str(res));
 
     res = ydb_path_delete(datablock, "/0");
     fprintf(stdout, "delete /0 ==> %s\n", ydb_res_str(res));
