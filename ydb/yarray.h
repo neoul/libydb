@@ -1,8 +1,8 @@
 #ifndef __YARRAY__
 #define __YARRAY__
 
-// yarray is a scalable array that consists of the small arrarys linked as a list.
-// yarray supports flexible insertion, deletion and fast index access.
+// YARRAY is a scalable array that consists of the small arrarys linked as a list.
+// YARRAY supports flexible insertion, deletion and fast index access.
 
 #include "ylist.h"
 

@@ -1,11 +1,10 @@
 #ifndef __YMAP__
 #define __YMAP__
 
-// ymap is the ordered map constructed by ylist and 
-// ytree in order to support YAML ordered map.
-// - the data ordered by the insert sequence.
-// - each data is unique by the key in ymap.
-// - fast search by the key.
+// YMAP is the ordered map (hash) constructed by YLIST and YTREE in order to support YAML ordered map.
+// - the data inserted is ordered by the insert sequence.
+// - each data is unique by the key in the structure.
+// - Supports O(logn) search, insertion and deletion time like as YTREE.
 
 #include "ytree.h"
 #include "ylist.h"

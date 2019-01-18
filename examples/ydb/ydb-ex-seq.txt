@@ -1,0 +1,42 @@
+
+YDB example for YAML sequence (list)
+=============================
+
+[ydb_parses]
+- entry1
+- entry2
+- entry3
+
+[ydb_write] (push two entries to the tail)
+- entry1
+- entry2
+- entry3
+- entry4
+- entry5
+
+[ydb_delete] (pop two entries from the head)
+- entry3
+- entry4
+- entry5
+
+[ydb_read] (read two entries from the head)
+e1=entry3, e2=entry4
+
+[ydb_read] (read 3th entry from the head)
+e3=entry5
+
+[ydb_read] (read 3th entry using yaml flow sequence format)
+e3=entry5
+
+[ydb_path_read] (read 3th entry using ydb path)
+/2=entry5
+
+[ydb_path_delete] only delete the first entry. others are not allowed.
+delete /2 ==> delete not allowed
+delete /0 ==> ok
+
+[ydb_path_write] push an entry to the tail. 
+write /0=abc ==> ok
+- entry4
+- entry5
+- abc

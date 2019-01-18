@@ -1,6 +1,14 @@
 #ifndef __YTREE__
 #define __YTREE__
 
+// YTREE is a AVL tree that supports O(logn) search, insertion and deletion time.
+// YTREE originated from the AVL tree implementation in https://rosettacode.org/wiki/AVL_tree/C.
+// And tree node iteration and range search functions are added to the YTREE for convenient use.
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _USER_FREE_
 #define _USER_FREE_
 typedef void (*user_free)(void *);
@@ -72,5 +80,9 @@ void *ytree_remove(ytree *tree, ytree_iter *n);
 
 void *ytree_data(ytree_iter *n);
 void *ytree_key(ytree_iter *n);
+
+#ifdef __cplusplus
+} // closing brace for extern "C"
+#endif
 
 #endif // __YTREE__

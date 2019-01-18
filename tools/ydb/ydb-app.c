@@ -23,33 +23,38 @@ void usage(char *argv_0)
     char *p;
     char *pname = ((p = strrchr(argv_0, '/')) ? ++p : argv_0);
     printf("\n");
+    printf(" YDB (YAML Datablock)\n");
     printf(" version: %s\n", VERSION);
     printf(" bug report: %s\n", PACKAGE_BUGREPORT);
     printf("\n");
     printf(" usage : %s [OPTION...]\n", pname);
     printf("\n\
-  -n, --name YDB_NAME              The name of created YDB (YAML DataBlock).\n\
+  -n, --name NAME                  The name of created YDB (YAML DataBlock).\n\
   -r, --role (pub|sub|loc)         Set the role.\n\
                                    pub(publisher): as distribution server\n\
                                    sub(subscriber): as distribution client\n\
-                                   loc(local): no connection to others\n\
-  -a, --addr YDB_ADDR              The YAML DataBlock communication address.\n\
-                                   e.g. us:///tmp/ydb\n\
+                                   loc(local): no connection (default)\n\
+  -a, --addr YDB_ADDR              The YAML DataBlock communication address\n\
+                                   e.g. us:///SOCKET_FILE (unix socket)\n\
+                                        uss://SOCKET_FILE\n\
+                                        (unix socket hidden from file system)\n\
+                                        tcp://IPADDR:PORT (TCP)\n\
+                                        file://FILEPATH (file)\n\
   -s, --summary                    Print all data at the termination.\n\
-  -N, --no-change-data             Not print the change data\n\
-  -f, --file FILE                  Read data from FILE to send publisher\n\
-  -w, --writeable                  Write data to the remote YDB\n\
-  -u, --unsubscribe                Disable subscription\n\
-  -S, --sync-before-read           update YDB from remotes before read\n\
-  -d, --daemon                     Runs in daemon mode\n\
-  -i, --interpret                  Interpret mode\n\
+  -c, --change-log                 print all change.\n\
+  -f, --file FILE                  Read YAML file to update YDB.\n\
+  -w, --writeable                  send updated data to YDB publisher.\n\
+  -u, --unsubscribe                Disable subscription.\n\
+  -S, --sync-before-read           update data from YDB publishers.\n\
+  -d, --daemon                     Runs on daemon mode.\n\
+  -i, --interpret                  Runs on interpret mode.\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
     , --read PATH/TO/DATA          Read data (value only) from YDB.\n\
     , --print PATH/TO/DATA         Print data from YDB.\n\
     , --write PATH/TO/DATA=DATA    Write data to YDB.\n\
     , --delete PATH/TO/DATA=DATA   Delete data from YDB.\n\
-    , --sync PATH/TO/DATA=DATA     Update data using sync message.\n\
-  -h, --help                       Display this help and exit\n\n");
+    , --sync PATH/TO/DATA=DATA     Send sync request to update data.\n\
+  -h, --help                       Display help and exit\n\n");
 }
 
 void get_yaml_from_stdin(ydb *datablock)

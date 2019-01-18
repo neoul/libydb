@@ -59,14 +59,14 @@ void *ytrie_best_match(ytrie *trie, const void *key, int key_len, int *matched_l
     return art_best_match((art_tree *) trie, (const unsigned char *)key, key_len, matched_len);
 }
 
-// Iterates through the entries pairs in the map
+// Iterates through the entries pairs in the trie
 int ytrie_traverse(ytrie *trie, ytrie_callback cb, void *data)
 {
     art_callback art_cb = (art_callback) cb;
     return art_iter((art_tree *) trie, art_cb, data);
 }
 
-// Iterates through the entries pairs in the map
+// Iterates through the entries pairs in the trie
 int ytrie_traverse_prefix_match(ytrie *trie, const void *prefix, int prefix_len, ytrie_callback cb, void *data)
 {
     art_callback art_cb = (art_callback) cb;

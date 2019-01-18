@@ -1,9 +1,11 @@
 #ifndef __YDB__
 #define __YDB__
-#define YDB_VERSION "1.0"
 
-// YAML DataBlock for Configuration Data Management
-// using YAML and IPC (Inter Process Communication)
+// **YAML DataBlock (YDB)** is a library to manage the hierarchical configuration 
+// and statistical data simply and clearly using YAML input/output. 
+// YDB internally builds the hierarchical data block from the serialized input stream 
+// formed as YAML. And it supports the facilities to search, inquiry and 
+// iterate each internal data in YDB using the API.
 
 #include <stdio.h>
 

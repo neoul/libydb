@@ -182,17 +182,13 @@ Just remove the data if you don't need it.
 ```c
 // flow style
 ydb_delete(datablock, "system {fan-control: }\n");
-// block style
-ydb_delete(datablock,
-    "system:\n"
-    "  fan-control:\n");
 ```
 
 As the example, YDB can make you be free from the data type definition, structuring and manipulation. It will save your development time you spent for them.
 
 ## YDB input/output format (YAML)
 
-YDB input/output is a stream of an YAML document. the YAML document represents a number of YAML nodes that have content of one of three kinds: scalar, sequence, or mapping.
+YDB input/output is the stream of an YAML document. the YAML document represents a number of YAML nodes that have content of one of three kinds: scalar, sequence, or mapping.
 
 ### YAML Scalar node (data)
 
@@ -226,62 +222,13 @@ YDB handles these sequence nodes in the manner of FIFO. The entry insertion to t
 
 Please, see the following code if you want to check how to control the sequence in YDB.
 
-> [examples/ydb/ydb-ex-seq.c](examples/ydb/ydb-ex-seq.c)
+[examples/ydb/ydb-ex-seq](examples/ydb/ydb-ex-seq.c)
 
-```shell
-# examples/ydb/ydb-ex-seq.c result
+[examples/ydb/ydb-ex-seq result](examples/ydb/ydb-ex-seq.txt)
 
-YDB example for YAML sequence (list)
-=============================
+### YAML Mapping node (hash)
 
-[ydb_parses]
-- 
-- entry1
-- entry2
-- entry3
-
-[ydb_write] (push two entries to the tail)
-- 
-- entry1
-- entry2
-- entry3
-- entry4
-- entry5
-
-[ydb_delete] (pop two entries from the head)
-- entry2
-- entry3
-- entry4
-- entry5
-
-[ydb_read] (read two entries from the head)
-e1=entry2, e2=entry3
-
-[ydb_read] (read 3th entry from the head)
-e3=entry4
-
-[ydb_read] (read 3th entry using yaml flow sequence format)
-e3=entry4
-
-[ydb_path_read] (read 3th entry using ydb path)
-/2=entry4
-
-[ydb_path_delete] only delete the first entry. others are not allowed.
-delete /3 ==> delete not allowed
-delete /0 ==> ok
-
-[ydb_path_write] push an entry to the tail. 
-write /0=abc ==> ok
-- entry3
-- entry4
-- entry5
-- abc
-
-```
-
-### YAML Mapping (hash)
-
-The content of a YAML mapping node is an unordered set of `{key: value}` node pairs, with the restriction that each of the keys is unique. YAML places no further restrictions on the nodes. In particular, keys may be arbitrary nodes, the same node may be used as the value of several `{key: value}` pairs, and a mapping could even contain itself as a key or a value (directly or indirectly). In YDB, the YAML manpping nodes are used to categorize and construct the tree structure of the hierarchical configuration and statistical data. here is an sample of the mapping nodes.
+The content of a YAML mapping node is an unordered set of `{key:value}` node pairs, with the restriction that each of the keys is unique. YAML places no further restrictions on the nodes. In particular, keys may be arbitrary nodes, the same node may be used as the value of several `{key:value}` pairs, and a mapping could even contain itself as a key or a value (directly or indirectly). In YDB, the YAML manpping nodes are used to categorize and construct the tree structure of the hierarchical configuration and statistical data. here is an sample of the mapping nodes.
 
 ```yaml
 system:
@@ -324,14 +271,110 @@ data = ydb_path_read(datablock, "/system/interfaces/eth0/ipaddr/inet");
 fprintf(stdout, "/system/interfaces/eth0/ipaddr/inet=%s\n", data);
 ```
 
-> **YDB path** is a string that list the keys to access the target data with '`/`' delimiter. '`=`' is used to identify the value to be inserted to the target data node.
+> **YDB path** is a string that list the keys to access the target data with '`/`' delimiter. The equal sign (`=`) is used to identify the value inserted to the target data node.
 
-Please, see the following code if you want to check how to manage the mapping data in YDB.
+Please, see the following example if you want to check how to manage the mapping data in YDB.
 
 > [examples/ydb/ydb-ex-map.c](examples/ydb/ydb-ex-map.c)
 
-### YAML ordered mapping
+### YAML ordered mapping node (ordered hash)
 
+YAML ordered mapping is a ordered sequence node of `{key:value}` pairs without duplicates. YDB allows the ordered mapping node is used for the YDB input stream. YDB keeps the sequence of `{key:value}` data insertions and deletes the duplicated data. you have to give the `!!omap` tag explicitly in order to use the ordered mapping node in YDB.
+
+```shell
+$ cat examples/yaml/yaml-omap.yaml 
+---
+# http://yaml.org/type/omap.html ----------------------------------------------#
+
+omap:
+  # Explicitly typed ordered map (dictionary).
+  Bestiary: !!omap
+    - aardvark: African pig-like ant eater. Ugly.
+    - anteater: South-American ant eater. Two species.
+    - anaconda: South-American constrictor snake. Scaly.
+    # Etc.
+  # Flow style
+  Numbers: !!omap [ one: 1, two: 2, three : 3 ]
+
+# Ordered maps are represented as
+# A sequence of mappings, with
+# each mapping having one key
+...
+
+
+$ ydb -f examples/yaml/yaml-omap.yaml -s --write /omap/Numbers/ten=10
+
+# top
+omap:
+ Bestiary: !!omap
+  - aardvark: "African pig-like ant eater. Ugly."
+  - anteater: "South-American ant eater. Two species."
+  - anaconda: "South-American constrictor snake. Scaly."
+ Numbers: !!omap
+  - one: 1
+  - two: 2
+  - three: 3
+  - ten: 10
+
+$
+```
+
+If you use the un-ordered mapping node instead of the ordered mapping, you will get the different sequence.
+
+```shell
+$ ydb -s <<EOF
+map:
+ Numbers:
+  one: 1
+  two: 2
+  three: 3
+EOF
+
+# top
+map:
+ Numbers:
+  one: 1
+  three: 3
+  two: 2
+$
+```
+
+### YAML node types
+
+YAML nodes may be labeled with a type or tag using the exclamation point (!!) followed by a string. The following sample show you how to tag the types of data nodes.
+
+```yaml
+a: 123                     # an integer
+b: "123"                   # a string, disambiguated by quotes
+c: 123.0                   # a float
+d: !!float 123             # also a float via explicit data type prefixed by (!!)
+e: !!str 123               # a string, disambiguated by explicit type
+f: !!str Yes               # a string via explicit type
+g: Yes                     # a boolean True (yaml1.1), string "Yes" (yaml1.2)
+h: Yes we have No bananas  # a string, "Yes" and "No" disambiguated by context.
+picture: !!binary |
+  R0lGODdhDQAIAIAAAAAAANn
+  Z2SwAAAAADQAIAAACF4SDGQ
+  ar3xxbJ9p0qa7R0YxwzaFME
+  1IAADs=
+```
+
+YDB stores the all input data nodes and types by strings without type conversion or interpretation. So, there is no data loss or processing burden in YDB.
+
+```shell
+$ ydb -f examples/yaml/yaml-types.yaml -s
+
+# top
+a: 123
+b: 123
+c: 123.0
+d: !!float 123
+e: !!str 123
+f: !!str Yes
+g: Yes
+h: "Yes we have No bananas"
+picture: !!binary "R0lGODdhDQAIAIAAAAAAANn\nZ2SwAAAAADQAIAAACF4SDGQ\nar3xxbJ9p0qa7R0YxwzaFME\n1IAADs="
+```
 
 ## YDB path for single data access
 
@@ -355,7 +398,6 @@ Please, see the following code if you want to check how to manage the mapping da
 
 ## YDB write hook for change notification
 
-
 ## Performance
 
 - string pool for memory saving
@@ -371,6 +413,23 @@ Please, see the following code if you want to check how to manage the mapping da
     - `y = L * log (m) = log ( m ** L)`
     - where m is the number of child nodes of a branch node and
     - L is the depth of the YDB hierarchy.
+
+## Other algorithm
+
+To support the data manipulation, YDB is implemented with a number of internal algorithms widely used. These algorithms can be included and used to your project to reduce the job about the algorithm implemenation.
+
+- **YLIST**
+  - YLIST is a simple double linked list working as queue or stack.
+- **YTREE**
+  - YTREE is a AVL tree that supports O(logn) search, insertion and deletion time.
+- **YTRIE**
+  - YTRIE is adaptive radix tree (prefix tree) implementation to implement string_pool.
+- **YMAP**
+  - YMAP is the ordered map (hash) constructed by YLIST and YTREE to support the YAML ordered map.
+- **YARRAY**
+  - YARRAY is a scalable array that consists of the small arrarys linked as a list.
+- **YALLOC**
+  - The implementation of string_pool. (See Performance section)
 
 ## Limitation
 

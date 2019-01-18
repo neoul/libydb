@@ -62,13 +62,13 @@ struct _ynode
         ytree *map;
         ymap *omap;
         const char *value;
-        void *data;
     };
     unsigned char flags;
     unsigned char type;
     unsigned short origin;
     struct _ynode *parent;
     struct _yhook *hook;
+    const char *tag;
 };
 
 static char *ynode_type_str[] = {
@@ -215,6 +215,8 @@ static void ynode_free(ynode *node)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
+    if (node->tag)
+        yfree(node->tag);
     yhook_delete(node);
     free(node);
 }
@@ -552,7 +554,7 @@ static int yhook_pre_run_for_delete(ynode *cur, ytree **hook_pool)
         res = ytree_traverse(cur->map, yhook_pre_run_for_delete_dict, hook_pool);
         break;
     case YNODE_TYPE_OMAP:
-        res = ymap_traverse(cur->omap, yhook_pre_run_for_delete_dict, hook_pool);
+        res = ymap_traverse_order(cur->omap, yhook_pre_run_for_delete_dict, hook_pool);
         break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(cur->list, yhook_pre_run_for_delete_list, hook_pool);
@@ -820,7 +822,11 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
     case YNODE_TYPE_VAL:
     {
         char *value = ystr_convert(node->value);
-        res = _ynode_record_print(record, " value: %s,", value ? value : node->value);
+        res = _ynode_record_print(record, " value: %s %s%s%s,",
+                                  value ? value : node->value,
+                                  node->tag ? "(!!" : "",
+                                  node->tag ? node->tag : "",
+                                  node->tag ? ")" : "");
         if (value)
             free(value);
         break;
@@ -870,7 +876,10 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
     if (IS_SET(node->flags, YNODE_FLAG_KEY))
     {
         char *key = ystr_convert(node->key);
-        res = _ynode_record_print(record, "%s:", key ? key : node->key);
+        if (node->parent && node->parent->type == YNODE_TYPE_OMAP)
+            res = _ynode_record_print(record, "- %s:", key ? key : node->key);
+        else
+            res = _ynode_record_print(record, "%s:", key ? key : node->key);
         if (key)
             free(key);
     }
@@ -887,15 +896,14 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
         return res;
 
     // print value
-    if (node->type == YNODE_TYPE_OMAP)
-    {
-        res = _ynode_record_print(record, " !!omap\n");
-    }
-    else if (node->type == YNODE_TYPE_VAL)
+    if (node->type == YNODE_TYPE_VAL)
     {
         char *value = ystr_convert(node->value);
-        res = _ynode_record_print(record, "%s%s\n",
+        res = _ynode_record_print(record, "%s%s%s%s%s\n",
                                   only_val ? "" : " ",
+                                  node->tag ? "!!" : "",
+                                  node->tag ? node->tag : "",
+                                  node->tag ? " " : "",
                                   value ? value : node->value);
         if (value)
             free(value);
@@ -903,6 +911,10 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
     else if (IS_SET(node->flags, YNODE_FLAG_SET))
     {
         res = _ynode_record_print(record, " !!set\n");
+    }
+    else if (node->type == YNODE_TYPE_OMAP)
+    {
+        res = _ynode_record_print(record, " !!omap\n");
     }
     else if (IS_SET(node->flags, YNODE_FLAG_IMAP))
     {
@@ -988,7 +1000,7 @@ static int _ynode_record_dump_childen(struct _ynode_record *record, ynode *node)
         res = ytree_traverse(node->map, _ynode_record_traverse_dict, record);
         break;
     case YNODE_TYPE_OMAP:
-        res = ymap_traverse(node->omap, _ynode_record_traverse_dict, record);
+        res = ymap_traverse_order(node->omap, _ynode_record_traverse_dict, record);
         break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(node->list, _ynode_record_traverse_list, record);
@@ -1236,7 +1248,10 @@ node_print:
         if (IS_SET(n->flags, YNODE_FLAG_KEY))
         {
             char *key = ystr_convert(n->key);
-            fprintf(log->fp, "%s:", key ? key : n->key);
+            if (n->parent && n->parent->type == YNODE_TYPE_OMAP)
+                fprintf(log->fp, "- %s:", key ? key : n->key);
+            else
+                fprintf(log->fp, "%s:", key ? key : n->key);
             if (key)
                 free(key);
         }
@@ -1249,12 +1264,21 @@ node_print:
         if (n->type == YNODE_TYPE_VAL)
         {
             char *value = ystr_convert(n->value);
-            fprintf(log->fp, "%s%s\n",
+            fprintf(log->fp, "%s%s%s%s%s\n",
                     only_val ? "" : " ",
+                    n->tag ? "!!" : "",
+                    n->tag ? n->tag : "",
+                    n->tag ? " " : "",
                     value ? value : n->value);
             if (value)
                 free(value);
         }
+        else if (IS_SET(n->flags, YNODE_FLAG_SET))
+            fprintf(log->fp, " !!set\n");
+        else if (IS_SET(n->flags, YNODE_FLAG_IMAP))
+            fprintf(log->fp, " !!imap\n");
+        else if (n->type == YNODE_TYPE_OMAP)
+            fprintf(log->fp, " !!omap\n");
         else
             fprintf(log->fp, "\n");
         indent++;
@@ -1518,7 +1542,10 @@ _done:
         v = NULL;     \
     } while (0)
 
-static ynode *ynode_new_and_attach(unsigned char type, char *value, int origin, unsigned char flags, ynode *parent, const char *key)
+static ynode *ynode_new_and_attach(
+    unsigned char type, char *value, int origin,
+    unsigned char flags, ynode *parent, const char *key,
+    const char *tag)
 {
     ynode *new, *old;
     old = NULL;
@@ -1543,6 +1570,8 @@ create_new:
     {
         old = ynode_attach(new, parent, key);
         ynode_free(old);
+        if (type == YNODE_TYPE_VAL && tag)
+            new->tag = ystrdup((char *)tag);
     }
     return new;
 }
@@ -1567,6 +1596,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     bool token_save = false;
     bool multiple_anchor_reference = false;
     ytrie *anchors = NULL;
+    const char *tag = NULL;
 
     if ((!fp && !buf) || !n)
     {
@@ -1634,7 +1664,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         case YAML_KEY_TOKEN:
             if (top->type == YNODE_TYPE_LIST && YAML_KEY_TOKEN)
             { // create map to the list parent
-                new = ynode_new_and_attach(YNODE_TYPE_MAP, NULL, origin, 0, top, NULL);
+                new = ynode_new_and_attach(YNODE_TYPE_MAP, NULL, origin, 0, top, NULL, NULL);
                 YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
                 ylog_debug("%d_%.*s%s %s (created [pairs])\n", level, level, space,
                            ynode_type_str[new->type], "no-key");
@@ -1644,8 +1674,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             {
                 ylog_debug("%d_%.*s%s%s: null\n",
                            level, level, space, key ? key : "", key ? ": " : "");
-                new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, 0, top, key);
+                new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, 0, top, key, tag);
                 YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
+                CLEAR_YSTR(tag);
                 CLEAR_YSTR(key);
             }
             break;
@@ -1682,12 +1713,13 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 else
                     next_node_type = YNODE_TYPE_MAP;
             }
-            new = ynode_new_and_attach(next_node_type, NULL, origin, flags, top, key);
+            new = ynode_new_and_attach(next_node_type, NULL, origin, flags, top, key, NULL);
             YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
             flags = 0x0;
             next_node_type = YNODE_TYPE_NONE;
             ylog_debug("%d_%.*s%s %s (created %p)\n", level, level, space,
                        ynode_type_str[new->type], key ? key : "no-key", new);
+            CLEAR_YSTR(tag);
             CLEAR_YSTR(key);
             top = new;
             break;
@@ -1698,8 +1730,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             {
                 ylog_debug("%d_%.*s%s%s null\n",
                            level, level, space, key ? key : "", key ? ": " : "");
-                new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, 0, top, key);
+                new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, 0, top, key, tag);
                 YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
+                CLEAR_YSTR(tag);
                 CLEAR_YSTR(key);
                 top = (top == NULL) ? new : top;
             }
@@ -1718,8 +1751,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             {
                 ylog_debug("%d_%.*s%s%s: null\n",
                            level, level, space, key ? key : "", key ? ": " : "");
-                new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, 0, top, key);
+                new = ynode_new_and_attach(YNODE_TYPE_VAL, NULL, origin, 0, top, key, tag);
                 YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
+                CLEAR_YSTR(tag);
                 CLEAR_YSTR(key);
             }
             top = (top->parent) ? top->parent : top;
@@ -1739,8 +1773,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             case YAML_VALUE_TOKEN:
                 ylog_debug("%d_%.*s%s%s%s (val)\n",
                            level, level, space, key ? key : "", key ? ": " : "", scalar);
-                new = ynode_new_and_attach(YNODE_TYPE_VAL, scalar, origin, 0, top, key);
+                new = ynode_new_and_attach(YNODE_TYPE_VAL, scalar, origin, 0, top, key, tag);
                 YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
+                CLEAR_YSTR(tag);
                 CLEAR_YSTR(key);
                 top = (top == NULL) ? new : top;
                 break;
@@ -1761,9 +1796,11 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                     }
                 }
                 ylog_debug("%d_%.*s%s%s%s (val)\n",
-                           level, level, space, key ? key : "", key ? ": " : "", scalar);
-                new = ynode_new_and_attach(YNODE_TYPE_VAL, scalar, origin, 0, top, key);
+                           level, level, space,
+                           key ? key : "", key ? ": " : "", scalar);
+                new = ynode_new_and_attach(YNODE_TYPE_VAL, scalar, origin, 0, top, key, tag);
                 YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
+                CLEAR_YSTR(tag);
                 CLEAR_YSTR(key);
                 top = (top == NULL) ? new : top;
                 break;
@@ -1781,11 +1818,17 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             if (strncmp((char *)token.data.tag.handle, "!!", 2) == 0)
             {
                 if (strcmp((char *)token.data.tag.suffix, "map") == 0)
+                {
                     next_node_type = YNODE_TYPE_MAP;
+                }
                 else if (strcmp((char *)token.data.tag.suffix, "seq") == 0)
+                {
                     next_node_type = YNODE_TYPE_LIST;
+                }
                 else if (strcmp((char *)token.data.tag.suffix, "omap") == 0)
+                {
                     next_node_type = YNODE_TYPE_OMAP;
+                }
                 else if (strcmp((char *)token.data.tag.suffix, "set") == 0)
                 {
                     next_node_type = YNODE_TYPE_MAP;
@@ -1796,6 +1839,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                     next_node_type = YNODE_TYPE_MAP;
                     SET_FLAG(flags, YNODE_FLAG_IMAP);
                 }
+                CLEAR_YSTR(tag);
+                tag = ystrdup((char *)token.data.tag.suffix);
             }
             token_save = false;
             break;
@@ -1894,6 +1939,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     if (anchors)
         ytrie_destroy_custom(anchors, (user_free)yfree);
     // ynode_dump(top, 0, 24);
+    CLEAR_YSTR(tag);
     CLEAR_YSTR(key);
     *n = top;
     if (queryform)
@@ -2511,6 +2557,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
         if (!new)
             return NULL;
         yhook_copy(new, cur);
+        new->tag = src->tag ? ystrdup((char *)src->tag) : NULL;
     }
     else if (op == YHOOK_OP_NONE)
     {
@@ -2761,7 +2808,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
             // check type
             if (ylist_empty(keylist))
             {
-                type = val?YNODE_TYPE_VAL:YNODE_TYPE_MAP;
+                type = val ? YNODE_TYPE_VAL : YNODE_TYPE_MAP;
                 node = ynode_new(type, val, 0, 0);
                 ynode_attach(node, new, key);
             }
@@ -2779,7 +2826,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
         {
             if (ylist_empty(keylist))
             {
-                type = val?YNODE_TYPE_VAL:YNODE_TYPE_MAP;
+                type = val ? YNODE_TYPE_VAL : YNODE_TYPE_MAP;
                 node = ynode_new(type, val, 0, 0);
                 ynode_attach(node, new, key);
             }
@@ -2821,6 +2868,7 @@ ynode *ynode_copy(ynode *src)
         return NULL;
 
     yhook_copy(dest, src);
+    dest->tag = src->tag ? ystrdup((char *)src->tag) : NULL;
 
     switch (src->type)
     {
@@ -3006,7 +3054,7 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
         res = ytree_traverse(cur->map, ynode_traverse_map, tdata);
         break;
     case YNODE_TYPE_OMAP:
-        res = ymap_traverse(cur->omap, ynode_traverse_map, tdata);
+        res = ymap_traverse_order(cur->omap, ynode_traverse_map, tdata);
         break;
     case YNODE_TYPE_LIST:
         res = ylist_traverse(cur->list, ynode_traverse_list, tdata);

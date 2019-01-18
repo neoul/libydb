@@ -1,11 +1,11 @@
 #ifndef __YLIST__
 #define __YLIST__
 
+// YLIST is a simple double linked list working as queue or stack.
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// ylist is the simple list.
 
 typedef struct _ylist ylist;
 
@@ -92,6 +92,7 @@ void ylist_printf(ylist *list, ylist_print print, void *addition);
 
 // traverse all entries of the list and call ylist_callback for each entry.
 int ylist_traverse(ylist *list, ylist_callback cb, void *addition);
+
 #ifdef __cplusplus
 } // closing brace for extern "C"
 #endif
