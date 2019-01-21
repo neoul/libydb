@@ -1,12 +1,10 @@
 interfaces:
-  interface:
-    ge1:
-      description: 
-      enabled: true
-      ipv4:
-        address:
-          192.168.77.10:
-            prefix-length: 16
-            secondary: false
-      link-up-down-trap-enable: disabled
-      name: ge1
+  interface[name=ge1]:
+    description: 
+    enabled: true
+    ipv4:
+      address[ip=192.168.77.10]:
+        prefix-length: 16
+        secondary: false
+    link-up-down-trap-enable: disabled
+    name: ge1

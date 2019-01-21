@@ -2045,6 +2045,21 @@ static ylist *ynode_path_tokenize(char *path, char **val)
             not_val = strchr(token, '/');
             if (not_val)
                 token = not_val;
+            else
+            {
+                char *brace[2];
+                brace[0] = strpbrk(path, "'{[(");
+                brace[1] = strpbrk(token, "}])'");
+                if (brace[0] && brace[0] < token && brace[1] > token)
+                {
+                    token = brace[1] + 1;
+                    if (token[0] == 0)
+                    {
+                        token = NULL;
+                        break;
+                    }
+                }
+            }
         }
         if (is_val)
         {
