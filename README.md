@@ -376,27 +376,17 @@ h: "Yes we have No bananas"
 picture: !!binary "R0lGODdhDQAIAIAAAAAAANn\nZ2SwAAAAADQAIAAACF4SDGQ\nar3xxbJ9p0qa7R0YxwzaFME\n1IAADs="
 ```
 
-## YDB path for single data access
+## YDB (YAML DataBlock) for IPC (Inter-Process Communication)
 
-## Traversing all data in YDB
-
-## YNODE (The node of YDB tree structure)
-
-## ydb_traverse()
-
-## YDB over multiple processes
-
-**YAML DataBlock (YDB)** has the facilities to communicate among processes.
+**YAML DataBlock (YDB)** has the facilities to deliver the internal data block to other processes via unix socket, named FIFO, TCP and etc in the manner of Publish and Subscribe fashion.
 
 ### YDB IPC (Inter-Process Communication) feature specification
 
 - Publish & Subscribe fashion
-- Change notification
-- Dynamic update
+- Data block change monitoring
+- Dynamic data block update
 
-## YDB read hook for dynamic YDB update
-
-## YDB write hook for change notification
+[https://docs.google.com/presentation/d/1oe3d0tzsOmsCKxgIlv_95MUBvxtF7xGGrqOLcLLH0vc/edit?usp=sharing](https://docs.google.com/presentation/d/1oe3d0tzsOmsCKxgIlv_95MUBvxtF7xGGrqOLcLLH0vc/edit?usp=sharing)
 
 ## Performance
 
@@ -428,10 +418,14 @@ To support the data manipulation, YDB is implemented with a number of internal a
   - YMAP is the ordered map (hash) constructed by YLIST and YTREE to support the YAML ordered map.
 - **YARRAY**
   - YARRAY is a scalable array that consists of the small arrarys linked as a list.
-- **ystr**
+- **YSTR**
   - The implementation of ystr_pool. (See Performance section)
 
 ## Limitation
+
+### Numeric Escape codes
+
+The numberic escape code data such as `"\x12"`, `"\u1234"` or `"\U00102030"` is not supported yet.
 
 ### Multiple scalar keys
 
