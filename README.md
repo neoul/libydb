@@ -433,6 +433,24 @@ To support the data manipulation, YDB is implemented with a number of internal a
 
 ## Limitation
 
+### Multiple scalar keys
+
+YDB doesn't support multiple scalar keys wrapping in sequence or mapping nodes. Because, the sequence or mapping nodes for the multiple keys are not data comparable to other scalar keys.
+
+```yaml
+multiple-key example:
+    { a, b } : mapping key example
+    [ 1, 2 ] : sequence key example
+```
+
+The recommended format for the multiple keys is a single string concatenated by the multiple keys as follows.
+
+```yaml
+multiple-key example:
+    a,b : mapping key example
+    1,2 : sequence key example
+```
+
 ### YAML features not supported
 
 - !!binary

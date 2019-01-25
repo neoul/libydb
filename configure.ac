@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 m4_define([libydb_major_version], [1])
 m4_define([libydb_minor_version], [0])
-m4_define([libydb_micro_version], [15])
+m4_define([libydb_micro_version], [17])
 m4_define([libydb_version],
       [libydb_major_version.libydb_minor_version.libydb_micro_version])
 
@@ -28,7 +28,9 @@ LT_INIT
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdio.h time.h stdlib.h string.h stdint.h assert.h ctype.h stdarg.h unistd.h yaml.h sys/socket.h sys/un.h errno.h sys/epoll.h sys/timerfd.h stdbool.h signal.h sys/types.h])
+AC_CHECK_HEADERS([stdio.h time.h stdlib.h string.h stdint.h assert.h ctype.h \
+      stdarg.h unistd.h yaml.h sys/socket.h sys/un.h errno.h sys/epoll.h \
+      sys/timerfd.h stdbool.h signal.h sys/types.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T

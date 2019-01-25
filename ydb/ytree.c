@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "ytree.h"
 
@@ -49,7 +50,7 @@ Node Tree_RotateLeft(Tree t, Node node);
 Node Tree_RotateRight(Tree t, Node node);
 Node Tree_RotateLeftRight(Tree t, Node node);
 Node Tree_RotateRightLeft(Tree t, Node node);
-void Tree_Replace(Node target, Node source);
+void Tree_Replace(Tree t, Node target, Node source);
 
 Node Node_New(void *key, void *data, Node parent);
 
@@ -62,11 +63,15 @@ void print_tree(Tree t, Node n, struct trunk *prev, int is_left);
 //     Insert new key in the tree. If the key is already in the tree,
 //     nothing will be done.
 //
-Node Tree_Insert(Tree t, void *key, void *data, int del)
+Node Tree_Insert(Tree t, void *key, void *data, int del, Node *_new)
 {
+    if (t == NULL)
+        return NULL;
     if (t->root == NULL)
     {
         t->root = Node_New(key, data, NULL);
+        if (_new)
+            *_new = t->root;
         t->size++;
         return NULL;
     }
@@ -81,6 +86,8 @@ Node Tree_Insert(Tree t, void *key, void *data, int del)
                 if (left == NULL)
                 {
                     node->left = Node_New(key, data, node);
+                    if (_new)
+                        *_new = node->left;
                     Tree_InsertBalance(t, node, -1);
                     t->size++;
                     return NULL;
@@ -96,6 +103,8 @@ Node Tree_Insert(Tree t, void *key, void *data, int del)
                 if (right == NULL)
                 {
                     node->right = Node_New(key, data, node);
+                    if (_new)
+                        *_new = node->right;
                     Tree_InsertBalance(t, node, 1);
                     t->size++;
                     return NULL;
@@ -122,6 +131,7 @@ Node Tree_Insert(Tree t, void *key, void *data, int del)
         }
         // shouldn't be reach here.
         printf("avl - reached unexpected condition.\n");
+        assert(0);
         return NULL;
     }
 }
@@ -132,6 +142,8 @@ Node Tree_Insert(Tree t, void *key, void *data, int del)
 //
 void Tree_DeleteNode(Tree t, Node node)
 {
+    if (t == NULL)
+        return;
     Node left = node->left;
     Node right = node->right;
     Node toDelete = node;
@@ -161,16 +173,14 @@ void Tree_DeleteNode(Tree t, Node node)
         }
         else
         {
-            Tree_Replace(node, right);
-            Tree_DeleteBalance(t, node, 0);
-            toDelete = right;
+            Tree_Replace(t, node, right);
+            Tree_DeleteBalance(t, right, 0);
         }
     }
     else if (right == NULL)
     {
-        Tree_Replace(node, left);
-        Tree_DeleteBalance(t, node, 0);
-        toDelete = left;
+        Tree_Replace(t, node, left);
+        Tree_DeleteBalance(t, left, 0);
     }
     else
     {
@@ -267,8 +277,10 @@ void Tree_DeleteNode(Tree t, Node node)
 //
 Node Tree_SearchNode(Tree t, void *key)
 {
-    Node node = t->root;
-
+    Node node;
+    if (t == NULL)
+        return NULL;
+    node = t->root;
     while (node != NULL)
     {
         if ((t->comp)(key, node->key) < 0)
@@ -304,7 +316,7 @@ void Tree_Print(Tree t)
 //
 Node Tree_TopNode(Tree t)
 {
-    Node node = t->root;
+    Node node = t ? t->root : NULL;
     return node;
 }
 
@@ -314,7 +326,7 @@ Node Tree_TopNode(Tree t)
 //
 Node Tree_FirstNode(Tree t)
 {
-    Node node = t->root;
+    Node node = t ? t->root : NULL;
 
     while ((node != NULL) && (node->left != NULL))
     {
@@ -330,7 +342,7 @@ Node Tree_FirstNode(Tree t)
 //
 Node Tree_LastNode(Tree t)
 {
-    Node node = t->root;
+    Node node = t ? t->root : NULL;
 
     while ((node != NULL) && (node->right != NULL))
     {
@@ -347,6 +359,8 @@ Node Tree_LastNode(Tree t)
 Node Tree_PrevNode(Tree t, Node n)
 {
     Node nTemp;
+    if (t == NULL)
+        return NULL;
 
     if (n->left != NULL)
     {
@@ -376,6 +390,8 @@ Node Tree_PrevNode(Tree t, Node n)
 Node Tree_NextNode(Tree t, Node n)
 {
     Node nTemp;
+    if (t == NULL)
+        return NULL;
 
     if (n->right != NULL)
     {
@@ -500,26 +516,23 @@ void Tree_DeleteBalance(Tree t, Node node, int balance)
     }
 }
 
-void Tree_Replace(Node target, Node source)
+void Tree_Replace(Tree t, Node target, Node source)
 {
-    Node left = source->left;
-    Node right = source->right;
-
-    target->balance = source->balance;
-    target->key = source->key;
-    target->data = source->data;
-    target->left = left;
-    target->right = right;
-
-    if (left != NULL)
-    {
-        left->parent = target;
-    }
-
-    if (right != NULL)
-    {
-        right->parent = target;
-    }
+	Node parent = target->parent;
+	
+	if (parent)
+	{
+		if (parent->left == target)
+			parent->left = source;
+		else if (parent->right == target)
+			parent->right = source;
+		source->parent = parent;
+	}
+	else
+	{
+		t->root = source;
+		source->parent = NULL;
+	}
 }
 
 Node Tree_RotateLeft(Tree t, Node node)
@@ -724,6 +737,8 @@ void print_trunks(struct trunk *p)
 
 void print_tree(Tree t, Node n, struct trunk *prev, int is_left)
 {
+    if (t == NULL)
+        return;
     if (n == NULL)
     {
         return;
@@ -847,7 +862,7 @@ unsigned int ytree_size(ytree *tree)
 // return NULL if ok, otherwise return old data.
 void *ytree_insert(ytree *tree, void *key, void *data)
 {
-    Node node = Tree_Insert(tree, key, data, 0);
+    Node node = Tree_Insert(tree, key, data, 0, NULL);
     if (node)
     {
         void *rdata = node->data;
@@ -870,7 +885,7 @@ void ytree_insert_custom(ytree *tree, void *key, void *data, user_free data_free
         return;
     temp_free = tree->data_free;
     tree->data_free = data_free;
-    Tree_Insert(tree, key, data, 1);
+    Tree_Insert(tree, key, data, 1, NULL);
     tree->data_free = temp_free;
 }
 
@@ -1058,25 +1073,53 @@ ytree_iter *ytree_next(ytree *tree, ytree_iter *n)
     return Tree_NextNode(tree, n);
 }
 
+// ytree_push --
+//
+//     Insert new key to the tree and return the iterator.
+//     If the key exists in the tree, return old_data.
+//
+ytree_iter *ytree_push(ytree *tree, void *key, void *data, void **old_data)
+{
+    Node _new = NULL;
+    Node node = Tree_Insert(tree, key, data, 0, &_new);
+    if (node)
+    {
+        void *rdata = node->data;
+        if (tree->key_free && node->key)
+            tree->key_free(node->key);
+        rdata = node->data;
+        node->key = key;
+        node->data = data;
+        if (old_data)
+            *old_data = rdata;
+        return node;
+    }
+    return _new;
+}
+
+// ytree_remove --
+//
+//     Remove the target iterator from the tree and return the data.
+//
 void *ytree_remove(ytree *tree, ytree_iter *n)
 {
     void *data = n->data;
-    if(tree->key_free && n->key)
+    if (tree->key_free && n->key)
         tree->key_free(n->key);
     Tree_DeleteNode(tree, n);
-    return data;    
+    return data;
 }
 
 void *ytree_data(ytree_iter *n)
 {
-    if(n)
+    if (n)
         return n->data;
     return NULL;
 }
 
 void *ytree_key(ytree_iter *n)
 {
-    if(n)
+    if (n)
         return n->key;
     return NULL;
 }

@@ -76,6 +76,17 @@ ytree_iter *ytree_last(ytree *tree);
 ytree_iter *ytree_prev(ytree *tree, ytree_iter *n);
 ytree_iter *ytree_next(ytree *tree, ytree_iter *n);
 
+// ytree_push --
+//
+//     Insert new key to the tree and return the iterator.
+//     If the key exists in the tree, return old_data.
+//
+ytree_iter *ytree_push(ytree *tree, void *key, void *data, void **old_data);
+
+// ytree_remove --
+//
+//     Remove the target iterator from the tree and return the data.
+//
 void *ytree_remove(ytree *tree, ytree_iter *n);
 
 void *ytree_data(ytree_iter *n);

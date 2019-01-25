@@ -8,7 +8,7 @@
 #include "ydb.h"
 
 char *example_yaml =
-    "ge%d:\n"
+    "interface[name=ge%d]:\n"
     " description: \n"
     " enabled: true\n"
     " ipv4:\n"
@@ -27,7 +27,7 @@ ydb_res update_hook(ydb *datablock, char *path, FILE *fp)
     printf("HOOK %s path=%s\n", __func__, path);
     enabled = (enabled + 1) % 2;
     fprintf(fp,
-            "ge1:\n"
+            "interface[name=ge1]:\n"
             " enabled: %s\n",
             enabled ? "true" : "false");
     return YDB_OK;
@@ -82,7 +82,7 @@ int test_hook()
         goto _done;
     }
 
-    ydb_write_hook_add(datablock, "/ge2", 0, (ydb_write_hook)notify_hook, 0);
+    ydb_write_hook_add(datablock, "interface[name=ge2]", 0, (ydb_write_hook)notify_hook, 0);
 
     int n;
     for (n = 1; n <= 3; n++)
@@ -94,17 +94,16 @@ int test_hook()
             goto _done;
     }
 
-    ydb_read_hook_add(datablock, "/ge1/enabled", (ydb_read_hook)update_hook, 0);
-    // ydb_write_hook_add(datablock, "/ge1", 0, (ydb_write_hook)notify_hook, 0);
+    ydb_read_hook_add(datablock, "interface[name=ge1]/enabled", (ydb_read_hook)update_hook, 0);
 
     char enabled[32] = {0};
-    ydb_read(datablock, "ge1: {enabled: %s}\n", enabled);
-    printf("/ge1/enabled=%s\n", enabled);
+    ydb_read(datablock, "interface[name=ge1]: {enabled: %s}\n", enabled);
+    printf("interface[name=ge1]/enabled=%s\n", enabled);
 
     ydb_fprintf(stdout, datablock,
-                "ge1: {enabled}\n"
-                "ge2: {enabled}\n"
-                "ge3:\n");
+                "interface[name=ge1]: {enabled}\n"
+                "interface[name=ge2]: {enabled}\n"
+                "interface[name=ge3]:\n");
     ydb_dump(datablock, stdout);
 _done:
     if (res)
@@ -125,21 +124,14 @@ int test_remote_hook(int n)
     printf("\n\n=== %s ===\n", __func__);
     ydb *datablock;
 
-    // ylog_file_open("ydb-remote-hook-%d.log", n);
     datablock = ydb_open("top");
     if (!datablock)
     {
         fprintf(stderr, "ydb_open failed.\n");
         goto _done;
     }
-
-    // char buf[1024];
-    // sprintf(buf, example_yaml, n, n, n);
-    // res = ydb_parses(datablock, buf, strlen(buf));
-    // if (res)
-    //     goto _done;
         
-    res = ydb_connect(datablock, NULL, "pub:sync");
+    res = ydb_connect(datablock, NULL, "pub");
     if (res)
         goto _done;
 
@@ -180,7 +172,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        ylog_severity = YLOG_DEBUG;
+        ylog_severity = YLOG_INFO;
         test_hook();
     }
     return 0;

@@ -1,6 +1,7 @@
 lib_LTLIBRARIES = libydb.la
 libydb_la_SOURCES = \
     utilities/art.c \
+    utilities/utf8.c \
     ylist.c \
     yarray.c \
     ytrie.c \
@@ -10,10 +11,9 @@ libydb_la_SOURCES = \
     ynode.c \
     ydb.c \
     yipc.c \
-    ylog.c \
-    ymldb.c
+    ylog.c
     
 libydb_la_CPPFLAGS = -Iutilities
 libydb_la_CFLAGS = -g -Wall -std=c99 -D_GNU_SOURCE
 libydb_la_LDFLAGS = -version-info 1:0:0
-include_HEADERS = ynode.h ydb.h ylist.h ytree.h ytrie.h yarray.h ymap.h yipc.h ylog.h ymldb.h yalloc.h
+include_HEADERS = ydb.h ylist.h ytree.h ytrie.h yarray.h ymap.h yipc.h ylog.h yalloc.h

@@ -1,0 +1,14 @@
+# Change log
+
+## under development
+
+- Update ynode key search log from string comparison to address using yalloc.
+- Support Escape codes
+
+## 2019-01-25
+
+- removed ymldb (old ydb version)
+- ytree iterator bug (After entry deletion, ytree iterator was updated with
+		invalid data.)
+- ynode key structure and manipulation are changed.
+- yalloc funcs are re-arranged.

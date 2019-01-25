@@ -5,18 +5,6 @@
 #include "yalloc.h"
 #include "ylist.h"
 
-char *example[] = {
-	"abs",
-	"sss",
-	"dfe",
-	"asfe",
-	"23425f",
-	"fdvcc",
-	"fess",
-	"",
-};
-
-
 int main(int argc, char *argv[])
 {
 	char buf[512];
@@ -35,6 +23,7 @@ int main(int argc, char *argv[])
 		if(newline)
 			*newline=0;
 		key = (char *) ystrdup(line);
+		printf("key=%s\n", key);
 		ylist_push_back(list, key);
 	}
 
@@ -46,6 +35,7 @@ int main(int argc, char *argv[])
 	}
 	
 	ylist_destroy(list);
-	// yalloc_destroy();
+	// yfree_all();
+	fclose(fp);
 	return 0;
 }
