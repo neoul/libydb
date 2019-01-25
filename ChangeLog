@@ -2,7 +2,7 @@
 
 ## under development
 
-- Update ynode key search log from string comparison to address using yalloc.
+- Update ynode key search log from string comparison to address using ystr.
 - Support Escape codes
 
 ## 2019-01-25
@@ -11,4 +11,4 @@
 - ytree iterator bug (After entry deletion, ytree iterator was updated with
 		invalid data.)
 - ynode key structure and manipulation are changed.
-- yalloc funcs are re-arranged.
+- ystr funcs are re-arranged.

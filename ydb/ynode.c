@@ -10,7 +10,7 @@
 #include <yaml.h>
 
 #include "ylog.h"
-#include "yalloc.h"
+#include "ystr.h"
 #include "ylist.h"
 #include "ytree.h"
 #include "ytrie.h"
@@ -809,7 +809,7 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
         char *value = ystr_convert(node->value);
         res = _ynode_record_print(record, " value: %s %s%s%s,",
                                   value ? value : node->value,
-                                  node->tag ? "(!!" : "",
+                                  node->tag ? "(" : "",
                                   node->tag ? node->tag : "",
                                   node->tag ? ")" : "");
         if (value)
@@ -884,9 +884,8 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
     if (node->type == YNODE_TYPE_VAL)
     {
         char *value = ystr_convert(node->value);
-        res = _ynode_record_print(record, "%s%s%s%s%s\n",
+        res = _ynode_record_print(record, "%s%s%s%s\n",
                                   only_val ? "" : " ",
-                                  node->tag ? "!!" : "",
                                   node->tag ? node->tag : "",
                                   node->tag ? " " : "",
                                   value ? value : node->value);
@@ -1250,9 +1249,8 @@ node_print:
         if (n->type == YNODE_TYPE_VAL)
         {
             char *value = ystr_convert(n->value);
-            fprintf(log->fp, "%s%s%s%s%s\n",
+            fprintf(log->fp, "%s%s%s%s\n",
                     only_val ? "" : " ",
-                    n->tag ? "!!" : "",
                     n->tag ? n->tag : "",
                     n->tag ? " " : "",
                     value ? value : n->value);
@@ -1801,7 +1799,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             break;
         case YAML_TAG_TOKEN:
             ylog_debug("handle=%s suffix=%s\n", token.data.tag.handle, token.data.tag.suffix);
-            if (strncmp((char *)token.data.tag.handle, "!!", 2) == 0)
+            if (strcmp((char *)token.data.tag.handle, "!!") == 0)
             {
                 if (strcmp((char *)token.data.tag.suffix, "map") == 0)
                 {
@@ -1825,9 +1823,9 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                     next_node_type = YNODE_TYPE_MAP;
                     SET_FLAG(flags, YNODE_FLAG_IMAP);
                 }
-                CLEAR_YSTR(tag);
-                tag = ystrdup((char *)token.data.tag.suffix);
             }
+            CLEAR_YSTR(tag);
+            tag = ystrnew("%s%s", (char *)token.data.tag.handle, (char *)token.data.tag.suffix);
             token_save = false;
             break;
         /* Others */

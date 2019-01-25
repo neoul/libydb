@@ -1,4 +1,4 @@
-bin_PROGRAMS = ymap-example ytree-example ytrie-example yalloc-example ylist-example \
+bin_PROGRAMS = ymap-example ytree-example ytrie-example ystr-example ylist-example \
     yarray-example ytrie2-example ynode-example ydb-example yipc-example \
     ydb-hook-example ydb-write-example ylog-example \
     ydb-whisper-example ydb-select-example ydb-example1
@@ -33,10 +33,10 @@ ytrie_example_CPPFLAGS = -I $(top_srcdir)/ydb
 ytrie_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml
 ytrie_example_CFLAGS = -g -Wall
 
-yalloc_example_SOURCES = yalloc-example.c
-yalloc_example_CPPFLAGS = -I $(top_srcdir)/ydb
-yalloc_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml
-yalloc_example_CFLAGS = -g -Wall
+ystr_example_SOURCES = ystr-example.c
+ystr_example_CPPFLAGS = -I $(top_srcdir)/ydb
+ystr_example_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml
+ystr_example_CFLAGS = -g -Wall
 
 ytrie2_example_SOURCES = ytrie2-example.c
 ytrie2_example_CPPFLAGS = -I $(top_srcdir)/ydb

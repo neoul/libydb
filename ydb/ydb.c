@@ -27,7 +27,7 @@
 #include <arpa/inet.h>
 
 #include "ylog.h"
-#include "yalloc.h"
+#include "ystr.h"
 #include "ytree.h"
 #include "ylist.h"
 #include "yarray.h"

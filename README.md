@@ -400,10 +400,10 @@ picture: !!binary "R0lGODdhDQAIAIAAAAAAANn\nZ2SwAAAAADQAIAAACF4SDGQ\nar3xxbJ9p0q
 
 ## Performance
 
-- string pool for memory saving
-  - All strings allocated in YDB are mamaged by string_pool.
-  - string_pool once allocates a string if the string is not in string_pool.
-  - string_pool returns the allocated string for the same string allocation with increasing the reference count.
+- string pool (ystr_pool) for memory saving
+  - All strings allocated in YDB are mamaged by ystr_pool.
+  - ystr_pool once allocates a string if the string is not in ystr_pool.
+  - ystr_pool returns the allocated string for the same string allocation with increasing the reference count.
   - The string is freed upon the reference count to be zero.
 - YDB node implemented by AVL tree
   - AVL tree (Search/Insert/Delete) performance is O(log n).
@@ -423,13 +423,13 @@ To support the data manipulation, YDB is implemented with a number of internal a
 - **YTREE**
   - YTREE is a AVL tree that supports O(logn) search, insertion and deletion time.
 - **YTRIE**
-  - YTRIE is adaptive radix tree (prefix tree) implementation to implement string_pool.
+  - YTRIE is adaptive radix tree (prefix tree) implementation to implement ystr_pool.
 - **YMAP**
   - YMAP is the ordered map (hash) constructed by YLIST and YTREE to support the YAML ordered map.
 - **YARRAY**
   - YARRAY is a scalable array that consists of the small arrarys linked as a list.
-- **YALLOC**
-  - The implementation of string_pool. (See Performance section)
+- **ystr**
+  - The implementation of ystr_pool. (See Performance section)
 
 ## Limitation
 

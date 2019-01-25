@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "yalloc.h"
+#include "ystr.h"
 #include "ylist.h"
 
 int main(int argc, char *argv[])
