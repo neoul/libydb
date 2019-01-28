@@ -136,11 +136,12 @@ If we re-design the data structure to an YAML input for YDB, it would be like th
 
 ```yaml
 system:
-  fan-control:
-    <FAN-INDEX>:
+  fan:
+    fan[INDEX]:
       admin: true
-      config_speed: X
-      current_speed: Y
+      config_speed: 100
+      current_speed: 100
+  # ...
 ```
 
 Just write the fan data into your data block like as you use `printf`. You don't need to allocate memories and handle them.
@@ -148,8 +149,8 @@ Just write the fan data into your data block like as you use `printf`. You don't
 ```c
 ydb_write(datablock,
     "system:\n"
-    " fan-control:\n"
-    "  %d:\n"
+    " fan:\n"
+    "  fan[%d]:\n"
     "   admin: %s\n"
     "   config_speed: %d\n"
     "   current_speed: %d\n",
@@ -167,8 +168,8 @@ int fan_speed = 0;
 int fan_cur_speed = 0;
 ydb_read(datablock,
     "system:\n"
-    " fan-control:\n"
-    "  1:\n"
+    " fan:\n"
+    "  fan[1]:\n"
     "   admin: %s\n"
     "   config_speed: %d\n"
     "   current_speed: %d\n",
@@ -181,7 +182,9 @@ Just remove the data if you don't need it.
 
 ```c
 // flow style
-ydb_delete(datablock, "system {fan-control: }\n");
+ydb_delete(datablock,
+    "system:\n"
+    "  fan:\n");
 ```
 
 As the example, YDB can make you be free from the data type definition, structuring and manipulation. It will save your development time you spent for them.

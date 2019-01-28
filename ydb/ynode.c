@@ -2146,6 +2146,31 @@ int ynode_type(ynode *node)
     return -1;
 }
 
+// return ynodes' tag
+const char *ynode_tag(ynode *node)
+{
+    if (!node)
+        return NULL;
+    switch (node->type)
+    {
+    case YNODE_TYPE_VAL:
+        return node->tag;
+    case YNODE_TYPE_MAP:
+        if (IS_SET(node->flags, YNODE_FLAG_SET))
+            return "!!set";
+        else if (IS_SET(node->flags, YNODE_FLAG_IMAP))
+            return "!!imap";
+        else
+            return "!!map";
+    case YNODE_TYPE_OMAP:
+        return "!!omap";
+    case YNODE_TYPE_LIST:
+        return "!!seq";
+    default:
+        assert(!YDB_E_TYPE_ERR);
+    }
+}
+
 // return the ynode has a value or children
 int ynode_empty(ynode *node)
 {
@@ -3292,7 +3317,7 @@ ydb_res ynode_traverse_to_read(ynode *cur, void *addition)
 }
 
 // read the date from ynode grapes as the scanf()
-int ynode_read(ynode *n, const char *format, ...)
+int ydb_retrieve(ynode *n, const char *format, ...)
 {
     ydb_res res;
     struct ynode_read_data data;

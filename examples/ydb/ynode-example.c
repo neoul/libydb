@@ -313,7 +313,7 @@ int test_yhook()
 	ynode_printf(top, 1, YDB_LEVEL_MAX);
 
 	char s2_2_3[32];
-	ynode_read(top, 
+	ydb_retrieve(top, 
 		"2:\n"
 		" 2-2:\n"
 		"  2-2-3: %s\n", s2_2_3

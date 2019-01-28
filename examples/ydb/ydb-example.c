@@ -86,7 +86,7 @@ int test_ydb_read_write()
     ydb_res res = YDB_OK;
     printf("\n\n=== %s ===\n", __func__);
     ydb *datablock;
-    datablock = ydb_open("/path/to/data");
+    datablock = ydb_open("block");
 
     // inserting one value
     res = ydb_write(datablock, "VALUE");
@@ -182,7 +182,7 @@ int test_ydb_read_write()
         goto _done;
 
     ynode *iter = NULL;
-    ydb_dump(ydb_get("/path/to/data/system/hostname", &iter), stdout);
+    ydb_dump(ydb_get("block/system/hostname", &iter), stdout);
     printf("ynode = %s\n", ydb_value(iter));
     int pathlen = 0;
     char *path = ydb_path(datablock, iter, &pathlen);

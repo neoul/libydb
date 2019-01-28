@@ -737,6 +737,33 @@ ynode *ydb_find_child(ynode *base, char *key)
     return ynode_find_child(base, key);
 }
 
+ynode *ydb_find(ynode *base, const char *format, ...)
+{
+    FILE *fp;
+    char *path = NULL;
+    size_t pathlen = 0;
+    ynode *found = NULL;
+    if (!base || !format)
+        return NULL;
+    fp = open_memstream(&path, &pathlen);
+    if (!fp)
+        return NULL;
+
+    va_list args;
+    va_start(args, format);
+    vfprintf(fp, format, args);
+    va_end(args);
+    fclose(fp);
+
+    if (path)
+    {
+        if (pathlen > 0)
+            found = ynode_search(base, path);
+        free(path);
+    }
+    return found;
+}
+
 // return the parent node of the node.
 ynode *ydb_up(ynode *node)
 {
@@ -773,10 +800,10 @@ ynode *ydb_last(ynode *node)
     return ynode_last(node);
 }
 
-// return node type
-int ydb_type(ynode *node)
+// return node tag
+const char *ydb_tag(ynode *node)
 {
-    return ynode_type(node);
+    return ynode_tag(node);
 }
 
 // return node value if that is a leaf.

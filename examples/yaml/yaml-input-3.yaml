@@ -1,7 +1,0 @@
-
-system:
- input:
-  - keyboard
-  - mouse
- output:
-  - monitor

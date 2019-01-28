@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
         fprintf(stdout, " [usage]\n");
         fprintf(stdout, "  (INPUT) | %s (ADDR) (SRC) (DEST)\n\n", argv[0]);
         fprintf(stdout, " [example]\n");
-        fprintf(stdout, "  cat examples/yaml/yaml-input-1.yaml | %s uss://top 1 2\n\n", argv[0]);
+        fprintf(stdout, "  cat examples/yaml/ydb-input.yaml | %s uss://top 1 2\n\n", argv[0]);
         return 0;
     }
 

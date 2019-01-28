@@ -1,74 +1,103 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <sys/types.h>
+#include <stddef.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include <assert.h>
 #include "ylog.h"
 #include "ytrie.h"
 #include "ytree.h"
+// #define YALLOC_DEBUG 1
 
-static unsigned int mem_count = 0;
-static ytrie *ystr_pool = NULL;
-struct ydata
+struct ystr
 {
-    unsigned char *key;
-    int ref; // reference count;
+    int size;
+    unsigned int ref;
+    unsigned char str[];
 };
-static unsigned char emptystr[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-static struct ydata empty = {.key = emptystr, .ref = 0};
+static unsigned char empty_ystr[sizeof(int) +
+                                sizeof(unsigned int) +
+                                sizeof(unsigned long long) +
+                                1] = {
+    0,
+};
+static struct ystr *empty = (struct ystr *)empty_ystr;
+static ytrie *ystr_pool = NULL;
+static ytree *yptr_pool = NULL;
+
+static inline struct ystr *ystr_new(unsigned char *data, int datasize)
+{
+    struct ystr *str;
+    int len = sizeof(struct ystr) + (sizeof(unsigned char) * datasize);
+    len = len + ((len%2)?1:2);
+    str = malloc(len);
+    str->ref = 1;
+    str->size = datasize;
+    memcpy(str->str, data, datasize);
+    str->str[datasize] = 0;
+    // printf("data=%s size=%d (%d)\n", str->str, datasize, len);
+    return str;
+}
 
 const char *ystrndup(char *src, int srclen)
 {
-    struct ydata *ydata;
+    struct ystr *str;
     if (src == NULL)
     {
-        empty.ref++;
+        empty->ref++;
 #ifdef YALLOC_DEBUG
-        ylog_debug("[pid %d] ystrdup src=NULL, return empty.key %p\n", getpid(), empty.key);
+        ylog_debug("[pid %d] %s str(%p) ref=%d\n", getpid(), __func__, empty->str, empty->ref);
 #endif
-        return (char *)empty.key;
+        return (char *)empty->str;
     }
     if (srclen <= 0)
     {
-        empty.ref++;
+        empty->ref++;
 #ifdef YALLOC_DEBUG
-        ylog_debug("[pid %d] ystrdup srclen<= 0, return empty.key %p\n", getpid(), empty.key);
+        ylog_debug("[pid %d] %s str(%p) ref=%d\n", getpid(), __func__, empty->str, empty->ref);
 #endif
-        return (char *)empty.key;
+        return (char *)empty->str;
     }
 
     if (!ystr_pool)
     {
         ystr_pool = ytrie_create();
-        if (!ystr_pool)
-            return NULL;
+        assert(ystr_pool);
 #ifdef YALLOC_DEBUG
         ylog_debug("ystr_pool created\n");
 #endif
     }
 
-    ydata = ytrie_search(ystr_pool, src, srclen);
-    if (ydata)
+    if (!yptr_pool)
     {
-        ydata->ref++;
+        yptr_pool = ytree_create(NULL, NULL);
+        assert(yptr_pool);
+#ifdef YALLOC_DEBUG
+        ylog_debug("yptr_pool created\n");
+#endif
+    }
+
+    str = ytrie_search(ystr_pool, src, srclen);
+    if (str)
+    {
+        str->ref++;
     }
     else
     {
-        ydata = malloc(sizeof(struct ydata));
-        if (!ydata)
+        str = ystr_new((unsigned char *) src, srclen);
+        if (!str)
             return NULL;
-        ydata->key = (unsigned char *)strndup(src, srclen);
-        assert(ydata->key);
-        ydata->ref = 1;
-        void *old_ydata = ytrie_insert(ystr_pool, (char *)ydata->key, strlen((char *)ydata->key), ydata);
-        assert(old_ydata == NULL);
+        void *old_ystr;
+        old_ystr = ytrie_insert(ystr_pool, (const void *)str->str, srclen, str);
+        assert(old_ystr == NULL);
+        old_ystr = ytree_insert(yptr_pool, str->str, str);
+        assert(old_ystr == NULL);
     }
 #ifdef YALLOC_DEBUG
-    ylog_debug("[pid %d] ystrdup ydata=%p key=%s (%p) ref=%d \n", getpid(), ydata, ydata->key, ydata->key, ydata->ref);
+    ylog_debug("[pid %d] %s str(%p,size=%d)=%s ref=%d\n", getpid(), __func__, str, str->size, str->str, str->ref);
 #endif
-    return (char *)ydata->key;
+    return (char *)str->str;
 }
 
 const char *ystrdup(char *src)
@@ -78,59 +107,59 @@ const char *ystrdup(char *src)
 
 const void *ydatadup(void *src, int srclen)
 {
-    struct ydata *ydata;
+    struct ystr *str;
     if (src == NULL)
     {
-        empty.ref++;
-#ifdef YALLOC_DEBUG
-        ylog_debug("[pid %d] ydatadup src=NULL, return empty.key %p\n", getpid(), empty.key);
-#endif
-        return empty.key;
+        return NULL;
     }
     if (srclen <= 0)
     {
-        empty.ref++;
-#ifdef YALLOC_DEBUG
-        ylog_debug("[pid %d] ydatadup srclen<= 0, return empty.key %p\n", getpid(), empty.key);
-#endif
-        return empty.key;
+        return NULL;
     }
 
     if (!ystr_pool)
     {
         ystr_pool = ytrie_create();
-        if (!ystr_pool)
-            return NULL;
+        assert(ystr_pool);
 #ifdef YALLOC_DEBUG
         ylog_debug("ystr_pool created\n");
 #endif
     }
 
-    ydata = ytrie_search(ystr_pool, src, srclen);
-    if (ydata)
+    if (!yptr_pool)
     {
-        ydata->ref++;
+        yptr_pool = ytree_create(NULL, NULL);
+        assert(yptr_pool);
+#ifdef YALLOC_DEBUG
+        ylog_debug("yptr_pool created\n");
+#endif
+    }
+
+    str = ytrie_search(ystr_pool, src, srclen);
+    if (str)
+    {
+        str->ref++;
     }
     else
     {
-        ydata = malloc(sizeof(struct ydata));
-        if (!ydata)
+        str = ystr_new((unsigned char *)src, srclen);
+        if (!str)
             return NULL;
-        ydata->key = malloc(srclen);
-        assert(ydata->key);
-        memcpy(ydata->key, src, srclen);
-        ydata->ref = 1;
-        void *old_ydata = ytrie_insert(ystr_pool, (char *)ydata->key, srclen, ydata);
-        assert(old_ydata == NULL);
+        void *old_ystr;
+        old_ystr = ytrie_insert(ystr_pool, (char *)str->str, srclen, str);
+        assert(old_ystr == NULL);
+        old_ystr = ytree_insert(yptr_pool, str->str, str);
+        assert(old_ystr == NULL);
     }
 #ifdef YALLOC_DEBUG
-    ylog_debug("[pid %d] ydatadup ydata=%p key=%s (%p) ref=%d \n", getpid(), ydata, ydata->key, ydata->key, ydata->ref);
+    ylog_debug("[pid %d] %s str(%p,size=%d)=... ref=%d\n", getpid(), __func__, str, str->size, str->ref);
 #endif
-    return ydata->key;
+    return (char *)str->str;
 }
 
 const char *ystrnew(const char *format, ...)
 {
+    struct ystr *str;
     char *src = NULL;
     size_t srclen = 0;
     FILE *fp;
@@ -154,153 +183,154 @@ const char *ystrnew(const char *format, ...)
         goto empty;
     }
 
-    struct ydata *ydata;
     if (!ystr_pool)
     {
         ystr_pool = ytrie_create();
-        if (!ystr_pool)
-            return NULL;
+        assert(ystr_pool);
 #ifdef YALLOC_DEBUG
         ylog_debug("ystr_pool created\n");
 #endif
     }
 
-    ydata = ytrie_search(ystr_pool, src, srclen);
-    if (ydata)
+    if (!yptr_pool)
     {
-        ydata->ref++;
+        yptr_pool = ytree_create(NULL, NULL);
+        assert(yptr_pool);
+#ifdef YALLOC_DEBUG
+        ylog_debug("yptr_pool created\n");
+#endif
+    }
+
+    str = ytrie_search(ystr_pool, src, srclen);
+    if (str)
+    {
+        str->ref++;
         free(src);
     }
     else
     {
-        ydata = malloc(sizeof(struct ydata));
-        if (!ydata)
+        str = ystr_new((unsigned char *)src, srclen);
+        if (!str)
             return NULL;
-        ydata->key = (unsigned char *)src;
-        assert(ydata->key);
-        ydata->ref = 1;
-        void *old_ydata = ytrie_insert(ystr_pool, (char *)ydata->key, srclen, ydata);
-        assert(old_ydata == NULL);
+        void *old_ystr;
+        old_ystr = ytrie_insert(ystr_pool, (const void *)str->str, srclen, str);
+        assert(old_ystr == NULL);
+        old_ystr = ytree_insert(yptr_pool, str->str, str);
+        assert(old_ystr == NULL);
     }
 #ifdef YALLOC_DEBUG
-    ylog_debug("[pid %d] ystrnew ydata=%p key=%s (%p) ref=%d \n", getpid(), ydata, ydata->key, ydata->key, ydata->ref);
+    ylog_debug("[pid %d] %s str(%p,size=%d)=%s ref=%d\n", getpid(), __func__, str, str->size, str->str, str->ref);
 #endif
-    return (char *)ydata->key;
+    return (char *)str->str;
 empty:
-    empty.ref++;
+    empty->ref++;
 #ifdef YALLOC_DEBUG
-    ylog_debug("[pid %d] ystrnew srclen<= 0, return empty.key %p\n", getpid(), empty.key);
+    ylog_debug("[pid %d] %s str(%p) ref=%d\n", getpid(), __func__, empty->str, empty->ref);
 #endif
-    return (const char *)empty.key;
+    return (const char *)empty->str;
 }
 
-const void *ysearch(void *src, int srclen)
+struct ystr *ysearch(const void *src, int srclen)
 {
-    if (src == NULL || srclen <= 0)
+    struct ystr *str;
+    if (src == NULL)
         return NULL;
-    if (ystr_pool)
+    if (yptr_pool)
     {
-        struct ydata *ydata;
-        ydata = ytrie_search(ystr_pool, src, srclen);
-        if (ydata)
-            return ydata->key;
+        str = ytree_search(yptr_pool, (void *) src);
+        if (str)
+            return str;
+    }
+    if (ystr_pool && srclen > 0)
+    {
+        str = ytrie_search(ystr_pool, src, srclen);
+        if (str)
+            return str;
     }
     return NULL;
 }
 
 void yfree(const void *src)
 {
+    struct ystr *str;
+    if (!yptr_pool)
+    {
+        assert(!ystr_pool);
+#ifdef YALLOC_DEBUG
+        ylog_debug("[pid %d] no yptr_pool\n", getpid());
+#endif
+        return;
+    }
+
     if (!src)
     {
-        empty.ref--;
+        empty->ref--;
 #ifdef YALLOC_DEBUG
-        ylog_debug("[pid %d] yfree src=NULL, return empty.key %p\n", getpid(), empty.key);
+        ylog_debug("[pid %d] %s str(%p) ref=%d\n", getpid(), __func__, empty->str, empty->ref);
 #endif
         return;
     }
-    if (src == empty.key)
+    if (src == empty->str)
     {
-        empty.ref--;
+        empty->ref--;
 #ifdef YALLOC_DEBUG
-        ylog_debug("[pid %d] yfree src=empty.key, return empty.key %p\n", getpid(), empty.key);
+        ylog_debug("[pid %d] %s str(%p) ref=%d\n", getpid(), __func__, empty->str, empty->ref);
 #endif
         return;
     }
 
-    if (ystr_pool)
+    str = ysearch(src, 0);
+    if (str)
     {
-        struct ydata *ydata;
-        int srclen = strlen(src);
-        ydata = ytrie_search(ystr_pool, src, srclen);
-        if (ydata)
-        {
-            ydata->ref--;
+        str->ref--;
 #ifdef YALLOC_DEBUG
-            ylog_debug("[pid %d] yfree ydata=%p key=%s (%p) ref=%d \n", getpid(), ydata, ydata->key, ydata->key, ydata->ref);
+        ylog_debug("[pid %d] %s str(%p,size=%d)=%s ref=%d\n", getpid(), __func__, str, str->size, str->str, str->ref);
 #endif
-            if (ydata->ref <= 0)
-            {
-                ytrie_delete(ystr_pool, ydata->key, srclen);
-                free(ydata->key);
-                free(ydata);
-            }
-        }
-        else
+        if (str->ref <= 0)
         {
-#ifdef YALLOC_DEBUG
-            ylog_debug("[pid %d] yfree search failed - key=%s (%p)\n", getpid(), src, src);
-#endif
+            ytrie_delete(ystr_pool, str->str, str->size);
+            ytree_delete(yptr_pool, str->str);
+            free(str);
         }
-
-        if (ytrie_size(ystr_pool) <= 0)
-        {
-#ifdef YALLOC_DEBUG
-            ylog_debug("[pid %d] ystr_pool destroyed\n", getpid());
-#endif
-            ytrie_destroy(ystr_pool);
-            ystr_pool = NULL;
-        }
-        return;
     }
     else
     {
 #ifdef YALLOC_DEBUG
-        ylog_debug("[pid %d] yfree failed - no ystr_pool\n", getpid());
+        ylog_debug("[pid %d] %s no ystr (%p)\n", getpid(), __func__, src);
 #endif
     }
-
-    if (src)
+    if (ytrie_size(ystr_pool) <= 0)
     {
-        mem_count--;
-        free((void *)src);
+        ytrie_destroy(ystr_pool);
+        ystr_pool = NULL;
+#ifdef YALLOC_DEBUG
+        ylog_debug("[pid %d] %s ystr_pool destroyed\n", getpid(), __func__);
+#endif
+        assert(yptr_pool);
     }
+    if (ytree_size(yptr_pool) <= 0)
+    {
+        ytree_destroy(yptr_pool);
+        yptr_pool = NULL;
+#ifdef YALLOC_DEBUG
+        ylog_debug("[pid %d] %s yptr_pool destroyed\n", getpid(), __func__);
+#endif
+        assert(!ystr_pool);
+    }
+    return;
 }
 
-int string_traverse(void *data, const void *key, int key_len, void *value)
+static void ystr_free(void *v)
 {
-    struct ydata *ydata = value;
-    printf((char *)data, ydata->key, ydata->ref);
-    return 0;
-}
-
-void ydata_print()
-{
-    if (ystr_pool)
-        ytrie_traverse(ystr_pool, string_traverse, "ydata:%s:%d\n");
-    printf("mem_count %u\n", mem_count);
-}
-
-static void ydata_free(void *v)
-{
-    struct ydata *ydata = v;
-    if (ydata->key)
-        free(ydata->key);
-    free(ydata);
+    struct ystr *str = v;
+    free(str);
     return;
 }
 
 void yfree_all()
 {
+    if (yptr_pool)
+        ytree_destroy_custom(yptr_pool, ystr_free);
     if (ystr_pool)
-        ytrie_destroy_custom(ystr_pool, ydata_free);
+        ytrie_destroy(ystr_pool);
 }

@@ -82,7 +82,7 @@ ydb_res ynode_write(ynode **n, const char *format, ...);
 // delete sub ynodes using the input string
 ydb_res ynode_erase(ynode **n, const char *format, ...);
 // read the date from ynode grapes as the scanf()
-int ynode_read(ynode *n, const char *format, ...);
+int ydb_retrieve(ynode *n, const char *format, ...);
 
 // [ynode searching & traveling]
 
@@ -96,6 +96,10 @@ ynode *ynode_lookup(ynode *target, ynode *ref, int ignore_index);
 
 // return ynodes' type
 int ynode_type(ynode *node);
+
+// return ynodes' tag
+const char *ynode_tag(ynode *node);
+
 // return the ynode has a value or children
 int ynode_empty(ynode *node);
 // return the number of chilren

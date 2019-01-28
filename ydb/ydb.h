@@ -65,16 +65,20 @@ void ydb_connection_log(int enable);
 typedef struct _ydb ydb;
 typedef struct _ynode ynode; // The node of YDB
 
-// Open YAML DataBlock
+// ydb_open --
+// Open an instance of YAML DataBlock
 ydb *ydb_open(char *name);
 
-// Get YAML DataBlock and also return ynode
+// ydb_get --
+// Get the opend YAML DataBlock and also return ynode
 ydb *ydb_get(char *name_and_path, ynode **node);
 
-// return the new string consisting of the YDB name and the path to the node.
-// the return string must be free.
+// ydb_name_and_path --
+// Returns the name_and_path consisting of the YDB name and the path to the node.
+// The name_and_path (/YDBNAME/path/to/node) must be free().
 char *ydb_name_and_path(ynode *node, int *pathlen);
 
+// ydb_name --
 // Get the name of the YAML DataBlock
 const char *ydb_name(ydb *datablock);
 
@@ -89,16 +93,21 @@ ydb_res ydb_connect(ydb *datablock, char *addr, char *flags);
 ydb_res ydb_disconnect(ydb *datablock, char *addr);
 ydb_res ydb_is_connected(ydb *datablock, char *addr);
 
+// ydb_clear --
 // Clear all data in the YAML DataBlock
 ydb_res ydb_clear(ydb *datablock);
-// Close the YAML DataBlock
+
+// ydb_close --
+// Close the instance of YAML DataBlock
 void ydb_close(ydb *datablock);
 
 // return the path of the node. (the path must be free.)
 char *ydb_path(ydb *datablock, ynode *node, int *pathlen);
 // return the path of the node. (the path must be free.)
 char *ydb_path_and_value(ydb *datablock, ynode *node, int *pathlen);
-// return the node in the path of the yaml data block.
+
+// ydb_search --
+// return the node in the path (/path/to/data).
 ynode *ydb_search(ydb *datablock, const char *format, ...);
 
 // return the path between ancestor and descendant;
@@ -114,6 +123,8 @@ int ydb_empty(ynode *node);
 
 // return the found child by the key.
 ynode *ydb_find_child(ynode *base, char *key);
+// Return the found node by the path
+ynode *ydb_find(ynode *base, const char *format, ...);
 // return the parent node of the node.
 ynode *ydb_up(ynode *node);
 // return the first child node of the node.
@@ -126,44 +137,71 @@ ynode *ydb_next(ynode *node);
 ynode *ydb_first(ynode *node);
 // return the last sibling node of the node.
 ynode *ydb_last(ynode *node);
-// return node type
-int ydb_type(ynode *node);
-// return node value if that is a leaf.
+// return node tag
+const char *ydb_tag(ynode *node);
+// Return node value if that is a value node.
 const char *ydb_value(ynode *node);
-// return node key if that has a hash key.
+// Return the key of the node when the parent is a map (hasp).
 const char *ydb_key(ynode *node);
-// return node index if the nodes' parent is a list.
+// Return the index of the node when the parent is a seq (list).
 int ydb_index(ynode *node);
 
-// read the data from the node
-int ynode_read(ynode *n, const char *format, ...);
+// ydb_retrieve --
+// read the data from the current node (n)
+int ydb_retrieve(ynode *n, const char *format, ...);
 
-// update the data in the ydb using file stream
+// ydb_pase --
+// Update the data into the ydb using file stream.
 ydb_res ydb_parse(ydb *datablock, FILE *stream);
+
+// ydb_pase --
+// Update the data into the ydb from a buffer
 ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen);
 
-// print the data in the ydb into the file stream
+// ydb_dump --
+// Print the data in the ydb into a file stream.
 int ydb_dump(ydb *datablock, FILE *stream);
+
+// ydb_dumps --
+// Print the data in the ydb into a buffer.
 int ydb_dumps(ydb *datablock, char **buf, size_t *buflen);
 
+// ydb_dump_debug --
+// Print the data into a file stream for debugging.
 int ydb_dump_debug(ydb *datablock, FILE *stream);
 
-// update and delete data in ydb using the input string (yaml format)
+// ydb_write --
+// Update data in YDB using YAML input stream
 ydb_res ydb_write(ydb *datablock, const char *format, ...);
+
+// ydb_delete --
+// Delete data in YDB using YAML input stream
 ydb_res ydb_delete(ydb *datablock, const char *format, ...);
 
-// read the date from ydb as the scanf() (yaml format)
+// ydb_read --
+// Read the date from ydb such as the scanf() (YAML format)
+// ydb_read() only fills the scalar value of the YAML mapping or list nodes.
+// And it returns the number of found values.
+//  - ydb_read(datablock, "key: %s\n"); // ok.
+//  - ydb_read(datablock, "%s: value\n"); // not allowed.
 int ydb_read(ydb *datablock, const char *format, ...);
 
-// print the target data to the stream
+// ydb_fprintf --
+// Print the target data nodes to the stream
 int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...);
 
-// update & delete the ydb using input path and value
+// ydb_path_write --
+// Update & delete the ydb using input path and value
 // ydb_path_write(datablock, "/path/to/update=%d", value)
 ydb_res ydb_path_write(ydb *datablock, const char *format, ...);
+
+// ydb_path_delete --
+// Delete the ydb using input path
+// ydb_path_delete(datablock, "/path/to/update\n")
 ydb_res ydb_path_delete(ydb *datablock, const char *format, ...);
 
-// read the value from ydb using input path
+// ydb_path_read --
+// Read the value from ydb using input path
 // const char *value = ydb_path_read(datablock, "/path/to/update")
 const char *ydb_path_read(ydb *datablock, const char *format, ...);
 
@@ -180,7 +218,6 @@ int ydb_fd(ydb *datablock);
 //        YAML format stream should be written by the ydb_read_hook.
 //  - U1-4: The user-defined data
 //  - num: The number of the user-defined data (U1-4)
-
 typedef ydb_res (*ydb_read_hook0)(ydb *datablock, const char *path, FILE *stream);
 typedef ydb_res (*ydb_read_hook1)(ydb *datablock, const char *path, FILE *stream, void *U1);
 typedef ydb_res (*ydb_read_hook2)(ydb *datablock, const char *path, FILE *stream, void *U1, void *U2);
@@ -224,7 +261,7 @@ ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...);
 ydb_res ydb_sync(ydb *datablock, const char *format, ...);
 ydb_res ydb_path_sync(ydb *datablock, const char *format, ...);
 
-// Travese all child branches and leaves of a node.
+// Traverse all child branches and leaves of a node.
 //  - datablock: The datablock to traverse.
 //  - cur: The current node to be traversed
 //  - cb: The callback function invoked on each child node
