@@ -181,7 +181,6 @@ ydb_read(datablock,
 Just remove the data if you don't need it.
 
 ```c
-// flow style
 ydb_delete(datablock,
     "system:\n"
     "  fan:\n");
