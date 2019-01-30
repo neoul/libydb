@@ -12,8 +12,9 @@ extern "C" {
 #endif
 
 int isUTF8(uint8_t *s);
-int checkUTF8(uint8_t *s);
 void printCodePoints(uint8_t *s);
+
+char *yaml_string(const char *src, int indent, int *is_new);
 
 #ifdef __cplusplus
 }

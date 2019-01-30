@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <yaml.h>
 
+#include "utf8.h"
 #include "ylog.h"
 #include "ystr.h"
 #include "ylist.h"
@@ -87,101 +88,6 @@ static char *ynode_type_str[] = {
 #define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
 #define UNSET_FLAG(flag, v) ((flag) = ((flag) & (~v)))
 #define IS_SET(flag, v) ((flag) & (v))
-
-static char *ystr_convert(const char *str)
-{
-    int slen;
-    unsigned int spacectrl = 0;
-    unsigned int space = 0;
-    unsigned int ctrl = 0;
-
-    for (slen = 0; str[slen]; slen++)
-    {
-        int c = str[slen] & 0xff;
-        if (isgraph(c))
-        {
-            if (c == '"')
-                spacectrl++;
-        }
-        else if (c <= 0x7F)
-        {
-            if (isspace(c))
-            {
-                if (c == ' ')
-                    space++;
-                else
-                    spacectrl++;
-            }
-            else
-                ctrl++;
-        }
-    }
-
-    // printf("\nspace=%d, ctrl=%d, spacectrl=%d, str=%s strlen=%d\n", space, ctrl, spacectrl, str, strlen(str));
-    if (space == 0 && ctrl == 0 && spacectrl == 0)
-        return NULL;
-    else
-    {
-        int len = 0;
-        char *newstr;
-        newstr = malloc((slen + spacectrl + (ctrl * 4) + 4));
-        if (!newstr)
-            return NULL;
-        newstr[len] = '"';
-        len++;
-        for (slen = 0; str[slen]; slen++)
-        {
-            int c = str[slen] & 0xff;
-            if (c == '"')
-            {
-                newstr[len] = '\\';
-                newstr[len + 1] = c;
-                len += 2;
-            }
-            else if (isprint(c) || c >= 0xA0)
-            {
-                newstr[len] = c;
-                len++;
-            }
-            else if (isspace(c))
-            {
-                switch (c)
-                {
-                case 0x09:
-                    c = 't';
-                    break;
-                case 0x0A:
-                    c = 'n';
-                    break;
-                case 0x0B:
-                    c = 'v';
-                    break;
-                case 0x0C:
-                    c = 'f';
-                    break;
-                case 0x0D:
-                    c = 'r';
-                    break;
-                default:
-                    assert(!YDB_E_SYSTEM_FAILED);
-                }
-                newstr[len] = '\\';
-                newstr[len + 1] = c;
-                len += 2;
-            }
-            else
-            {
-                int n = sprintf(newstr + len, "\\x%02X", c);
-                assert(n == 4 && "reach to unexpected error");
-                len = len + n;
-            }
-        }
-        newstr[len] = '"';
-        len++;
-        newstr[len] = 0;
-        return newstr;
-    }
-}
 
 static void yhook_delete(ynode *cur);
 
@@ -789,9 +695,10 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
     // print key
     if (IS_SET(node->flags, YNODE_FLAG_HASH))
     {
-        char *key = ystr_convert(ynode_key(node));
-        res = _ynode_record_print(record, "{key: %s,", key ? key : ynode_key(node));
-        if (key)
+        int is_new;
+        char *key = yaml_string(ynode_key(node), -1, &is_new);
+        res = _ynode_record_print(record, "{key: %s,", key);
+        if (is_new)
             free(key);
     }
     else if (IS_SET(node->flags, YNODE_FLAG_LIST))
@@ -806,13 +713,14 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
     {
     case YNODE_TYPE_VAL:
     {
-        char *value = ystr_convert(node->value);
+        int is_new;
+        char *value = yaml_string(node->value, -1, &is_new);
         res = _ynode_record_print(record, " value: %s %s%s%s,",
-                                  value ? value : node->value,
+                                  value,
                                   node->tag ? "(" : "",
                                   node->tag ? node->tag : "",
                                   node->tag ? ")" : "");
-        if (value)
+        if (is_new)
             free(value);
         break;
     }
@@ -860,12 +768,13 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
     // print key
     if (IS_SET(node->flags, YNODE_FLAG_HASH))
     {
-        char *key = ystr_convert(ynode_key(node));
+        int is_new;
+        char *key = yaml_string(ynode_key(node), -1, &is_new);
         if (node->parent && node->parent->type == YNODE_TYPE_OMAP)
-            res = _ynode_record_print(record, "- %s:", key ? key : ynode_key(node));
+            res = _ynode_record_print(record, "- %s:", key);
         else
-            res = _ynode_record_print(record, "%s:", key ? key : ynode_key(node));
-        if (key)
+            res = _ynode_record_print(record, "%s:", key);
+        if (is_new)
             free(key);
     }
     else if (IS_SET(node->flags, YNODE_FLAG_LIST))
@@ -883,13 +792,14 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
     // print value
     if (node->type == YNODE_TYPE_VAL)
     {
-        char *value = ystr_convert(node->value);
+        int is_new;
+        char *value = yaml_string(node->value, indent, &is_new);
         res = _ynode_record_print(record, "%s%s%s%s\n",
                                   only_val ? "" : " ",
                                   node->tag ? node->tag : "",
                                   node->tag ? " " : "",
-                                  value ? value : node->value);
-        if (value)
+                                  value);
+        if (is_new)
             free(value);
     }
     else if (IS_SET(node->flags, YNODE_FLAG_SET))
@@ -1231,14 +1141,14 @@ node_print:
         // print key
         if (IS_SET(n->flags, YNODE_FLAG_HASH))
         {
-            const char *key = ynode_key(n);
-            char *converted = ystr_convert(key);
+            int is_new;
+            char *key = yaml_string(ynode_key(n), -1, &is_new);
             if (n->parent && n->parent->type == YNODE_TYPE_OMAP)
-                fprintf(log->fp, "- %s:", converted ? converted : key);
+                fprintf(log->fp, "- %s:", key);
             else
-                fprintf(log->fp, "%s:", converted ? converted : key);
-            if (converted)
-                free(converted);
+                fprintf(log->fp, "%s:", key);
+            if (is_new)
+                free(key);
         }
         else if (IS_SET(n->flags, YNODE_FLAG_LIST))
             fprintf(log->fp, "-");
@@ -1248,13 +1158,14 @@ node_print:
         // print value
         if (n->type == YNODE_TYPE_VAL)
         {
-            char *value = ystr_convert(n->value);
+            int is_new;
+            char *value = yaml_string(n->value, indent, &is_new);
             fprintf(log->fp, "%s%s%s%s\n",
                     only_val ? "" : " ",
                     n->tag ? n->tag : "",
                     n->tag ? " " : "",
-                    value ? value : n->value);
-            if (value)
+                    value);
+            if (is_new)
                 free(value);
         }
         else if (IS_SET(n->flags, YNODE_FLAG_SET))
@@ -2395,11 +2306,11 @@ int ynode_path_fprintf(FILE *fp, ynode *node, int level)
         len = ynode_path_fprintf(fp, node->parent, level - 1);
         if (IS_SET(node->flags, YNODE_FLAG_HASH))
         {
-            const char *key = ynode_key(node);
-            char *converted = ystr_convert(key);
-            curlen = fprintf(fp, "/%s", converted ? converted : key);
-            if (converted)
-                free(converted);
+            int is_new;
+            char *key = yaml_string(ynode_key(node), -1, &is_new);
+            curlen = fprintf(fp, "/%s", key);
+            if (is_new)
+                free(key);
             if (curlen <= 0)
                 return len;
             return len + curlen;
@@ -2471,12 +2382,7 @@ char *ynode_path_and_val(ynode *node, int level, int *pathlen)
     fp = open_memstream(&buf, &buflen);
     ynode_path_fprintf(fp, node, level);
     if (node->type == YNODE_TYPE_VAL)
-    {
-        char *value = ystr_convert(node->value);
-        fprintf(fp, "=%s", value ? value : node->value);
-        if (value)
-            free(value);
-    }
+        fprintf(fp, "=%s", node->value);
     if (fp)
         fclose(fp);
     if (buf && buflen > 0)

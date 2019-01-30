@@ -1,4 +1,23 @@
 ---
+
+data: |
+   There once was a short man from Ealing
+   Who got on a bus to Darjeeling
+       It said on the door
+       "Please don't spit on the floor"
+   So he carefully spat on the ceiling
+   a    b
+
+data2: >
+   Wrapped text
+   will be folded
+   into a single
+   paragraph
+
+   Blank lines denote
+   paragraph breaks
+
+
 example: >
   Several lines of text,
   with some "quotes" of various 'types',
@@ -17,6 +36,6 @@ example2: |
   
   ok
   
-example3: "hello boy"
-
+example3: "hello 
+  boy"
 ...
