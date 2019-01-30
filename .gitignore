@@ -50,3 +50,5 @@ tools/ydb/ydb
 examples/ydb/ydb-ex-path
 examples/ydb/ydb-ex-seq
 examples/ydb/ydb-ex-map
+r11.yaml
+r12.yaml

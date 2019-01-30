@@ -158,7 +158,11 @@ char *yaml_string(const char *src, int indent, int *is_new)
         *is_new = 0;
     if (!src)
         return "(null)";
-
+    char c = *src;
+    if (ispunct(c) || c == ' ')
+    {
+        quotes_required++;
+    }
     for (; *s; ++s)
     {
         if (!decode(&state, &codepoint, *s))
@@ -170,16 +174,21 @@ char *yaml_string(const char *src, int indent, int *is_new)
             // printf("  codepoint: U+%04X\n", codepoint);
             if (codepoint <= 0x7F)
             {
-                if (isalnum(codepoint) || codepoint == ' ')
-                {
-                    ;
-                }
-                else if (ispunct(codepoint))
+                if (isprint(codepoint)) // isgraph() + ' '
                 {
                     if (codepoint == '"' || codepoint == '\\')
                         d_quotes++;
-                    quotes_required++;
                 }
+                // if (isalnum(codepoint) || codepoint == ' ')
+                // {
+                //     ;
+                // }
+                // else if (ispunct(codepoint))
+                // {
+                //     if (codepoint == '"' || codepoint == '\\')
+                //         d_quotes++;
+                //     quotes_required++;
+                // }
                 else if (codepoint == 0xA)
                     newline++;
                 else if (codepoint == 0x9 || codepoint == 0xD)
@@ -219,7 +228,7 @@ char *yaml_string(const char *src, int indent, int *is_new)
             return (char *)src;
         else
         {
-            if (indent >= 0)
+            if (indent >= 0 && len > 64)
             {
                 newstr = yaml_multiline_str(src, len, newline, indent);
                 if (newstr)
