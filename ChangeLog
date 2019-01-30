@@ -3,7 +3,11 @@
 ## under development
 
 - Update ynode key search log from string comparison to address using ystr.
-- Support Escape codes
+- support ">" (line folding) for a long string scalar value without newline, "\n".
+
+## 2019-01-30
+
+- Support Escape codes (examples/yaml/yaml-reference-card.yaml)
 
 ## 2019-01-25
 

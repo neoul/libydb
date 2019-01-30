@@ -425,13 +425,9 @@ To support the data manipulation, YDB is implemented with a number of internal a
 
 ## Limitation
 
-### Numeric Escape codes
-
-The numberic escape code data such as `"\x12"`, `"\u1234"` or `"\U00102030"` is not supported yet.
-
 ### Multiple scalar keys
 
-YDB doesn't support multiple scalar keys wrapping in sequence or mapping nodes. Because, the sequence or mapping nodes for the multiple keys are not data comparable to other scalar keys.
+YDB doesn't support multiple scalar keys wrapping in sequence or mapping nodes. Because, the sequence or mapping nodes are not data comparable to other scalar keys.
 
 ```yaml
 multiple-key example:
@@ -443,8 +439,8 @@ The recommended format for the multiple keys is a single string concatenated by 
 
 ```yaml
 multiple-key example:
-    a,b : mapping key example
-    1,2 : sequence key example
+    a-b : mapping key example
+    1-2 : sequence key example
 ```
 
 ### YAML features not supported
