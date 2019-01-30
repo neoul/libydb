@@ -65,7 +65,7 @@ void printCodePoints(uint8_t *s)
         printf("The string is not well-formed\n");
 }
 
-char *yaml_multiline_str(const char *src, int srclen, int backslash, int indent)
+char *yaml_multiline_str(const char *src, int srclen, int newline, int indent)
 {
     uint32_t codepoint;
     uint32_t state = 0;
@@ -73,9 +73,9 @@ char *yaml_multiline_str(const char *src, int srclen, int backslash, int indent)
     char *newstr;
     char *base;
     int len;
-    // printf("src=%d, indent=%d, backslash=%d \n", srclen, indent, backslash);
+    // printf("src=%d, indent=%d, newline=%d \n", srclen, indent, newline);
     indent += 1;
-    newstr = malloc(srclen + ((backslash + 1) * indent)  + 2 + 2);
+    newstr = malloc(srclen + ((newline + 1) * indent)  + 2 + 2);
     if (!newstr)
     {
         return NULL;
@@ -97,7 +97,7 @@ char *yaml_multiline_str(const char *src, int srclen, int backslash, int indent)
             {
                 newstr[len] = codepoint;
                 len++;
-                if (codepoint == 0x9 || codepoint == 0xA || codepoint == 0xD)
+                if (codepoint == '\n')
                 {
                     memset(&newstr[len], ' ', indent);
                     len += indent;
@@ -146,9 +146,10 @@ char *yaml_string(const char *src, int indent, int *is_new)
     int non_printable8 = 0;
     int non_printable16 = 0;
     int non_printable32 = 0;
+    int quotes_required = 0;
     int backslash = 0;
     int d_quotes = 0;
-    int space = 0;
+    int newline = 0;
     char *newstr;
     char *base;
     int len;
@@ -169,23 +170,36 @@ char *yaml_string(const char *src, int indent, int *is_new)
             // printf("  codepoint: U+%04X\n", codepoint);
             if (codepoint <= 0x7F)
             {
-                if (isgraph(codepoint))
+                if (isalnum(codepoint) || codepoint == ' ')
                 {
-                    if (codepoint == '"')
-                        d_quotes++;
+                    ;
                 }
-                else if (codepoint == ' ')
-                    space++;
-                else if (codepoint == 0x9 || codepoint == 0xA || codepoint == 0xD)
+                else if (ispunct(codepoint))
+                {
+                    if (codepoint == '"' || codepoint == '\\')
+                        d_quotes++;
+                    quotes_required++;
+                }
+                else if (codepoint == 0xA)
+                    newline++;
+                else if (codepoint == 0x9 || codepoint == 0xD)
                     backslash++;
                 else
                     non_printable8++;
             }
             else if (codepoint <= 0xFFFF)
             {
-                if (!((codepoint >= 0xA0 && codepoint <= 0xD7FF) ||
+                if ((codepoint >= 0xA0 && codepoint <= 0xD7FF) ||
                       (codepoint >= 0xE000 && codepoint <= 0xFFFD) ||
-                      codepoint == 0x85))
+                      codepoint == 0x85)
+                {
+                    if (codepoint == 0xA0 || codepoint == 0x0085 || codepoint == 0x2028 || codepoint == 0x2029)
+                    {
+                        backslash++;
+                        quotes_required++;
+                    }
+                }
+                else
                     non_printable16++;
             }
             else
@@ -197,15 +211,17 @@ char *yaml_string(const char *src, int indent, int *is_new)
     }
 
     len = (char *)s - src;
-    if (non_printable8 == 0 && non_printable16 == 0 && non_printable32 == 0)
+    if (quotes_required == 0 && non_printable8 == 0 && non_printable16 == 0 && non_printable32 == 0)
     {
-        if (backslash == 0 && d_quotes == 0)
+        // printf("src(%d)=%s, newline=%d, backslash=%d, d_quotes=%d, no8=%d, no16=%d, no32=%d, malloc=%d\n", len, src,
+        //    newline, backslash, d_quotes, non_printable8, non_printable16, non_printable32, len);
+        if (backslash == 0 && newline == 0 && d_quotes == 0)
             return (char *)src;
         else
         {
             if (indent >= 0)
             {
-                newstr = yaml_multiline_str(src, len, backslash, indent);
+                newstr = yaml_multiline_str(src, len, newline, indent);
                 if (newstr)
                 {
                     if (is_new)
@@ -216,11 +232,11 @@ char *yaml_string(const char *src, int indent, int *is_new)
         }
     }
 
-    len = (len + backslash + d_quotes +
+    len = (len + backslash + newline + d_quotes +
            (non_printable8 * 4) + (non_printable16 * 6) +
            (non_printable32 * 10) + 4);
-    // printf("src(%d)=%s, space=%d, backslash=%d, d_quotes=%d, no8=%d, no16=%d, no32=%d, malloc=%d\n", len, src,
-    //        space, backslash, d_quotes, non_printable8, non_printable16, non_printable32, len);
+    // printf("src(%d)=%s, newline=%d, backslash=%d, d_quotes=%d, no8=%d, no16=%d, no32=%d, malloc=%d\n", len, src,
+    //        newline, backslash, d_quotes, non_printable8, non_printable16, non_printable32, len);
     
     newstr = malloc(len);
     if (!newstr)
@@ -241,7 +257,7 @@ char *yaml_string(const char *src, int indent, int *is_new)
             {
                 if (isprint(codepoint)) // isgraph() + ' '
                 {
-                    if (codepoint == '"')
+                    if (codepoint == '"' || codepoint == '\\')
                     {
                         newstr[len] = '\\';
                         newstr[len + 1] = codepoint;
@@ -268,14 +284,19 @@ char *yaml_string(const char *src, int indent, int *is_new)
             }
             else if (codepoint <= 0x07FF)
             {
-                if ((codepoint >= 0xA0 && codepoint <= 0xD7FF) || codepoint == 0x85)
+                if (codepoint == 0xA0 || codepoint == 0x0085)
+                {
+                    newstr[len] = '\\';
+                    newstr[len + 1] = (codepoint == 0xA0) ? '_' : 'N';
+                    len += 2;
+                }
+                else if ((codepoint >= 0xA0 && codepoint <= 0xD7FF) || codepoint == 0x85)
                 {
                     memcpy(&newstr[len], base, 2);
                     len += 2;
                 }
                 else
                 {
-
                     int n = sprintf(newstr + len, "\\u%04X", codepoint);
                     assert(n == 6);
                     len = len + n;
@@ -283,7 +304,13 @@ char *yaml_string(const char *src, int indent, int *is_new)
             }
             else if (codepoint < 0xFFFF)
             {
-                if ((codepoint >= 0xA0 && codepoint <= 0xD7FF) ||
+                if (codepoint == 0x2028 || codepoint == 0x2029)
+                {
+                    newstr[len] = '\\';
+                    newstr[len + 1] = (codepoint == 0x2028) ? 'L' : 'P';
+                    len += 2;
+                }
+                else if ((codepoint >= 0xA0 && codepoint <= 0xD7FF) ||
                     (codepoint >= 0xE000 && codepoint <= 0xFFFD))
                 {
                     memcpy(&newstr[len], base, 3);

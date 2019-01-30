@@ -153,7 +153,6 @@ const char *ystrnew(const char *format, ...)
     if (str)
     {
         str->ref++;
-        free(src);
     }
     else
     {
@@ -166,6 +165,8 @@ const char *ystrnew(const char *format, ...)
         old_ystr = ytree_insert(yptr_pool, str->data, str);
         assert(old_ystr == NULL);
     }
+    free(src);
+    
 #ifdef YALLOC_DEBUG
     ylog_debug("[pid %d] %s str(%p,size=%d)=%s ref=%d\n", getpid(), __func__, str, str->size, str->data, str->ref);
 #endif
