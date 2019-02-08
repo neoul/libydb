@@ -36,3 +36,4 @@ examples/ydb/ydb-ipc-select
 examples/ydb/ydb-ipc-pub
 examples/ydb/ydb-ipc-sub
 examples/ydb/ydb-ipc-write-hook
+examples/ydb/ydb-ipc-read-hook

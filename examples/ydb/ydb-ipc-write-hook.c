@@ -1,4 +1,4 @@
-// ydb-ipc-sub.c
+// ydb-ipc-write-hook.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
