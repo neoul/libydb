@@ -255,8 +255,6 @@ void ydb_read_hook_delete(ydb *datablock, char *path);
 //  - path: The path of ydb_read_hook registered
 //  - U1-4: The USER-defined data
 //  - num: The number of the user-defined data (U1-4)
-
-
 typedef void (*ydb_write_hook0)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new);
 typedef void (*ydb_write_hook1)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1);
 typedef void (*ydb_write_hook2)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1, void *U2);

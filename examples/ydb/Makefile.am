@@ -121,5 +121,10 @@ ydb_ipc_sub_CPPFLAGS = -I $(top_srcdir)/ydb
 ydb_ipc_sub_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml -lm
 ydb_ipc_sub_CFLAGS = -g -Wall
 
+bin_PROGRAMS += ydb-ipc-write-hook
+ydb_ipc_write_hook_SOURCES = ydb-ipc-write-hook.c
+ydb_ipc_write_hook_CPPFLAGS = -I $(top_srcdir)/ydb
+ydb_ipc_write_hook_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml -lm
+ydb_ipc_write_hook_CFLAGS = -g -Wall
 
 # dist_pkgdata_DATA = ytrie-input.txt
