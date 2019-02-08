@@ -446,7 +446,7 @@ int main(int argc, char *argv[])
         if (change_log)
         {
             ydb_connection_log(1);
-            res = ydb_connect(datablock, "file://stdout", "w:");
+            res = ydb_connect(datablock, "file://stdout", "pub");
             if (res)
             {
                 fprintf(stderr, "ydb error: %s\n", ydb_res_str(res));

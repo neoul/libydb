@@ -5,8 +5,8 @@
 #include <signal.h>
 #include <sys/time.h>
 
-#include "ylog.h"
-#include "ydb.h"
+#include <ylog.h>
+#include <ydb.h>
 
 static int done;
 void HANDLER_SIGINT(int signal)

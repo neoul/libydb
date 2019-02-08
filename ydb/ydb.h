@@ -12,6 +12,7 @@
 #define YDB_LEVEL_MAX 16
 #define YDB_CONN_MAX 16
 #define YDB_TIMEOUT 3000 //ms
+#define YDB_DEFAULT_PORT 3677
 
 #ifdef __cplusplus
 extern "C"
@@ -63,7 +64,7 @@ void ydb_connection_log(int enable);
 
 // YAML DataBlock structure
 typedef struct _ydb ydb;
-typedef struct _ynode ynode; // The node of YDB
+typedef struct _ynode ynode; // The YAML node of YDB (YAML DataBlock)
 
 // ydb_open --
 // Open an instance of YAML DataBlock
@@ -82,16 +83,38 @@ char *ydb_name_and_path(ynode *node, int *pathlen);
 // Get the name of the YAML DataBlock
 const char *ydb_name(ydb *datablock);
 
-// address: use the unix socket if null
-//          us://unix-socket-name (unix socket)
-//          uss://unix-socket-name (hidden unix socket)
-// flags: p(publisher)/s(subscriber)
-//        w(writable): connect to a remote to write.
-//        u(unsubscribe): disable the subscription of the change
-// e.g. ydb_connect(db, "us:///tmp/ydb_channel", "sub:w")
+// ydb_connect --
+// Create or connect to YDB IPC (Inter Process Communication) channel
+//  - address: YDB communication channel address.
+//   - us://unix-socket-name (unix socket)
+//   - uss://unix-socket-name (hidden unix socket; socket file doesn’t appear from filesystem.)
+//   - tcp://ipaddr:port (tcp)
+//   - fifo://named-fifo-input,named-fifo-output
+//  - flags:
+//    pub(publisher)/sub(subscriber): YDB role configuration
+//    w(writable): connect to the channel to write data in subscriber role.
+//    u(unsubscribe): disable the subscription of the data change
+//    s(sync-before-read mode): request the update of the YDB instance before ydb_read()
+// e.g. ydb_connect(db, "uss://netconf", "pub")
+//      ydb_connect(db, "us:///tmp/ydb_channel", "sub")
 ydb_res ydb_connect(ydb *datablock, char *addr, char *flags);
+
+// ydb_disconnect --
+// Destroy or disconnect to the YDB IPC (Inter Process Communication) channel
 ydb_res ydb_disconnect(ydb *datablock, char *addr);
+
+// ydb_is_connected --
+// Check the YDB IPC channel connected or not.
 ydb_res ydb_is_connected(ydb *datablock, char *addr);
+
+// ydb_serve --
+// Run ydb_serve() in the main loop if YDB IPC channel is used.
+// ydb_serve() updates the local YDB instance using the received YAML data from remotes.
+ydb_res ydb_serve(ydb *datablock, int timeout);
+
+// ydb_fd --
+// Return the fd (file descriptor) opened for YDB IPC channel.
+int ydb_fd(ydb *datablock);
 
 // ydb_clear --
 // Clear all data in the YAML DataBlock
@@ -207,10 +230,6 @@ const char *ydb_path_read(ydb *datablock, const char *format, ...);
 
 int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...);
 
-ydb_res ydb_serve(ydb *datablock, int timeout);
-
-int ydb_fd(ydb *datablock);
-
 // ydb_read_hook: The callback executed by ydb_read() to update the datablock at reading.
 //  - ydb_read_hook0 - 4: The callback prototype according to the USER (U1-4) number.
 //  - path: The path of ydb_read_hook registered
@@ -228,15 +247,15 @@ typedef ydb_read_hook1 ydb_read_hook;
 ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook hook, int num, ...);
 void ydb_read_hook_delete(ydb *datablock, char *path);
 
-// ydb_write_hook: The callback executed by ydb_write() or the remote ydb update to notify the change of the datablock.
-//  - ydb_write_hook0 - 4: The callback prototype according to the USER (U1-4) number.
+// ydb_write_hook: The callback is executed by ydb_write() or ydb_delete().
+//  - ydb_write_hook0 - 4: The callback prototype according to the USER-defined data (U1-4) number.
 //  - op: 0: none, c: create, d: delete, r: replace
-//  - _cur: The current data node
+//  - _cur: The current data node (old data)
 //  - _new: The new data node to be replaced or created.
 //  - path: The path of ydb_read_hook registered
-//  - U1-4: The user-defined data
-//  - path: The path of ydb_write_hook registered
+//  - U1-4: The USER-defined data
 //  - num: The number of the user-defined data (U1-4)
+
 
 typedef void (*ydb_write_hook0)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new);
 typedef void (*ydb_write_hook1)(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1);
@@ -265,11 +284,11 @@ ydb_res ydb_path_sync(ydb *datablock, const char *format, ...);
 //  - datablock: The datablock to traverse.
 //  - cur: The current node to be traversed
 //  - cb: The callback function invoked on each child node
-//  - flags: The options to configure the travesing rule.
+//  - flags: The options to configure the traversing rule.
 //    - leaf-only: The cb is invoked only if the traversing node is a leaf node.
 //    - val-only: The cb is invoked only if the traversing node is a value node.
 //    - leaf-first: Leaf nodes are traversed prior to branches.
-//    - NULL: no-flags (treverse all branches and leaves.)
+//    - NULL: no-flags (traverse all branches and leaves.)
 //  - num: The number of the user-defined data
 //  - U1-4: The user-defined data
 typedef ydb_res (*ydb_traverse_callback0)(ydb *datablock, ynode *cur);

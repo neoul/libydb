@@ -10,8 +10,13 @@
 
 In order to use **YAML DataBlock (YDB)** in your project, you need to have the knowledge of **YAML (YAML Ain't Markup Language)** that is used to the input and the output of YDB. Please, see the following website to get more information about YAML. 
 
-- [https://en.wikipedia.org/wiki/YAML](https://en.wikipedia.org/wiki/YAML)
 - [https://yaml.org](https://yaml.org)
+- [https://en.wikipedia.org/wiki/YAML](https://en.wikipedia.org/wiki/YAML)
+- [https://learn.getgrav.org/advanced/yaml](https://learn.getgrav.org/advanced/yaml)
+
+## other documents
+
+- [https://docs.google.com/presentation/d/1oe3d0tzsOmsCKxgIlv_95MUBvxtF7xGGrqOLcLLH0vc/edit?usp=sharing](https://docs.google.com/presentation/d/1oe3d0tzsOmsCKxgIlv_95MUBvxtF7xGGrqOLcLLH0vc/edit?usp=sharing)
 
 ## First example of YDB usage
 
@@ -284,7 +289,7 @@ Please, see the following example if you want to check how to manage the mapping
 YAML ordered mapping is a ordered sequence node of `{key:value}` pairs without duplicates. YDB allows the ordered mapping node is used for the YDB input stream. YDB keeps the sequence of `{key:value}` data insertions and deletes the duplicated data. you have to give the `!!omap` tag explicitly in order to use the ordered mapping node in YDB.
 
 ```shell
-$ cat examples/yaml/yaml-omap.yaml 
+$ cat examples/yaml/yaml-omap.yaml
 ---
 # http://yaml.org/type/omap.html ----------------------------------------------#
 
@@ -321,7 +326,7 @@ omap:
 $
 ```
 
-If you use the un-ordered mapping node instead of the ordered mapping, you will get the different sequence.
+If you use the un-ordered mapping node instead of the ordered mapping, you will get the different sequence. The un-ordered mapping node sorts the data by the key.
 
 ```shell
 $ ydb -s <<EOF
@@ -343,7 +348,7 @@ $
 
 ### YAML node types
 
-YAML nodes may be labeled with a type or tag using the exclamation point (!!) followed by a string. The following sample show you how to tag the types of data nodes.
+YAML nodes may be labeled with a type or tag using the exclamation point (!! or !) followed by a string. The following sample shows you how to tag the types of scalar nodes.
 
 ```yaml
 a: 123                     # an integer
@@ -361,7 +366,7 @@ picture: !!binary |
   1IAADs=
 ```
 
-YDB stores the all input data nodes and types by strings without type conversion or interpretation. So, there is no data loss or processing burden in YDB.
+YDB stores the all input data and types by strings without type conversion or interpretation. So, there is no data loss or processing burden in YDB.
 
 ```shell
 $ ydb -f examples/yaml/yaml-types.yaml -s
@@ -388,7 +393,9 @@ picture: !!binary "R0lGODdhDQAIAIAAAAAAANn\nZ2SwAAAAADQAIAAACF4SDGQ\nar3xxbJ9p0q
 - Data block change monitoring
 - Dynamic data block update
 
-[https://docs.google.com/presentation/d/1oe3d0tzsOmsCKxgIlv_95MUBvxtF7xGGrqOLcLLH0vc/edit?usp=sharing](https://docs.google.com/presentation/d/1oe3d0tzsOmsCKxgIlv_95MUBvxtF7xGGrqOLcLLH0vc/edit?usp=sharing)
+## YDB operation test tool
+
+YDB library supports a [YDB operation test tool](https://github.com/neoul/libydb/blob/master/tools/ydb/ydb-app.c) and [test samples](https://github.com/neoul/libydb/tree/master/test) to verify YDB and YDB IPC facilities. Please, check the scripts how YDB works in detail.
 
 ## Performance
 
@@ -399,7 +406,7 @@ picture: !!binary "R0lGODdhDQAIAIAAAAAAANn\nZ2SwAAAAADQAIAAACF4SDGQ\nar3xxbJ9p0q
   - The string is freed upon the reference count to be zero.
 - YDB node implemented by AVL tree
   - AVL tree (Search/Insert/Delete) performance is O(log n).
-  - Each branch node of YDB is constructed by this AVL tree.
+  - Each branch node (list or mapping node) of YDB is constructed by this AVL tree.
   - For simple calculation, let’s assume each branch node has the same number of child nodes.
   - In this case, YDB performance is in O (log n).
     - `y = L * log (m) = log ( m ** L)`

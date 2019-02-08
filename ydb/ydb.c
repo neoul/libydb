@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #include <sys/un.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -502,17 +503,20 @@ failed:
     return NULL;
 }
 
-// address: use the unix socket named to the YDB name if null
-//          us://unix-socket-name (unix socket)
-//          uss://unix-socket-name (hidden unix socket)
-//          tcp://ipaddr:port (tcp)
-//          fifo://named-fifo-input,named-fifo-output
-// flags: pub(publisher)/sub(subscriber)
-//        w(writable): connect to a remote to write.
-//        u(unsubscribe): disable the subscription of the data change
-//        r(reconnect mode): retry the connection in ydb_serve()
-//        s(sync-before-read mode): request the update of the YDB before ydb_read()
-// e.g. ydb_connect(db, "us:///tmp/ydb_channel", "sub:w")
+// ydb_connect --
+// Create or connect to YDB IPC (Inter Process Communication) channel
+//  - address: YDB communication channel address.
+//   - us://unix-socket-name (unix socket)
+//   - uss://unix-socket-name (hidden unix socket; socket file doesn’t appear from filesystem.)
+//   - tcp://ipaddr:port (tcp)
+//   - fifo://named-fifo-input,named-fifo-output
+//  - flags:
+//    pub(publisher)/sub(subscriber): YDB role configuration
+//    w(writable): connect to the channel to write data in subscriber role.
+//    u(unsubscribe): disable the subscription of the data change
+//    s(sync-before-read mode): request the update of the YDB instance before ydb_read()
+// e.g. ydb_connect(db, "uss://netconf", "pub")
+//      ydb_connect(db, "us:///tmp/ydb_channel", "sub")
 ydb_res ydb_connect(ydb *datablock, char *addr, char *flags)
 {
     ydb_res res = YDB_OK;
@@ -545,6 +549,8 @@ failed:
     return res;
 }
 
+// ydb_disconnect --
+// Destroy or disconnect to the YDB IPC (Inter Process Communication) channel
 ydb_res ydb_disconnect(ydb *datablock, char *addr)
 {
     ydb_res res = YDB_E_NO_ENTRY;
@@ -571,6 +577,8 @@ failed:
     return res;
 }
 
+// ydb_is_connected --
+// Check the YDB IPC channel connected or not.
 ydb_res ydb_is_connected(ydb *datablock, char *addr)
 {
     yconn *conn = NULL;
@@ -1793,7 +1801,6 @@ void yconn_socket_deinit(yconn *conn)
     SET_DISCONNECTED(conn);
 }
 
-#define DEFAULT_SOCK_PORT "9999"
 ydb_res yconn_socket_init(yconn *conn)
 {
     int fd = -1;
@@ -1838,11 +1845,13 @@ ydb_res yconn_socket_init(yconn *conn)
             SET_DISCONNECTED(conn);
             return YDB_E_SYSTEM_FAILED;
         }
-        if (!cport)
-            cport = DEFAULT_SOCK_PORT;
+
         addr.in.sin_family = AF_INET;
         addr.in.sin_addr.s_addr = caddr;
-        addr.in.sin_port = htons(atoi(cport));
+        if (!cport)
+            addr.in.sin_port = YDB_DEFAULT_PORT;
+        else
+            addr.in.sin_port = htons(atoi(cport));
         addrlen = sizeof(struct sockaddr_in);
         socket_opt = SO_REUSEADDR;
 #ifdef SO_REUSEPORT
@@ -1868,8 +1877,9 @@ ydb_res yconn_socket_init(yconn *conn)
     {
         const char *sname = &(address[strlen("us://")]);
         addr.un.sun_family = AF_UNIX;
-        if (access(sname, F_OK) == 0)
-            unlink(sname);
+        // Removed because it causes invalid access when multiple publishers exist.
+        // if (access(sname, F_OK) == 0)
+        //     unlink(sname);
         snprintf(addr.un.sun_path, sizeof(addr.un.sun_path), "%s", sname);
         addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(sname) + 1;
     }

@@ -9,8 +9,7 @@
 ydb_res ydb_traverse_cb(ydb *datablock, ynode *cur, void *U1)
 {
     char *path = ydb_path_and_value(datablock, cur, NULL);
-    fprintf(stdout,
-        "HOOK %s U1=%s path=%s\n", __func__, (char *) U1, path);
+    fprintf(stdout, "%s path=%s\n", (char *) U1, path);
     if (path)
         free(path);
     return YDB_OK;
@@ -26,6 +25,7 @@ int main(int argc, char *argv[])
     ynode *found = NULL;
     block2 = ydb_get("my-block", &found);
 
+    printf("block1: %s\n", ydb_name(block1));
     printf("block2: %s\n", ydb_name(block2));
     printf("block1=%p, block2=%p\n", block1, block2);
 
@@ -95,8 +95,8 @@ int main(int argc, char *argv[])
     node = ydb_up(node);
     printf("parent (ydb_up) = %s\n", ydb_key(node));
 
-
-    ydb_traverse(block1, node, (ydb_traverse_callback) ydb_traverse_cb, "val-only", 1, "hello");
+    node = ydb_top(block1);
+    ydb_traverse(block1, node, (ydb_traverse_callback) ydb_traverse_cb, "val-only", 1, "traverse");
 
     ydb_close(block1);
     return 0;
