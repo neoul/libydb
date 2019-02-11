@@ -8,6 +8,7 @@ interfaces:
         secondary: false
     link-up-down-trap-enable: disabled
     name: ge1
+    type: ethernetCsmacd
 interfaces-state:
   interface[name=ge1]:
     statistics:

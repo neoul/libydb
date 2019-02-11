@@ -8,3 +8,4 @@ interfaces:
         secondary: false
     link-up-down-trap-enable: disabled
     name: ge1
+    type: ethernetCsmacd
