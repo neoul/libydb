@@ -521,7 +521,7 @@ int main(int argc, char *argv[])
                     interpret++;
                     interpret_mode_help();
                 }
-                ret = select(fd + 1, &read_set, NULL, NULL, &tv);
+                ret = select(fd + 1, &read_set, NULL, NULL, (timeout == 0)?NULL:&tv);
                 if (ret < 0)
                 {
                     fprintf(stderr, "\nselect error: %s\n", strerror(errno));
