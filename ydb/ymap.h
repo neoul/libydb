@@ -35,11 +35,24 @@ void *ymap_insert_back(ymap *map, void *key, void *data);
 // and then return NULL if ok, otherwise return old inserted data.
 // null key is not inserted.
 void *ymap_insert_front(ymap *map, void *key, void *data);
+
+// pop the key and data from the head of the ymap 
+// return data or NULL if no entry.
+void *ymap_pop_front(ymap *map, void **key, void **data);
+
+// pop the key and data from the tail of the ymap 
+// return data or NULL if no entry.
+void *ymap_pop_tail(ymap *map, void **key, void **data);
+
 // delete the key from the ymap return the data.
 void *ymap_delete(ymap *map, void *key);
 
 // return the data if found, otherwise return NULL
 void *ymap_search(ymap *map, void *key);
+
+// return the near data to the key. (This searches lower nodes if lower is set.)
+void *ymap_search_nearby(ymap *map, void *key, void **nearkey, int lower);
+
 // return 1 if found, otherwise return 0
 int ymap_exist(ymap *map, void *key);
 

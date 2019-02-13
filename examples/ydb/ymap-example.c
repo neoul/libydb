@@ -74,8 +74,28 @@ int main()
     printf("\n[ymap_size]\n");
     printf("size=%d\n", ymap_size(map));
     
-    printf("\n[ymap_traverse]\n");
+    printf("\n[ymap_traverse (unordered)]\n");
     ymap_traverse(map, callback, "TRV");
+
+    printf("\n[ymap_search_nearby]\n");
+    char *key, *nearkey;
+    char *data;
+    key = "ietf-ip/ipv6/";
+    nearkey = NULL;
+    data = ymap_search_nearby(map, key, (void **)nearkey, 0);
+    printf("key=%s, data=%s\n", key, data);
+
+    callbackn =0;
+    printf("\n[ymap_traverse (ordered)]\n");
+    ymap_traverse_order(map, callback, "TRV");
+
+    printf("\n[ymap pop]\n");
+    char *popstr = ymap_pop_front(map, NULL, NULL);
+    printf("pop (front) str=%s\n", popstr);
+    free(popstr);
+    popstr = ymap_pop_tail(map, NULL, NULL);
+    printf("pop (tail) str=%s\n", popstr);
+    free(popstr);
 
     printf("\n[ymap loop]\n");
     

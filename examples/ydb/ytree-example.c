@@ -155,8 +155,8 @@ int main(int argc, char **argv)
     ytree_traverse_in_range(tree, &low, &high, _user_cb_udata, &count);
 
     struct ukey nkey;
-    nkey.key = 25;
-    iter = ytree_find_nearest(tree, &nkey);
+    nkey.key = 28;
+    iter = ytree_find_nearby(tree, &nkey, 0);
     printf("\nSEARCH an node that is the nearest %d\n", nkey.key);
     printf(" %d=%s\n",
            ((struct ukey *)(ytree_key(iter)))->key,

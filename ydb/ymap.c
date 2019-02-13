@@ -127,6 +127,55 @@ void *ymap_insert_front(ymap *map, void *key, void *data)
     return NULL;
 }
 
+
+// pop the key and data from the head of the ymap 
+// return data or NULL if no entry.
+void *ymap_pop_front(ymap *map, void **key, void **data)
+{
+    ymap_iter *imap;
+    if (!map)
+        return NULL;
+    imap = ylist_pop_front(map->list);
+    if (imap)
+    {
+        void *d, *k;
+        d = imap->data;
+        k = imap->key;
+        assert(ytree_delete(map->tree, k) == imap);
+        free(imap);
+        if (key)
+            *key = k;
+        if (data)
+            *data = d;
+        return d;
+    }
+    return NULL;
+}
+
+// pop the key and data from the tail of the ymap 
+// return data or NULL if no entry.
+void *ymap_pop_tail(ymap *map, void **key, void **data)
+{
+    ymap_iter *imap;
+    if (!map)
+        return NULL;
+    imap = ylist_pop_back(map->list);
+    if (imap)
+    {
+        void *d, *k;
+        d = imap->data;
+        k = imap->key;
+        assert(ytree_delete(map->tree, k) == imap);
+        free(imap);
+        if (key)
+            *key = k;
+        if (data)
+            *data = d;
+        return d;
+    }
+    return NULL;
+}
+
 // delete the key from the ymap return the data.
 void *ymap_delete(ymap *map, void *key)
 {
@@ -157,6 +206,26 @@ void *ymap_search(ymap *map, void *key)
     }
     return NULL;
 }
+
+// return the near data to the key. (This searches lower nodes if lower is set.)
+void *ymap_search_nearby(ymap *map, void *key, void **nearkey, int lower)
+{
+    if (map && key)
+    {
+        ytree_iter *itree;
+        itree = ytree_find_nearby(map->tree, key, lower);
+        if (itree)
+        {
+            ymap_iter *imap;
+            imap = ytree_data(itree);
+            if (nearkey)
+                *nearkey = imap->key;
+            return imap->data;
+        }
+    }
+    return NULL;
+}
+
 
 // return 1 if found, otherwise return 0
 int ymap_exist(ymap *map, void *key)

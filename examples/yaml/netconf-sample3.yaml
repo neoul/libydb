@@ -1,0 +1,1718 @@
+# top
+fast:
+ quality:
+  fast-rate-adaptation-profile[name=aaaa]:
+   name: aaaa
+  fast-rate-adaptation-profile[name=abc]:
+   name: abc
+  fast-rate-adaptation-profile[name=default]:
+   name: default
+  fast-rate-adaptation-profile[name=full-band]:
+   name: full-band
+  fast-retrain-policy-profile[name=aaaa]:
+   name: aaaa
+  fast-retrain-policy-profile[name=abc]:
+   name: abc
+  fast-retrain-policy-profile[name=default]:
+   name: default
+  fast-retrain-policy-profile[name=full-band]:
+   name: full-band
+  noise-margin-profile[name=aaaa]:
+   name: aaaa
+  noise-margin-profile[name=abc]:
+   name: abc
+  noise-margin-profile[name=default]:
+   name: default
+  noise-margin-profile[name=full-band]:
+   name: full-band
+  retransmission-profile[name=aaaa]:
+   name: aaaa
+  retransmission-profile[name=abc]:
+   name: abc
+  retransmission-profile[name=default]:
+   name: default
+  retransmission-profile[name=full-band]:
+   name: full-band
+  vectoring-profile[name=aaaa]:
+   name: aaaa
+  vectoring-profile[name=abc]:
+   name: abc
+  vectoring-profile[name=default]:
+   name: default
+  vectoring-profile[name=full-band]:
+   name: full-band
+ service:
+  downstream-data-rate-profile[name=aaaa]:
+   maximum-net-data-rate: 4294967295
+   minimum-expected-throughput: 0
+  downstream-data-rate-profile[name=abc]:
+   maximum-net-data-rate: 300000
+   minimum-expected-throughput: 0
+  downstream-data-rate-profile[name=default]:
+   maximum-net-data-rate: 3000000
+   minimum-expected-throughput: 0
+  downstream-data-rate-profile[name=full-band]:
+   maximum-net-data-rate: 3000000
+   minimum-expected-throughput: 0
+  time-division-duplexing-profile[name=aaaa]:
+   cyclic-extension: 10
+   downstream-symbol-periods: 27
+   total-symbol-periods: 36
+  time-division-duplexing-profile[name=abc]:
+   cyclic-extension: 10
+   downstream-symbol-periods: 27
+   total-symbol-periods: 36
+  time-division-duplexing-profile[name=default]:
+   cyclic-extension: 10
+   downstream-symbol-periods: 27
+   total-symbol-periods: 36
+  time-division-duplexing-profile[name=full-band]:
+   cyclic-extension: 10
+   downstream-symbol-periods: 27
+   total-symbol-periods: 36
+  upstream-data-rate-profile[name=aaaa]:
+   maximum-net-data-rate: 3000000
+   minimum-expected-throughput: 0
+  upstream-data-rate-profile[name=abc]:
+   maximum-net-data-rate: 3000000
+   minimum-expected-throughput: 0
+  upstream-data-rate-profile[name=default]:
+   maximum-net-data-rate: 3000000
+   minimum-expected-throughput: 0
+  upstream-data-rate-profile[name=full-band]:
+   maximum-net-data-rate: 3000000
+   minimum-expected-throughput: 0
+ spectrum:
+  line-spectrum-profile[name=aaaa]:
+   downstream:
+    carmask[start-index=1]:
+     start-index: 1
+     stop-index: 579
+    maximum-aggregate-transmit-power: 40
+    mibpsdmask[sub-carrier-index=2048]:
+     psd-level: 152
+     sub-carrier-index: 2048
+    mibpsdmask[sub-carrier-index=4095]:
+     psd-level: 158
+     sub-carrier-index: 4095
+    mibpsdmask[sub-carrier-index=43]:
+     psd-level: 130
+     sub-carrier-index: 43
+    mibpsdmask[sub-carrier-index=579]:
+     psd-level: 130
+     sub-carrier-index: 579
+    mibpsdmask[sub-carrier-index=580]:
+     psd-level: 146
+     sub-carrier-index: 580
+   profiles: all
+   upstream:
+    carmask[start-index=1]:
+     start-index: 1
+     stop-index: 579
+    maximum-aggregate-transmit-power: 40
+    mibpsdmask[sub-carrier-index=2048]:
+     psd-level: 152
+     sub-carrier-index: 2048
+    mibpsdmask[sub-carrier-index=4095]:
+     psd-level: 158
+     sub-carrier-index: 4095
+    mibpsdmask[sub-carrier-index=43]:
+     psd-level: 130
+     sub-carrier-index: 43
+    mibpsdmask[sub-carrier-index=579]:
+     psd-level: 130
+     sub-carrier-index: 579
+    mibpsdmask[sub-carrier-index=580]:
+     psd-level: 146
+     sub-carrier-index: 580
+  line-spectrum-profile[name=abc]:
+   downstream:
+    carmask[start-index=1]:
+     start-index: 1
+     stop-index: 579
+    maximum-aggregate-transmit-power: 40
+    mibpsdmask[sub-carrier-index=2048]:
+     psd-level: 152
+     sub-carrier-index: 2048
+    mibpsdmask[sub-carrier-index=4095]:
+     psd-level: 158
+     sub-carrier-index: 4095
+    mibpsdmask[sub-carrier-index=43]:
+     psd-level: 130
+     sub-carrier-index: 43
+    mibpsdmask[sub-carrier-index=579]:
+     psd-level: 130
+     sub-carrier-index: 579
+    mibpsdmask[sub-carrier-index=580]:
+     psd-level: 146
+     sub-carrier-index: 580
+   profiles: all
+   upstream:
+    carmask[start-index=1]:
+     start-index: 1
+     stop-index: 579
+    maximum-aggregate-transmit-power: 40
+    mibpsdmask[sub-carrier-index=2048]:
+     psd-level: 152
+     sub-carrier-index: 2048
+    mibpsdmask[sub-carrier-index=4095]:
+     psd-level: 158
+     sub-carrier-index: 4095
+    mibpsdmask[sub-carrier-index=43]:
+     psd-level: 130
+     sub-carrier-index: 43
+    mibpsdmask[sub-carrier-index=579]:
+     psd-level: 130
+     sub-carrier-index: 579
+    mibpsdmask[sub-carrier-index=580]:
+     psd-level: 146
+     sub-carrier-index: 580
+  line-spectrum-profile[name=default]:
+   downstream:
+    carmask[start-index=1]:
+     start-index: 1
+     stop-index: 579
+    maximum-aggregate-transmit-power: 40
+    mibpsdmask[sub-carrier-index=2048]:
+     psd-level: 152
+     sub-carrier-index: 2048
+    mibpsdmask[sub-carrier-index=4095]:
+     psd-level: 158
+     sub-carrier-index: 4095
+    mibpsdmask[sub-carrier-index=43]:
+     psd-level: 130
+     sub-carrier-index: 43
+    mibpsdmask[sub-carrier-index=579]:
+     psd-level: 130
+     sub-carrier-index: 579
+    mibpsdmask[sub-carrier-index=580]:
+     psd-level: 146
+     sub-carrier-index: 580
+   profiles: all
+   upstream:
+    carmask[start-index=1]:
+     start-index: 1
+     stop-index: 579
+    maximum-aggregate-transmit-power: 40
+    mibpsdmask[sub-carrier-index=2048]:
+     psd-level: 152
+     sub-carrier-index: 2048
+    mibpsdmask[sub-carrier-index=4095]:
+     psd-level: 158
+     sub-carrier-index: 4095
+    mibpsdmask[sub-carrier-index=43]:
+     psd-level: 130
+     sub-carrier-index: 43
+    mibpsdmask[sub-carrier-index=579]:
+     psd-level: 130
+     sub-carrier-index: 579
+    mibpsdmask[sub-carrier-index=580]:
+     psd-level: 146
+     sub-carrier-index: 580
+  line-spectrum-profile[name=full-band]:
+   downstream:
+    maximum-aggregate-transmit-power: 40
+    mibpsdmask[sub-carrier-index=2048]:
+     psd-level: 152
+     sub-carrier-index: 2048
+    mibpsdmask[sub-carrier-index=4095]:
+     psd-level: 158
+     sub-carrier-index: 4095
+    mibpsdmask[sub-carrier-index=43]:
+     psd-level: 130
+     sub-carrier-index: 43
+    mibpsdmask[sub-carrier-index=579]:
+     psd-level: 130
+     sub-carrier-index: 579
+    mibpsdmask[sub-carrier-index=580]:
+     psd-level: 146
+     sub-carrier-index: 580
+   profiles: all
+   upstream:
+    maximum-aggregate-transmit-power: 40
+    mibpsdmask[sub-carrier-index=2048]:
+     psd-level: 152
+     sub-carrier-index: 2048
+    mibpsdmask[sub-carrier-index=4095]:
+     psd-level: 158
+     sub-carrier-index: 4095
+    mibpsdmask[sub-carrier-index=43]:
+     psd-level: 130
+     sub-carrier-index: 43
+    mibpsdmask[sub-carrier-index=579]:
+     psd-level: 130
+     sub-carrier-index: 579
+    mibpsdmask[sub-carrier-index=580]:
+     psd-level: 146
+     sub-carrier-index: 580
+  radio-frequency-interference-profile[name=aaaa]:
+   iarbands: kHz-1800-2000
+  radio-frequency-interference-profile[name=abc]:
+   iarbands: kHz-1800-2000
+  radio-frequency-interference-profile[name=default]:
+   iarbands: kHz-1800-2000
+  radio-frequency-interference-profile[name=full-band]:
+   iarbands: kHz-1800-2000
+  upstream-power-back-off-profile[name=aaaa]:
+   upbo-force-electrical-length: false
+   upbo-reference-electrical-length: 0
+   upbo-upstream-electrical-length: 0
+   upbopsd-a: 0
+   upbopsd-b: 0
+  upstream-power-back-off-profile[name=abc]:
+   upbo-force-electrical-length: false
+   upbo-reference-electrical-length: 0
+   upbo-upstream-electrical-length: 0
+   upbopsd-a: 0
+   upbopsd-b: 0
+  upstream-power-back-off-profile[name=default]:
+   upbo-force-electrical-length: false
+   upbo-reference-electrical-length: 0
+   upbo-upstream-electrical-length: 0
+   upbopsd-a: 0
+   upbopsd-b: 0
+  upstream-power-back-off-profile[name=full-band]:
+   upbo-force-electrical-length: false
+   upbo-reference-electrical-length: 0
+   upbo-upstream-electrical-length: 0
+   upbopsd-a: 0
+   upbopsd-b: 0
+ vectors:
+  line-config-vector[name=aaaa]:
+   downstream-data-rate-profile: aaaa
+   fast-rate-adaptation-profile: aaaa
+   fast-retrain-policy-profile: aaaa
+   line-spectrum-profile: aaaa
+   noise-margin-profile: aaaa
+   radio-frequency-interference-profile: aaaa
+   retransmission-profile: aaaa
+   time-division-duplexing-profile: aaaa
+   upstream-data-rate-profile: aaaa
+   upstream-power-back-off-profile: aaaa
+   vectoring-profile: aaaa
+  line-config-vector[name=abc]:
+   downstream-data-rate-profile: abc
+   fast-rate-adaptation-profile: abc
+   fast-retrain-policy-profile: abc
+   line-spectrum-profile: abc
+   noise-margin-profile: abc
+   radio-frequency-interference-profile: abc
+   retransmission-profile: abc
+   time-division-duplexing-profile: abc
+   upstream-data-rate-profile: abc
+   upstream-power-back-off-profile: abc
+   vectoring-profile: abc
+  line-config-vector[name=default]:
+   downstream-data-rate-profile: default
+   fast-rate-adaptation-profile: default
+   fast-retrain-policy-profile: default
+   line-spectrum-profile: default
+   noise-margin-profile: default
+   radio-frequency-interference-profile: default
+   retransmission-profile: default
+   time-division-duplexing-profile: default
+   upstream-data-rate-profile: default
+   upstream-power-back-off-profile: default
+   vectoring-profile: default
+  line-config-vector[name=full-band]:
+   downstream-data-rate-profile: full-band
+   fast-rate-adaptation-profile: full-band
+   fast-retrain-policy-profile: full-band
+   line-spectrum-profile: full-band
+   noise-margin-profile: full-band
+   radio-frequency-interference-profile: full-band
+   retransmission-profile: full-band
+   time-division-duplexing-profile: full-band
+   upstream-data-rate-profile: full-band
+   upstream-power-back-off-profile: full-band
+   vectoring-profile: full-band
+interfaces:
+ interface[name=Vlan1]:
+  description: 
+  enabled: true
+  link-up-down-trap-enable: disabled
+  name: Vlan1
+  type: l2vlan
+ interface[name=Vlan4094]:
+  description: 
+  enabled: true
+  ipv4:
+   address[ip=10.10.10.100]:
+    prefix-length: 24
+    secondary: false
+  link-up-down-trap-enable: disabled
+  name: Vlan4094
+  type: l2vlan
+ interface[name=ge10]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge10
+  type: ethernetCsmacd
+ interface[name=ge11]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge11
+  type: ethernetCsmacd
+ interface[name=ge12]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge12
+  type: ethernetCsmacd
+ interface[name=ge13]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge13
+  type: ethernetCsmacd
+ interface[name=ge14]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge14
+  type: ethernetCsmacd
+ interface[name=ge15]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge15
+  type: ethernetCsmacd
+ interface[name=ge16]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge16
+  type: ethernetCsmacd
+ interface[name=ge17]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge17
+  type: ethernetCsmacd
+ interface[name=ge18]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge18
+  type: ethernetCsmacd
+ interface[name=ge19]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge19
+  type: ethernetCsmacd
+ interface[name=ge1]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge1
+  type: ethernetCsmacd
+ interface[name=ge20]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge20
+  type: ethernetCsmacd
+ interface[name=ge21]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge21
+  type: ethernetCsmacd
+ interface[name=ge22]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge22
+  type: ethernetCsmacd
+ interface[name=ge23]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge23
+  type: ethernetCsmacd
+ interface[name=ge24]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge24
+  type: ethernetCsmacd
+ interface[name=ge2]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge2
+  type: ethernetCsmacd
+ interface[name=ge3]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge3
+  type: ethernetCsmacd
+ interface[name=ge4]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge4
+  type: ethernetCsmacd
+ interface[name=ge5]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge5
+  type: ethernetCsmacd
+ interface[name=ge6]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge6
+  type: ethernetCsmacd
+ interface[name=ge7]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge7
+  type: ethernetCsmacd
+ interface[name=ge8]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge8
+  type: ethernetCsmacd
+ interface[name=ge9]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: ge9
+  type: ethernetCsmacd
+ interface[name=line10]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line10
+  type: fastdsl
+ interface[name=line11]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line11
+  type: fastdsl
+ interface[name=line12]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line12
+  type: fastdsl
+ interface[name=line13]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line13
+  type: fastdsl
+ interface[name=line14]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line14
+  type: fastdsl
+ interface[name=line15]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line15
+  type: fastdsl
+ interface[name=line16]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line16
+  type: fastdsl
+ interface[name=line17]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line17
+  type: fastdsl
+ interface[name=line18]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line18
+  type: fastdsl
+ interface[name=line19]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line19
+  type: fastdsl
+ interface[name=line1]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line1
+  type: fastdsl
+ interface[name=line20]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line20
+  type: fastdsl
+ interface[name=line21]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line21
+  type: fastdsl
+ interface[name=line22]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line22
+  type: fastdsl
+ interface[name=line23]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line23
+  type: fastdsl
+ interface[name=line24]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line24
+  type: fastdsl
+ interface[name=line2]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line2
+  type: fastdsl
+ interface[name=line3]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line3
+  type: fastdsl
+ interface[name=line4]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line4
+  type: fastdsl
+ interface[name=line5]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line5
+  type: fastdsl
+ interface[name=line6]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line6
+  type: fastdsl
+ interface[name=line7]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line7
+  type: fastdsl
+ interface[name=line8]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line8
+  type: fastdsl
+ interface[name=line9]:
+  enabled: true
+  line:
+   configured-mode: mode-fast
+   line:
+    line-config-vector: default
+   supported-mode: mode-fast
+  name: line9
+  type: fastdsl
+ interface[name=loopback0]:
+  description: 
+  enabled: true
+  link-up-down-trap-enable: disabled
+  name: loopback0
+  type: softwareLoopback
+ interface[name=mgmt]:
+  description: 
+  enabled: true
+  ipv4:
+   address[ip=192.168.77.10]:
+    prefix-length: 16
+    secondary: false
+  link-up-down-trap-enable: disabled
+  name: mgmt
+  type: mgmt
+ interface[name=xe1]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 10.000
+  link-up-down-trap-enable: disabled
+  name: xe1
+  type: ethernetCsmacd
+ interface[name=xe2]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: false
+   duplex: full
+   speed: 10.000
+  link-up-down-trap-enable: disabled
+  name: xe2
+  type: ethernetCsmacd
+ interface[name=xe3]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: true
+   duplex: full
+   speed: 1.000
+  link-up-down-trap-enable: disabled
+  name: xe3
+  type: ethernetCsmacd
+ interface[name=xe4]:
+  description: 
+  enabled: true
+  ethernet:
+   auto-negotiation:
+    enable: false
+   duplex: full
+   speed: 10.000
+  link-up-down-trap-enable: disabled
+  name: xe4
+  type: ethernetCsmacd
+interfaces-state:
+ interface[name=Vlan1]:
+  admin-status: up
+  if-index: 25001
+  last-change: 2019-02-11T10:25:08+00:00
+  oper-status: up
+  phys-address: 00:00:00:00:00:00
+  speed: 1000000000
+  statistics: 
+  type: l2vlan
+ interface[name=Vlan4094]:
+  admin-status: up
+  if-index: 29094
+  last-change: 2019-02-11T10:26:42+00:00
+  oper-status: up
+  phys-address: 00:00:00:00:00:00
+  speed: 1000000000
+  statistics: 
+  type: l2vlan
+ interface[name=ge10]:
+  admin-status: up
+  if-index: 5010
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line10
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge11]:
+  admin-status: up
+  if-index: 5011
+  last-change: 2019-02-11T10:26:42+00:00
+  lower-layer-if: line11
+  oper-status: up
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge12]:
+  admin-status: up
+  if-index: 5012
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line12
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge13]:
+  admin-status: up
+  if-index: 5013
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line13
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge14]:
+  admin-status: up
+  if-index: 5014
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line14
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge15]:
+  admin-status: up
+  if-index: 5015
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line15
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge16]:
+  admin-status: up
+  if-index: 5016
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line16
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge17]:
+  admin-status: up
+  if-index: 5017
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line17
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge18]:
+  admin-status: up
+  if-index: 5018
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line18
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge19]:
+  admin-status: up
+  if-index: 5019
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line19
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge1]:
+  admin-status: up
+  if-index: 5001
+  last-change: 2019-02-11T10:26:42+00:00
+  lower-layer-if: line1
+  oper-status: up
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge20]:
+  admin-status: up
+  if-index: 5020
+  last-change: 2019-02-11T10:26:42+00:00
+  lower-layer-if: line20
+  oper-status: up
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge21]:
+  admin-status: up
+  if-index: 5021
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line21
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge22]:
+  admin-status: up
+  if-index: 5022
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line22
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge23]:
+  admin-status: up
+  if-index: 5023
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line23
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge24]:
+  admin-status: up
+  if-index: 5024
+  last-change: 2019-02-11T10:26:42+00:00
+  lower-layer-if: line24
+  oper-status: up
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge2]:
+  admin-status: up
+  if-index: 5002
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line2
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge3]:
+  admin-status: up
+  if-index: 5003
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line3
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge4]:
+  admin-status: up
+  if-index: 5004
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line4
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge5]:
+  admin-status: up
+  if-index: 5005
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line5
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge6]:
+  admin-status: up
+  if-index: 5006
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line6
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge7]:
+  admin-status: up
+  if-index: 5007
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line7
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge8]:
+  admin-status: up
+  if-index: 5008
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line8
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=ge9]:
+  admin-status: up
+  if-index: 5009
+  last-change: 2019-02-11T10:25:00+00:00
+  lower-layer-if: line9
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=line10]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line11]:
+  last-change: 2019-02-11T10:26:41+00:00
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: 1258006
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: 1196687
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: 1196687
+       net-data-rate: 1198005
+      upstream:
+       attainable-net-data-rate: 367144
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: 366740
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: 366740
+       net-data-rate: 367144
+  oper-status: up
+ interface[name=line12]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line13]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line14]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line15]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line16]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line17]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line18]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line19]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line1]:
+  last-change: 2019-02-11T10:26:41+00:00
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: 1147449
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: 1146186
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: 1146186
+       net-data-rate: 1147449
+      upstream:
+       attainable-net-data-rate: 253108
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: 252829
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: 252829
+       net-data-rate: 253108
+  oper-status: up
+ interface[name=line20]:
+  last-change: 2019-02-11T10:26:41+00:00
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: 1217141
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: 1196743
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: 1196743
+       net-data-rate: 1198061
+      upstream:
+       attainable-net-data-rate: 317648
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: 317298
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: 317298
+       net-data-rate: 317648
+  oper-status: up
+ interface[name=line21]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line22]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line23]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line24]:
+  last-change: 2019-02-11T10:26:41+00:00
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: 1219068
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: 1196735
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: 1196735
+       net-data-rate: 1198053
+      upstream:
+       attainable-net-data-rate: 342058
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: 341673
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: 341673
+       net-data-rate: 342050
+  oper-status: up
+ interface[name=line2]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line3]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line4]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line5]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line6]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line7]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line8]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=line9]:
+  line:
+   line:
+    channel:
+     status:
+      downstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+      upstream:
+       attainable-net-data-rate: undetermined
+       dtu-fec-codeword-length: 255
+       dtu-fec-redundancy: 8
+       expected-throughput: undetermined
+       fec-codewords-per-dtu: 8
+       gamma-data-rate: undetermined
+       net-data-rate: undetermined
+ interface[name=loopback0]:
+  admin-status: up
+  if-index: 1
+  last-change: 2019-02-11T10:24:57+00:00
+  oper-status: up
+  phys-address: 00:00:00:00:00:00
+  speed: 0
+  statistics: 
+  type: softwareLoopback
+ interface[name=mgmt]:
+  admin-status: up
+  if-index: 2
+  last-change: 2019-02-11T10:24:57+00:00
+  oper-status: up
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 96000
+  statistics: 
+  type: mgmt
+ interface[name=xe1]:
+  admin-status: up
+  if-index: 5025
+  last-change: 2019-02-11T10:25:00+00:00
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 10000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=xe2]:
+  admin-status: up
+  if-index: 5026
+  last-change: 2019-02-11T10:25:00+00:00
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 10000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=xe3]:
+  admin-status: up
+  if-index: 5027
+  last-change: 2019-02-11T10:25:08+00:00
+  oper-status: up
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 1000000000
+  statistics: 
+  type: ethernetCsmacd
+ interface[name=xe4]:
+  admin-status: up
+  if-index: 5028
+  last-change: 2019-02-11T10:25:00+00:00
+  oper-status: down
+  phys-address: 00:23:aa:2a:c0:a0
+  speed: 10000000000
+  statistics: 
+  type: ethernetCsmacd
+notification:
+ vlan-up:
+  id: 4094
+vlans:
+ vlan[id=1]: 
+ vlan[id=4094]: 
+
+

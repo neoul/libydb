@@ -972,6 +972,30 @@ int ytree_traverse_reverse(ytree *tree, ytree_callback cb, void *user_data)
     return 0;
 }
 
+static ytree_iter *ytree_find_nearest(ytree *tree, void *key)
+{
+    ytree_iter *node = tree->root;
+    ytree_iter *nearest = node;
+    while (node != NULL)
+    {
+        if ((tree->comp)(key, node->key) < 0)
+        {
+            nearest = node;
+            node = node->left;
+        }
+        else if ((tree->comp)(key, node->key) > 0)
+        {
+            nearest = node;
+            node = node->right;
+        }
+        else
+        {
+            return node;
+        }
+    }
+    return nearest;
+}
+
 // Iterates through the entries in the tree within a range.
 int ytree_traverse_in_range(ytree *tree, void *lower_boundary, void *higher_boundary, ytree_callback cb, void *user_data)
 {
@@ -981,11 +1005,10 @@ int ytree_traverse_in_range(ytree *tree, void *lower_boundary, void *higher_boun
     ytree_cmp cmp;
     Node base;
     Node node;
-
+    if (!tree)
+        return -1;
     cmp = tree->comp;
     base = ytree_find_nearest(tree, lower_boundary);
-    if (!cmp)
-        return -1;
     if (!base)
         return -1;
     node = base;
@@ -1018,10 +1041,15 @@ int ytree_traverse_in_range(ytree *tree, void *lower_boundary, void *higher_boun
     return 0;
 }
 
-ytree_iter *ytree_find_nearest(ytree *tree, void *key)
+// return the nearest iterator to the key. (This searches lower nodes if lower is set.)
+ytree_iter *ytree_find_nearby(ytree *tree, void *key, int lower)
 {
-    ytree_iter *node = tree->root;
-    ytree_iter *nearest = node;
+    ytree_iter *node;
+    ytree_iter *nearest;
+    if (!tree)
+        return NULL;
+    node = tree->root;
+    nearest = node;
     while (node != NULL)
     {
         if ((tree->comp)(key, node->key) < 0)
@@ -1037,6 +1065,28 @@ ytree_iter *ytree_find_nearest(ytree *tree, void *key)
         else
         {
             return node;
+        }
+    }
+    if (lower)
+    {
+        node = nearest;
+        while (node)
+        {
+            int res = (tree->comp)(node->key, key);
+            if (res < 0)
+                return node;
+            node = Tree_PrevNode(tree, node);
+        }
+    }
+    else
+    {
+        node = nearest;
+        while (node)
+        {
+            int res = (tree->comp)(node->key, key);
+            if (res > 0)
+                return node;
+            node = Tree_PrevNode(tree, node);
         }
     }
     return nearest;
