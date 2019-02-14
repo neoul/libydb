@@ -88,11 +88,21 @@ int test_ydb_read_write()
     ydb *datablock;
     datablock = ydb_open("block");
 
+    // elapsed character
+    char *ystr = str2yaml("\tvalue\n");
+    ydb_write(datablock, "key: %s\n", ystr);
+    free(ystr);
+
+    char value[128] = {0};
+    ydb_read(datablock, "key: %s\n", value);
+    printf("\nkey='%s'\n", value);
+
     // inserting one value
     res = ydb_write(datablock, "VALUE");
     if (res)
         goto _done;
-    char value[128] = {0};
+    
+    value[0] = 0;
     num = ydb_read(datablock, "%s\n", value);
     printf("num %d, value=%s\n", num, value);
 
@@ -248,10 +258,10 @@ _done:
 
 int main(int argc, char *argv[])
 {
-    ylog_severity = YLOG_DEBUG;
+    // ylog_severity = YLOG_DEBUG;
     TEST_FUNC(test_ydb_open_close);
 
-    ylog_severity = YLOG_INFO;
+    // ylog_severity = YLOG_INFO;
     TEST_FUNC(test_ydb_read_write);
     return 0;
 }

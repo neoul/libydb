@@ -35,6 +35,7 @@
 #include "ytrie.h"
 
 #include "ydb.h"
+#include "utf8.h"
 #include "ynode.h"
 
 extern ylog_func ylog_logger;
@@ -462,6 +463,19 @@ static void ydb_print(ydb *datablock, const char *func, int line, char *state)
     ylog_logger(YLOG_INFO, func, line, " conn: %d, disconn: %d\n", ytree_size(datablock->conn), ylist_size(datablock->disconn));
 }
 #define YDB_INFO(conn, state) ydb_print((conn), __func__, __LINE__, (state))
+
+// str2yaml --
+// Return new string converted to YAML character set.
+char *str2yaml(char *cstr)
+{
+    int is_new = 0;
+    if (!cstr)
+        return strdup("");
+    char *yamlstr = yaml_string(cstr, -1, &is_new);
+    if (is_new)
+        return yamlstr;
+    return strdup(cstr);
+}
 
 // open local ydb (yaml data block)
 ydb *ydb_open(char *name)
@@ -1405,7 +1419,15 @@ static ydb_res ydb_read_sub(ynode *cur, void *addition)
                 ynode_dump_to_buf(buf, sizeof(buf), cur, 0, 0);
                 ylog_debug("%s", buf);
             }
+#if 0
             sscanf(ynode_value(n), &(value[4]), p);
+#else
+            int len = strlen(value);
+            if (value[len-1] == 's')
+                strcpy(p, ynode_value(n));
+            else
+                sscanf(ynode_value(n), &(value[4]), p);
+#endif
             data->varnum++;
         }
         else

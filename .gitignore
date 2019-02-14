@@ -39,3 +39,4 @@ examples/ydb/ydb-ipc-write-hook
 examples/ydb/ydb-ipc-read-hook
 examples/ydb/ydb-example2
 examples/ydb/ydb-example1
+examples/ydb/ydb-example3

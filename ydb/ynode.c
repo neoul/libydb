@@ -769,9 +769,13 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
     if (IS_SET(node->flags, YNODE_FLAG_HASH))
     {
         int is_new;
-        char *key = yaml_string(ynode_key(node), -1, &is_new);
-        if (node->parent && node->parent->type == YNODE_TYPE_OMAP)
+        char *key;
+        assert(node->parent);
+        key = yaml_string(ynode_key(node), -1, &is_new);
+        if (node->parent->type == YNODE_TYPE_OMAP)
             res = _ynode_record_print(record, "- %s:", key);
+        else if (IS_SET(node->parent->flags, YNODE_FLAG_SET))
+            res = _ynode_record_print(record, "? %s", key);
         else
             res = _ynode_record_print(record, "%s:", key);
         if (is_new)
@@ -1142,9 +1146,13 @@ node_print:
         if (IS_SET(n->flags, YNODE_FLAG_HASH))
         {
             int is_new;
-            char *key = yaml_string(ynode_key(n), -1, &is_new);
-            if (n->parent && n->parent->type == YNODE_TYPE_OMAP)
+            char *key;
+            assert(n->parent);
+            key = yaml_string(ynode_key(n), -1, &is_new);
+            if (n->parent->type == YNODE_TYPE_OMAP)
                 fprintf(log->fp, "- %s:", key);
+            else if (IS_SET(n->parent->flags, YNODE_FLAG_SET))
+                fprintf(log->fp, "? %s", key);
             else
                 fprintf(log->fp, "%s:", key);
             if (is_new)

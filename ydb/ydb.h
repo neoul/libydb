@@ -66,6 +66,10 @@ void ydb_connection_log(int enable);
 typedef struct _ydb ydb;
 typedef struct _ynode ynode; // The YAML node of YDB (YAML DataBlock)
 
+// str2yaml --
+// Return new string converted to YAML character set.
+char *str2yaml(char *cstr);
+
 // ydb_open --
 // Open an instance of YAML DataBlock
 ydb *ydb_open(char *name);
