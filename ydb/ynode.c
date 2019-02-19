@@ -281,9 +281,17 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int use
         return YDB_E_INVALID_ARGS;
     if (!user && user_num > 0)
         return YDB_E_INVALID_ARGS;
+    
+    hook = NULL;
     if (node->hook)
-        hook = node->hook;
-    else
+    {
+        if (node->hook->user_num == user_num)
+            hook = node->hook;
+        else
+            yhook_unregister(node);
+    }
+    
+    if (!hook)
     {
         hook = malloc(sizeof(yhook) + sizeof(void *) * user_num);
         if (hook)
