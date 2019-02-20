@@ -1163,8 +1163,8 @@ struct ydb_update_params
 {
     yconn *src_conn;
     ydb *datablock;
-    bool updated;
     struct readhook *rhook;
+    bool updated;
 };
 
 static ydb_res ydb_update_rhook_exec(struct ydb_update_params *params, struct readhook *rhook)
@@ -1273,11 +1273,11 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
                 {
                     // run rhook before change rhook
                     ylog_info("ydb[%s] read hook (%s) %s\n",
-                              datablock->name, rhook->path, rhook ? "found" : "not found");
-                    res = ydb_update_rhook_exec(params, rhook);
+                              datablock->name, params->rhook->path, params->rhook ? "found" : "not found");
+                    res = ydb_update_rhook_exec(params, params->rhook);
                     if (res)
                         ylog_error("ydb[%s] read hook (%s) failed with %s\n",
-                                   datablock->name, rhook->path, ydb_res_str(res));
+                                   datablock->name, params->rhook->path, ydb_res_str(res));
                 }
                 params->rhook = rhook;
             }

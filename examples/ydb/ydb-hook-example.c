@@ -94,17 +94,20 @@ int test_hook()
             goto _done;
     }
 
-    ydb_read_hook_add(datablock, "interface[name=ge1]/enabled", (ydb_read_hook)update_hook, 0);
+    ydb_read_hook_add(datablock, "interface[name=ge1]", (ydb_read_hook)update_hook, 0);
 
     char enabled[32] = {0};
     ydb_read(datablock, "interface[name=ge1]: {enabled: %s}\n", enabled);
     printf("interface[name=ge1]/enabled=%s\n", enabled);
 
     ydb_fprintf(stdout, datablock,
-                "interface[name=ge1]: {enabled}\n"
+                "interface[name=ge1]:\n"
+                " enabled:\n"
+                " mtu:\n"
+                " type:\n"
                 "interface[name=ge2]: {enabled}\n"
                 "interface[name=ge3]:\n");
-    ydb_dump(datablock, stdout);
+    // ydb_dump(datablock, stdout);
 _done:
     if (res)
         fprintf(stderr, "%s failed. (%s)\n", __func__, ydb_res_str(res));

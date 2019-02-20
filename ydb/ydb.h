@@ -245,7 +245,7 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...);
 
 // ydb_read_hook: The callback executed by ydb_read() to update the datablock at reading.
 //  - ydb_read_hook0 - 4: The callback prototype according to the USER (U1-4) number.
-//  - path: The path of ydb_read_hook registered
+//  - path: The target path to be updated
 //  - stream: The stream to write the data into the datablock.
 //        YAML format stream should be written by the ydb_read_hook.
 //  - U1-4: The user-defined data
@@ -263,6 +263,7 @@ void ydb_read_hook_delete(ydb *datablock, char *path);
 // ydb_write_hook: The callback is executed by ydb_write() or ydb_delete().
 //  - ydb_write_hook0 - 4: The callback prototype according to the USER-defined data (U1-4) number.
 //  - op: 0: none, c: create, d: delete, r: replace
+//  - _base: The base data node of ydb_write_hook registered
 //  - _cur: The current data node (old data)
 //  - _new: The new data node to be replaced or created.
 //  - path: The path of ydb_read_hook registered
