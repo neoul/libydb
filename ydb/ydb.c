@@ -593,17 +593,47 @@ failed:
 
 // ydb_is_connected --
 // Check the YDB IPC channel connected or not.
-ydb_res ydb_is_connected(ydb *datablock, char *addr)
+int ydb_is_connected(ydb *datablock, char *addr)
 {
     yconn *conn = NULL;
     conn = yconn_get(addr);
     if (conn)
     {
         if (IS_DISCONNECTED(conn))
-            return YDB_E_CONN_FAILED;
-        return YDB_OK;
+            return 0;
+        return 1;
     }
-    return YDB_E_NO_CONN;
+    return 0;
+}
+
+// ydb_is_server()
+// Check the YDB IPC channel is running as server
+int ydb_is_server(ydb *datablock, char *addr)
+{
+    yconn *conn = NULL;
+    conn = yconn_get(addr);
+    if (conn)
+    {
+        if (IS_SERVER(conn))
+            return 1;
+        return 0;
+    }
+    return 0;
+}
+
+// ydb_is_publisher()
+// Check the YDB IPC channel is running as server
+int ydb_is_publisher(ydb *datablock, char *addr)
+{
+    yconn *conn = NULL;
+    conn = yconn_get(addr);
+    if (conn)
+    {
+        if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
+            return 1;
+        return 0;
+    }
+    return 0;
 }
 
 // Clear all data in YAML DataBlock

@@ -68,6 +68,7 @@ typedef struct _ynode ynode; // The YAML node of YDB (YAML DataBlock)
 
 // str2yaml --
 // Return new string converted to YAML character set.
+// It should be free
 char *str2yaml(char *cstr);
 
 // ydb_open --
@@ -109,7 +110,15 @@ ydb_res ydb_disconnect(ydb *datablock, char *addr);
 
 // ydb_is_connected --
 // Check the YDB IPC channel connected or not.
-ydb_res ydb_is_connected(ydb *datablock, char *addr);
+int ydb_is_connected(ydb *datablock, char *addr);
+
+// ydb_is_server()
+// Check the YDB IPC channel is running as server
+int ydb_is_server(ydb *datablock, char *addr);
+
+// ydb_is_publisher()
+// Check the YDB IPC channel is running as server
+int ydb_is_publisher(ydb *datablock, char *addr);
 
 // ydb_serve --
 // Run ydb_serve() in the main loop if YDB IPC channel is used.
