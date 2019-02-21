@@ -3222,7 +3222,15 @@ ydb_res ynode_traverse_to_read(ynode *cur, void *addition)
                 ynode_dump_to_buf(buf, sizeof(buf), cur, 0, 0);
                 ylog_debug("%s", buf);
             }
+#if 0
             sscanf(ynode_value(n), &(value[4]), p);
+#else
+            int len = strlen(value);
+            if (value[len-1] == 's')
+                strcpy(p, ynode_value(n));
+            else
+                sscanf(ynode_value(n), &(value[4]), p);
+#endif
             data->varnum++;
         }
         else
