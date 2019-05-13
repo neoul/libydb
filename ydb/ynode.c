@@ -1936,6 +1936,10 @@ ynode *ynode_find_child(ynode *node, const char *key)
     return NULL;
 }
 
+#define PATH_DELIMITER "/="
+#define PATH_IGNORE_START "'{[(\""
+#define PATH_IGNORE_END "\"}])'"
+
 static ylist *ynode_path_tokenize(char *path, char **val)
 {
     char *key;
@@ -1949,31 +1953,21 @@ static ylist *ynode_path_tokenize(char *path, char **val)
         return NULL;
     if (*path == '/')
         path++;
-    token = strpbrk(path, "/=");
+    token = strpbrk(path, PATH_DELIMITER PATH_IGNORE_START);
     while (token)
     {
-        if (*token == '=')
+        if (*token != '=' && *token != '/')
         {
-            char *not_val;
-            not_val = strchr(token, '/');
-            if (not_val)
-                token = not_val;
-            else
-            {
-                char *brace[2];
-                brace[0] = strpbrk(path, "'{[(\"");
-                brace[1] = strpbrk(token, "\"}])'");
-                if (brace[0] && brace[0] < token && brace[1] > token)
-                {
-                    token = brace[1] + 1;
-                    if (token[0] == 0)
-                    {
-                        token = NULL;
-                        break;
-                    }
-                }
-            }
+            token += 1;
+            token = strpbrk(token, PATH_IGNORE_END);
+            if (!token)
+                break;
+            token += 1;
+            token = strpbrk(token, PATH_DELIMITER PATH_IGNORE_START);
+            if (!token)
+                break;
         }
+
         if (is_val)
         {
             if (val)
@@ -1990,8 +1984,9 @@ static ylist *ynode_path_tokenize(char *path, char **val)
             is_val = true;
         }
         path = token + 1;
-        token = strpbrk(path, "/=");
+        token = strpbrk(path, PATH_DELIMITER PATH_IGNORE_START);
     }
+
     if (path[0] && !token)
     {
         if (is_val)

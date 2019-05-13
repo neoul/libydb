@@ -8,7 +8,7 @@
 #include "ydb.h"
 
 char *example_yaml =
-    "interface[name=ge%d]:\n"
+    "interface[name=1/%d]:\n"
     " description: \n"
     " enabled: true\n"
     " ipv4:\n"
@@ -17,7 +17,7 @@ char *example_yaml =
     "    prefix-length: 16\n"
     "    secondary: false\n"
     " link-up-down-trap-enable: disabled\n"
-    " name: ge%d\n"
+    " name: 1/%d\n"
     " type: mgmt\n";
 
 
@@ -27,7 +27,7 @@ ydb_res update_hook(ydb *datablock, char *path, FILE *fp)
     printf("HOOK %s path=%s\n", __func__, path);
     enabled = (enabled + 1) % 2;
     fprintf(fp,
-            "interface[name=ge1]:\n"
+            "interface[name=1/1]:\n"
             " enabled: %s\n",
             enabled ? "true" : "false");
     return YDB_OK;
@@ -42,7 +42,7 @@ ydb_res update_hook1(ydb *datablock, char *path, FILE *fp, void *U1)
     printf("HOOK %s path=%s\n", __func__, path);
     enabled = (enabled + 1) % 2;
     fprintf(fp,
-            "ge%d:\n"
+            "1/%d:\n"
             " enabled: %s\n",
             n,
             enabled ? "true" : "false");
@@ -82,7 +82,7 @@ int test_hook()
         goto _done;
     }
 
-    ydb_write_hook_add(datablock, "interface[name=ge2]", 0, (ydb_write_hook)notify_hook, 0);
+    ydb_write_hook_add(datablock, "interface[name=1/2]", 0, (ydb_write_hook)notify_hook, 0);
 
     int n;
     for (n = 1; n <= 3; n++)
@@ -94,19 +94,19 @@ int test_hook()
             goto _done;
     }
 
-    ydb_read_hook_add(datablock, "interface[name=ge1]", (ydb_read_hook)update_hook, 0);
+    ydb_read_hook_add(datablock, "interface[name=1/1]", (ydb_read_hook)update_hook, 0);
 
     char enabled[32] = {0};
-    ydb_read(datablock, "interface[name=ge1]: {enabled: %s}\n", enabled);
-    printf("interface[name=ge1]/enabled=%s\n", enabled);
+    ydb_read(datablock, "interface[name=1/1]: {enabled: %s}\n", enabled);
+    printf("interface[name=1/1]/enabled=%s\n", enabled);
 
     ydb_fprintf(stdout, datablock,
-                "interface[name=ge1]:\n"
+                "interface[name=1/1]:\n"
                 " enabled:\n"
                 " mtu:\n"
                 " type:\n"
-                "interface[name=ge2]: {enabled}\n"
-                "interface[name=ge3]:\n");
+                "interface[name=1/2]: {enabled}\n"
+                "interface[name=1/3]:\n");
     // ydb_dump(datablock, stdout);
 _done:
     if (res)
@@ -139,7 +139,7 @@ int test_remote_hook(int n)
         goto _done;
 
     char path[64];
-    sprintf(path, "/ge%d", n);
+    sprintf(path, "/1/%d", n);
     ydb_read_hook_add(datablock, path, (ydb_read_hook)update_hook1, 1, n);
 
     // ignore SIGPIPE.

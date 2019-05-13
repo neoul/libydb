@@ -43,7 +43,7 @@ void usage(char *argv_0)
   -s, --summary                    Print all data at the termination.\n\
   -c, --change-log                 print all change.\n\
   -f, --file FILE                  Read YAML file to update YDB.\n\
-  -w, --writeable                  send updated data to YDB publisher.\n\
+  -w, --writable                   Send updated data to YDB publisher.\n\
   -u, --unsubscribe                Disable subscription.\n\
   -S, --sync-before-read           update data from YDB publishers.\n\
   -d, --daemon                     Runs on daemon mode.\n\

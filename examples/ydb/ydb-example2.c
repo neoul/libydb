@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     printf("block2: %s\n", ydb_name(block2));
     printf("block1=%p, block2=%p\n", block1, block2);
 
-    char ifname[32] = "ge1";
+    char ifname[32] = "1/1";
     char ifdesc[64] = "ethernet interface";
     int ifenable = 1;
     char ifip[32] = "10.1.1.10/16";
@@ -46,6 +46,12 @@ int main(int argc, char *argv[])
               ifenable ? "true" : "false",
               ifip,
               ifname);
+    
+    ydb_path_write(block1, "/interfaces/interface[name=1/1]/statistics/in-packet=%d", 100);
+    const char *inpacket = ydb_path_read(block1, "/interfaces/interface[name=1/1]/statistics/in-packet");
+    printf("in-packet=%s\n", inpacket);
+
+    ydb_dump(block1, stdout);
 
     int n;
     memset(ifdesc, 0x0, sizeof(ifdesc));
@@ -53,7 +59,7 @@ int main(int argc, char *argv[])
 
     n = ydb_read(block1,
                  "interfaces:\n"
-                 "  interface[name=ge1]:\n"
+                 "  interface[name=1/1]:\n"
                  "    ip: %s\n"
                  "    description: %s\n",
                  ifip,
@@ -78,8 +84,8 @@ int main(int argc, char *argv[])
     ydb_close(block2);
 
     const char *iftype;
-    ydb_path_write(block1, "/interfaces/interface[name=ge1]/type=%s", "ethernet");
-    iftype = ydb_path_read(block1, "/interfaces/interface[name=ge1]/type");
+    ydb_path_write(block1, "/interfaces/interface[name=1/1]/type=%s", "ethernet");
+    iftype = ydb_path_read(block1, "/interfaces/interface[name=1/1]/type");
     printf("iftype=%s\n", iftype);
 
     node = ydb_top(block1);
