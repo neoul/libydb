@@ -59,6 +59,6 @@ void yfree(const void *src);
 
 // yfree_all --
 // Free all ystr
-void yfree_all();
+void yfree_all(void);
 
 #endif // __YSTR__

@@ -20,7 +20,7 @@ typedef void (*user_free)(void *);
 
 typedef struct _ytree ytrie;
 
-ytrie *ytrie_create();
+ytrie *ytrie_create(void);
 
 void ytrie_destroy(ytrie *trie);
 

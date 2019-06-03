@@ -23,7 +23,7 @@ int ylog_register(ylog_func func);
 
 // e.g. ylog_file_open("ylog%d.log", 1);
 void ylog_file_open(const char *format, ...);
-void ylog_file_close();
+void ylog_file_close(void);
 int ylog_file(int severity, const char *func, int line, const char *format, ...);
 int ylog_general(int severity, const char *func, int line, const char *format, ...);
 int ylog_quiet(int severity, const char *func, int line, const char *format, ...);
@@ -50,7 +50,7 @@ extern ylog_func ylog_logger;
 
 // internal functions
 char *ylog_severity_str(int severity);
-char *ylog_pname();
+char *ylog_pname(void);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"

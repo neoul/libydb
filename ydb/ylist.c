@@ -18,7 +18,7 @@ struct _ylist
 };
 
 // create a list.
-ylist *ylist_create()
+ylist *ylist_create(void)
 {
     struct _ylist *list = malloc(sizeof(struct _ylist));
     if (list)

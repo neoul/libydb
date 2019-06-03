@@ -310,7 +310,7 @@ static yconn_op ydb_get_yop(char *opstr)
     return (ymsg_type)ytrie_search(yop_pool, opstr, strlen(opstr));
 }
 
-static ydb_res ypool_create()
+static ydb_res ypool_create(void)
 {
     if (!ydb_pool)
     {
@@ -354,7 +354,7 @@ static ydb_res ypool_create()
 }
 #pragma GCC diagnostic pop
 
-static void ypool_destroy()
+static void ypool_destroy(void)
 {
     if (ydb_pool && ytrie_size(ydb_pool) <= 0)
     {

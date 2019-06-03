@@ -24,7 +24,7 @@ typedef int(*ylist_callback)(void *data, void *addition);
 typedef void (*ylist_print)(void *data, void *addition);
 
 // create a list.
-ylist *ylist_create();
+ylist *ylist_create(void);
 
 // destroy the list.
 void ylist_destroy(ylist *list);

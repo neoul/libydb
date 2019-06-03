@@ -376,6 +376,7 @@ ymap_iter *ymap_remove(ymap *map, ymap_iter *imap, user_free ufree)
         ymap_iter *imap_copy;
         imap_copy = ytree_delete(map->tree, imap->key);
         assert(imap_copy == imap);
+        imap = imap_copy;
         prev = ylist_erase(map->list, imap->ilist, NULL);
         data = imap->data;
         free(imap);

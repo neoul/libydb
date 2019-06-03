@@ -31,7 +31,7 @@ char *ylog_severity_str(int severity)
     }
 }
 
-char *ylog_pname()
+char *ylog_pname(void)
 {
     static char unit[256];
     if (unit[0] == 0)
@@ -119,7 +119,7 @@ void ylog_file_open(const char *format, ...)
     return;
 }
 
-void ylog_file_close()
+void ylog_file_close(void)
 {
     if (ylog_fp)
     {

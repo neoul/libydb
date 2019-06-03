@@ -5,7 +5,7 @@
 #include "ytrie.h"
 #include "ylist.h"
 
-ytrie *ytrie_create()
+ytrie *ytrie_create(void)
 {
     art_tree *art;
     art = malloc(sizeof(art_tree));

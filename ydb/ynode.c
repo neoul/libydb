@@ -443,7 +443,7 @@ static int yhook_pre_run_for_delete_list(void *data, void *addition)
 // call the pre / post hook for deleting cur ynode.
 static int yhook_pre_run_for_delete(ynode *cur, ytree **hook_pool)
 {
-    ydb_res res;
+    ydb_res res = YDB_OK;
     ynode *node;
     if (!cur)
         return YDB_E_NO_ENTRY;
@@ -2091,6 +2091,7 @@ const char *ynode_tag(ynode *node)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
+    return NULL;
 }
 
 // return the ynode has a value or children
@@ -2111,6 +2112,7 @@ int ynode_empty(ynode *node)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
+    return 1;
 }
 
 // return the number of chilren
@@ -2131,6 +2133,7 @@ int ynode_size(ynode *node)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
+    return 0;
 }
 
 // return ynodes' value if that is a leaf.

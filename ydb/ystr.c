@@ -372,7 +372,7 @@ static void ystr_free(void *v)
     return;
 }
 
-void yfree_all()
+void yfree_all(void)
 {
     if (yptr_pool)
         ytree_destroy_custom(yptr_pool, ystr_free);
