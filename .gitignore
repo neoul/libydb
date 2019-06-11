@@ -40,3 +40,6 @@ examples/ydb/ydb-ipc-read-hook
 examples/ydb/ydb-example2
 examples/ydb/ydb-example1
 examples/ydb/ydb-example3
+python/ydb.pyc
+python/_ydb.so
+examples/ydb/ydb-cpp

@@ -11,12 +11,13 @@ libydb_la_SOURCES = \
 	ynode.c \
 	ydb.c \
 	yipc.c \
-	ylog.c
+	ylog.c \
+	ydbcpp.cpp
 	
 libydb_la_CPPFLAGS = -Iutilities
 libydb_la_CFLAGS = -g -Wall -std=c99 -D_GNU_SOURCE
 libydb_la_LDFLAGS = -version-info 1:0:0
-include_HEADERS = ydb.h ylist.h ytree.h ytrie.h yarray.h ymap.h yipc.h ylog.h ystr.h
+include_HEADERS = ydb.h ylist.h ytree.h ytrie.h yarray.h ymap.h yipc.h ylog.h ystr.h ydbcpp.h
 
 # if PYTHON_SWIG3
 # libydb_la_SOURCES += ydb_wrap.c
