@@ -30,6 +30,10 @@ void usage(char *argv_0)
     printf(" usage : %s [OPTION...]\n", pname);
     printf("\n\
   -n, --name NAME                  The name of created YDB (YAML DataBlock).\n\
+  -w, --writable                   Send updated data to YDB publisher.\n\
+  -u, --unsubscribe                Disable subscription.\n\
+  -S, --sync-before-read           update data from YDB publishers.\n\
+                                   -w, -u and -S options should be ahead of -a YDB_ADDR\n\
   -r, --role (pub|sub|loc)         Set the role.\n\
                                    pub(publisher): as distribution server\n\
                                    sub(subscriber): as distribution client\n\
@@ -43,9 +47,6 @@ void usage(char *argv_0)
   -s, --summary                    Print all data at the termination.\n\
   -c, --change-log                 print all change.\n\
   -f, --file FILE                  Read YAML file to update YDB.\n\
-  -w, --writable                   Send updated data to YDB publisher.\n\
-  -u, --unsubscribe                Disable subscription.\n\
-  -S, --sync-before-read           update data from YDB publishers.\n\
   -d, --daemon                     Runs on daemon mode.\n\
   -i, --interpret                  Runs on interpret mode.\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
@@ -54,7 +55,11 @@ void usage(char *argv_0)
     , --write PATH/TO/DATA=DATA    Write data to YDB.\n\
     , --delete PATH/TO/DATA=DATA   Delete data from YDB.\n\
     , --sync PATH/TO/DATA=DATA     Send sync request to update data.\n\
-  -h, --help                       Display help and exit\n\n");
+  -h, --help                       Display help and exit\n\n\
+  e.g.\n\
+    ydb -n mydata -r pub -a uss://mydata -d -f example/yaml/yaml-demo.yaml &\n\
+    ydb -n mydata -r sub -a uss://mydata -i\n\n\
+  ");
 }
 
 void get_yaml_from_stdin(ydb *datablock)
@@ -224,18 +229,16 @@ int main(int argc, char *argv[])
     ydb *datablock = NULL;
 
     int c;
-    char *name = NULL;
     char *addr = NULL;
-    char *role = 0;
-    char flags[64] = {""};
-    int summary = 0;
-    int change_log = 0;
+    char *role = NULL;
+    char con_flags[128] = {
+        0,
+    };
     int verbose = 0;
     int timeout = 0;
     int daemon = 0;
     int interpret = 0;
-    ylist *filelist = NULL;
-    ylist *cmdlist = NULL;
+    ydb *config = NULL;
 
     if (argc <= 1)
     {
@@ -243,18 +246,21 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    filelist = ylist_create();
-    if (!filelist)
+    config = ydb_open("config");
+    if (!config)
     {
-        fprintf(stderr, "ydb error: %s\n", "file list creation failed.");
+        fprintf(stderr, "ydb error: %s\n", "ydb[config] open failed.");
         goto end;
     }
-    cmdlist = ylist_create();
-    if (!cmdlist)
-    {
-        fprintf(stderr, "ydb error: %s\n", "ydbcmd list creation failed.");
-        goto end;
-    }
+    ydb_write(config,
+              "config:\n"
+              " name: top\n"
+              " summary: false\n"
+              " change-log: false\n"
+              " verbose: none\n"
+              " timeout: 0 ms\n"
+              " daemon: false\n"
+              " interpret: false\n");
 
     while (1)
     {
@@ -291,41 +297,15 @@ int main(int argc, char *argv[])
             /* If this option set a flag, do nothing else now. */
             if (long_options[index].flag != 0)
                 break;
-            ydbcmd *ycmd = malloc(sizeof(ydbcmd));
-            if (ycmd)
-            {
-                ycmd->data = optarg;
-                if (strcmp(long_options[index].name, "read") == 0)
-                {
-                    ycmd->type = CMD_READ;
-                    ylist_push_back(cmdlist, ycmd);
-                }
-                else if (strcmp(long_options[index].name, "print") == 0)
-                {
-                    ycmd->type = CMD_PRINT;
-                    ylist_push_back(cmdlist, ycmd);
-                }
-                else if (strcmp(long_options[index].name, "write") == 0)
-                {
-                    ycmd->type = CMD_WRITE;
-                    ylist_push_back(cmdlist, ycmd);
-                }
-                else if (strcmp(long_options[index].name, "delete") == 0)
-                {
-                    ycmd->type = CMD_DELETE;
-                    ylist_push_back(cmdlist, ycmd);
-                }
-                else if (strcmp(long_options[index].name, "sync") == 0)
-                {
-                    ycmd->type = CMD_SYNC;
-                    ylist_push_back(cmdlist, ycmd);
-                }
-                else
-                    free(ycmd);
-            }
+            ydb_write(config, 
+                "config:\n"
+                " command:\n"
+                "  - {type: %s, path: '%s'}\n",
+                long_options[index].name, 
+                optarg);
             break;
         case 'n':
-            name = optarg;
+            ydb_write(config, "config: {name: %s}", optarg);
             break;
         case 'r':
             if (strncmp(optarg, "pub", 3) == 0)
@@ -337,20 +317,35 @@ int main(int argc, char *argv[])
             else
             {
                 fprintf(stderr, "\n invalid role configured (%s)\n", optarg);
-                usage(argv[0]);
+                goto end;
             }
             break;
         case 'a':
             addr = optarg;
+            if (role == NULL)
+            {
+                fprintf(stderr, "\n no role configured for %s\n", optarg);
+                goto end;
+            }
+            if ((role && (strncmp(role, "loc", 3) == 0)))
+            {
+                fprintf(stderr, "\n invalid role configured (%s)\n", role);
+                goto end;
+            }
+            ydb_write(config,
+                      "config: {connection: [{ addr: '%s', flags: '%s%s'}]}\n",
+                      addr, role, con_flags[0] ? con_flags : "");
+            memset(con_flags, 0x0, sizeof(con_flags));
+            addr = NULL;
             break;
         case 's':
-            summary = 1;
+            ydb_write(config, "config: {summary: true}");
             break;
         case 'c':
-            change_log = 1;
+            ydb_write(config, "config: {change-log: true}");
             break;
         case 'f':
-            ylist_push_back(filelist, optarg);
+            ydb_write(config, "config: {file: [%s]}", optarg);
             break;
         case 'v':
             if (strcmp(optarg, "debug") == 0)
@@ -359,22 +354,31 @@ int main(int argc, char *argv[])
                 verbose = YLOG_INOUT;
             else if (strcmp(optarg, "info") == 0)
                 verbose = YLOG_INFO;
+            else
+            {
+                fprintf(stderr, "\n invalid verbose configured (%s)\n", optarg);
+                usage(argv[0]);
+                goto end;
+            }
+            ydb_write(config, "config: {verbose: %s}", optarg);
             break;
         case 'w':
-            strcat(flags, ":writeable");
+            strcat(con_flags, ":writeable");
             break;
         case 'u':
-            strcat(flags, ":unsubscribe");
+            strcat(con_flags, ":unsubscribe");
             break;
         case 'S':
-            strcat(flags, ":sync-before-read");
+            strcat(con_flags, ":sync-before-read");
             break;
         case 'd':
             daemon = 1;
             timeout = 5000; // 5sec
+            ydb_write(config, "config: {daemon: true, timeout: %d ms}", timeout);
             break;
         case 'i':
             interpret = 1;
+            ydb_write(config, "config: {interpret: true}");
             break;
         case 'h':
             usage(argv[0]);
@@ -386,45 +390,11 @@ int main(int argc, char *argv[])
             goto end;
         }
     }
-
-    if (!role)
-    {
-        role = "local";
-    }
-
     if (verbose > 0)
     {
-        printf(" configured options:\n");
-        printf("  name: %s\n", name);
-        printf("  role: %s\n", role);
-        printf("  addr: %s\n", addr);
-        printf("  summary: %s\n", summary ? "yes" : "no");
-        printf("  change-log: %s\n", change_log ? "yes" : "no");
-        if (!ylist_empty(filelist))
-        {
-            printf("  file:\n");
-            ylist_iter *iter = ylist_first(filelist);
-            for (; !ylist_done(filelist, iter); iter = ylist_next(filelist, iter))
-                printf("   - %s\n", (char *)ylist_data(iter));
-        }
-        if (!ylist_empty(cmdlist))
-        {
-            printf("  ycmd:\n");
-            ylist_iter *iter = ylist_first(cmdlist);
-            for (; !ylist_done(cmdlist, iter); iter = ylist_next(cmdlist, iter))
-            {
-                ydbcmd *ycmd = ylist_data(iter);
-                printf("   - {%s: %s}\n",
-                       (ycmd->type == CMD_READ) ? "read" :
-                       (ycmd->type == CMD_WRITE) ? "write" :
-                       (ycmd->type == CMD_SYNC) ? "sync" : "delete",
-                       (char *)ycmd->data);
-            }
-        }
-        printf("  verbose: %d\n", verbose);
-        printf("  flags: %s\n", flags);
-        printf("  daemon: %s\n\n", done ? "no" : "yes");
-        printf("  interpret: %s\n\n", interpret ? "yes" : "no");
+        printf("[configured options]\n");
+        ydb_dump(config, stdout);
+        printf("\n");
     }
 
     {
@@ -436,14 +406,14 @@ int main(int argc, char *argv[])
         if (verbose)
             ylog_severity = verbose;
 
-        datablock = ydb_open(name ? name : "top");
+        datablock = ydb_open((char *)ydb_path_read(config, "/config/name"));
         if (!datablock)
         {
             fprintf(stderr, "ydb error: %s\n", "ydb failed");
             goto end;
         }
 
-        if (change_log)
+        if (strcmp(ydb_path_read(config, "/config/change-log"), "true") == 0)
         {
             ydb_connection_log(1);
             res = ydb_connect(datablock, "file://stdout", "pub");
@@ -454,35 +424,54 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (strncmp(role, "loc", 3) != 0)
+        if (!ydb_empty(ydb_search(config, "/config/connection")))
         {
-            strcat(flags, role);
+            ynode *n;
             ydb_connection_log(1);
-            res = ydb_connect(datablock, addr, flags);
-            if (res)
+            n = ydb_search(config, "/config/connection");
+            for (n = ydb_down(n); n; n = ydb_next(n))
             {
-                fprintf(stderr, "ydb error: %s\n", ydb_res_str(res));
-                goto end;
+                const char *a = ydb_value(ydb_find(n, "addr"));
+                const char *f = ydb_value(ydb_find(n, "flags"));
+                res = ydb_connect(datablock, (char *)a, (char *)f);
+                if (res)
+                {
+                    fprintf(stderr, "ydb error: %s\n", ydb_res_str(res));
+                    goto end;
+                }
             }
         }
 
         get_yaml_from_stdin(datablock);
 
-        if (!ylist_empty(filelist))
+        if (!ydb_empty(ydb_search(config, "/config/file")))
         {
-            char *fname = ylist_pop_front(filelist);
-            while (fname)
+            ynode *n;
+            n = ydb_search(config, "/config/file");
+            n = ydb_down(n);
+            while (n)
             {
-                FILE *fp = fopen(fname, "r");
-                res = ydb_parse(datablock, fp);
+                FILE *fp = fopen(ydb_value(n), "r");
                 if (fp)
-                    fclose(fp);
-                if (res)
                 {
-                    printf("\nydb error: %s %s\n", ydb_res_str(res), fname);
-                    goto end;
+                    res = ydb_parse(datablock, fp);
+                    fclose(fp);
+                    if (res)
+                    {
+                        printf("\nydb error: %s %s\n", ydb_res_str(res), ydb_value(n));
+                        goto end;
+                    }
                 }
-                fname = ylist_pop_front(filelist);
+                n = ydb_next(n);
+            }
+        }
+
+        if (!ydb_empty(ydb_search(config, "/config/command")))
+        {
+            if (daemon || interpret)
+            {
+                fprintf(stderr, "\nydb error: commands are unable to run with -d or -i mode.\n");
+                goto end;
             }
         }
 
@@ -521,7 +510,7 @@ int main(int argc, char *argv[])
                     interpret++;
                     interpret_mode_help();
                 }
-                ret = select(fd + 1, &read_set, NULL, NULL, (timeout == 0)?NULL:&tv);
+                ret = select(fd + 1, &read_set, NULL, NULL, (timeout == 0) ? NULL : &tv);
                 if (ret < 0)
                 {
                     fprintf(stderr, "\nselect error: %s\n", strerror(errno));
@@ -551,53 +540,52 @@ int main(int argc, char *argv[])
         }
         else
         {
-            if (!ylist_empty(cmdlist))
+            if (!ydb_empty(ydb_search(config, "/config/command")))
             {
-                ydbcmd *ycmd = ylist_pop_front(cmdlist);
-                while (ycmd)
+                ynode *n;
+                n = ydb_search(config, "/config/command");
+                for (n = ydb_down(n); n; )
                 {
-                    switch (ycmd->type)
+                    const char *type = ydb_value(ydb_find(n, "type"));
+                    const char *path = ydb_value(ydb_find(n, "path"));
+                    switch (type[0])
                     {
-                    case CMD_READ:
+                    case 'r':
                     {
-                        const char *data = ydb_path_read(datablock, "%s", ycmd->data);
+                        const char *data = ydb_path_read(datablock, "%s", path);
                         if (data)
                             fprintf(stdout, "%s", data);
                         else
                             res = YDB_E_NO_ENTRY;
                         break;
                     }
-                    case CMD_PRINT:
+                    case 'p':
                     {
-                        ydb_path_fprintf(stdout, datablock, "%s", ycmd->data);
+                        ydb_path_fprintf(stdout, datablock, "%s", path);
                         break;
                     }
-                    case CMD_WRITE:
-                        res = ydb_path_write(datablock, "%s", ycmd->data);
+                    case 'w':
+                        res = ydb_path_write(datablock, "%s", path);
                         break;
-                    case CMD_DELETE:
-                        res = ydb_path_delete(datablock, "%s", ycmd->data);
+                    case 'd':
+                        res = ydb_path_delete(datablock, "%s", path);
                         break;
-                    case CMD_SYNC:
-                        res = ydb_path_sync(datablock, "%s", ycmd->data);
+                    case 's':
+                        res = ydb_path_sync(datablock, "%s", path);
                         break;
                     default:
                         break;
                     }
                     if (YDB_FAILED(res))
-                        printf("\nydb error: %s (%s)\n", ydb_res_str(res), ycmd->data);
-                    // else if (YDB_WARNING(res))
-                    //     printf("\nydb warning: %s (%s)\n", ydb_res_str(res), ycmd->data);
-
-                    free(ycmd);
-                    ycmd = ylist_pop_front(cmdlist);
-                    if (ycmd)
-                        fprintf(stdout, " ");
+                        printf("\nydb error: %s (%s)\n", ydb_res_str(res), path);
+                    n = ydb_next(n);
+                    if (n)
+                        fprintf(stdout, "\n");
                 }
             }
         }
 
-        if (summary)
+        if (strcmp(ydb_path_read(config, "/config/summary"), "true") == 0)
         {
             fprintf(stdout, "\n# %s\n", ydb_name(datablock));
             if (verbose == YLOG_DEBUG)
@@ -608,8 +596,7 @@ int main(int argc, char *argv[])
     }
 end:
     ydb_close(datablock);
-    ylist_destroy(cmdlist);
-    ylist_destroy(filelist);
+    ydb_close(config);
     if (res)
         return 1;
     return 0;

@@ -2,14 +2,14 @@
 . ./util.sh
 test_init $0 $1
 echo -n "TEST: $TESTNAME : "
-run_bg "ydb -r pub -d -f ../examples/yaml/ydb-sample.yaml -v info > $TESTNAME.PUB1.log"
+run_bg "ydb -r pub -d -a uss://top -f ../examples/yaml/netconf-sample3.yaml -v info > $TESTNAME.PUB1.log"
 run_bg "ydb-hook-example 1 > $TESTNAME.PUB2.log"
 run_bg "ydb-hook-example 2 > $TESTNAME.PUB3.log"
 sleep 1
-r1=`ydb -r sub --unsubscribe --sync-before-read --read /ge1/enabled`
-r2=`ydb -r sub --unsubscribe --sync-before-read --read /ge1/enabled`
-r3=`ydb -r sub --unsubscribe --sync-before-read --read /ge2/enabled`
-r4=`ydb -r sub --unsubscribe --sync-before-read --read /ge2/enabled`
+r1=`ydb -r sub --unsubscribe --sync-before-read -a uss://top --read /interfaces/interface[name=ge1]/enabled`
+r2=`ydb -r sub --unsubscribe --sync-before-read -a uss://top --read /interfaces/interface[name=ge1]/enabled`
+r3=`ydb -r sub --unsubscribe --sync-before-read -a uss://top --read /interfaces/interface[name=ge2]/enabled`
+r4=`ydb -r sub --unsubscribe --sync-before-read -a uss://top --read /interfaces/interface[name=ge2]/enabled`
 
 test_deinit
 

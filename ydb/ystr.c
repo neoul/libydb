@@ -88,11 +88,8 @@ const char *ystrndup(char *src, int srclen)
         str = ystr_new((unsigned char *) src, srclen);
         if (!str)
             return NULL;
-        void *old_ystr;
-        old_ystr = ytrie_insert(ystr_pool, (const void *)str->data, srclen, str);
-        assert(old_ystr == NULL);
-        old_ystr = ytree_insert(yptr_pool, str->data, str);
-        assert(old_ystr == NULL);
+        assert(ytrie_insert(ystr_pool, (const void *)str->data, srclen, str) == NULL);
+        assert(ytree_insert(yptr_pool, str->data, str) == NULL);
     }
 #ifdef YALLOC_DEBUG
     ylog_debug("[pid %d] %s str(%p,size=%d)=%s ref=%d\n", getpid(), __func__, str, str->size, str->data, str->ref);
@@ -159,11 +156,8 @@ const char *ystrnew(const char *format, ...)
         str = ystr_new((unsigned char *)src, srclen);
         if (!str)
             return NULL;
-        void *old_ystr;
-        old_ystr = ytrie_insert(ystr_pool, (const void *)str->data, srclen, str);
-        assert(old_ystr == NULL);
-        old_ystr = ytree_insert(yptr_pool, str->data, str);
-        assert(old_ystr == NULL);
+        assert(ytrie_insert(ystr_pool, (const void *)str->data, srclen, str) == NULL);
+        assert(ytree_insert(yptr_pool, str->data, str) == NULL);
     }
     free(src);
     
@@ -226,11 +220,8 @@ const void *ydatadup(void *src, int srclen)
         str = ystr_new((unsigned char *)src, srclen);
         if (!str)
             return NULL;
-        void *old_ystr;
-        old_ystr = ytrie_insert(ystr_pool, (char *)str->data, srclen, str);
-        assert(old_ystr == NULL);
-        old_ystr = ytree_insert(yptr_pool, str->data, str);
-        assert(old_ystr == NULL);
+        assert(ytrie_insert(ystr_pool, (char *)str->data, srclen, str) == NULL);
+        assert(ytree_insert(yptr_pool, str->data, str) == NULL);
     }
 #ifdef YALLOC_DEBUG
     ylog_debug("[pid %d] %s str(%p,size=%d)=... ref=%d\n", getpid(), __func__, str, str->size, str->ref);
@@ -256,9 +247,7 @@ static struct ystr *ysearch(const void *src, int srclen)
     }
     if (ystr_pool && srclen > 0)
     {
-        struct ystr *str2;
-        str2 = ytrie_search(ystr_pool, src, srclen);
-        assert(str == str2);
+        assert(str == ytrie_search(ystr_pool, src, srclen));
     }
     return str;
 }

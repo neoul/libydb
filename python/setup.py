@@ -9,7 +9,7 @@ from distutils.core import setup, Extension
 # ydb_module = Extension('_ydb',
 #                        include_dirs=['../ydb', '../ydb/utilities'],
 #                        libraries=['yaml'],
-#                        sources=['ydb_wrap.c',
+#                        sources=['ydb_wrap.cxx',
 #                                 '../ydb/utilities/art.c',
 #                                 '../ydb/utilities/utf8.c',
 #                                 '../ydb/ylist.c',
@@ -21,7 +21,7 @@ from distutils.core import setup, Extension
 #                                 '../ydb/ynode.c',
 #                                 '../ydb/ydb.c',
 #                                 '../ydb/yipc.c',
-#                                 '../ydb/ylog.c'
+#                                 '../ydb/ylog.c',
 #                                 ],
 #                        )
 

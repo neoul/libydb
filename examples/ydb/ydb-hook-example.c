@@ -42,8 +42,9 @@ ydb_res update_hook1(ydb *datablock, char *path, FILE *fp, void *U1)
     printf("HOOK %s path=%s\n", __func__, path);
     enabled = (enabled + 1) % 2;
     fprintf(fp,
-            "1/%d:\n"
-            " enabled: %s\n",
+            "interfaces:\n"
+            " interface[name=ge%d]:\n"
+            "  enabled: %s\n",
             n,
             enabled ? "true" : "false");
     return YDB_OK;
@@ -139,7 +140,7 @@ int test_remote_hook(int n)
         goto _done;
 
     char path[64];
-    sprintf(path, "/1/%d", n);
+    sprintf(path, "/interfaces/interface[name=ge%d]", n);
     ydb_read_hook_add(datablock, path, (ydb_read_hook)update_hook1, 1, n);
 
     // ignore SIGPIPE.

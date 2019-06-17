@@ -21,14 +21,24 @@ r11=`diff r11.yaml r12.yaml`
 
 [ "x$r1" != "xvalue-only" ]     && echo " - r1 TEST: failed ($r1)" && exit 1
 [ "x$r2" != "xVAL" ]             && echo " - r2 TEST: failed ($r2)" && exit 1
+
+r3=$(printf "$r3" | tr '\n' ' ')
 [ "x$r3" != "xMars Mars" ]       && echo " - r3 TEST: failed ($r3)" && exit 1
-[ "x$r4" != "x " ]                && echo " - r4 TEST: failed ($r4)" && exit 1
+r4=$(printf "$r4" | tr '\n' ' ')
+[ "x$r4" != "x" ]                && echo " - r4 TEST: failed ($r4)" && exit 1
+r5=$(printf "$r5" | tr '\n' ' ')
 [ "x$r5" != "xBen-Kiki Evans" ]  && echo " - r5 TEST: failed ($r5)" && exit 1
+r6=$(printf "$r6" | tr '\n' ' ')
 [ "x$r6" != "xSouth-American constrictor snake. Scaly. 2" ] && echo " - r6 TEST: failed ($r6)" && exit 1
+r7=$(printf "$r7" | tr '\n' ' ')
 [ "x$r7" != "x value2" ]  && echo " - r7 TEST: failed ($r7)" && exit 1
+r8=$(printf "$r8" | tr '\n' ' ')
 [ "x$r8" != "xOne" ]  && echo " - r8 TEST: failed ($r8)" && exit 1
+r9=$(printf "$r9" | tr '\n' ' ')
 [ "x$r9" != "xLasik 2000" ]  && echo " - r9 TEST: failed ($r9)" && exit 1
+r10=$(printf "$r10" | tr '\n' ' ')
 [ "x$r10" != "x10" ]  && echo " - r10 TEST: failed ($r10)" && exit 1
+r11=$(printf "$r11" | tr '\n' ' ')
 [ "x$r11" != "x" ]  && echo " - r11 TEST: failed ($r11)" && exit 1
 echo "ok"
 
