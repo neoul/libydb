@@ -47,3 +47,5 @@ python/build
 examples/ydb/ydb-base64
 python/installed.txt
 python/__pycache__
+python/ydb-installed3.txt
+python/ydb-installed.txt
