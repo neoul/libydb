@@ -58,18 +58,15 @@ public:
     ydb_res connect(char* addr, char* flags);
     ydb_res disconnect(char* addr);
 
+    // fd --
+    // Return the fd (file descriptor) opened for YDB IPC channel.
+    int fd();
+
     // serve --
     // Run serve() in the main loop if YDB IPC channel is used.
     // serve() updates the local YDB instance using the received YAML data from remotes.
     ydb_res serve(int timeout);
 
-    // // Ynode &find(std::string path);
-    
-    // ydb_res write(std::string yaml);
-    // ydb_res read(std::string &filter);
-    // int print(std::string filter);
-    // int print();
-    // std::string to_string();
 };
 
 #endif

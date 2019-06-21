@@ -3907,6 +3907,28 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Ydb_fd(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  Ydb *arg1 = (Ydb *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  int result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:Ydb_fd",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_fd" "', argument " "1"" of type '" "Ydb *""'"); 
+  }
+  arg1 = reinterpret_cast< Ydb * >(argp1);
+  result = (int)(arg1)->fd();
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Ydb_serve(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   Ydb *arg1 = (Ydb *) 0 ;
@@ -3960,6 +3982,7 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"Ydb_path_get", _wrap_Ydb_path_get, METH_VARARGS, NULL},
 	 { (char *)"Ydb_connect", _wrap_Ydb_connect, METH_VARARGS, NULL},
 	 { (char *)"Ydb_disconnect", _wrap_Ydb_disconnect, METH_VARARGS, NULL},
+	 { (char *)"Ydb_fd", _wrap_Ydb_fd, METH_VARARGS, NULL},
 	 { (char *)"Ydb_serve", _wrap_Ydb_serve, METH_VARARGS, NULL},
 	 { (char *)"Ydb_swigregister", Ydb_swigregister, METH_VARARGS, NULL},
 	 { NULL, NULL, 0, NULL }

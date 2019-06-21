@@ -178,6 +178,9 @@ class Ydb(_object):
     def disconnect(self, addr):
         return _ydb.Ydb_disconnect(self, addr)
 
+    def fd(self):
+        return _ydb.Ydb_fd(self)
+
     def serve(self, timeout):
         return _ydb.Ydb_serve(self, timeout)
 Ydb_swigregister = _ydb.Ydb_swigregister

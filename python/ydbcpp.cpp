@@ -21,6 +21,7 @@ ydb_res Ydb::write(char *yaml)
 {
     return ydb_write(db, "%s", yaml);
 }
+
 ydb_res Ydb::remove(char *yaml)
 {
     return ydb_delete(db, "%s", yaml);
@@ -75,6 +76,11 @@ ydb_res Ydb::connect(char * addr, char * flags)
 ydb_res Ydb::disconnect(char * addr)
 {
     return ydb_disconnect(db, addr);
+}
+
+int Ydb::fd()
+{
+    return ydb_fd(db);
 }
 
 ydb_res Ydb::serve(int timeout)
