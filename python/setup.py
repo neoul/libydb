@@ -6,29 +6,10 @@ setup.py file for YDB interface
 
 from distutils.core import setup, Extension
 
-# ydb_module = Extension('_ydb',
-#                        include_dirs=['../ydb', '../ydb/utilities'],
-#                        libraries=['yaml'],
-#                        sources=['ydb_wrap.cxx',
-#                                 '../ydb/utilities/art.c',
-#                                 '../ydb/utilities/utf8.c',
-#                                 '../ydb/ylist.c',
-#                                 '../ydb/yarray.c',
-#                                 '../ydb/ytrie.c',
-#                                 '../ydb/ytree.c',
-#                                 '../ydb/ymap.c',
-#                                 '../ydb/ystr.c',
-#                                 '../ydb/ynode.c',
-#                                 '../ydb/ydb.c',
-#                                 '../ydb/yipc.c',
-#                                 '../ydb/ylog.c',
-#                                 ],
-#                        )
-
 ydb_module = Extension('_ydb',
                        include_dirs=['../ydb', '../ydb/utilities'],
                        libraries=['ydb', 'yaml'],
-                       sources=['ydb_wrap.cxx'],
+                       sources=['ydb_wrap.cxx', 'ydbcpp.cpp'],
                        )
 
 setup(name='ydb',

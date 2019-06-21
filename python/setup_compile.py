@@ -10,6 +10,7 @@ ydb_module = Extension('_ydb',
                        include_dirs=['../ydb', '../ydb/utilities'],
                        libraries=['yaml'],
                        sources=['ydb_wrap.cxx',
+                                'ydbcpp.cpp',
                                 '../ydb/utilities/art.c',
                                 '../ydb/utilities/utf8.c',
                                 '../ydb/utilities/base64.c',
@@ -22,16 +23,9 @@ ydb_module = Extension('_ydb',
                                 '../ydb/ynode.c',
                                 '../ydb/ydb.c',
                                 '../ydb/yipc.c',
-                                '../ydb/ylog.c',
-                                '../ydb/ydbcpp.cpp'
+                                '../ydb/ylog.c'
                                 ],
                        )
-
-# ydb_module = Extension('_ydb',
-#                        include_dirs=['../ydb', '../ydb/utilities'],
-#                        libraries=['ydb', 'yaml'],
-#                        sources=['ydb_wrap.cxx'],
-#                        )
 
 setup(name='ydb',
       version='0.1',
