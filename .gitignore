@@ -45,3 +45,5 @@ python/_ydb.so
 examples/ydb/ydb-cpp
 python/build
 examples/ydb/ydb-base64
+python/installed.txt
+python/__pycache__
