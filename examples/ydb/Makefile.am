@@ -140,4 +140,10 @@ ydb_cpp_CPPFLAGS = -I $(top_srcdir)/ydb
 ydb_cpp_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml -lm
 ydb_cpp_CFLAGS = -g -Wall
 
+bin_PROGRAMS += ydb-base64
+ydb_base64_SOURCES = ydb-base64.c
+ydb_base64_CPPFLAGS = -I $(top_srcdir)/ydb
+ydb_base64_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml -lm
+ydb_base64_CFLAGS = -g -Wall
+
 # dist_pkgdata_DATA = ytrie-input.txt

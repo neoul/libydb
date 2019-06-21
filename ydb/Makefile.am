@@ -2,6 +2,7 @@ lib_LTLIBRARIES = libydb.la
 libydb_la_SOURCES = \
 	utilities/art.c \
 	utilities/utf8.c \
+	utilities/base64.c \
 	ylist.c \
 	yarray.c \
 	ytrie.c \

@@ -22,7 +22,7 @@ const char *yaml_example =
 int main(int argc, char *argv[])
 {
     Ydb db((char *)"hello-ydb");
-    db.push((char *)yaml_example);
+    db.write((char *)yaml_example);
     std::cin >> db;
     std::cout << db;
     return 0;

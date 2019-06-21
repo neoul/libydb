@@ -71,6 +71,16 @@ typedef struct _ynode ynode; // The YAML node of YDB (YAML DataBlock)
 // It should be free
 char *str2yaml(char *cstr);
 
+// binary_to_base64 --
+// Return base64 string with the length.
+// It should be free
+char *binary_to_base64(unsigned char *binary, size_t binarylen, size_t *base64len);
+
+// base64_to_binary --
+// Return base64 string with the length.
+// It should be free
+unsigned char *base64_to_binary(char *base64, size_t base64len, size_t *binarylen);
+
 // ydb_open --
 // Open an instance of YAML DataBlock
 ydb *ydb_open(char *name);

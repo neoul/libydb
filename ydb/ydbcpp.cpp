@@ -16,13 +16,28 @@ Ydb::~Ydb()
     ydb_close(db);
 }
 
-ydb_res Ydb::push(char *yaml)
+ydb_res Ydb::write(char *yaml)
 {
     return ydb_write(db, "%s", yaml);
 }
-ydb_res Ydb::pop(char *yaml)
+ydb_res Ydb::remove(char *yaml)
 {
     return ydb_delete(db, "%s", yaml);
+}
+
+ydb_res Ydb::path_write(char *path)
+{
+    return ydb_path_write(db, "%s", path);
+}
+
+ydb_res Ydb::path_remove(char *path)
+{
+    return ydb_path_delete(db, "%s", path);
+}
+
+const char *Ydb::path_get(char *path)
+{
+    return ydb_path_read(db, "%s", path);
 }
 
 char *Ydb::get(char *filter)
@@ -113,6 +128,6 @@ std::istream &operator >>(std::istream &c, Ydb &Y)
             input = input + sbuf + '\n';
         // cout << c.good() << c.eof() << c.fail() << c.bad() <<  "|";
     } while (c.good());
-    Y.push((char *) input.c_str());
+    Y.write((char *) input.c_str());
     return c;
 }

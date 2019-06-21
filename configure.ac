@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 m4_define([libydb_major_version], [1])
 m4_define([libydb_minor_version], [0])
-m4_define([libydb_micro_version], [26])
+m4_define([libydb_micro_version], [27])
 m4_define([libydb_version],
       [libydb_major_version.libydb_minor_version.libydb_micro_version])
 
@@ -46,6 +46,11 @@ AC_CHECK_FUNCS([memset mkfifo select socket strchr strdup strerror strstr])
 #       AC_DEFINE(PYTHON_SWIG3, 1, "Enable YDB SWIG interface for python")
 # ])
 
+AC_ARG_ENABLE(examples, [  --enable-examples      Enable YDB examples])
+AM_CONDITIONAL([HAVE_EXAMPLES], [test "x$enable_examples" = "xyes"])
+if test "$enable_examples" = "yes"; then
+  AC_DEFINE(HAVE_EXAMPLES,, Enable YDB examples)
+fi
 
 AM_INIT_AUTOMAKE([subdir-objects])
 

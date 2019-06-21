@@ -3006,9 +3006,8 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 #define SWIGTYPE_p_Ydb swig_types[0]
 #define SWIGTYPE_p__ydb_res swig_types[1]
 #define SWIGTYPE_p_char swig_types[2]
-#define SWIGTYPE_p_std__string swig_types[3]
-static swig_type_info *swig_types[5];
-static swig_module_info swig_module = {swig_types, 4, 0, 0, 0, 0};
+static swig_type_info *swig_types[4];
+static swig_module_info swig_module = {swig_types, 3, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -3556,7 +3555,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Ydb_push(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Ydb_write(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   Ydb *arg1 = (Ydb *) 0 ;
   char *arg2 = (char *) 0 ;
@@ -3569,18 +3568,18 @@ SWIGINTERN PyObject *_wrap_Ydb_push(PyObject *SWIGUNUSEDPARM(self), PyObject *ar
   PyObject * obj1 = 0 ;
   ydb_res result;
   
-  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_push",&obj0,&obj1)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_write",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_push" "', argument " "1"" of type '" "Ydb *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_write" "', argument " "1"" of type '" "Ydb *""'"); 
   }
   arg1 = reinterpret_cast< Ydb * >(argp1);
   res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_push" "', argument " "2"" of type '" "char *""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_write" "', argument " "2"" of type '" "char *""'");
   }
   arg2 = reinterpret_cast< char * >(buf2);
-  result = (ydb_res)(arg1)->push(arg2);
+  result = (ydb_res)(arg1)->write(arg2);
   resultobj = SWIG_From_int(static_cast< int >(result));
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return resultobj;
@@ -3590,7 +3589,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Ydb_pop(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Ydb_remove(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   Ydb *arg1 = (Ydb *) 0 ;
   char *arg2 = (char *) 0 ;
@@ -3603,18 +3602,18 @@ SWIGINTERN PyObject *_wrap_Ydb_pop(PyObject *SWIGUNUSEDPARM(self), PyObject *arg
   PyObject * obj1 = 0 ;
   ydb_res result;
   
-  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_pop",&obj0,&obj1)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_remove",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_pop" "', argument " "1"" of type '" "Ydb *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_remove" "', argument " "1"" of type '" "Ydb *""'"); 
   }
   arg1 = reinterpret_cast< Ydb * >(argp1);
   res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_pop" "', argument " "2"" of type '" "char *""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_remove" "', argument " "2"" of type '" "char *""'");
   }
   arg2 = reinterpret_cast< char * >(buf2);
-  result = (ydb_res)(arg1)->pop(arg2);
+  result = (ydb_res)(arg1)->remove(arg2);
   resultobj = SWIG_From_int(static_cast< int >(result));
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return resultobj;
@@ -3726,24 +3725,104 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Ydb_to_string(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Ydb_path_write(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   Ydb *arg1 = (Ydb *) 0 ;
+  char *arg2 = (char *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
   PyObject * obj0 = 0 ;
-  std::string result;
+  PyObject * obj1 = 0 ;
+  ydb_res result;
   
-  if (!PyArg_ParseTuple(args,(char *)"O:Ydb_to_string",&obj0)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_path_write",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_to_string" "', argument " "1"" of type '" "Ydb *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_path_write" "', argument " "1"" of type '" "Ydb *""'"); 
   }
   arg1 = reinterpret_cast< Ydb * >(argp1);
-  result = (arg1)->to_string();
-  resultobj = SWIG_NewPointerObj((new std::string(static_cast< const std::string& >(result))), SWIGTYPE_p_std__string, SWIG_POINTER_OWN |  0 );
+  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_path_write" "', argument " "2"" of type '" "char *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  result = (ydb_res)(arg1)->path_write(arg2);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return resultobj;
 fail:
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Ydb_path_remove(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  Ydb *arg1 = (Ydb *) 0 ;
+  char *arg2 = (char *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  ydb_res result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_path_remove",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_path_remove" "', argument " "1"" of type '" "Ydb *""'"); 
+  }
+  arg1 = reinterpret_cast< Ydb * >(argp1);
+  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_path_remove" "', argument " "2"" of type '" "char *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  result = (ydb_res)(arg1)->path_remove(arg2);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Ydb_path_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  Ydb *arg1 = (Ydb *) 0 ;
+  char *arg2 = (char *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  char *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_path_get",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_path_get" "', argument " "1"" of type '" "Ydb *""'"); 
+  }
+  arg1 = reinterpret_cast< Ydb * >(argp1);
+  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_path_get" "', argument " "2"" of type '" "char *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  result = (char *)(arg1)->path_get(arg2);
+  resultobj = SWIG_FromCharPtr((const char *)result);
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return NULL;
 }
 
@@ -3873,10 +3952,12 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"str2yaml", _wrap_str2yaml, METH_VARARGS, NULL},
 	 { (char *)"new_Ydb", _wrap_new_Ydb, METH_VARARGS, NULL},
 	 { (char *)"delete_Ydb", _wrap_delete_Ydb, METH_VARARGS, NULL},
-	 { (char *)"Ydb_push", _wrap_Ydb_push, METH_VARARGS, NULL},
-	 { (char *)"Ydb_pop", _wrap_Ydb_pop, METH_VARARGS, NULL},
+	 { (char *)"Ydb_write", _wrap_Ydb_write, METH_VARARGS, NULL},
+	 { (char *)"Ydb_remove", _wrap_Ydb_remove, METH_VARARGS, NULL},
 	 { (char *)"Ydb_get", _wrap_Ydb_get, METH_VARARGS, NULL},
-	 { (char *)"Ydb_to_string", _wrap_Ydb_to_string, METH_VARARGS, NULL},
+	 { (char *)"Ydb_path_write", _wrap_Ydb_path_write, METH_VARARGS, NULL},
+	 { (char *)"Ydb_path_remove", _wrap_Ydb_path_remove, METH_VARARGS, NULL},
+	 { (char *)"Ydb_path_get", _wrap_Ydb_path_get, METH_VARARGS, NULL},
 	 { (char *)"Ydb_connect", _wrap_Ydb_connect, METH_VARARGS, NULL},
 	 { (char *)"Ydb_disconnect", _wrap_Ydb_disconnect, METH_VARARGS, NULL},
 	 { (char *)"Ydb_serve", _wrap_Ydb_serve, METH_VARARGS, NULL},
@@ -3890,25 +3971,21 @@ static PyMethodDef SwigMethods[] = {
 static swig_type_info _swigt__p_Ydb = {"_p_Ydb", "Ydb *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p__ydb_res = {"_p__ydb_res", "enum _ydb_res *|ydb_res *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_std__string = {"_p_std__string", "std::string *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_Ydb,
   &_swigt__p__ydb_res,
   &_swigt__p_char,
-  &_swigt__p_std__string,
 };
 
 static swig_cast_info _swigc__p_Ydb[] = {  {&_swigt__p_Ydb, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p__ydb_res[] = {  {&_swigt__p__ydb_res, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_std__string[] = {  {&_swigt__p_std__string, 0, 0, 0},{0, 0, 0, 0}};
 
 static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_Ydb,
   _swigc__p__ydb_res,
   _swigc__p_char,
-  _swigc__p_std__string,
 };
 
 

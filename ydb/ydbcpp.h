@@ -29,12 +29,29 @@ public:
     Ydb(char *name);
     ~Ydb();
 
-    ydb_res push(char *yaml);
-    ydb_res pop(char *yaml);
+    // write --
+    // write the YAML data
+    ydb_res write(char *yaml);
+
+    // remove --
+    // delete the YAML data
+    ydb_res remove(char *yaml);
 
     // The return value of get() must be free.
     char *get(char *filter);
     char *get();
+
+    // path_write --
+    // write the data using /path/to/data=value
+    ydb_res path_write(char *path);
+
+    // path_remove --
+    // delete the data using /path/to/data
+    ydb_res path_remove(char *path);
+
+    // path_get --
+    // get the data (value only) using /path/to/data
+    const char *path_get(char *path);
 
     std::string to_string();
 

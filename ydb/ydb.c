@@ -37,6 +37,7 @@
 #include "ydb.h"
 #include "utf8.h"
 #include "ynode.h"
+#include "base64.h"
 
 extern ylog_func ylog_logger;
 
@@ -475,6 +476,30 @@ char *str2yaml(char *cstr)
     if (is_new)
         return yamlstr;
     return strdup(cstr);
+}
+
+// binary_to_base64 --
+// Return base64 string with the length.
+// It should be free
+char *binary_to_base64(unsigned char *binary, size_t binarylen, size_t *base64len)
+{
+    if (binary && binarylen > 0)
+        return (char *)base64_encode((const unsigned char *)binary, binarylen, base64len);
+    return NULL;
+}
+
+// base64_to_binary --
+// Return base64 string with the length.
+// It should be free
+unsigned char *base64_to_binary(char *base64, size_t base64len, size_t *binarylen)
+{
+    if (base64 && binarylen)
+    {
+        if (base64len == 0)
+            base64len = strlen(base64);
+        return base64_decode((const unsigned char *)base64, base64len, binarylen);
+    }
+    return NULL;
 }
 
 // open local ydb (yaml data block)
@@ -1453,7 +1478,7 @@ static ydb_res ydb_read_sub(ynode *cur, void *addition)
             sscanf(ynode_value(n), &(value[4]), p);
 #else
             int len = strlen(value);
-            if (value[len-1] == 's')
+            if (value[len - 1] == 's')
                 strcpy(p, ynode_value(n));
             else
                 sscanf(ynode_value(n), &(value[4]), p);

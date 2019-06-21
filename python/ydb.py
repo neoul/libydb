@@ -154,17 +154,23 @@ class Ydb(_object):
     __swig_destroy__ = _ydb.delete_Ydb
     __del__ = lambda self: None
 
-    def push(self, yaml):
-        return _ydb.Ydb_push(self, yaml)
+    def write(self, yaml):
+        return _ydb.Ydb_write(self, yaml)
 
-    def pop(self, yaml):
-        return _ydb.Ydb_pop(self, yaml)
+    def remove(self, yaml):
+        return _ydb.Ydb_remove(self, yaml)
 
     def get(self, *args):
         return _ydb.Ydb_get(self, *args)
 
-    def to_string(self):
-        return _ydb.Ydb_to_string(self)
+    def path_write(self, path):
+        return _ydb.Ydb_path_write(self, path)
+
+    def path_remove(self, path):
+        return _ydb.Ydb_path_remove(self, path)
+
+    def path_get(self, path):
+        return _ydb.Ydb_path_get(self, path)
 
     def connect(self, addr, flags):
         return _ydb.Ydb_connect(self, addr, flags)
