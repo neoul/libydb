@@ -23,7 +23,8 @@ int main(int argc, char *argv[])
 {
     Ydb db((char *)"hello-ydb");
     db.write((char *)yaml_example);
-    std::cin >> db;
+    db.path_write("/abc/efg=ok");
+    // std::cin >> db;
     std::cout << db;
     return 0;
 }
