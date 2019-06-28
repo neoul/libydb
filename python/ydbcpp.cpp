@@ -214,7 +214,7 @@ ydb_res ydb_trv(ydb *datablock, ynode *cur, ynode *src, FILE *fp, int printlevel
     int level;
     char *path;
     level = ydb_level(src, cur);
-    printf("level %d, printlevel=%d\n", level, printlevel);
+    // printf("level %d, printlevel=%d\n", level, printlevel);
     if (level <= 0 || level > printlevel)
         return YDB_OK;
     path = ydb_path_nodes(src, cur, NULL);
