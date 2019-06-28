@@ -178,11 +178,62 @@ class Ydb(_object):
     def disconnect(self, addr):
         return _ydb.Ydb_disconnect(self, addr)
 
+    def is_connected(self, addr):
+        return _ydb.Ydb_is_connected(self, addr)
+
     def fd(self):
         return _ydb.Ydb_fd(self)
 
     def serve(self, timeout):
         return _ydb.Ydb_serve(self, timeout)
+
+    def path(self, datablock, node):
+        return _ydb.Ydb_path(self, datablock, node)
+
+    def path_and_value(self, datablock, node):
+        return _ydb.Ydb_path_and_value(self, datablock, node)
+
+    def search(self, datablock, path):
+        return _ydb.Ydb_search(self, datablock, path)
+
+    def top(self, datablock):
+        return _ydb.Ydb_top(self, datablock)
+
+    def empty(self, node):
+        return _ydb.Ydb_empty(self, node)
+
+    def find(self, base, path):
+        return _ydb.Ydb_find(self, base, path)
+
+    def up(self, node):
+        return _ydb.Ydb_up(self, node)
+
+    def down(self, node):
+        return _ydb.Ydb_down(self, node)
+
+    def prev(self, node):
+        return _ydb.Ydb_prev(self, node)
+
+    def next(self, node):
+        return _ydb.Ydb_next(self, node)
+
+    def first(self, node):
+        return _ydb.Ydb_first(self, node)
+
+    def last(self, node):
+        return _ydb.Ydb_last(self, node)
+
+    def tag(self, node):
+        return _ydb.Ydb_tag(self, node)
+
+    def value(self, node):
+        return _ydb.Ydb_value(self, node)
+
+    def key(self, node):
+        return _ydb.Ydb_key(self, node)
+
+    def index(self, node):
+        return _ydb.Ydb_index(self, node)
 Ydb_swigregister = _ydb.Ydb_swigregister
 Ydb_swigregister(Ydb)
 

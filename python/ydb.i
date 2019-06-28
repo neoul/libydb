@@ -64,7 +64,8 @@ char *str2yaml(char *cstr);
 %newobject Ydb::get(char *filter);
 %newobject Ydb::get();
 %newobject Ydb::to_string();
-
+%newobject Ydb::path();
+%newobject Ydb::path_and_value();
 
 class Ydb
 {
@@ -100,6 +101,10 @@ public:
     ydb_res connect(char* addr, char* flags);
     ydb_res disconnect(char* addr);
 
+    // ydb_is_connected --
+    // Check the YDB IPC channel connected or not.
+    int is_connected(char *addr);
+
     // fd --
     // Return the fd (file descriptor) opened for YDB IPC channel.
     int fd();
@@ -109,4 +114,36 @@ public:
     // serve() updates the local YDB instance using the received YAML data from remotes.
     ydb_res serve(int timeout);
 
+    // return the path of the node. (the path must be free.)
+    char *path(ydb *datablock, ynode *node);
+    // return the path of the node. (the path must be free.)
+    char *path_and_value(ydb *datablock, ynode *node);
+    // return the node in the path (/path/to/data).
+    ynode *search(ydb *datablock, char *path);
+    // return the top node of the yaml data block.
+    ynode *top(ydb *datablock);
+    // return 1 if the node has no child.
+    int empty(ynode *node);
+    // Return the found node by the path
+    ynode *find(ynode *base, char *path);
+    // return the parent node of the node.
+    ynode *up(ynode *node);
+    // return the first child node of the node.
+    ynode *down(ynode *node);
+    // return the previous sibling node of the node.
+    ynode *prev(ynode *node);
+    // return the next sibling node of the node.
+    ynode *next(ynode *node);
+    // return the first sibling node of the node.
+    ynode *first(ynode *node);
+    // return the last sibling node of the node.
+    ynode *last(ynode *node);
+    // return node tag
+    const char *tag(ynode *node);
+    // Return node value if that is a value node.
+    const char *value(ynode *node);
+    // Return the key of the node when the parent is a map (hasp).
+    const char *key(ynode *node);
+    // Return the index of the node when the parent is a seq (list).
+    int index(ynode *node);
 };
