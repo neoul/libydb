@@ -6,6 +6,65 @@
 #include <ydb.h>
 #include <ylog.h>
 
+
+ydb_res ydb_trv(ydb *datablock, ynode *cur, ynode *src, FILE *fp, int printlevel)
+{
+    int level;
+    char *path;
+    level = ydb_level(src, cur);
+    printf("level %d, printlevel=%d\n", level, printlevel);
+    if (level <= 0 || level > printlevel)
+        return YDB_OK;
+    path = ydb_path_nodes(src, cur, NULL);
+    if (path)
+    {
+        fprintf(fp, "%s\n", (char *)path);
+        free(path);
+    }
+    return YDB_OK;
+}
+
+#include <string.h>
+// flags: val-only, leaf-only, leaf-first, no-values
+char *ydb_path_list(ydb *datablock, int depth, char *path)
+{
+    ydb_res res = YDB_OK;
+    ynode *src = NULL;
+    char *buf = NULL;
+    size_t buflen = 0;
+    FILE *fp = NULL;
+
+    if (!datablock)
+        return NULL;
+
+    fp = open_memstream(&buf, &buflen);
+    if (!fp)
+        return NULL;
+
+    src = ydb_search(datablock, "%s", path);
+    if (!src)
+        goto failed;
+    res = ydb_traverse(datablock, src,
+                       (ydb_traverse_callback)ydb_trv,
+                       NULL, 3, src, fp, depth);
+    if (YDB_FAILED(res))
+        goto failed;
+    fclose(fp);
+    if (buf)
+    {
+        if (buflen > 0)
+            return buf;
+        free(buf);
+    }
+failed:
+    if (fp)
+        fclose(fp);
+    if (buf)
+        free(buf);
+    return NULL;
+}
+
+
 ydb_res ydb_traverse_cb(ydb *datablock, ynode *cur, void *U1)
 {
     char *path = ydb_path_and_value(datablock, cur, NULL);
@@ -17,7 +76,7 @@ ydb_res ydb_traverse_cb(ydb *datablock, ynode *cur, void *U1)
 
 int main(int argc, char *argv[])
 {
-    // ylog_severity = YLOG_DEBUG;
+    ylog_severity = YLOG_DEBUG;
     ydb *block1;
     block1 = ydb_open("my-block");
 
@@ -80,6 +139,7 @@ int main(int argc, char *argv[])
     block2 = ydb_open("dump");
     FILE *fp = fopen("examples/yaml/ydb-input.yaml", "r");
     ydb_parse(block2, fp);
+    fclose(fp);
     ydb_dump(block2, stdout);
     ydb_close(block2);
 
@@ -103,7 +163,12 @@ int main(int argc, char *argv[])
 
     node = ydb_top(block1);
     ydb_traverse(block1, node, (ydb_traverse_callback) ydb_traverse_cb, "val-only", 1, "traverse");
-
+    char *dummy = ydb_path_list(block1, 1, "/interfaces/interface[name=1/1]");
+    if (dummy)
+    {
+        printf("%s", dummy); 
+        free(dummy);
+    }
     ydb_close(block1);
     return 0;
 }

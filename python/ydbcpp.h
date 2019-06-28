@@ -105,6 +105,11 @@ public:
     // Return the index of the node when the parent is a seq (list).
     int index(ynode *node);
 
+    // Return the level of two nodes.
+    int level(ynode *base, ynode *node);
+
+    // Return the list of path/to/data
+    char *path_list(int depth, char *path);
 };
 
 #endif

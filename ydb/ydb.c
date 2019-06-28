@@ -901,6 +901,11 @@ int ydb_index(ynode *node)
     return ynode_index(node);
 }
 
+int ydb_level(ynode *top, ynode *node)
+{
+    return ynode_level(top, node);
+}
+
 ydb_res ydb_parse(ydb *datablock, FILE *stream)
 {
     ydb_res res = YDB_OK;

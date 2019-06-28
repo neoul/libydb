@@ -66,6 +66,7 @@ char *str2yaml(char *cstr);
 %newobject Ydb::to_string();
 %newobject Ydb::path();
 %newobject Ydb::path_and_value();
+%newobject Ydb::path_list();
 
 class Ydb
 {
@@ -146,4 +147,9 @@ public:
     const char *key(ynode *node);
     // Return the index of the node when the parent is a seq (list).
     int index(ynode *node);
+    // Return the level of two nodes.
+    int level(ynode *base, ynode *node);
+
+    // Return the list of path/to/data
+    char *path_list(int depth, char *path);
 };

@@ -156,7 +156,7 @@ char *ydb_path_and_value(ydb *datablock, ynode *node, int *pathlen);
 // return the node in the path (/path/to/data).
 ynode *ydb_search(ydb *datablock, const char *format, ...);
 
-// return the path between ancestor and descendant;
+// return the path between ancestor and descendant. (the path must be free.)
 char *ydb_path_nodes(ynode *ancestor, ynode *descendant, int *pathlen);
 
 // return the top node of the yaml data block.
@@ -191,6 +191,8 @@ const char *ydb_value(ynode *node);
 const char *ydb_key(ynode *node);
 // Return the index of the node when the parent is a seq (list).
 int ydb_index(ynode *node);
+// Return the level of two nodes.
+int ydb_level(ynode *top, ynode *node);
 
 // ydb_retrieve --
 // read the data from the current node (n)

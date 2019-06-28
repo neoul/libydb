@@ -9,7 +9,7 @@ using namespace std;
 
 Ydb::Ydb(char *name)
 {
-    db = ydb_open((char *) name);
+    db = ydb_open((char *)name);
 }
 
 Ydb::~Ydb()
@@ -68,12 +68,12 @@ char *Ydb::get()
     return buf;
 }
 
-ydb_res Ydb::connect(char * addr, char * flags)
+ydb_res Ydb::connect(char *addr, char *flags)
 {
     return ydb_connect(db, addr, flags);
 }
 
-ydb_res Ydb::disconnect(char * addr)
+ydb_res Ydb::disconnect(char *addr)
 {
     return ydb_disconnect(db, addr);
 }
@@ -95,7 +95,7 @@ ydb_res Ydb::serve(int timeout)
 
 std::string Ydb::to_string()
 {
-    
+
     char *buf = NULL;
     buf = get();
     if (buf)
@@ -107,23 +107,24 @@ std::string Ydb::to_string()
     return std::string();
 }
 
-std::ostream &operator <<(std::ostream &c, Ydb &Y)
+std::ostream &operator<<(std::ostream &c, Ydb &Y)
 {
     c << Y.to_string();
     return c;
 }
 
-std::istream &operator >>(std::istream &c, Ydb &Y)
+std::istream &operator>>(std::istream &c, Ydb &Y)
 {
     std::string input;
     char sbuf[1024];
-    do {
+    do
+    {
         c.getline(sbuf, sizeof(sbuf));
         if (c.gcount() > 0)
             input = input + sbuf + '\n';
         // cout << c.good() << c.eof() << c.fail() << c.bad() <<  "|";
     } while (c.good());
-    Y.write((char *) input.c_str());
+    Y.write((char *)input.c_str());
     return c;
 }
 
@@ -206,4 +207,73 @@ const char *Ydb::key(ynode *node)
 int Ydb::index(ynode *node)
 {
     return ydb_index(node);
+}
+
+ydb_res ydb_trv(ydb *datablock, ynode *cur, ynode *src, FILE *fp, int printlevel)
+{
+    int level;
+    char *path;
+    level = ydb_level(src, cur);
+    printf("level %d, printlevel=%d\n", level, printlevel);
+    if (level <= 0 || level > printlevel)
+        return YDB_OK;
+    path = ydb_path_nodes(src, cur, NULL);
+    if (path)
+    {
+        fprintf(fp, "%s\n", (char *)path);
+        free(path);
+    }
+    return YDB_OK;
+}
+
+#include <string.h>
+// flags: val-only, leaf-only, leaf-first, no-values
+char *ydb_path_list(ydb *datablock, int depth, char *path)
+{
+    ydb_res res = YDB_OK;
+    ynode *src = NULL;
+    char *buf = NULL;
+    size_t buflen = 0;
+    FILE *fp = NULL;
+
+    if (!datablock)
+        return NULL;
+
+    fp = open_memstream(&buf, &buflen);
+    if (!fp)
+        return NULL;
+
+    src = ydb_search(datablock, "%s", path);
+    if (!src)
+        goto failed;
+    res = ydb_traverse(datablock, src,
+                       (ydb_traverse_callback)ydb_trv,
+                       NULL, 3, src, fp, depth);
+    if (YDB_FAILED(res))
+        goto failed;
+    fclose(fp);
+    if (buf)
+    {
+        if (buflen > 0)
+            return buf;
+        free(buf);
+    }
+failed:
+    if (fp)
+        fclose(fp);
+    if (buf)
+        free(buf);
+    return NULL;
+}
+
+// Return the level of two nodes.
+int Ydb::level(ynode *base, ynode *node)
+{
+    return ydb_level(base, node);
+}
+
+// Return the list of path/to/data
+char *Ydb::path_list(int depth, char *path)
+{
+    return ydb_path_list(db, depth, path);
 }

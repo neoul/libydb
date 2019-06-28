@@ -234,6 +234,12 @@ class Ydb(_object):
 
     def index(self, node):
         return _ydb.Ydb_index(self, node)
+
+    def level(self, base, node):
+        return _ydb.Ydb_level(self, base, node)
+
+    def path_list(self, depth, path):
+        return _ydb.Ydb_path_list(self, depth, path)
 Ydb_swigregister = _ydb.Ydb_swigregister
 Ydb_swigregister(Ydb)
 
