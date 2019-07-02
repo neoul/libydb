@@ -82,6 +82,7 @@ int ylog_general(
     len = vfprintf(fp, format, args);
     va_end(args);
     n += len;
+    fflush(fp);
 end_log:
     return n;
 }
