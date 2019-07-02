@@ -1153,6 +1153,8 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
     fclose(fp);
 
     {
+        char *rbuf = NULL;
+        size_t rbuflen = 0;
         unsigned int flags;
         struct ydb_delete_data ddata;
         res = ynode_scanf_from_buf(buf, buflen, 0, &src);
@@ -1162,9 +1164,13 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
         ddata.node = datablock->top;
         flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
-        ynode_log_close(ddata.log, &buf, &buflen);
-        if (res)
-            yconn_publish(NULL, NULL, datablock, YOP_DELETE, buf, buflen);
+        ynode_log_close(ddata.log, &rbuf, &rbuflen);
+        if (rbuf)
+        {
+            if (rbuflen > 0)
+                yconn_publish(NULL, NULL, datablock, YOP_DELETE, rbuf, rbuflen);
+            free(rbuf);
+        }
     }
 failed:
     CLEAR_BUF(buf, buflen);
