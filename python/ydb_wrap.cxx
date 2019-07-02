@@ -3006,10 +3006,9 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 #define SWIGTYPE_p_Ydb swig_types[0]
 #define SWIGTYPE_p__ydb_res swig_types[1]
 #define SWIGTYPE_p_char swig_types[2]
-#define SWIGTYPE_p_ydb swig_types[3]
-#define SWIGTYPE_p_ynode swig_types[4]
-static swig_type_info *swig_types[6];
-static swig_module_info swig_module = {swig_types, 5, 0, 0, 0, 0};
+#define SWIGTYPE_p_ynode swig_types[3]
+static swig_type_info *swig_types[5];
+static swig_module_info swig_module = {swig_types, 4, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -3999,37 +3998,29 @@ fail:
 SWIGINTERN PyObject *_wrap_Ydb_path(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   Ydb *arg1 = (Ydb *) 0 ;
-  ydb *arg2 = (ydb *) 0 ;
-  ynode *arg3 = (ynode *) 0 ;
+  ynode *arg2 = (ynode *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 = 0 ;
   int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
-  PyObject * obj2 = 0 ;
   char *result = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"OOO:Ydb_path",&obj0,&obj1,&obj2)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_path",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_path" "', argument " "1"" of type '" "Ydb *""'"); 
   }
   arg1 = reinterpret_cast< Ydb * >(argp1);
-  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_ydb, 0 |  0 );
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_ynode, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_path" "', argument " "2"" of type '" "ydb *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_path" "', argument " "2"" of type '" "ynode *""'"); 
   }
-  arg2 = reinterpret_cast< ydb * >(argp2);
-  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_ynode, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Ydb_path" "', argument " "3"" of type '" "ynode *""'"); 
-  }
-  arg3 = reinterpret_cast< ynode * >(argp3);
-  result = (char *)(arg1)->path(arg2,arg3);
+  arg2 = reinterpret_cast< ynode * >(argp2);
+  result = (char *)(arg1)->path(arg2);
   resultobj = SWIG_FromCharPtr((const char *)result);
+  delete[] result;
   return resultobj;
 fail:
   return NULL;
@@ -4039,37 +4030,29 @@ fail:
 SWIGINTERN PyObject *_wrap_Ydb_path_and_value(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   Ydb *arg1 = (Ydb *) 0 ;
-  ydb *arg2 = (ydb *) 0 ;
-  ynode *arg3 = (ynode *) 0 ;
+  ynode *arg2 = (ynode *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 = 0 ;
   int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
-  PyObject * obj2 = 0 ;
   char *result = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"OOO:Ydb_path_and_value",&obj0,&obj1,&obj2)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_path_and_value",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_path_and_value" "', argument " "1"" of type '" "Ydb *""'"); 
   }
   arg1 = reinterpret_cast< Ydb * >(argp1);
-  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_ydb, 0 |  0 );
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_ynode, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_path_and_value" "', argument " "2"" of type '" "ydb *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_path_and_value" "', argument " "2"" of type '" "ynode *""'"); 
   }
-  arg2 = reinterpret_cast< ydb * >(argp2);
-  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_ynode, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Ydb_path_and_value" "', argument " "3"" of type '" "ynode *""'"); 
-  }
-  arg3 = reinterpret_cast< ynode * >(argp3);
-  result = (char *)(arg1)->path_and_value(arg2,arg3);
+  arg2 = reinterpret_cast< ynode * >(argp2);
+  result = (char *)(arg1)->path_and_value(arg2);
   resultobj = SWIG_FromCharPtr((const char *)result);
+  delete[] result;
   return resultobj;
 fail:
   return NULL;
@@ -4079,42 +4062,33 @@ fail:
 SWIGINTERN PyObject *_wrap_Ydb_search(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   Ydb *arg1 = (Ydb *) 0 ;
-  ydb *arg2 = (ydb *) 0 ;
-  char *arg3 = (char *) 0 ;
+  char *arg2 = (char *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  void *argp2 = 0 ;
-  int res2 = 0 ;
-  int res3 ;
-  char *buf3 = 0 ;
-  int alloc3 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
-  PyObject * obj2 = 0 ;
   ynode *result = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"OOO:Ydb_search",&obj0,&obj1,&obj2)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_search",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_search" "', argument " "1"" of type '" "Ydb *""'"); 
   }
   arg1 = reinterpret_cast< Ydb * >(argp1);
-  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_ydb, 0 |  0 );
+  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_search" "', argument " "2"" of type '" "ydb *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_search" "', argument " "2"" of type '" "char *""'");
   }
-  arg2 = reinterpret_cast< ydb * >(argp2);
-  res3 = SWIG_AsCharPtrAndSize(obj2, &buf3, NULL, &alloc3);
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Ydb_search" "', argument " "3"" of type '" "char *""'");
-  }
-  arg3 = reinterpret_cast< char * >(buf3);
-  result = (ynode *)(arg1)->search(arg2,arg3);
+  arg2 = reinterpret_cast< char * >(buf2);
+  result = (ynode *)(arg1)->search(arg2);
   resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_ynode, 0 |  0 );
-  if (alloc3 == SWIG_NEWOBJ) delete[] buf3;
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return resultobj;
 fail:
-  if (alloc3 == SWIG_NEWOBJ) delete[] buf3;
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return NULL;
 }
 
@@ -4122,27 +4096,18 @@ fail:
 SWIGINTERN PyObject *_wrap_Ydb_top(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   Ydb *arg1 = (Ydb *) 0 ;
-  ydb *arg2 = (ydb *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  void *argp2 = 0 ;
-  int res2 = 0 ;
   PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
   ynode *result = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"OO:Ydb_top",&obj0,&obj1)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"O:Ydb_top",&obj0)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_Ydb, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Ydb_top" "', argument " "1"" of type '" "Ydb *""'"); 
   }
   arg1 = reinterpret_cast< Ydb * >(argp1);
-  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_ydb, 0 |  0 );
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Ydb_top" "', argument " "2"" of type '" "ydb *""'"); 
-  }
-  arg2 = reinterpret_cast< ydb * >(argp2);
-  result = (ynode *)(arg1)->top(arg2);
+  result = (ynode *)(arg1)->top();
   resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_ynode, 0 |  0 );
   return resultobj;
 fail:
@@ -4610,6 +4575,7 @@ SWIGINTERN PyObject *_wrap_Ydb_path_list(PyObject *SWIGUNUSEDPARM(self), PyObjec
   result = (char *)(arg1)->path_list(arg2,arg3);
   resultobj = SWIG_FromCharPtr((const char *)result);
   if (alloc3 == SWIG_NEWOBJ) delete[] buf3;
+  delete[] result;
   return resultobj;
 fail:
   if (alloc3 == SWIG_NEWOBJ) delete[] buf3;
@@ -4670,28 +4636,24 @@ static PyMethodDef SwigMethods[] = {
 static swig_type_info _swigt__p_Ydb = {"_p_Ydb", "Ydb *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p__ydb_res = {"_p__ydb_res", "enum _ydb_res *|ydb_res *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_ydb = {"_p_ydb", "ydb *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_ynode = {"_p_ynode", "ynode *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_Ydb,
   &_swigt__p__ydb_res,
   &_swigt__p_char,
-  &_swigt__p_ydb,
   &_swigt__p_ynode,
 };
 
 static swig_cast_info _swigc__p_Ydb[] = {  {&_swigt__p_Ydb, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p__ydb_res[] = {  {&_swigt__p__ydb_res, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_ydb[] = {  {&_swigt__p_ydb, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_ynode[] = {  {&_swigt__p_ynode, 0, 0, 0},{0, 0, 0, 0}};
 
 static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_Ydb,
   _swigc__p__ydb_res,
   _swigc__p_char,
-  _swigc__p_ydb,
   _swigc__p_ynode,
 };
 

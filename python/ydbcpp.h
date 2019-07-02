@@ -73,13 +73,13 @@ public:
 
 
     // return the path of the node. (the path must be free.)
-    char *path(ydb *datablock, ynode *node);
+    char *path(ynode *node);
     // return the path of the node. (the path must be free.)
-    char *path_and_value(ydb *datablock, ynode *node);
+    char *path_and_value(ynode *node);
     // return the node in the path (/path/to/data).
-    ynode *search(ydb *datablock, char *path);
+    ynode *search(char *path);
     // return the top node of the yaml data block.
-    ynode *top(ydb *datablock);
+    ynode *top();
     // return 1 if the node has no child.
     int empty(ynode *node);
     // Return the found node by the path

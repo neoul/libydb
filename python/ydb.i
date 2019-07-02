@@ -5,7 +5,6 @@
 #define SWIG_FILE_WITH_INIT
 #include "ydbcpp.h"
 %}
-// %newobject Object::blah(int,double);
 
 // **YAML DataBlock (YDB)** is a library to manage the hierarchical configuration 
 // and statistical data simply and clearly using YAML input/output. 
@@ -64,9 +63,9 @@ char *str2yaml(char *cstr);
 %newobject Ydb::get(char *filter);
 %newobject Ydb::get();
 %newobject Ydb::to_string();
-%newobject Ydb::path();
-%newobject Ydb::path_and_value();
-%newobject Ydb::path_list();
+%newobject Ydb::path(ynode *node);
+%newobject Ydb::path_and_value(ynode *node);
+%newobject Ydb::path_list(int depth, char *path);
 
 class Ydb
 {
@@ -116,13 +115,13 @@ public:
     ydb_res serve(int timeout);
 
     // return the path of the node. (the path must be free.)
-    char *path(ydb *datablock, ynode *node);
+    char *path(ynode *node);
     // return the path of the node. (the path must be free.)
-    char *path_and_value(ydb *datablock, ynode *node);
+    char *path_and_value(ynode *node);
     // return the node in the path (/path/to/data).
-    ynode *search(ydb *datablock, char *path);
+    ynode *search(char *path);
     // return the top node of the yaml data block.
-    ynode *top(ydb *datablock);
+    ynode *top();
     // return 1 if the node has no child.
     int empty(ynode *node);
     // Return the found node by the path

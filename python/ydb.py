@@ -187,17 +187,17 @@ class Ydb(_object):
     def serve(self, timeout):
         return _ydb.Ydb_serve(self, timeout)
 
-    def path(self, datablock, node):
-        return _ydb.Ydb_path(self, datablock, node)
+    def path(self, node):
+        return _ydb.Ydb_path(self, node)
 
-    def path_and_value(self, datablock, node):
-        return _ydb.Ydb_path_and_value(self, datablock, node)
+    def path_and_value(self, node):
+        return _ydb.Ydb_path_and_value(self, node)
 
-    def search(self, datablock, path):
-        return _ydb.Ydb_search(self, datablock, path)
+    def search(self, path):
+        return _ydb.Ydb_search(self, path)
 
-    def top(self, datablock):
-        return _ydb.Ydb_top(self, datablock)
+    def top(self):
+        return _ydb.Ydb_top(self)
 
     def empty(self, node):
         return _ydb.Ydb_empty(self, node)

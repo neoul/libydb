@@ -129,22 +129,22 @@ std::istream &operator>>(std::istream &c, Ydb &Y)
 }
 
 // return the path of the node. (the path must be free.)
-char *Ydb::path(ydb *datablock, ynode *node)
+char *Ydb::path(ynode *node)
 {
     return ydb_path(db, node, NULL);
 }
 // return the path of the node. (the path must be free.)
-char *Ydb::path_and_value(ydb *datablock, ynode *node)
+char *Ydb::path_and_value(ynode *node)
 {
     return ydb_path_and_value(db, node, NULL);
 }
 // return the node in the path (/path/to/data).
-ynode *Ydb::search(ydb *datablock, char *path)
+ynode *Ydb::search(char *path)
 {
     return ydb_search(db, "%s", path);
 }
 // return the top node of the yaml data block.
-ynode *Ydb::top(ydb *datablock)
+ynode *Ydb::top()
 {
     return ydb_top(db);
 }
@@ -209,10 +209,13 @@ int Ydb::index(ynode *node)
     return ydb_index(node);
 }
 
+#include <string.h>
 ydb_res ydb_trv(ydb *datablock, ynode *cur, ynode *src, FILE *fp, int printlevel)
 {
     int level;
     char *path;
+    if (!cur)
+        return YDB_OK;
     level = ydb_level(src, cur);
     // printf("level %d, printlevel=%d\n", level, printlevel);
     if (level <= 0 || level > printlevel)
@@ -226,7 +229,6 @@ ydb_res ydb_trv(ydb *datablock, ynode *cur, ynode *src, FILE *fp, int printlevel
     return YDB_OK;
 }
 
-#include <string.h>
 // flags: val-only, leaf-only, leaf-first, no-values
 char *ydb_path_list(ydb *datablock, int depth, char *path)
 {
@@ -253,17 +255,11 @@ char *ydb_path_list(ydb *datablock, int depth, char *path)
         goto failed;
     fclose(fp);
     if (buf)
-    {
-        if (buflen > 0)
-            return buf;
-        free(buf);
-    }
+        return buf;
 failed:
     if (fp)
         fclose(fp);
-    if (buf)
-        free(buf);
-    return NULL;
+    return buf;
 }
 
 // Return the level of two nodes.
