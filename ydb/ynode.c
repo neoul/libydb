@@ -1945,6 +1945,7 @@ static ylist *ynode_path_tokenize(char *path, char **val)
     char *key;
     char *token;
     bool is_val = false;
+    bool stop = false;
     ylist *keylist;
     if (!path)
         return NULL;
@@ -1956,22 +1957,33 @@ static ylist *ynode_path_tokenize(char *path, char **val)
     token = strpbrk(path, PATH_DELIMITER PATH_IGNORE_START);
     while (token)
     {
-        if (*token != '=' && *token != '/')
+        while (*token != '=' && *token != '/')
         {
             token += 1;
             token = strpbrk(token, PATH_IGNORE_END);
             if (!token)
+            {
+                stop = true;
                 break;
+            }
             token += 1;
             token = strpbrk(token, PATH_DELIMITER PATH_IGNORE_START);
             if (!token)
+            {
+                stop = true;
                 break;
+            }
+            if (*token != '=' && *token != '/') {
+                continue;
+            }
+            break;
         }
+        if (stop)
+            break;
 
         if (is_val)
         {
-            if (val)
-                *val = strdup(path);
+            token = NULL;
             break;
         }
         else
@@ -2000,6 +2012,12 @@ static ylist *ynode_path_tokenize(char *path, char **val)
             ylist_push_back(keylist, key);
         }
     }
+
+    // if (ylist_empty(keylist))
+    // {
+    //     ylist_destroy(keylist);
+    //     return NULL;
+    // }
 
     if (YLOG_SEVERITY_DEBUG)
     {
