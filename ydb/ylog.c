@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <libgen.h> // basename
+#include <time.h>
 
 #include "ylog.h"
 
@@ -192,4 +193,40 @@ int ylog_register(ylog_func func)
 {
     ylog_logger = func;
     return 0;
+}
+
+static char *_tz_offset(time_t t)
+{
+    static char tz[32];
+    struct tm local = *localtime(&t);
+    struct tm utc = *gmtime(&t);
+    long diff = ((local.tm_hour - utc.tm_hour) * 60 + (local.tm_min - utc.tm_min)) * 60L + (local.tm_sec - utc.tm_sec);
+    int delta_day = local.tm_mday - utc.tm_mday;
+    if ((delta_day == 1) || (delta_day < -1))
+    {
+        diff += 24L * 60 * 60;
+    }
+    else if ((delta_day == -1) || (delta_day > 1))
+    {
+        diff -= 24L * 60 * 60;
+    }
+    diff = diff / 60; // sec --> min
+    int min = diff % 60;
+    int hour = diff / 60;
+    snprintf(tz, 32, "%s%02d:%02d", (hour >= 0) ? "+" : "-", abs(hour), abs(min));
+    return tz;
+}
+
+char *ylog_datetime()
+{
+    static char timebuf[64];
+    time_t cur_time;
+    struct tm *c_tm;
+    time(&cur_time);
+    c_tm = localtime(&cur_time);
+    snprintf(timebuf, 64, "%d-%02d-%02dT%02d:%02d:%02d%s",
+                 c_tm->tm_year + 1900, c_tm->tm_mon + 1, c_tm->tm_mday,
+                 c_tm->tm_hour, c_tm->tm_min, c_tm->tm_sec,
+                 _tz_offset(cur_time));
+    return timebuf;
 }

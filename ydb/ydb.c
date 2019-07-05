@@ -152,6 +152,7 @@ typedef struct _yconn yconn;
 #define IS_DISCONNECTED(conn) ((conn)->flags & (STATUS_DISCONNECT))
 #define CLEAR_DISCONNECTED(conn) ((conn)->flags = ((conn)->flags & (~STATUS_DISCONNECT)))
 #define IS_SERVER(conn) IS_SET((conn)->flags, STATUS_SERVER)
+#define IS_COND_CLIENT(conn) IS_SET((conn)->flags, STATUS_COND_CLIENT)
 
 typedef enum
 {
@@ -234,6 +235,7 @@ void ydb_connection_log(int enable)
     else
         ydb_conn_log = false;
 }
+static char *yconn_flag_print(yconn *conn);
 static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple);
 #define YCONN_INFO(conn, state) \
     yconn_print(conn, __func__, __LINE__, state, false)
@@ -266,10 +268,10 @@ static ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, bool not_publish, 
 static ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen);
 static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type *type, int *next);
 
-#define YCONN_FAILED(conn, res)                         \
-    ylog(YLOG_ERROR, "%s (%d): %s%s %s\n",              \
-         (conn)->address, (conn)->fd, ydb_res_str(res), \
-         (res == YDB_E_SYSTEM_FAILED) ? ":" : "",       \
+#define YCONN_FAILED(conn, res)                                                 \
+    ylog(YLOG_ERROR, "%s (%d): %s%s %s\n",                                      \
+         (conn)->address, (conn)->fd, yconn_flag_print(conn), ydb_res_str(res), \
+         (res == YDB_E_SYSTEM_FAILED) ? ":" : "",                               \
          (res == YDB_E_SYSTEM_FAILED) ? strerror(errno) : "");
 
 struct _ydb
@@ -2476,11 +2478,26 @@ void yconn_file_deinit(yconn *conn)
     SET_DISCONNECTED(conn);
 }
 
+static char *yconn_flag_print(yconn *conn)
+{
+    static char flagstr[64];
+    snprintf(flagstr, sizeof(flagstr), "%s:%s:%s:%s:%s:%s:%s:%s",
+             IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "pub" : "sub",
+             IS_SET(conn->flags, YCONN_WRITABLE) ? "writable" : "-",
+             IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "unsub" : "-",
+             IS_SET(conn->flags, YCONN_UNREADABLE) ? "no-read" : "-",
+             IS_SET(conn->flags, YCONN_MAJOR_CONN) ? "major" : "minor",
+             IS_SET(conn->flags, STATUS_SERVER) ? "server" : "-",
+             IS_SET(conn->flags, STATUS_CLIENT) ? "client" : "-",
+             IS_SET(conn->flags, STATUS_COND_CLIENT) ? "connected" : "-");
+    return flagstr;
+}
+
 static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple)
 {
     int n;
     char flagstr[128];
-    if (!conn || !ylog_logger)
+    if (!conn)
         return;
     if (!simple && ydb_conn_log)
     {
@@ -2490,7 +2507,8 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         fp = fopen(connlog, "a");
         if (fp)
         {
-            fprintf(fp, "%s:ydb[%s]:%d:%s(%d):%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
+            fprintf(fp, "%s:%s:ydb[%s]:%d:%s(%d):%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
+                    ylog_datetime(),
                     ylog_pname(), conn->datablock->name, conn->datablock->epollfd,
                     conn->address, conn->fd, state ? state : "???",
                     IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "pub" : "sub",
@@ -2504,6 +2522,8 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
             fclose(fp);
         }
     }
+    if (!ylog_logger)
+        return;
     if (!YLOG_SEVERITY_INFO)
         return;
     if (!simple)
@@ -2783,16 +2803,25 @@ static ydb_res yconn_reopen(yconn *conn, ydb *datablock)
     uint64_t expired;
     ylog_inout();
 
-    len = read(conn->timerfd, &expired, sizeof(uint64_t));
-    if (len != sizeof(uint64_t))
+    if (IS_COND_CLIENT(conn))
     {
-        if (errno == EAGAIN)
-            return YDB_OK;
-        YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
-        return YDB_E_SYSTEM_FAILED;
+        ylog_debug("cond-client is not able to reopen.\n");
+        return YDB_OK;
     }
-    ylog_debug("timerfd %d expired count %d\n", conn->timerfd, expired);
 
+    if (conn->timerfd > 0)
+    {
+        len = read(conn->timerfd, &expired, sizeof(uint64_t));
+        if (len != sizeof(uint64_t))
+        {
+            if (errno == EAGAIN)
+                return YDB_OK;
+            YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
+            return YDB_E_SYSTEM_FAILED;
+        }
+        ylog_debug("timerfd %d expired count %d\n", conn->timerfd, expired);
+    }
+    
     conn->func_deinit(conn);
     res = conn->func_init(conn);
     if (YDB_FAILED(res))
@@ -3158,7 +3187,13 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, int wait
         {
             yconn *recv_conn = event[i].data.ptr;
             if (IS_DISCONNECTED(recv_conn))
-                res = yconn_reopen(recv_conn, datablock);
+            {
+                ytree_delete(synclist, &recv_conn->fd);
+                if (IS_COND_CLIENT(recv_conn))
+                    res = yconn_disconnect(recv_conn);
+                else
+                    res = yconn_reopen(recv_conn, datablock);
+            }
             else if (IS_SET(recv_conn->flags, STATUS_SERVER))
             {
                 res = yconn_accept(recv_conn);
@@ -3247,8 +3282,15 @@ static ydb_res yconn_init(yconn *req_conn)
         {
             yconn *recv_conn = event[i].data.ptr;
             if (IS_DISCONNECTED(recv_conn))
-                res = yconn_reopen(recv_conn, datablock);
-            if (IS_SET(recv_conn->flags, STATUS_SERVER))
+            {
+                if (recv_conn == req_conn)
+                    done = true;
+                if (IS_COND_CLIENT(recv_conn))
+                    res = yconn_disconnect(recv_conn);
+                else
+                    res = yconn_reopen(recv_conn, datablock);
+            }
+            else if (IS_SET(recv_conn->flags, STATUS_SERVER))
             {
                 res = yconn_accept(recv_conn);
                 if (YDB_FAILED(res))
@@ -3628,7 +3670,12 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
     {
         yconn *conn = event[i].data.ptr;
         if (IS_DISCONNECTED(conn))
-            res = yconn_reopen(conn, datablock);
+        {
+            if (IS_COND_CLIENT(conn))
+                res = yconn_disconnect(conn);
+            else
+                res = yconn_reopen(conn, datablock);
+        }
         else if (IS_SERVER(conn))
         {
             res = yconn_accept(conn);
@@ -3644,17 +3691,19 @@ ydb_res ydb_recv(ydb *datablock, int timeout, bool once_recv)
             res = yconn_recv(conn, NULL, &op, &type, &next);
             if (YDB_FAILED(res))
                 res = yconn_disconnect(conn);
-            if (once_recv)
-            {
+            else {
+                if (once_recv)
+                {
+                    if (next)
+                        datablock->more_recv = conn;
+                    else
+                        datablock->more_recv = NULL;
+                    res = YDB_W_MORE_RECV;
+                    break;
+                }
                 if (next)
-                    datablock->more_recv = conn;
-                else
-                    datablock->more_recv = NULL;
-                res = YDB_W_MORE_RECV;
-                break;
+                    goto recv_again;
             }
-            if (next)
-                goto recv_again;
         }
         if (res)
             break;
