@@ -2131,8 +2131,10 @@ void yconn_default_recv_head(
                   IS_SET(*flags, YCONN_WRITABLE) ? "w" : "_",
                   IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
     }
-    ylog_info("ydb[%s] data {\n%s}\n",
-              (conn->datablock) ? conn->datablock->name : "...", *data ? *data : "...");
+    ylog_info("ydb[%s] datalen {%ld} data {\n%s}\n",
+              (conn->datablock) ? conn->datablock->name : "...",
+              datalen?*datalen:-1,
+               *data ? *data : "...");
     return;
 failed:
     *op = head->recv.op = YOP_NONE;
@@ -2149,7 +2151,7 @@ ydb_res yconn_default_recv(
     char recvbuf[2048 + 4];
     char *start, *end;
     ssize_t len;
-    ssize_t clen;
+    ssize_t msglen;
     head = conn->head;
     *data = NULL;
     *datalen = 0;
@@ -2162,33 +2164,40 @@ ydb_res yconn_default_recv(
         end = strstr(start, YMSG_END_DELIMITER);
         if (end)
         {
-            clen = (end + YMSG_END_DELIMITER_LEN) - start;
+            msglen = (end + YMSG_END_DELIMITER_LEN) - start;
             fclose(head->recv.fp);
             start = head->recv.buf;
             len = head->recv.len;
             *data = start;
-            *datalen = clen;
+            *datalen = msglen;
             yconn_default_recv_head(conn, op, type, flags, data, datalen);
+            ylog_debug("len=%ld msglen=%ld\n", len, msglen);
             head->recv.buf = NULL;
             head->recv.len = 0;
             head->recv.fp = NULL;
-            if (len - clen > 0)
+            if (len - msglen > 0)
             {
                 head->recv.fp = open_memstream(&head->recv.buf, &head->recv.len);
                 if (!head->recv.fp)
                     goto conn_failed;
-                if (fwrite(start + clen, len - clen, 1, head->recv.fp) != 1)
+                if (fwrite(start + msglen, len - msglen, 1, head->recv.fp) != 1)
                     goto conn_failed;
                 fflush(head->recv.fp);
-                start[clen] = 0;
+                start[msglen] = 0;
                 *next = head->recv.next = 1;
                 return YDB_OK;
             }
             else
+            {
                 *next = head->recv.next = 0;
+                return YDB_OK;
+            }
         }
         else
+        {
             *next = head->recv.next = 0;
+            // The recv process continues to get more messages.
+        }
     }
     if (!head->recv.fp)
     {
@@ -2227,22 +2236,23 @@ ydb_res yconn_default_recv(
     end = strstr(recvbuf, YMSG_END_DELIMITER);
     if (!end)
         goto keep_data;
-    clen = (end + YMSG_END_DELIMITER_LEN) - start;
-    if (fwrite(start, clen, 1, head->recv.fp) != 1)
+    msglen = (end + YMSG_END_DELIMITER_LEN) - start;
+    if (fwrite(start, msglen, 1, head->recv.fp) != 1)
         goto conn_failed;
     fclose(head->recv.fp);
     *data = head->recv.buf;
     *datalen = head->recv.len;
     yconn_default_recv_head(conn, op, type, flags, data, datalen);
+    ylog_debug("len=%ld msglen=%ld\n", len, msglen);
     head->recv.buf = NULL;
     head->recv.len = 0;
     head->recv.fp = NULL;
-    if (len - clen > 0)
+    if (len - msglen > 0)
     {
         head->recv.fp = open_memstream(&head->recv.buf, &head->recv.len);
         if (!head->recv.fp)
             goto conn_failed;
-        if (fwrite(start + clen, len - clen, 1, head->recv.fp) != 1)
+        if (fwrite(start + msglen, len - msglen, 1, head->recv.fp) != 1)
             goto conn_failed;
         fflush(head->recv.fp);
         *next = head->recv.next = 1;
