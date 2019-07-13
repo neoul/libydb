@@ -7,6 +7,8 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <yaml.h>
 
 #define UTF8_ACCEPT 0
 #define UTF8_REJECT 12
@@ -138,7 +140,7 @@ char *yaml_multiline_str(const char *src, int srclen, int newline, int indent)
 
 // YAML’s double-quoted style uses familiar C-style escape sequences. This enables ASCII encoding of non-printable or 8-bit (ISO 8859-1) characters such as “\x3B”. Non-printable 16-bit Unicode and 32-bit (ISO/IEC 10646) characters are supported with escape sequences such as “\u003B” and “\U0000003B”.
 
-char *yaml_string(const char *src, int indent, int *is_new)
+char *to_yaml(const char *src, int indent, int *is_new, int extended)
 {
     uint32_t codepoint;
     uint32_t state = 0;
@@ -150,6 +152,7 @@ char *yaml_string(const char *src, int indent, int *is_new)
     int backslash = 0;
     int d_quotes = 0;
     int newline = 0;
+    int extension = 0;
     char *newstr;
     char *base;
     int len;
@@ -176,8 +179,15 @@ char *yaml_string(const char *src, int indent, int *is_new)
             {
                 if (isprint(codepoint)) // isgraph() + ' '
                 {
+                    // yaml default double quotes '"' and '\\'.
+                    // '/' and '\'' are added for ydb path processing
                     if (codepoint == '"' || codepoint == '\\')
                         d_quotes++;
+                    if (extended)
+                    {
+                        if (codepoint == '/' || codepoint == '\'')
+                            extension++;
+                    }
                 }
                 // if (isalnum(codepoint) || codepoint == ' ')
                 // {
@@ -225,17 +235,23 @@ char *yaml_string(const char *src, int indent, int *is_new)
         // printf("src(%d)=%s, newline=%d, backslash=%d, d_quotes=%d, no8=%d, no16=%d, no32=%d, malloc=%d\n", len, src,
         //    newline, backslash, d_quotes, non_printable8, non_printable16, non_printable32, len);
         if (backslash == 0 && newline == 0 && d_quotes == 0)
-            return (char *)src;
+        {
+            if (extension == 0)
+                return (char *)src;
+        }
         else
         {
-            if (indent >= 0 && len > 64)
+            if (!extended)
             {
-                newstr = yaml_multiline_str(src, len, newline, indent);
-                if (newstr)
+                if (indent >= 0 && len > 64)
                 {
-                    if (is_new)
-                        *is_new = 1;
-                    return newstr;
+                    newstr = yaml_multiline_str(src, len, newline, indent);
+                    if (newstr)
+                    {
+                        if (is_new)
+                            *is_new = 1;
+                        return newstr;
+                    }
                 }
             }
         }
@@ -355,4 +371,46 @@ char *yaml_string(const char *src, int indent, int *is_new)
     if (is_new)
         *is_new = 1;
     return newstr;
+}
+
+
+char *to_string(const char *yaml, size_t len)
+{
+    int done = 0;
+    yaml_parser_t parser;
+    yaml_token_t token;
+    char *newstr = NULL;
+    if (!yaml)
+        return strdup("(null)");
+    if (len == 0)
+        len = strlen(yaml);
+    // if (yaml[0] != '"' && yaml[0] != '\'')
+    //     return strndup((char *) yaml, len);
+    if (!yaml_parser_initialize(&parser))
+    {
+        yaml_parser_delete(&parser);
+        return strdup("(yaml-parser-failed)");
+    }
+
+    yaml_parser_set_input_string(&parser, (const unsigned char *)yaml, len);
+
+    while (!done)
+    {
+        if (!yaml_parser_scan(&parser, &token))
+        {
+            // yaml_error_report(&parser, yaml);
+            break;
+        }
+
+        if (token.type == YAML_SCALAR_TOKEN)
+        {
+            newstr = strdup((char *)token.data.scalar.value);
+        }
+        done = (token.type == YAML_STREAM_END_TOKEN);
+        yaml_token_delete(&token);
+    }
+    yaml_parser_delete(&parser);
+    if (newstr)
+        return newstr;
+    return strdup("(invalid-yaml)");
 }

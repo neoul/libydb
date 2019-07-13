@@ -14,7 +14,8 @@ extern "C" {
 int isUTF8(uint8_t *s);
 void printCodePoints(uint8_t *s);
 
-char *yaml_string(const char *src, int indent, int *is_new);
+char *to_yaml(const char *src, int indent, int *is_new, int extended);
+char *to_string(const char *yaml, size_t len);
 
 #ifdef __cplusplus
 }

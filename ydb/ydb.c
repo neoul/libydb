@@ -474,10 +474,17 @@ char *str2yaml(char *cstr)
     int is_new = 0;
     if (!cstr)
         return strdup("");
-    char *yamlstr = yaml_string(cstr, -1, &is_new);
+    char *yamlstr = to_yaml(cstr, -1, &is_new, 0);
     if (is_new)
         return yamlstr;
     return strdup(cstr);
+}
+
+// str2yaml --
+// Return new C string converted from YAML character set.
+char *yaml2str(char *ystr, size_t len)
+{
+    return to_string(ystr, len);
 }
 
 // binary_to_base64 --

@@ -71,6 +71,10 @@ typedef struct _ynode ynode; // The YAML node of YDB (YAML DataBlock)
 // It should be free
 char *str2yaml(char *cstr);
 
+// str2yaml --
+// Return new C string converted from YAML character set.
+char *yaml2str(char *ystr, size_t len);
+
 // binary_to_base64 --
 // Return base64 string with the length.
 // It should be free

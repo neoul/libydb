@@ -704,7 +704,7 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
     if (IS_SET(node->flags, YNODE_FLAG_HASH))
     {
         int is_new;
-        char *key = yaml_string(ynode_key(node), -1, &is_new);
+        char *key = to_yaml(ynode_key(node), -1, &is_new, 0);
         res = _ynode_record_print(record, "{key: %s,", key);
         if (is_new)
             free(key);
@@ -722,7 +722,7 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
     case YNODE_TYPE_VAL:
     {
         int is_new;
-        char *value = yaml_string(node->value, -1, &is_new);
+        char *value = to_yaml(node->value, -1, &is_new, 0);
         res = _ynode_record_print(record, " value: %s %s%s%s,",
                                   value,
                                   node->tag ? "(" : "",
@@ -779,7 +779,7 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
         int is_new;
         char *key;
         assert(node->parent);
-        key = yaml_string(ynode_key(node), -1, &is_new);
+        key = to_yaml(ynode_key(node), -1, &is_new, 0);
         if (node->parent->type == YNODE_TYPE_OMAP)
             res = _ynode_record_print(record, "- %s:", key);
         else if (IS_SET(node->parent->flags, YNODE_FLAG_SET))
@@ -805,7 +805,7 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
     if (node->type == YNODE_TYPE_VAL)
     {
         int is_new;
-        char *value = yaml_string(node->value, indent, &is_new);
+        char *value = to_yaml(node->value, indent, &is_new, 0);
         res = _ynode_record_print(record, "%s%s%s%s\n",
                                   only_val ? "" : " ",
                                   node->tag ? node->tag : "",
@@ -1156,7 +1156,7 @@ node_print:
             int is_new;
             char *key;
             assert(n->parent);
-            key = yaml_string(ynode_key(n), -1, &is_new);
+            key = to_yaml(ynode_key(n), -1, &is_new, 0);
             if (n->parent->type == YNODE_TYPE_OMAP)
                 fprintf(log->fp, "- %s:", key);
             else if (IS_SET(n->parent->flags, YNODE_FLAG_SET))
@@ -1175,7 +1175,7 @@ node_print:
         if (n->type == YNODE_TYPE_VAL)
         {
             int is_new;
-            char *value = yaml_string(n->value, indent, &is_new);
+            char *value = to_yaml(n->value, indent, &is_new, 0);
             fprintf(log->fp, "%s%s%s%s\n",
                     only_val ? "" : " ",
                     n->tag ? n->tag : "",
@@ -1940,6 +1940,34 @@ ynode *ynode_find_child(ynode *node, const char *key)
 #define PATH_IGNORE_START "'{[(\""
 #define PATH_IGNORE_END "\"}])'"
 
+static char get_pair_delimiter(char c)
+{
+    switch(c)
+    {
+        case '"':
+            return c;
+        case '\'':
+            return c;
+        case '{':
+            return '}';
+        case '[':
+            return ']';
+        case '(':
+            return ')';
+        case '<':
+            return '>';
+        case '}':
+            return '{';
+        case ']':
+            return '[';
+        case ')':
+            return '(';
+        case '>':
+            return '<';
+    }
+    return c;
+}
+
 static ylist *ynode_path_tokenize(char *path, char **val)
 {
     char *key;
@@ -1952,15 +1980,15 @@ static ylist *ynode_path_tokenize(char *path, char **val)
     keylist = ylist_create();
     if (!keylist)
         return NULL;
-    if (*path == '/')
-        path++;
     token = strpbrk(path, PATH_DELIMITER PATH_IGNORE_START);
     while (token)
     {
         while (*token != '=' && *token != '/')
         {
+            char c = *token;
             token += 1;
-            token = strpbrk(token, PATH_IGNORE_END);
+            token = strchr(token, get_pair_delimiter(c));
+            // token = strpbrk(token, PATH_IGNORE_END);
             if (!token)
             {
                 stop = true;
@@ -1973,10 +2001,6 @@ static ylist *ynode_path_tokenize(char *path, char **val)
                 stop = true;
                 break;
             }
-            if (*token != '=' && *token != '/') {
-                continue;
-            }
-            break;
         }
         if (stop)
             break;
@@ -1988,8 +2012,12 @@ static ylist *ynode_path_tokenize(char *path, char **val)
         }
         else
         {
-            key = strndup(path, token - path);
-            ylist_push_back(keylist, key);
+            int len = token - path;
+            if (len > 0)
+            {
+                key = to_string((const char *) path, len);
+                ylist_push_back(keylist, key);
+            }
         }
         if (*token == '=')
         {
@@ -2004,11 +2032,11 @@ static ylist *ynode_path_tokenize(char *path, char **val)
         if (is_val)
         {
             if (val)
-                *val = strdup(path);
+                *val = to_string(path, 0);
         }
         else
         {
-            key = strdup(path);
+            key = to_string((const char *)path, 0);
             ylist_push_back(keylist, key);
         }
     }
@@ -2339,7 +2367,7 @@ int ynode_path_fprintf(FILE *fp, ynode *node, int level)
         if (IS_SET(node->flags, YNODE_FLAG_HASH))
         {
             int is_new;
-            char *key = yaml_string(ynode_key(node), -1, &is_new);
+            char *key = to_yaml(ynode_key(node), -1, &is_new, 1);
             curlen = fprintf(fp, "/%s", key);
             if (is_new)
                 free(key);
