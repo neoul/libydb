@@ -2015,7 +2015,9 @@ ylist *ynode_path_tokenize(char *path, char **val)
             int len = token - path;
             if (len > 0)
             {
-                key = to_string((const char *) path, len);
+                key = to_string((const char *) path, len, NULL);
+                if (!key)
+                    key = strndup(path, len);
                 ylist_push_back(keylist, key);
             }
         }
@@ -2032,11 +2034,18 @@ ylist *ynode_path_tokenize(char *path, char **val)
         if (is_val)
         {
             if (val)
-                *val = to_string(path, 0);
+            {
+                *val = to_string(path, 0, NULL);
+                if (!*val)
+                    *val = strndup(path, 0);
+            }
+                
         }
         else
         {
-            key = to_string((const char *)path, 0);
+            key = to_string((const char *)path, 0, NULL);
+            if (!key)
+                key = strdup(path);
             ylist_push_back(keylist, key);
         }
     }

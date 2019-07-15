@@ -484,7 +484,7 @@ char *str2yaml(char *cstr)
 // Return new C string converted from YAML character set.
 char *yaml2str(char *ystr, size_t len)
 {
-    return to_string(ystr, len);
+    return to_string(ystr, len, NULL);
 }
 
 // binary_to_base64 --

@@ -374,14 +374,16 @@ char *to_yaml(const char *src, int indent, int *is_new, int extended)
 }
 
 
-char *to_string(const char *yaml, size_t len)
+char *to_string(const char *yaml, size_t len, int *invalid)
 {
     int done = 0;
     yaml_parser_t parser;
     yaml_token_t token;
     char *newstr = NULL;
+    if (invalid)
+        *invalid = 1;
     if (!yaml)
-        return strdup("(null)");
+        return NULL;
     if (len == 0)
         len = strlen(yaml);
     // if (yaml[0] != '"' && yaml[0] != '\'')
@@ -389,7 +391,7 @@ char *to_string(const char *yaml, size_t len)
     if (!yaml_parser_initialize(&parser))
     {
         yaml_parser_delete(&parser);
-        return strdup("(yaml-parser-failed)");
+        return NULL;
     }
 
     yaml_parser_set_input_string(&parser, (const unsigned char *)yaml, len);
@@ -411,6 +413,10 @@ char *to_string(const char *yaml, size_t len)
     }
     yaml_parser_delete(&parser);
     if (newstr)
+    {
+        if(invalid)
+            *invalid = 0; 
         return newstr;
-    return strdup("(invalid-yaml)");
+    }
+    return NULL;
 }

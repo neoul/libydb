@@ -15,7 +15,7 @@ int isUTF8(uint8_t *s);
 void printCodePoints(uint8_t *s);
 
 char *to_yaml(const char *src, int indent, int *is_new, int extended);
-char *to_string(const char *yaml, size_t len);
+char *to_string(const char *yaml, size_t len, int *invalid);
 
 #ifdef __cplusplus
 }
