@@ -117,6 +117,9 @@ int ynode_origin(ynode *node);
 // return the found child by the key.
 ynode *ynode_find_child(ynode *node, const char *key);
 
+// return ylist from the path tokenized.
+ylist *ynode_path_tokenize(char *path, char **val);
+
 // return the top node of the ynode.
 ynode *ynode_top(ynode *node);
 // return the parent node of the ynode.

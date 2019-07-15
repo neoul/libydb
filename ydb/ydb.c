@@ -798,6 +798,13 @@ char *ydb_path_nodes(ynode *ancestor, ynode *descendant, int *pathlen)
     return ynode_path(descendant, ynode_level(ancestor, descendant), pathlen);
 }
 
+// return the ylist instance that tokenizes the path.
+// ylist and each entry should be free (ylist_destroy_custom(ylist, free)).
+ylist *ydb_path_tokenize(char *path, char **val)
+{
+    return ynode_path_tokenize(path, val);
+}
+
 // return the top node of the yaml data block.
 ynode *ydb_top(ydb *datablock)
 {

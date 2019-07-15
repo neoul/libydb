@@ -8,6 +8,7 @@
 // iterate each internal data in YDB using the API.
 
 #include <stdio.h>
+#include <ylist.h>
 
 #define YDB_LEVEL_MAX 16
 #define YDB_CONN_MAX 16
@@ -162,6 +163,10 @@ ynode *ydb_search(ydb *datablock, const char *format, ...);
 
 // return the path between ancestor and descendant. (the path must be free.)
 char *ydb_path_nodes(ynode *ancestor, ynode *descendant, int *pathlen);
+
+// return the ylist instance that tokenizes the path.
+// ylist and each entry should be free (ylist_destroy_custom(ylist, free)).
+ylist *ydb_path_tokenize(char *path, char **val);
 
 // return the top node of the yaml data block.
 ynode *ydb_top(ydb *datablock);

@@ -1968,7 +1968,7 @@ static char get_pair_delimiter(char c)
     return c;
 }
 
-static ylist *ynode_path_tokenize(char *path, char **val)
+ylist *ynode_path_tokenize(char *path, char **val)
 {
     char *key;
     char *token;
@@ -2058,7 +2058,7 @@ static ylist *ynode_path_tokenize(char *path, char **val)
             n += snprintf(buf + n, sizeof(buf) - n, " %s", (char *)ylist_data(iter));
         }
         n += snprintf(buf + n, sizeof(buf) - n, " }");
-        ylog_debug("key=%s %d\n", buf, ylist_size(keylist));
+        ylog_debug("path token (%d): %s\n", ylist_size(keylist), buf);
     }
     return keylist;
 }
