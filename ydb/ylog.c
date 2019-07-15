@@ -217,7 +217,7 @@ static char *_tz_offset(time_t t)
     return tz;
 }
 
-char *ylog_datetime()
+char *ylog_datetime(void)
 {
     static char timebuf[64];
     time_t cur_time;
