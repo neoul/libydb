@@ -283,8 +283,8 @@ int main(int argc, char *argv[])
             {"interpret", no_argument, 0, 'i'},
             {"input", no_argument, 0, 'I'},
             {"verbose", required_argument, 0, 'v'},
-            {"read", required_argument, 0, 0},
             {"tx", required_argument, 0, 't'},
+            {"read", required_argument, 0, 0},
             {"print", required_argument, 0, 0},
             {"write", required_argument, 0, 0},
             {"delete", required_argument, 0, 0},
@@ -292,7 +292,7 @@ int main(int argc, char *argv[])
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIv:h",
+        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIv:t:h",
                         long_options, &index);
         if (c == -1)
             break;
