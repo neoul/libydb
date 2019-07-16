@@ -22,7 +22,6 @@ ydb_module = Extension('_ydb',
                                 '../ydb/ystr.c',
                                 '../ydb/ynode.c',
                                 '../ydb/ydb.c',
-                                '../ydb/yipc.c',
                                 '../ydb/ylog.c'
                                 ],
                        )
