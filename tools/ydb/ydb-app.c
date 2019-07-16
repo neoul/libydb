@@ -12,6 +12,9 @@
 #include "ylist.h"
 #include "ydb.h"
 
+extern int tx_fail_count;
+extern int tx_fail_en;
+
 static int done;
 void HANDLER_SIGINT(int param)
 {
@@ -49,6 +52,7 @@ void usage(char *argv_0)
   -f, --file FILE                  Read YAML file to update YDB.\n\
   -d, --daemon                     Runs on daemon mode.\n\
   -i, --interpret                  Runs on interpret mode.\n\
+  -I, --input                      Standard Input\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
     , --read PATH/TO/DATA          Read data (value only) from YDB.\n\
     , --print PATH/TO/DATA         Print data from YDB.\n\
@@ -67,7 +71,7 @@ void get_yaml_from_stdin(ydb *datablock)
     int ret;
     fd_set read_set;
     struct timeval tv;
-    tv.tv_sec = 0;
+    tv.tv_sec = 3;
     tv.tv_usec = 0; // if 0, sometimes it is not captured.
     FD_ZERO(&read_set);
     FD_SET(STDIN_FILENO, &read_set);
@@ -277,8 +281,10 @@ int main(int argc, char *argv[])
             {"sync-before-read", no_argument, 0, 'S'},
             {"daemon", no_argument, 0, 'd'},
             {"interpret", no_argument, 0, 'i'},
+            {"input", no_argument, 0, 'I'},
             {"verbose", required_argument, 0, 'v'},
             {"read", required_argument, 0, 0},
+            {"tx", required_argument, 0, 't'},
             {"print", required_argument, 0, 0},
             {"write", required_argument, 0, 0},
             {"delete", required_argument, 0, 0},
@@ -286,7 +292,7 @@ int main(int argc, char *argv[])
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiv:h",
+        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIv:h",
                         long_options, &index);
         if (c == -1)
             break;
@@ -297,12 +303,12 @@ int main(int argc, char *argv[])
             /* If this option set a flag, do nothing else now. */
             if (long_options[index].flag != 0)
                 break;
-            ydb_write(config, 
-                "config:\n"
-                " command:\n"
-                "  - {type: %s, path: '%s'}\n",
-                long_options[index].name, 
-                optarg);
+            ydb_write(config,
+                      "config:\n"
+                      " command:\n"
+                      "  - {type: %s, path: '%s'}\n",
+                      long_options[index].name,
+                      optarg);
             break;
         case 'n':
             ydb_write(config, "config: {name: %s}", optarg);
@@ -376,6 +382,19 @@ int main(int argc, char *argv[])
             timeout = 5000; // 5sec
             ydb_write(config, "config: {daemon: true, timeout: %d ms}", timeout);
             break;
+        case 't':
+        {
+            int tx_fail = atoi(optarg);
+            if (tx_fail <= 0)
+                tx_fail = 1;
+            tx_fail_en = 1;
+            tx_fail_count = tx_fail;
+            ydb_write(config, "config: {tx-fail: %d}", tx_fail);
+            break;
+        }
+        case 'I':
+            ydb_write(config, "config: {input: true}");
+            break;
         case 'i':
             interpret = 1;
             ydb_write(config, "config: {interpret: true}");
@@ -442,7 +461,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        get_yaml_from_stdin(datablock);
+        if (!ydb_empty(ydb_search(config, "/config/input")))
+            get_yaml_from_stdin(datablock);
 
         if (!ydb_empty(ydb_search(config, "/config/file")))
         {
@@ -477,7 +497,7 @@ int main(int argc, char *argv[])
 
         if (daemon)
         {
-            do
+            while (!done)
             {
                 res = ydb_serve(datablock, timeout);
                 if (YDB_FAILED(res))
@@ -487,11 +507,11 @@ int main(int argc, char *argv[])
                 }
                 else if (YDB_WARNING(res) && (verbose == YLOG_DEBUG))
                     printf("\nydb warning: %s\n", ydb_res_str(res));
-            } while (!done);
+            }
         }
         else if (interpret)
         {
-            do
+            while (!done)
             {
                 int ret, fd;
                 fd_set read_set;
@@ -536,7 +556,7 @@ int main(int argc, char *argv[])
                         interpret_mode_run(datablock);
                     }
                 }
-            } while (!done);
+            }
         }
         else
         {
@@ -544,7 +564,7 @@ int main(int argc, char *argv[])
             {
                 ynode *n;
                 n = ydb_search(config, "/config/command");
-                for (n = ydb_down(n); n; )
+                for (n = ydb_down(n); n;)
                 {
                     const char *type = ydb_value(ydb_find(n, "type"));
                     const char *path = ydb_value(ydb_find(n, "path"));
