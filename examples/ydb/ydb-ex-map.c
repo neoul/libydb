@@ -78,6 +78,19 @@ int main(int argc, char *argv[])
     ydb_path_delete(datablock, "/system/interfaces/eth1/ipaddr");
 
     ydb_dump(datablock, stdout);
+
+    ydb_write(datablock, 
+        "ydb-set: !!set\n"
+        " ? %s\n",
+        "abc");
+    ydb_path_write(datablock, "/ydb-set/efg");
+    ydb_dump(datablock, stdout);
+    ydb_delete(datablock, 
+        "ydb-set: !!set\n"
+        " ? %s\n",
+        "efg");
+    
+    ydb_dump(datablock, stdout);
     ydb_close(datablock);
     return 0;
 }
