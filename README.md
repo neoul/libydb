@@ -329,7 +329,7 @@ $
 If you use the un-ordered mapping node instead of the ordered mapping, you will get the different sequence. The un-ordered mapping node sorts the data by the key.
 
 ```shell
-$ ydb -s <<EOF
+$ ydb --input -s <<EOF
 map:
  Numbers:
   one: 1
