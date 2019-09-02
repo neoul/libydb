@@ -12,7 +12,8 @@
 
 #define YDB_LEVEL_MAX 16
 #define YDB_CONN_MAX 16
-#define YDB_TIMEOUT 3000 //ms
+#define YDB_DEFAULT_TIMEOUT 3000 //ms
+#define YDB_DELIVERY_LATENCY 10 //ms
 #define YDB_DEFAULT_PORT 3677
 
 #ifdef __cplusplus
@@ -174,7 +175,8 @@ ynode *ydb_top(ydb *datablock);
 ynode *ydb_root(ydb *datablock);
 // return 1 if the node has no child.
 int ydb_empty(ynode *node);
-
+// return the number of child nodes.
+int ydb_size(ynode *node);
 
 // return the found child by the key.
 ynode *ydb_find_child(ynode *base, char *key);
@@ -309,8 +311,13 @@ void ydb_write_hook_delete(ydb *datablock, char *path);
 ydb_res ydb_whisper_merge(ydb *datablock, char *path, const char *format, ...);
 ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...);
 
+// set the timeout of the YDB synchonization
+ydb_res ydb_timeout(ydb *datablock, int msec);
+
 // synchornize the remote ydb manually.
 ydb_res ydb_sync(ydb *datablock, const char *format, ...);
+
+// synchornize the remote ydb manually.
 ydb_res ydb_path_sync(ydb *datablock, const char *format, ...);
 
 // Traverse all child branches and leaves of a node.

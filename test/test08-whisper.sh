@@ -12,7 +12,7 @@ message: \\n\
 
 run_bg 'echo \\n\
 message: \\n\
- n2: msg2\\n | ydb-whisper-example uss://top 2 1 > $TESTNAME.PUB4.log'
+ n2: msg2\n | ydb-whisper-example uss://top 2 1 > $TESTNAME.PUB4.log'
 
 test_deinit
 

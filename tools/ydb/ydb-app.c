@@ -53,6 +53,7 @@ void usage(char *argv_0)
   -d, --daemon                     Runs on daemon mode.\n\
   -i, --interpret                  Runs on interpret mode.\n\
   -I, --input                      Standard Input\n\
+  -t, --timeout                    Set timeout of sync\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
     , --read PATH/TO/DATA          Read data (value only) from YDB.\n\
     , --print PATH/TO/DATA         Print data from YDB.\n\
@@ -92,6 +93,7 @@ void interpret_mode_help()
   delete /path/to/data        Delete DATA from /path\n\
   read   /path/to/data        Read DATA (value only) from /path\n\
   print  /path/to/data        Print DATA (all) in /path\n\
+  sync   /path/to/data        Request sync of /path\n\
   dump   (FILE | )            Dump all DATA to FILE\n\
   parse  FILE                 Parse DATA from FILE\n\
   quit                        quit\n\n");
@@ -124,6 +126,8 @@ ydb_res interpret_mode_run(ydb *datablock)
     }
     if (strncmp(cmd, "write", 1) == 0)
         op = 'w';
+    else if (strncmp(cmd, "sync", 2) == 0)
+        op = 's';
     else if (strncmp(cmd, "delete", 2) == 0)
         op = 'd';
     else if (strncmp(cmd, "read", 1) == 0)
@@ -157,6 +161,9 @@ ydb_res interpret_mode_run(ydb *datablock)
         break;
     case 'd':
         res = ydb_path_delete(datablock, "%s", path);
+        break;
+    case 's':
+        res = ydb_path_sync(datablock, "%s", path);
         break;
     case 'r':
         value = ydb_path_read(datablock, "%s", path);
@@ -239,7 +246,8 @@ int main(int argc, char *argv[])
         0,
     };
     int verbose = 0;
-    int timeout = 0;
+    int timeout = YDB_DEFAULT_TIMEOUT;
+    int daemon_timeout = 0;
     int daemon = 0;
     int interpret = 0;
     ydb *config = NULL;
@@ -282,8 +290,9 @@ int main(int argc, char *argv[])
             {"daemon", no_argument, 0, 'd'},
             {"interpret", no_argument, 0, 'i'},
             {"input", no_argument, 0, 'I'},
+            {"timeout", required_argument, 0, 't'},
             {"verbose", required_argument, 0, 'v'},
-            {"tx", required_argument, 0, 't'},
+            {"tx", required_argument, 0, 'T'},
             {"read", required_argument, 0, 0},
             {"print", required_argument, 0, 0},
             {"write", required_argument, 0, 0},
@@ -292,7 +301,7 @@ int main(int argc, char *argv[])
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIv:t:h",
+        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIt:v:T:h",
                         long_options, &index);
         if (c == -1)
             break;
@@ -339,8 +348,8 @@ int main(int argc, char *argv[])
                 goto end;
             }
             ydb_write(config,
-                      "config: {connection: [{ addr: '%s', flags: '%s%s'}]}\n",
-                      addr, role, con_flags[0] ? con_flags : "");
+                      "config: {connection: [{ addr: '%s', flags: '%s%s', timeout: %d}]}\n",
+                      addr, role, con_flags[0] ? con_flags : "", timeout);
             memset(con_flags, 0x0, sizeof(con_flags));
             addr = NULL;
             break;
@@ -379,10 +388,10 @@ int main(int argc, char *argv[])
             break;
         case 'd':
             daemon = 1;
-            timeout = 5000; // 5sec
-            ydb_write(config, "config: {daemon: true, timeout: %d ms}", timeout);
+            daemon_timeout = 5000;
+            ydb_write(config, "config: {daemon: true, timeout: %d ms}", daemon_timeout);
             break;
-        case 't':
+        case 'T':
         {
             int tx_fail = atoi(optarg);
             if (tx_fail <= 0)
@@ -392,6 +401,9 @@ int main(int argc, char *argv[])
             ydb_write(config, "config: {tx-fail: %d}", tx_fail);
             break;
         }
+        case 't':
+            timeout = atoi(optarg);
+            break;
         case 'I':
             ydb_write(config, "config: {input: true}");
             break;
@@ -452,6 +464,10 @@ int main(int argc, char *argv[])
             {
                 const char *a = ydb_value(ydb_find(n, "addr"));
                 const char *f = ydb_value(ydb_find(n, "flags"));
+                const char *t = ydb_value(ydb_find(n, "timeout"));
+                int to = atoi(t);
+                if (to != YDB_DEFAULT_TIMEOUT)
+                    ydb_timeout(datablock, to);
                 res = ydb_connect(datablock, (char *)a, (char *)f);
                 if (res)
                 {
@@ -499,7 +515,7 @@ int main(int argc, char *argv[])
         {
             while (!done)
             {
-                res = ydb_serve(datablock, timeout);
+                res = ydb_serve(datablock, daemon_timeout);
                 if (YDB_FAILED(res))
                 {
                     fprintf(stderr, "\nydb error: %s\n", ydb_res_str(res));
@@ -516,8 +532,8 @@ int main(int argc, char *argv[])
                 int ret, fd;
                 fd_set read_set;
                 struct timeval tv;
-                tv.tv_sec = timeout / 1000;
-                tv.tv_usec = (timeout % 1000) * 1000;
+                tv.tv_sec = daemon_timeout / 1000;
+                tv.tv_usec = (daemon_timeout % 1000) * 1000;
                 FD_ZERO(&read_set);
                 fd = ydb_fd(datablock);
                 if (fd < 0)
@@ -530,7 +546,7 @@ int main(int argc, char *argv[])
                     interpret++;
                     interpret_mode_help();
                 }
-                ret = select(fd + 1, &read_set, NULL, NULL, (timeout == 0) ? NULL : &tv);
+                ret = select(fd + 1, &read_set, NULL, NULL, (daemon_timeout == 0) ? NULL : &tv);
                 if (ret < 0)
                 {
                     fprintf(stderr, "\nselect error: %s\n", strerror(errno));
@@ -616,6 +632,8 @@ int main(int argc, char *argv[])
     }
 end:
     ydb_close(datablock);
+    if (verbose)
+        ylog_severity = YLOG_ERROR;
     ydb_close(config);
     if (res)
         return 1;

@@ -2178,7 +2178,7 @@ int ynode_size(ynode *node)
     switch (node->type)
     {
     case YNODE_TYPE_VAL:
-        return -1;
+        return 0;
     case YNODE_TYPE_MAP:
         return ytree_size(node->map);
     case YNODE_TYPE_OMAP:
