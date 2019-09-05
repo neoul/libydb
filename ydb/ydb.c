@@ -1392,7 +1392,7 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
     ylog_in();
     YDB_FAIL(!datablock || !func || !path || num < 0, YDB_E_INVALID_ARGS);
     YDB_FAIL(num > 4 || num < 0, YDB_E_INVALID_ARGS);
-    src = ynode_top(ynode_create_path(path, NULL, NULL));
+    src = ynode_create_path(path, NULL, NULL);
     YDB_FAIL(!src, YDB_E_CTRL);
     newpath = ynode_path(src, YDB_LEVEL_MAX, NULL);
     if (!newpath) // set root
@@ -1432,7 +1432,7 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
 failed:
     if (newpath)
         free(newpath);
-    ynode_remove(src);
+    ynode_remove(ynode_top(src));
     ylog_out();
     return res;
 }
