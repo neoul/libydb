@@ -23,7 +23,7 @@ run_bg()
     if [ $MEMCHECK -eq 1 ]; then
         LOGCOUNT=`expr $LOGCOUNT + 1`
         # valgrind --log-file=$TESTNAME.memcheck.$LOGCOUNT.log $1 > $2 &
-        eval "valgrind --log-file=$TESTNAME.memcheck.$LOGCOUNT.log $@ &"
+        eval "valgrind --leak-check=full --log-file=$TESTNAME.memcheck.$LOGCOUNT.log $@ &"
         sleep 1
         LAST_PID=$(head -n 1 $TESTNAME.memcheck.$LOGCOUNT.log | tr -cd '[[:digit:]]')
     else
