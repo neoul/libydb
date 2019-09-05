@@ -89,14 +89,16 @@ void interpret_mode_help()
 {
     fprintf(stdout, "\n\
  [YDB Interpret mode commands]\n\n\
-  write  /path/to/data=DATA   Write DATA to /path\n\
-  delete /path/to/data        Delete DATA from /path\n\
-  read   /path/to/data        Read DATA (value only) from /path\n\
-  print  /path/to/data        Print DATA (all) in /path\n\
-  sync   /path/to/data        Request sync of /path\n\
-  dump   (FILE | )            Dump all DATA to FILE\n\
-  parse  FILE                 Parse DATA from FILE\n\
-  quit                        quit\n\n");
+  write   /path/to/data=DATA   Write DATA to /path\n\
+  delete  /path/to/data        Delete DATA from /path\n\
+  read    /path/to/data        Read DATA (value only) from /path\n\
+  print   /path/to/data        Print DATA (all) in /path\n\
+  sync    /path/to/data        Request sync of /path\n\
+  conn    address flags        Connect to communication channel\n\
+  disconn address              Disconnect from communication channel\n\
+  dump    (FILE | )            Dump all DATA to FILE\n\
+  parse   FILE                 Parse DATA from FILE\n\
+  quit                         quit\n\n");
 }
 
 ydb_res interpret_mode_run(ydb *datablock)
@@ -108,6 +110,7 @@ ydb_res interpret_mode_run(ydb *datablock)
     const char *value;
     char *path;
     char *cmd;
+    char *flags;
 
     cmd = fgets(buf, sizeof(buf), stdin);
     if (!cmd)
@@ -134,6 +137,12 @@ ydb_res interpret_mode_run(ydb *datablock)
         op = 'r';
     else if (strncmp(cmd, "print", 2) == 0)
         op = 'p';
+    else if (strncmp(cmd, "connect", 2) == 0)
+        op = 'c';
+    else if (strncmp(cmd, "disconnect", 2) == 0)
+        op = 'C';
+    else if (strncmp(cmd, "print", 2) == 0)
+        op = 'p';
     else if (strncmp(cmd, "dump", 2) == 0)
         op = 'D';
     else if (strncmp(cmd, "parse", 2) == 0)
@@ -156,6 +165,15 @@ ydb_res interpret_mode_run(ydb *datablock)
 
     switch (op)
     {
+    case 'c':
+        flags = strtok(NULL, " \n\t");
+        if (!flags)
+            flags = "pub";
+        res = ydb_connect(datablock, path, flags);
+        break;
+    case 'C':
+        res = ydb_disconnect(datablock, path);
+        break;
     case 'w':
         res = ydb_path_write(datablock, "%s", path);
         break;

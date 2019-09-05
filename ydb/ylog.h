@@ -38,9 +38,9 @@ extern ylog_func ylog_logger;
     } while (0)
 
 #define ylog_debug(format, ...) ylog(YLOG_DEBUG, format, ##__VA_ARGS__)
-#define ylog_inout() ylog(YLOG_INOUT, "\n")
-#define ylog_in() ylog(YLOG_INOUT, "{{ ------\n")
-#define ylog_out() ylog(YLOG_INOUT, "}}\n")
+#define ylog_inout() ylog(YLOG_INOUT, "{{ ... }}\n")
+#define ylog_in() ylog(YLOG_INOUT, "{{ ...\n")
+#define ylog_out() ylog(YLOG_INOUT, "... }}\n")
 #define ylog_info(format, ...) ylog(YLOG_INFO, format, ##__VA_ARGS__)
 #define ylog_warn(format, ...) ylog(YLOG_WARN, format, ##__VA_ARGS__)
 #define ylog_error(format, ...) ylog(YLOG_ERROR, format, ##__VA_ARGS__)
