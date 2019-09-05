@@ -1979,9 +1979,10 @@ ydb_res yconn_socket_init(yconn *conn)
             addr.in.sin_port = htons(atoi(cport));
         addrlen = sizeof(struct sockaddr_in);
         socket_opt = SO_REUSEADDR;
-#ifdef SO_REUSEPORT
-        socket_opt = socket_opt | SO_REUSEPORT;
-#endif
+// Major publisher selection in TCP if uncommented.
+// #ifdef SO_REUSEPORT
+//         socket_opt = socket_opt | SO_REUSEPORT;
+// #endif
         if (setsockopt(fd, SOL_SOCKET, socket_opt, &opt, sizeof(opt)))
         {
             YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
