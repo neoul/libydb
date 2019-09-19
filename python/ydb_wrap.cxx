@@ -5346,7 +5346,7 @@ SWIG_init(void) {
   SWIG_InstallConstants(d,swig_const_table);
   
   SWIG_Python_SetConstant(d, "YDB_OK",SWIG_From_int(static_cast< int >(YDB_OK)));
-  SWIG_Python_SetConstant(d, "YDB_W_UPDATED",SWIG_From_int(static_cast< int >(YDB_W_UPDATED)));
+  SWIG_Python_SetConstant(d, "YDB_W_TIMEOUT",SWIG_From_int(static_cast< int >(YDB_W_TIMEOUT)));
   SWIG_Python_SetConstant(d, "YDB_W_MORE_RECV",SWIG_From_int(static_cast< int >(YDB_W_MORE_RECV)));
   SWIG_Python_SetConstant(d, "YDB_W_DISCONN",SWIG_From_int(static_cast< int >(YDB_W_DISCONN)));
   SWIG_Python_SetConstant(d, "YDB_WARNING_MIN",SWIG_From_int(static_cast< int >(YDB_WARNING_MIN)));

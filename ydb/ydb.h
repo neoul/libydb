@@ -24,10 +24,10 @@ extern "C"
 typedef enum _ydb_res
 {
     YDB_OK = 0,
-    YDB_W_UPDATED,
+    YDB_W_TIMEOUT,
     YDB_W_MORE_RECV,
     YDB_W_DISCONN,
-    YDB_WARNING_MIN = YDB_W_UPDATED,
+    YDB_WARNING_MIN = YDB_W_TIMEOUT,
     YDB_WARNING_MAX = YDB_W_DISCONN,
 
     YDB_ERROR,
@@ -57,7 +57,7 @@ typedef enum _ydb_res
     YDB_E_DENIED_DELETE,
 } ydb_res;
 
-#define YDB_SUCCESS(res) ((res) == 0)
+#define YDB_SUCCESS(res) ((res) == YDB_OK)
 #define YDB_WARNING(res) ((res) >= YDB_WARNING_MIN && (res) <= YDB_WARNING_MAX)
 #define YDB_FAILED(res) ((res) >= YDB_ERROR)
 

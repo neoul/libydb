@@ -96,7 +96,7 @@ except __builtin__.Exception:
     _newclass = 0
 
 YDB_OK = _ydb.YDB_OK
-YDB_W_UPDATED = _ydb.YDB_W_UPDATED
+YDB_W_TIMEOUT = _ydb.YDB_W_TIMEOUT
 YDB_W_MORE_RECV = _ydb.YDB_W_MORE_RECV
 YDB_W_DISCONN = _ydb.YDB_W_DISCONN
 YDB_WARNING_MIN = _ydb.YDB_WARNING_MIN

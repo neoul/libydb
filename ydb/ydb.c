@@ -47,7 +47,7 @@ extern ylog_func ylog_logger;
 #define YDB_ASSERT(state, caused_res)                                        \
     do                                                                       \
     {                                                                        \
-        if (YDB_FAILED(state))                                               \
+        if (state)                                                           \
         {                                                                    \
             ylog_logger(YLOG_ERROR, __func__, __LINE__, "ASSERT '%s': %s\n", \
                         #state, ydb_res_str(caused_res));                    \
@@ -59,7 +59,7 @@ extern ylog_func ylog_logger;
     do                                                                            \
     {                                                                             \
         char *stderrstr = strerror(errno);                                        \
-        if (YDB_FAILED(state))                                                    \
+        if (state)                                                                \
         {                                                                         \
             res = caused_res;                                                     \
             if (ylog_severity >= (YLOG_ERROR))                                    \
@@ -98,9 +98,9 @@ char *ydb_res_str(ydb_res res)
     switch (res)
     {
         YDB_ERR_STRING(YDB_OK, "ok")
-        YDB_ERR_STRING(YDB_W_UPDATED, "datablock updated")
-        YDB_ERR_STRING(YDB_W_MORE_RECV, "need to receive more")
-        YDB_ERR_STRING(YDB_W_DISCONN, "disconnected")
+        YDB_ERR_STRING(YDB_W_TIMEOUT, "warning - request timeout")
+        YDB_ERR_STRING(YDB_W_MORE_RECV, "warning - need to receive more")
+        YDB_ERR_STRING(YDB_W_DISCONN, "warning - disconnected")
         YDB_ERR_STRING(YDB_ERROR, "error")
         YDB_ERR_STRING(YDB_E_CTRL, "datablock ctrl error")
         YDB_ERR_STRING(YDB_E_SYSTEM_FAILED, "syscall error")
@@ -1357,7 +1357,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
     return YDB_OK;
 }
 
-ydb_res ydb_update(yconn *src_conn, ydb *datablock, ynode *target)
+bool ydb_update(yconn *src_conn, ydb *datablock, ynode *target)
 {
     ydb_res res = YDB_OK;
     struct ydb_update_params params;
@@ -1376,9 +1376,7 @@ ydb_res ydb_update(yconn *src_conn, ydb *datablock, ynode *target)
             ylog_error("ydb[%s] read hook (%s) failed with %s\n",
                        datablock->name, params.rhook->path, ydb_res_str(res));
     }
-    if (params.updated)
-        return YDB_W_UPDATED;
-    return YDB_OK;
+    return params.updated;
 }
 
 ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int num, ...)
@@ -1591,7 +1589,7 @@ int ydb_read(ydb *datablock, const char *format, ...)
     if (datablock->synccount > 0)
     {
         res = yconn_sync(NULL, datablock, false, (char *)format, formatlen, false);
-        YDB_FAIL(res, res);
+        YDB_FAIL(YDB_FAILED(res), res);
     }
     if (ytrie_size(datablock->updater) > 0)
         ydb_update(NULL, datablock, src);
@@ -1660,7 +1658,7 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
     if (datablock->synccount > 0)
     {
         res = yconn_sync(NULL, datablock, false, buf, buflen, false);
-        YDB_FAIL(res, res);
+        YDB_FAIL(YDB_FAILED(res), res);
     }
 
     {
@@ -1814,10 +1812,10 @@ const char *ydb_path_read(ydb *datablock, const char *format, ...)
             buf[0] = 0;
             buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
             res = yconn_sync(NULL, datablock, false, buf, buflen, false);
-            YDB_FAIL(res, res);
+            YDB_FAIL(YDB_FAILED(res), res);
         }
         if (ytrie_size(datablock->updater) > 0)
-            res = ydb_update(NULL, datablock, src);
+            ydb_update(NULL, datablock, src);
         target = ynode_search(datablock->top, path);
     }
 failed:
@@ -1861,10 +1859,10 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
         if (buflen >= 0)
             buf[buflen] = 0;
         res = yconn_sync(NULL, datablock, false, buf, buflen, false);
-        YDB_FAIL(res &&, res);
+        YDB_FAIL(YDB_FAILED(res), res);
     }
     if (ytrie_size(datablock->updater) > 0)
-        res = ydb_update(NULL, datablock, src);
+        ydb_update(NULL, datablock, src);
 
     target = ynode_search(datablock->top, path);
     if (target)
@@ -3268,7 +3266,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
     ytree_iter *iter;
     ytree *synclist = NULL;
     struct timespec base;
-    bool ydb_updated = false;
+    bool is_timeout = false;
     char *rbuf = buf;
     size_t rbuflen = buflen;
     int timeout;
@@ -3281,7 +3279,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
     ydb_time_set_base(&base);
     if (req_conn)
     {
-        // removed the head from buf.
+        // removed the head from buf. (for relay)
         rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
     }
     iter = ytree_first(datablock->conn);
@@ -3319,7 +3317,10 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
         int timeout = ydb_time_get_elapsed(&base);
         timeout = waitingfor - timeout;
         if (timeout > waitingfor || timeout < 0)
+        {
+            is_timeout = true;
             break;
+        }
         ylog_debug("epoll_wait timeout %d\n", timeout);
         n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
         if (n < 0)
@@ -3357,13 +3358,13 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
                 {
                     ytree_delete(synclist, recv_conn);
                 }
-                else if (op == YOP_SYNC && type != YMSG_RESP_CONTINUED)
+                else if (op == YOP_SYNC &&
+                         (type == YMSG_RESPONSE || type == YMSG_RESP_FAILED))
                 {
-                    if (type == YMSG_RESPONSE)
-                        ydb_updated = true;
+                    if (type == YMSG_RESP_FAILED)
+                        is_timeout = true;
                     ytree_delete(synclist, recv_conn);
-                    ylog_debug("sync responsed (ydb_updated=%s, op=%d, type=%d)\n",
-                               ydb_updated ? "yes" : "no", op, type);
+                    ylog_debug("sync responsed (op=%d, type=%d)\n", op, type);
                 }
                 if (next)
                     goto recv_again;
@@ -3374,12 +3375,14 @@ failed:
     if (YLOG_SEVERITY_INFO)
     {
         timeout = ydb_time_get_elapsed(&base);
-        ylog_info("ydb[%s] sync elapsed time: %d ms\n", datablock->name, timeout);
+        ylog_info("ydb[%s] sync elapsed :%d ms (%s)\n",
+                  datablock->name, timeout,
+                  (is_timeout) ? "ydb_w_timeout" : "in-time");
     }
     ytree_destroy(synclist);
     ylog_out();
-    if (ydb_updated)
-        return YDB_W_UPDATED;
+    if (is_timeout)
+        return YDB_W_TIMEOUT;
     return res;
 }
 
@@ -3553,12 +3556,12 @@ static ydb_res yconn_sync_in_recv(yconn *conn, char *inbuf, size_t inbuflen, cha
     ydb_res res;
     ydb *datablock;
     ynode *src = NULL;
-    bool ydb_updated = false;
+    bool is_timeout = false;
     ylog_in();
     datablock = conn->datablock;
     res = yconn_sync(conn, datablock, false, inbuf, inbuflen, true);
-    if (res == YDB_W_UPDATED)
-        ydb_updated = true;
+    if (res == YDB_W_TIMEOUT)
+        is_timeout = true;
     res = ynode_scanf_from_buf(inbuf, inbuflen, conn->fd, &src);
     if (res)
     {
@@ -3588,15 +3591,13 @@ static ydb_res yconn_sync_in_recv(yconn *conn, char *inbuf, size_t inbuflen, cha
         {
             CLEAR_BUF(buf, buflen);
         }
-        else
-            ydb_updated = true;
         *outbuf = buf;
         *outbuflen = buflen;
         ynode_remove(src);
     }
     ylog_out();
-    if (ydb_updated)
-        return YDB_W_UPDATED;
+    if (is_timeout)
+        return YDB_W_TIMEOUT;
     return res;
 }
 
@@ -3692,7 +3693,7 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
             char *rbuf = NULL;
             size_t rbuflen = 0;
             res = yconn_sync_in_recv(recv_conn, buf, buflen, &rbuf, &rbuflen);
-            ok = (res == YDB_W_UPDATED) ? true : false;
+            ok = (res == YDB_W_TIMEOUT) ? false : true;
             yconn_response(recv_conn, YOP_SYNC, true, ok, rbuf, rbuflen);
             CLEAR_BUF(rbuf, rbuflen);
             break;
@@ -3963,7 +3964,7 @@ ydb_res ydb_sync(ydb *datablock, const char *format, ...)
         src = ynode_top(ynode_create_path("/", NULL, NULL));
     YDB_FAIL(!src, YDB_E_CTRL);
     if (ytrie_size(datablock->updater) > 0)
-        res = ydb_update(NULL, datablock, src);
+        ydb_update(NULL, datablock, src);
 failed:
     CLEAR_BUF(buf, buflen);
     ynode_remove(src);
@@ -4005,12 +4006,7 @@ ydb_res ydb_path_sync(ydb *datablock, const char *format, ...)
     }
 
     if (ytrie_size(datablock->updater) > 0)
-    {
-        ydb_res res2;
-        res2 = ydb_update(NULL, datablock, src);
-        if (res2 == YDB_W_UPDATED)
-            res = res2;
-    }
+        ydb_update(NULL, datablock, src);
 
 failed:
     CLEAR_BUF(path, pathlen);
