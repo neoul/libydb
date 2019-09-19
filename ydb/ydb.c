@@ -47,7 +47,7 @@ extern ylog_func ylog_logger;
 #define YDB_ASSERT(state, caused_res)                                        \
     do                                                                       \
     {                                                                        \
-        if (state)                                                           \
+        if (YDB_FAILED(state))                                               \
         {                                                                    \
             ylog_logger(YLOG_ERROR, __func__, __LINE__, "ASSERT '%s': %s\n", \
                         #state, ydb_res_str(caused_res));                    \
@@ -59,7 +59,7 @@ extern ylog_func ylog_logger;
     do                                                                            \
     {                                                                             \
         char *stderrstr = strerror(errno);                                        \
-        if (state)                                                                \
+        if (YDB_FAILED(state))                                                    \
         {                                                                         \
             res = caused_res;                                                     \
             if (ylog_severity >= (YLOG_ERROR))                                    \
@@ -1591,7 +1591,7 @@ int ydb_read(ydb *datablock, const char *format, ...)
     if (datablock->synccount > 0)
     {
         res = yconn_sync(NULL, datablock, false, (char *)format, formatlen, false);
-        YDB_FAIL(res && res != YDB_W_UPDATED, res);
+        YDB_FAIL(res, res);
     }
     if (ytrie_size(datablock->updater) > 0)
         ydb_update(NULL, datablock, src);
@@ -1660,7 +1660,7 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
     if (datablock->synccount > 0)
     {
         res = yconn_sync(NULL, datablock, false, buf, buflen, false);
-        YDB_FAIL(res && res != YDB_W_UPDATED, res);
+        YDB_FAIL(res, res);
     }
 
     {
@@ -1814,7 +1814,7 @@ const char *ydb_path_read(ydb *datablock, const char *format, ...)
             buf[0] = 0;
             buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
             res = yconn_sync(NULL, datablock, false, buf, buflen, false);
-            YDB_FAIL(res && res != YDB_W_UPDATED, res);
+            YDB_FAIL(res, res);
         }
         if (ytrie_size(datablock->updater) > 0)
             res = ydb_update(NULL, datablock, src);
@@ -1861,7 +1861,7 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
         if (buflen >= 0)
             buf[buflen] = 0;
         res = yconn_sync(NULL, datablock, false, buf, buflen, false);
-        YDB_FAIL(res && res != YDB_W_UPDATED, res);
+        YDB_FAIL(res &&, res);
     }
     if (ytrie_size(datablock->updater) > 0)
         res = ydb_update(NULL, datablock, src);
