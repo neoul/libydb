@@ -3377,7 +3377,7 @@ failed:
         timeout = ydb_time_get_elapsed(&base);
         ylog_info("ydb[%s] sync elapsed :%d ms (%s)\n",
                   datablock->name, timeout,
-                  (is_timeout) ? "ydb_w_timeout" : "in-time");
+                  (is_timeout) ? "YDB_W_TIMEOUT" : "IN_TIME");
     }
     ytree_destroy(synclist);
     ylog_out();
@@ -3939,6 +3939,7 @@ ydb_res ydb_timeout(ydb *datablock, int msec)
 ydb_res ydb_sync(ydb *datablock, const char *format, ...)
 {
     ydb_res res = YDB_OK;
+    ydb_res sync_res = YDB_OK;
     ynode *src = NULL;
     char *buf = NULL;
     size_t buflen = 0;
@@ -3955,8 +3956,8 @@ ydb_res ydb_sync(ydb *datablock, const char *format, ...)
     va_end(args);
     fclose(fp);
 
-    res = yconn_sync(NULL, datablock, true, buf, buflen, false);
-    YDB_FAIL(YDB_FAILED(res), res);
+    sync_res = yconn_sync(NULL, datablock, true, buf, buflen, false);
+    YDB_FAIL(YDB_FAILED(sync_res), sync_res);
 
     res = ynode_scanf_from_buf(buf, buflen, 0, &src);
     YDB_FAIL(res, res);
@@ -3969,6 +3970,8 @@ failed:
     CLEAR_BUF(buf, buflen);
     ynode_remove(src);
     ylog_out();
+    if (YDB_SUCCESS(res) && sync_res == YDB_W_TIMEOUT)
+        return YDB_W_TIMEOUT;
     return res;
 }
 
