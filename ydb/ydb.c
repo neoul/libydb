@@ -937,6 +937,33 @@ int ydb_level(ynode *top, ynode *node)
     return ynode_level(top, node);
 }
 
+// ydb_clean --
+// Remove all child nodes
+ydb_res ydb_clean(ydb *datablock, ynode *n)
+{
+    ydb_res res = YDB_OK;
+    ynode_log *log;
+    size_t buflen = 0;
+    char *buf = NULL;
+    ynode *c;
+    ylog_in();
+    YDB_FAIL(!datablock || !n, YDB_E_INVALID_ARGS);
+    
+    log = ynode_log_open(datablock->top, NULL);
+    c = ynode_down(n);
+    while (c)
+    {
+        ynode_delete(c, log);
+        c = ynode_down(n);
+    }
+    ynode_log_close(log, &buf, &buflen);
+    yconn_publish(NULL, NULL, datablock, YOP_DELETE, buf, buflen);
+failed:
+    CLEAR_BUF(buf, buflen);
+    ylog_out();
+    return res;
+}
+
 ydb_res ydb_parse(ydb *datablock, FILE *stream)
 {
     ydb_res res = YDB_OK;

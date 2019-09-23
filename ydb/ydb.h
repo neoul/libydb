@@ -209,6 +209,10 @@ int ydb_level(ynode *top, ynode *node);
 // read the data from the current node (n)
 int ydb_retrieve(ynode *n, const char *format, ...);
 
+// ydb_clean --
+// Remove all child nodes.
+ydb_res ydb_clean(ydb *datablock, ynode *n);
+
 // ydb_pase --
 // Update the data into the ydb using file stream.
 ydb_res ydb_parse(ydb *datablock, FILE *stream);
