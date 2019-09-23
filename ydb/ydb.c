@@ -3074,7 +3074,7 @@ static ydb_res yconn_attach_to_disconn(yconn *conn)
         YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
         return YDB_E_SYSTEM_FAILED;
     }
-    if (IS_SET(conn->flags, YCONN_MAJOR_CONN))
+    if (IS_SET(conn->flags, YCONN_MAJOR_CONN) && datablock->timeout > 0)
     {
         // Waiting time for reconnection.
         timespec.it_value.tv_sec = datablock->timeout / 1000;
