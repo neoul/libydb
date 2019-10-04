@@ -490,14 +490,14 @@ static yhook *yhook_pre_run(char op, ynode *parent, ynode *cur, ynode *new)
     yhook *hook;
     if (op != YHOOK_OP_CREATE && op != YHOOK_OP_REPLACE)
         return NULL;
-    if (cur)
+    if (new)
     {
-        hook = cur->hook;
+        hook = new->hook;
         if (hook)
         {
             if (IS_SET(hook->flags, YNODE_SUPPRESS_HOOK))
                 return hook;
-            if (cur->type == YNODE_TYPE_VAL ||
+            if ((cur && cur->type == YNODE_TYPE_VAL) ||
                 (new && new->type == YNODE_TYPE_VAL) ||
                 !IS_SET(hook->flags, YNODE_VAL_ONLY))
                 yhook_func_exec(hook, op, cur, new);
