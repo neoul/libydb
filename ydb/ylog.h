@@ -50,6 +50,7 @@ extern ylog_func ylog_logger;
 
 // internal functions
 char *ylog_severity_str(int severity);
+char *ylog_process_name(int pid, char *buf, int buflen);
 char *ylog_pname(void);
 char *ylog_datetime(void);
 

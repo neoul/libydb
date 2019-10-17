@@ -32,32 +32,41 @@ char *ylog_severity_str(int severity)
     }
 }
 
-char *ylog_pname(void)
+char *ylog_process_name(int pid, char *buf, int buflen)
 {
-    static char unit[256];
-    if (unit[0] == 0)
+    FILE *stream;
+    char *pname = NULL;
+    char line[256];
+    pid_t _pid = (pid_t) pid;
+    if (!buf || buflen <= 0)
+        return "";
+    snprintf(line, sizeof(line), "/proc/%d/cmdline", _pid);
+    stream = fopen(line, "r");
+    if (stream)
     {
-        FILE *stream;
-        char *pname = NULL;
-        char line[256];
-        pid_t pid = getpid();
-        snprintf(line, sizeof(line), "/proc/%d/cmdline", pid);
-        stream = fopen(line, "r");
-        if (stream)
-        {
-            pname = fgets(line, sizeof(line), stream);
-            pname = basename(pname);
-            snprintf(unit, sizeof(unit), "%s(%d)", pname, pid);
-            fclose(stream);
-        }
-        else
-        {
-            snprintf(unit, sizeof(unit), "%d", pid);
-        }
-        return unit;
+        pname = fgets(line, sizeof(line), stream);
+        pname = basename(pname);
+        snprintf(buf, buflen, "%s", pname);
+        fclose(stream);
     }
     else
-        return unit;
+    {
+        buf[0] = 0;
+    }
+    return buf;
+}
+
+char *ylog_pname(void)
+{
+    static pid_t pid;
+    static char unit[256];
+    if (unit[0] == 0 || pid != getpid())
+    {
+        ylog_process_name(getpid(), unit, sizeof(unit));
+        if (unit[0] == 0)
+            snprintf(unit, sizeof(unit), "%d", getpid());
+    }
+    return unit;
 }
 
 unsigned int ylog_severity = YLOG_ERROR;
@@ -77,7 +86,7 @@ int ylog_general(
         fp = stdout;
     if (ferror(fp))
         goto end_log;
-    len = fprintf(fp, "++ %s::%s::%s:%d: ", ylog_pname(), ylog_severity_str(severity), func, line);
+    len = fprintf(fp, "++ %s.%d::%s::%s:%d: ", ylog_pname(), getpid(), ylog_severity_str(severity), func, line);
     n += len;
     va_start(args, format);
     len = vfprintf(fp, format, args);
@@ -163,7 +172,7 @@ int ylog_file(int severity, const char *func, int line, const char *format, ...)
         va_list args;
         if (ferror(ylog_fp))
             goto close_fp;
-        len = fprintf(ylog_fp, "++ %s::%s::%s:%d: ", ylog_pname(), ylog_severity_str(severity), func, line);
+        len = fprintf(ylog_fp, "++ %s.%d::%s::%s:%d: ", ylog_pname(), getpid(), ylog_severity_str(severity), func, line);
         if (len < 0)
             goto close_fp;
         n += len;
