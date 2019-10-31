@@ -1,4 +1,4 @@
-%YAML 1.1   # Reference card
+%YAML 1.2   # Reference card
 ---
 Collection indicators:
     '? ' : Key indicator.
@@ -41,8 +41,8 @@ Core types: # Default automatic tags.
     '!!seq' : { List, array, tuple, vector, sequence }
     '!!str' : Unicode string
 More types:
-    '!!set' : { cherries, plums, apples }
-    '!!omap': [ one: 1, two: 2 ]
+    '!!set' : !!set { cherries, plums, apples }
+    '!!omap': !!omap [ one: 1, two: 2 ]
 Language Independent Scalar types:
     { ~, null }              : Null (no value).
     [ 1234, 0x4D2, 02333 ]   : [ Decimal int, Hexadecimal int, Octal int ]

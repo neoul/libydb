@@ -1203,6 +1203,16 @@ node_print:
 
 int ydb_log_err_yaml(yaml_parser_t *parser)
 {
+    if (parser->raw_buffer.start)
+    {
+        if (parser->raw_buffer.pointer)
+        {
+            ylog_error("raw_bffer:: \n%.*s\n", 
+                parser->raw_buffer.pointer - parser->raw_buffer.start,
+                parser->raw_buffer.start);
+        }
+    }
+
     /* Display a parser error message. */
     switch (parser->error)
     {
