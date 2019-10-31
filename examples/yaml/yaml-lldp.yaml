@@ -1,0 +1,57 @@
+lldp:
+ interfaces:
+  interface[name=1/23]:
+   custom-tlvs:
+    tlv[type=1][oui=00-80-C2][oui-subtype=1]:
+     type: 1
+     oui: 00-80-C2
+     oui-subtype: 1
+     value: AAE=
+
+    tlv[type=2][oui=00-80-C2][oui-subtype=2]:
+     type: 2
+     oui: 00-80-C2
+     oui-subtype: 2
+     value: AgAA
+
+    tlv[type=3][oui=00-80-C2][oui-subtype=3]:
+     type: 3
+     oui: 00-80-C2
+     oui-subtype: 3
+     value: AAEHZGVmYXVsdAAKCFZMQU4wMDEwABgIVkxBTjAwMjQPoQhWTEFONDAwMQ+iCFZMQU40MDAyD6MIVkxBTjQwMDMPpAhWTEFONDAwNA+lCFZMQU40MDA1
+
+    tlv[type=4][oui=00-80-C2][oui-subtype=4]:
+     type: 4
+     oui: 00-80-C2
+     oui-subtype: 4
+     value: Cg==
+
+    tlv[type=5][oui=00-12-0F][oui-subtype=1]:
+     type: 5
+     oui: 00-12-0F
+     oui-subtype: 1
+     value: AQAPAB4=
+
+    tlv[type=6][oui=00-12-0F][oui-subtype=2]:
+     type: 6
+     oui: 00-12-0F
+     oui-subtype: 2
+     value: AAAA
+
+    tlv[type=7][oui=00-12-0F][oui-subtype=3]:
+     type: 7
+     oui: 00-12-0F
+     oui-subtype: 3
+     value: AQAAAAA=
+
+    tlv[type=8][oui=00-12-0F][oui-subtype=4]:
+     type: 8
+     oui: 00-12-0F
+     oui-subtype: 4
+     value: JAA=
+
+    tlv[type=9][oui=00-12-0F][oui-subtype=7]:
+     type: 9
+     oui: 00-12-0F
+     oui-subtype: 7
+     value: AAE=

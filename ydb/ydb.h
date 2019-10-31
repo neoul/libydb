@@ -82,6 +82,11 @@ char *yaml2str(char *ystr, size_t len);
 // It should be free
 char *binary_to_base64(unsigned char *binary, size_t binarylen, size_t *base64len);
 
+// binary_to_base64_if --
+// Return base64 string with LF (Line Feed).
+// It should be free
+char *binary_to_base64_lf(unsigned char *binary, size_t binarylen, size_t *base64len);
+
 // base64_to_binary --
 // Return base64 string with the length.
 // It should be free

@@ -1203,15 +1203,6 @@ node_print:
 
 int ydb_log_err_yaml(yaml_parser_t *parser)
 {
-    if (parser->raw_buffer.start)
-    {
-        if (parser->raw_buffer.pointer)
-        {
-            ylog_error("raw_bffer:: \n%.*s\n", 
-                parser->raw_buffer.pointer - parser->raw_buffer.start,
-                parser->raw_buffer.start);
-        }
-    }
 
     /* Display a parser error message. */
     switch (parser->error)
@@ -1292,6 +1283,37 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         /* Couldn't happen. */
         ylog_error("internal error\n");
         break;
+    }
+
+    if (parser->raw_buffer.start)
+    {
+        if (parser->raw_buffer.pointer)
+        {
+            ylog_error("raw_bffer(pointer-start):: \n%.*s\n", 
+                parser->raw_buffer.pointer - parser->raw_buffer.start,
+                parser->raw_buffer.start);
+        }
+        else if (parser->raw_buffer.end)
+        {
+            ylog_error("raw_bffer(end-start):: \n%.*s\n", 
+                parser->raw_buffer.end - parser->raw_buffer.start,
+                parser->raw_buffer.start);
+        }
+    }
+    else if (parser->buffer.start)
+    {
+        if (parser->buffer.pointer)
+        {
+            ylog_error("buffer(pointer-start):: \n%.*s\n", 
+                parser->buffer.pointer - parser->buffer.start,
+                parser->buffer.start);
+        }
+        else if (parser->buffer.end)
+        {
+            ylog_error("buffer(end-start):: \n%.*s\n", 
+                parser->buffer.end - parser->buffer.start,
+                parser->buffer.start);
+        }
     }
     return 0;
 }

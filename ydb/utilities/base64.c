@@ -18,7 +18,7 @@ static const unsigned char base64_table[65] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /**
- * base64_encode - Base64 encode
+ * _base64_encode - Base64 encode
  * @src: Data to be encoded
  * @len: Length of the data to be encoded
  * @out_len: Pointer to output length variable, or %NULL if not used
@@ -29,8 +29,8 @@ static const unsigned char base64_table[65] =
  * nul terminated to make it easier to use as a C string. The nul terminator is
  * not included in out_len.
  */
-unsigned char * base64_encode(const unsigned char *src, size_t len,
-			      size_t *out_len)
+static unsigned char * _base64_encode(const unsigned char *src, size_t len,
+			      size_t *out_len, int add_lf)
 {
 	unsigned char *out, *pos;
 	const unsigned char *end, *in;
@@ -58,7 +58,8 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 		in += 3;
 		line_len += 4;
 		if (line_len >= 72) {
-			*pos++ = '\n';
+			if (add_lf)
+				*pos++ = '\n';
 			line_len = 0;
 		}
 	}
@@ -77,7 +78,7 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 		line_len += 4;
 	}
 
-	if (line_len)
+	if (line_len && add_lf)
 		*pos++ = '\n';
 
 	*pos = '\0';
@@ -86,6 +87,17 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 	return out;
 }
 
+// base64 enconding with LF (Line Feed).
+unsigned char * base64_encode_lf(const unsigned char *src, size_t len, size_t *out_len)
+{
+	return _base64_encode(src, len, out_len, 1);
+}
+
+// base64 enconding without LF (Line Feed).
+unsigned char * base64_encode(const unsigned char *src, size_t len, size_t *out_len)
+{
+	return _base64_encode(src, len, out_len, 0);
+}
 
 /**
  * base64_decode - Base64 decode
@@ -156,21 +168,27 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 	return out;
 }
 
-#if 0
+// #define BASE64_DEBUG
+#ifdef BASE64_DEBUG
 void main()
 {
-	unsigned char testdata[14] = {
-		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+	unsigned char testdata[] = {
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
 	};
 	size_t encodelen = 0, decodelen = 0;
 	unsigned char *encode = base64_encode(testdata, sizeof(testdata), &encodelen);
-	printf("len=%ld\n%s\n", encodelen, encode);
-
+	printf("[Encoding] src-len=%ld dest-len=%ld\n%s\n", sizeof(testdata), encodelen, encode);
 	unsigned char *decode = base64_decode(encode, encodelen, &decodelen);
 	int i;
-	printf("decoding\n");
+	printf("[Decoding]\n");
 	for (i=0; i<decodelen; i++)
 		printf("%d ", decode[i]);
 	printf("\n");
+	free(encode);
+	free(decode);
 }
 #endif
