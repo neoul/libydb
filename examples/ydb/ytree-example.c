@@ -53,7 +53,15 @@ int _user_cb_udata(void *key, void *data, void *user_data)
 
 void _user_free(void *v)
 {
-    printf("%p is removed\n", v);
+    struct udata *udata = v;
+    printf("%s is removed\n", udata->str);
+    free(v);
+}
+
+void _key_free(void *v)
+{
+    struct ukey *ukey = v;
+    printf("!REMOVED: %d\n", ukey->key);
     free(v);
 }
 
@@ -65,7 +73,7 @@ int main(int argc, char **argv)
     int count = 0;
 
     printf("\nYTREE case 1)\n");
-    printf(" - key == data\n");
+    printf("\n[key == data]\n");
     tree = ytree_create(comp, NULL);
 
     for (count = 1; count <= 10; count++)
@@ -74,8 +82,8 @@ int main(int argc, char **argv)
         ukey->key = rand() % MAX_KEY_VALUE;
         ukey->value = sqrt(ukey->key);
 
-        // the same (duplicated) key value will be removed by _user_free.
-        ytree_insert_custom(tree, ukey, ukey, _user_free);
+        // the same (duplicated) key value will be removed by _key_free.
+        ytree_insert_custom(tree, ukey, ukey, _key_free);
         printf("INSERT: %d. (%d)\n", count, ukey->key);
     }
     count = 0;
@@ -87,15 +95,13 @@ int main(int argc, char **argv)
         searchkey.key = count;
         udata = ytree_delete(tree, &searchkey);
         if (udata)
-        {
-            _user_free(udata);
-        }
+            _key_free(udata);
     }
     ytree_destroy(tree);
 
     printf("\nYTREE case 2)\n");
-    printf(" - key != data\n");
-    tree = ytree_create(comp, _user_free);
+    printf("\n[key != data]\n");
+    tree = ytree_create(comp, _key_free);
     for (count = 1; count <= 10; count++)
     {
         ukey = malloc(sizeof(*ukey));
@@ -103,10 +109,10 @@ int main(int argc, char **argv)
         ukey->value = sqrt(ukey->key);
 
         udata = malloc(sizeof(*udata));
-        sprintf(udata->str, "@@ udata of key %d", ukey->key);
-        printf("INSERT: %d. (%d)\n", count, ukey->key);
+        sprintf(udata->str, "@@%d", ukey->key);
+        printf("INSERT: %d. (%d: %s)\n", count, ukey->key, udata->str);
 
-        // old key (ukey) will be removed by _user_free configured on ytree_create()
+        // old key (ukey) will be removed by _key_free configured on ytree_create()
         // but, you still need to remove the data.
         struct udata *old = ytree_insert(tree, ukey, udata);
         if (old)
@@ -116,26 +122,29 @@ int main(int argc, char **argv)
         }
     }
 
+    printf("\n[deletion in iteration]\n");
     count = 0;
     ytree_iter *iter = ytree_first(tree);
     for (; iter != NULL; iter = ytree_next(tree, iter))
     {
+        struct udata *old = NULL;
         count++;
         ukey = ytree_key(iter);
         udata = ytree_data(iter);
         printf("ITERATE: %d. - %d %s\n", count, ukey->key, udata->str);
-        if (count == 5)
-        {
-            ytree_iter *prev = ytree_prev(tree, iter);
-            udata = ytree_remove(tree, iter);
-            if (udata)
-            {
-                _user_free(udata);
-            }
-            iter = prev;
-        }
-    }
+        if (count == 1)
+            iter = ytree_remove(tree, iter, (void *) &old);
+        else if (count == 5)
+            iter = ytree_remove(tree, iter, (void *) &old);
+        else if (ytree_size(tree) < count) // remove data at tail.
+            iter = ytree_remove(tree, iter, (void *) &old);
+        if (old)
+            _user_free(old);
 
+    }
+    
+
+    printf("\n[back in iteration]\n");
     count = 0;
     iter = ytree_last(tree);
     for (; iter != NULL; iter = ytree_prev(tree, iter))

@@ -85,9 +85,17 @@ ytree_iter *ytree_push(ytree *tree, void *key, void *data, void **old_data);
 
 // ytree_remove --
 //
-//     Remove the target iterator from the tree and return the data.
+//     Remove the target iterator from the tree and then return the previous ytree iterator for next iteration.
+//     The user data must be freed.
 //
-void *ytree_remove(ytree *tree, ytree_iter *n);
+ytree_iter *ytree_remove(ytree *tree, ytree_iter *n, void **data);
+
+// ytree_remove_reverse --
+//
+//     Remove the target iterator from the tree and then return the next ytree iterator for next iteration.
+//     The user data must be freed.
+//
+ytree_iter *ytree_remove_reverse(ytree *tree, ytree_iter *n, void **data);
 
 void *ytree_data(ytree_iter *n);
 void *ytree_key(ytree_iter *n);

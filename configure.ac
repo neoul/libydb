@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 m4_define([libydb_major_version], [1])
 m4_define([libydb_minor_version], [0])
-m4_define([libydb_micro_version], [51])
+m4_define([libydb_micro_version], [52])
 m4_define([libydb_version],
       [libydb_major_version.libydb_minor_version.libydb_micro_version])
 

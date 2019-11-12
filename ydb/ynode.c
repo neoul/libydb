@@ -552,9 +552,10 @@ static void yhook_post_run(char op, ynode *cur, bool end_of_run, ytree **hook_po
         ytree_iter *iter = ytree_top(*hook_pool);
         while (iter)
         {
-            hook = ytree_remove(*hook_pool, iter);
+            hook = ytree_data(iter);
             if (hook)
                 yhook_func_exec(hook, op, NULL, NULL);
+            ytree_remove(*hook_pool, iter, NULL);
             iter = ytree_top(*hook_pool);
         }
         ytree_destroy(*hook_pool);
