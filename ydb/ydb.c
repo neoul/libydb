@@ -1247,6 +1247,49 @@ failed:
     return res;
 }
 
+// ydb_add --
+// Add data to YDB using YAML input string 
+// (that shod be terminated with null as a string)
+ydb_res ydb_add(ydb *datablock, char *s)
+{
+    return ydb_parses(datablock, s, strlen(s));
+}
+
+// ydb_rm --
+// Delete data from YDB using YAML input string 
+// (that shod be terminated with null as a string)
+ydb_res ydb_rm(ydb *datablock, char *s)
+{
+    ydb_res res = YDB_OK;
+    ynode *src = NULL;
+    size_t slen = 0;
+    if (s)
+    {
+        char *rbuf = NULL;
+        size_t rbuflen = 0;
+        unsigned int flags;
+        struct ydb_delete_data ddata;
+        slen = strlen(s);
+        res = ynode_scanf_from_buf(s, slen, 0, &src);
+        YDB_FAIL(res || !src, res);
+        ddata.log = ynode_log_open(datablock->top, NULL);
+        ddata.node = datablock->top;
+        flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
+        res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
+        ynode_log_close(ddata.log, &rbuf, &rbuflen);
+        if (rbuf)
+        {
+            if (rbuflen > 0)
+                yconn_publish(NULL, NULL, datablock, YOP_DELETE, rbuf, rbuflen);
+            free(rbuf);
+        }
+    }
+failed:
+    ynode_remove(src);
+    ylog_out();
+    return res;
+}
+
 struct readhook
 {
     const char *path;

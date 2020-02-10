@@ -238,12 +238,22 @@ int ydb_dumps(ydb *datablock, char **buf, size_t *buflen);
 // Print the data into a file stream for debugging.
 int ydb_dump_debug(ydb *datablock, FILE *stream);
 
+// ydb_add --
+// Add data to YDB using YAML input string 
+// (that shod be terminated with null as a string)
+ydb_res ydb_add(ydb *datablock, char *string);
+
+// ydb_rm --
+// Delete data from YDB using YAML input string 
+// (that shod be terminated with null as a string)
+ydb_res ydb_rm(ydb *datablock, char *string);
+
 // ydb_write --
-// Update data in YDB using YAML input stream
+// Update YDB using YAML input string
 ydb_res ydb_write(ydb *datablock, const char *format, ...);
 
 // ydb_delete --
-// Delete data in YDB using YAML input stream
+// Delete data from YDB using YAML input string
 ydb_res ydb_delete(ydb *datablock, const char *format, ...);
 
 // ydb_read --
