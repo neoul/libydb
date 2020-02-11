@@ -72,6 +72,7 @@ struct _ynode
     unsigned char type;
     unsigned short origin;
     struct _ynode *parent;
+    struct _ynode *meta; // for meta data
     struct _yhook *hook;
     const char *tag;
 };
@@ -114,6 +115,8 @@ static void ynode_free(ynode *node)
     default:
         assert(!YDB_E_TYPE_ERR);
     }
+    if (node->meta)
+        ynode_free(node->meta);
     if (node->tag)
         yfree(node->tag);
     yhook_delete(node);
@@ -281,7 +284,7 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int use
         return YDB_E_INVALID_ARGS;
     if (!user && user_num > 0)
         return YDB_E_INVALID_ARGS;
-    
+
     hook = NULL;
     if (node->hook)
     {
@@ -290,7 +293,7 @@ ydb_res yhook_register(ynode *node, unsigned int flags, yhook_func func, int use
         else
             yhook_unregister(node);
     }
-    
+
     if (!hook)
     {
         hook = malloc(sizeof(yhook) + sizeof(void *) * user_num);
@@ -1290,30 +1293,30 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
     {
         if (parser->raw_buffer.pointer)
         {
-            ylog_error("raw_bffer(pointer-start):: \n%.*s\n", 
-                parser->raw_buffer.pointer - parser->raw_buffer.start,
-                parser->raw_buffer.start);
+            ylog_error("raw_bffer(pointer-start):: \n%.*s\n",
+                       parser->raw_buffer.pointer - parser->raw_buffer.start,
+                       parser->raw_buffer.start);
         }
         else if (parser->raw_buffer.end)
         {
-            ylog_error("raw_bffer(end-start):: \n%.*s\n", 
-                parser->raw_buffer.end - parser->raw_buffer.start,
-                parser->raw_buffer.start);
+            ylog_error("raw_bffer(end-start):: \n%.*s\n",
+                       parser->raw_buffer.end - parser->raw_buffer.start,
+                       parser->raw_buffer.start);
         }
     }
     else if (parser->buffer.start)
     {
         if (parser->buffer.pointer)
         {
-            ylog_error("buffer(pointer-start):: \n%.*s\n", 
-                parser->buffer.pointer - parser->buffer.start,
-                parser->buffer.start);
+            ylog_error("buffer(pointer-start):: \n%.*s\n",
+                       parser->buffer.pointer - parser->buffer.start,
+                       parser->buffer.start);
         }
         else if (parser->buffer.end)
         {
-            ylog_error("buffer(end-start):: \n%.*s\n", 
-                parser->buffer.end - parser->buffer.start,
-                parser->buffer.start);
+            ylog_error("buffer(end-start):: \n%.*s\n",
+                       parser->buffer.end - parser->buffer.start,
+                       parser->buffer.start);
         }
     }
     return 0;
@@ -1518,7 +1521,8 @@ static ynode *ynode_new_and_attach(
         type = YNODE_TYPE_MAP;
         SET_FLAG(flags, YNODE_FLAG_IMAP);
     }
-    else {
+    else
+    {
         type = YNODE_TYPE_VAL;
     }
 
@@ -1549,6 +1553,50 @@ create_new:
     return new;
 }
 
+static ynode *ynode_set_tag_directive(ynode *node, char *key, char *value)
+{
+    ynode *p;
+    if (!node)
+        node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+    if (!node)
+        return NULL;
+    if (!node->meta)
+        node->meta = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+    if (!node->meta)
+        return node;
+    p = ynode_find_child(node->meta, "%TAG");
+    if (!p)
+        p = ynode_new_and_attach("!!map", "%TAG", NULL, 0, node->meta);
+    if (p)
+        ynode_new_and_attach(NULL, key, value, 0, p);
+    return node;
+}
+
+static ynode *ynode_set_meta(ynode *base_node, ynode *meta_node)
+{
+    ynode *m;
+    if (!base_node)
+        base_node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+    if (!base_node)
+        return NULL;
+    if (!base_node->meta)
+        base_node->meta = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+    if (!base_node->meta)
+        return base_node;
+    m = ynode_find_child(base_node->meta, "$META");
+    ynode_detach(meta_node);
+    if (!m)
+    {
+        ynode_attach(meta_node, base_node->meta, "$META");
+    }
+    else
+    {
+        ynode_merge(m, meta_node, NULL);
+        ynode_free(meta_node);
+    }
+    return base_node;
+}
+
 ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *queryform)
 {
     ydb_res res = YDB_OK;
@@ -1567,6 +1615,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     bool token_save = false;
     bool multiple_anchor_reference = false;
     ytrie *anchors = NULL;
+    ytree *meta = NULL;
+    ytree *dirv = NULL;
     const char *tag = NULL;
 
     if ((!fp && !buf) || !n)
@@ -1684,6 +1734,13 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 else
                     tag = "!!map";
             }
+
+            // don't create top if YAML document restarted.
+            if (!key && top)
+                if (token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
+                    token.type == YAML_FLOW_MAPPING_START_TOKEN)
+                    break;
+
             new = ynode_new_and_attach(tag, key, NULL, origin, top);
             YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
             ylog_debug("%d_%.*s%s %s (created %p)\n", level, level, space,
@@ -1735,11 +1792,24 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             case YAML_KEY_TOKEN:
                 ylog_debug("%d_%.*s%s (new key)\n", level, level, space, scalar);
                 key = ystrdup(scalar);
+                if (strcmp(key, "$META") == 0)
+                {
+                    if (!meta)
+                        meta = ytree_create((ytree_cmp)strcmp, NULL);
+                    if (meta)
+                    {
+                        char *path;
+                        path = ynode_path_with_pre_postfix(
+                            top, YDB_LEVEL_MAX, NULL, NULL, scalar);
+                        if (path)
+                            ytree_insert_custom(meta, path, path, free);
+                    }
+                }
                 break;
             case YAML_STREAM_START_TOKEN:
             case YAML_DOCUMENT_START_TOKEN:
             case YAML_VALUE_TOKEN:
-                ylog_debug("%d_%.*s%s%s%s (val)\n", level, level, space, 
+                ylog_debug("%d_%.*s%s%s%s (val)\n", level, level, space,
                            key ? key : "", key ? ": " : "", scalar);
                 new = ynode_new_and_attach(tag, key, scalar, origin, top);
                 YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
@@ -1776,8 +1846,8 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             }
             break;
         case YAML_DOCUMENT_START_TOKEN:
-        case YAML_DOCUMENT_END_TOKEN:
         case YAML_STREAM_START_TOKEN:
+        case YAML_DOCUMENT_END_TOKEN:
         case YAML_STREAM_END_TOKEN:
             break;
         case YAML_TAG_TOKEN:
@@ -1857,8 +1927,16 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             token_save = false;
             break;
         }
-        case YAML_VERSION_DIRECTIVE_TOKEN:
         case YAML_TAG_DIRECTIVE_TOKEN:
+            if (!dirv)
+                dirv = ytree_create((ytree_cmp)strcmp, free);
+            if (dirv)
+            {
+                void *handle = (void *)strdup((char *)token.data.tag_directive.handle);
+                void *prefix = (void *)strdup((char *)token.data.tag_directive.prefix);
+                ytree_insert_custom(dirv, handle, prefix, free);
+            }
+        case YAML_VERSION_DIRECTIVE_TOKEN:
             token_save = false;
         default:
             break;
@@ -1879,6 +1957,34 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     {
         ynode_free(ynode_top(top));
         top = NULL;
+    }
+    else
+    {
+        ytree_iter *i;
+        if (dirv)
+        {
+            for (i = ytree_first(dirv); i; i = ytree_next(dirv, i))
+                ynode_set_tag_directive(top, ytree_key(i), ytree_data(i));
+            ytree_destroy_custom(dirv, free);
+        }
+        if (meta)
+        {
+            for (i = ytree_first(meta); i; i = ytree_next(meta, i))
+            {
+                char *path = ytree_data(i);
+                ynode *m = ynode_search(top, path);
+                if (m && m->parent)
+                    ynode_set_meta(m->parent, m);
+                if (YLOG_SEVERITY_INFO)
+                {
+                    if (m->parent != top)
+                        ynode_printf(m->parent->meta, 1, 24);
+                }
+            }
+            ytree_destroy_custom(meta, free);
+        }
+        if ((YLOG_SEVERITY_INFO) && top->meta)
+            ynode_printf(top->meta, 1, 24);
     }
     if (anchors)
         ytrie_destroy_custom(anchors, (user_free)yfree);
@@ -1973,28 +2079,28 @@ ynode *ynode_find_child(ynode *node, const char *key)
 
 static char get_pair_delimiter(char c)
 {
-    switch(c)
+    switch (c)
     {
-        case '"':
-            return c;
-        case '\'':
-            return c;
-        case '{':
-            return '}';
-        case '[':
-            return ']';
-        case '(':
-            return ')';
-        case '<':
-            return '>';
-        case '}':
-            return '{';
-        case ']':
-            return '[';
-        case ')':
-            return '(';
-        case '>':
-            return '<';
+    case '"':
+        return c;
+    case '\'':
+        return c;
+    case '{':
+        return '}';
+    case '[':
+        return ']';
+    case '(':
+        return ')';
+    case '<':
+        return '>';
+    case '}':
+        return '{';
+    case ']':
+        return '[';
+    case ')':
+        return '(';
+    case '>':
+        return '<';
     }
     return c;
 }
@@ -2046,7 +2152,7 @@ ylist *ynode_path_tokenize(char *path, char **val)
             int len = token - path;
             if (len > 0)
             {
-                key = to_string((const char *) path, len, NULL);
+                key = to_string((const char *)path, len, NULL);
                 if (!key)
                     key = strndup(path, len);
                 ylist_push_back(keylist, key);
@@ -2070,7 +2176,6 @@ ylist *ynode_path_tokenize(char *path, char **val)
                 if (!*val)
                     *val = strndup(path, 0);
             }
-                
         }
         else
         {
@@ -2469,7 +2574,43 @@ char *ynode_path(ynode *node, int level, int *pathlen)
     }
     if (buf)
         free(buf);
-    return NULL;
+    return strdup("/");
+}
+
+char *ynode_path_with_pre_postfix(ynode *node, int level, int *pathlen, char *prefix, char *postfix)
+{
+    char *buf = NULL;
+    size_t buflen = 0;
+    FILE *fp;
+    if (!node)
+        return NULL;
+    fp = open_memstream(&buf, &buflen);
+    if (fp && prefix)
+    {
+        if (prefix[0] == '/')
+            fprintf(fp, "%s", prefix);
+        else
+            fprintf(fp, "/%s", prefix);
+    }
+    ynode_path_fprintf(fp, node, level);
+    if (fp && postfix)
+    {
+        if (postfix[0] == '/')
+            fprintf(fp, "%s", postfix);
+        else
+            fprintf(fp, "/%s", postfix);
+    }
+    if (fp)
+        fclose(fp);
+    if (buf && buflen > 0)
+    {
+        if (pathlen)
+            *pathlen = buflen;
+        return buf;
+    }
+    if (buf)
+        free(buf);
+    return strdup("/");
 }
 
 char *ynode_path_and_val(ynode *node, int level, int *pathlen)
@@ -2493,7 +2634,7 @@ char *ynode_path_and_val(ynode *node, int level, int *pathlen)
     }
     if (buf)
         free(buf);
-    return NULL;
+    return strdup("/");
 }
 
 static char ynode_op_get(ynode *cur, ynode *new)
@@ -3310,7 +3451,7 @@ ydb_res ynode_traverse_to_read(ynode *cur, void *addition)
             sscanf(ynode_value(n), &(value[4]), p);
 #else
             int len = strlen(value);
-            if (value[len-1] == 's')
+            if (value[len - 1] == 's')
                 strcpy(p, ynode_value(n));
             else
                 sscanf(ynode_value(n), &(value[4]), p);

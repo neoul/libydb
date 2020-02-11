@@ -1,0 +1,22 @@
+%TAG !ydb! tag:github.com/neoul/libydb:op/
+---
+$META:
+  abc: efg
+"$META":
+  123: 456
+libydb-operations:
+  delete node: !ydb!delete
+  add node: !ydb!write 10
+keys:
+  : 10
+# ...
+
+# ---
+"$META":
+  xyz: meta-value of xyz
+...
+
+---
+"gos":
+  dfe: av
+...

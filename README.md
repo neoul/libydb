@@ -383,6 +383,34 @@ h: "Yes we have No bananas"
 picture: !!binary "R0lGODdhDQAIAIAAAAAAANn\nZ2SwAAAAADQAIAAACF4SDGQ\nar3xxbJ9p0qa7R0YxwzaFME\n1IAADs="
 ```
 
+### YAML document manipulation
+
+YDB supports the following custom named tag for YAML document manipulation.
+These tags can be used when you write or delete data from/to an YDB instance using `ydb_write()`, `ydb_delete()`.
+
+```yaml
+%TAG !ydb! tag:github.com/neoul/libydb:op/
+---
+libydb-operations:
+  delete node: !ydb!delete
+  add node: !ydb!write 10
+...
+```
+
+```c
+// corrent_sppeed will be deleted during ydb_write().
+ydb_write(datablock,
+    "system:\n"
+    " fan:\n"
+    "  fan[%d]:\n"
+    "   admin: %s\n"
+    "   config_speed: %d\n"
+    "   current_speed: !ydb!delete\n",
+    fan_id,
+    fan_admin,
+    &fan_speed);
+// ...
+```
 ## YDB (YAML DataBlock) for IPC (Inter-Process Communication)
 
 **YAML DataBlock (YDB)** has the facilities to deliver the internal data block to other processes via unix socket, named FIFO, TCP and etc in the manner of Publish and Subscribe fashion.
@@ -452,7 +480,6 @@ multiple-key example:
 
 ### YAML features not supported
 
-- !!binary
 - !!pairs
 
 ### YAML feature supported
@@ -463,7 +490,7 @@ multiple-key example:
 - !!set
 - anchor and alias with `<<` merge key
 - all other types are supported as string type.
-- !!imap (a map indexed by integer key)
+- !imap (a map indexed by integer key)
 
 ## next work items
 

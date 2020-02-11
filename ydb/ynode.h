@@ -143,6 +143,12 @@ int ynode_level(ynode *top, ynode *node);
 // the path returned must be free.
 char *ynode_path(ynode *node, int level, int *pathlen);
 
+// create a new path string with prefix and postfix strings.
+// <prefix>/<node_path>/<postfix>
+// the level is the number of the parent and ancestors to be printed.
+// the path returned must be free.
+char *ynode_path_with_pre_postfix(ynode *node, int level, int *pathlen, char *prefix, char *postfix);
+
 // create a new path and value string for the ydb
 char *ynode_path_and_val(ynode *node, int level, int *pathlen);
 
