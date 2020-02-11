@@ -516,6 +516,11 @@ int main(int argc, char *argv[])
                         goto end;
                     }
                 }
+                else
+                {
+                    printf("\nfile error: %s %s\n", ydb_value(n), strerror(errno));
+                    goto end;
+                }
                 n = ydb_next(n);
             }
         }

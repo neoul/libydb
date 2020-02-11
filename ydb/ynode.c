@@ -1005,6 +1005,15 @@ int ynode_printf(ynode *node, int start_level, int end_level)
     return ynode_printf_to_fp(NULL, node, start_level, end_level);
 }
 
+int ynode_fprintf_meta(FILE *fp, ynode *node)
+{
+    if (!node)
+        return -1;
+    if (!node->meta)
+        return 0;
+    return ynode_printf(node->meta, 1, 24);
+}
+
 struct _ynode_log
 {
     FILE *fp;
@@ -1726,6 +1735,11 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                     break;
                 }
             }
+            // don't create top if YAML document restarted.
+            if (!key && top)
+                if (token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
+                    token.type == YAML_FLOW_MAPPING_START_TOKEN)
+                    break;
             if (!tag)
             {
                 if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
@@ -1734,12 +1748,6 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 else
                     tag = "!!map";
             }
-
-            // don't create top if YAML document restarted.
-            if (!key && top)
-                if (token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
-                    token.type == YAML_FLOW_MAPPING_START_TOKEN)
-                    break;
 
             new = ynode_new_and_attach(tag, key, NULL, origin, top);
             YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
@@ -1974,17 +1982,17 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 char *path = ytree_data(i);
                 ynode *m = ynode_search(top, path);
                 if (m && m->parent)
-                    ynode_set_meta(m->parent, m);
-                if (YLOG_SEVERITY_INFO)
                 {
-                    if (m->parent != top)
-                        ynode_printf(m->parent->meta, 1, 24);
+                    ynode_set_meta(m->parent, m);
+                    // if (YLOG_SEVERITY_INFO && (m->parent != top))
+                    //     ynode_printf(m->parent->meta, 1, 24);
                 }
             }
             ytree_destroy_custom(meta, free);
         }
-        if ((YLOG_SEVERITY_INFO) && top->meta)
-            ynode_printf(top->meta, 1, 24);
+        // if ((YLOG_SEVERITY_INFO))
+        //     if (top && top->meta)
+        //         ynode_printf(top->meta, 1, 24);
     }
     if (anchors)
         ytrie_destroy_custom(anchors, (user_free)yfree);

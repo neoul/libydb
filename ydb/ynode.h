@@ -67,6 +67,9 @@ int ynode_printf_to_fp(FILE *fp, ynode *node, int start_level, int end_level);
 int ynode_printf_to_fd(int fd, ynode *node, int start_level, int end_level);
 int ynode_printf(ynode *node, int start_level, int end_level);
 
+// print ynode meta data.
+int ynode_fprintf_meta(FILE *fp, ynode *node);
+
 // read ynode db from buffer, fp, fd and stdin
 ydb_res ynode_scanf_from_fp(FILE *fp, ynode **n);
 ydb_res ynode_scanf(ynode **n);
