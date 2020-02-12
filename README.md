@@ -389,16 +389,15 @@ YDB supports the following custom named tag for YAML document manipulation.
 These tags can be used when you write or delete data from/to an YDB instance using `ydb_write()`, `ydb_delete()`.
 
 ```yaml
-%TAG !ydb! tag:github.com/neoul/libydb:op/
+%TAG !ydb! tag:github.com/neoul/libydb/
 ---
 libydb-operations:
   delete node: !ydb!delete
-  add node: !ydb!write 10
 ...
 ```
 
 ```c
-// corrent_sppeed will be deleted during ydb_write().
+// corrent_sppeed will be deleted during YDB updating (ydb_write()).
 ydb_write(datablock,
     "system:\n"
     " fan:\n"
@@ -411,6 +410,7 @@ ydb_write(datablock,
     &fan_speed);
 // ...
 ```
+
 ## YDB (YAML DataBlock) for IPC (Inter-Process Communication)
 
 **YAML DataBlock (YDB)** has the facilities to deliver the internal data block to other processes via unix socket, named FIFO, TCP and etc in the manner of Publish and Subscribe fashion.

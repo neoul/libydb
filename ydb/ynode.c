@@ -1185,6 +1185,8 @@ node_print:
             only_val = 1;
         
         iter = ylist_next(nodes, iter);
+
+        // !ydb!delete tag processing
         if (is_del && ylist_done(nodes, iter))
         {
             fprintf(log->fp, "%s!ydb!delete\n", only_val ? "": " ");
@@ -2662,7 +2664,10 @@ static char ynode_op_get(ynode *cur, ynode *new)
         return YHOOK_OP_DELETE;
     else
     {
-        if (cur->type == new->type)
+        // !ydb!delete tag processing
+        if (new->tag && strcmp(new->tag, "!ydb!delete") == 0)
+            return YHOOK_OP_DELETE;
+        else if (cur->type == new->type)
         {
             if (cur->type == YNODE_TYPE_VAL)
             {
@@ -2740,6 +2745,10 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
         yhook_copy(new, cur);
         new->tag = src->tag ? ystrdup((char *)src->tag) : NULL;
     }
+    else if (op == YHOOK_OP_DELETE)
+    {
+        src = NULL;
+    }
     else if (op == YHOOK_OP_NONE)
     {
         // update origin for value nodes
@@ -2748,19 +2757,19 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
         new = cur;
     }
 
-    if (YLOG_SEVERITY_DEBUG)
+    if (YLOG_SEVERITY_INFO)
     {
         char *path = ynode_path_and_val(parent, YNODE_LEVEL_MAX, NULL);
         switch (op)
         {
         case YHOOK_OP_CREATE:
-            ylog_debug("create %s to %s\n", key ? key : "-", path ? path : "top");
+            ylog_info("create %s to %s\n", key ? key : "-", path ? path : "top");
             break;
         case YHOOK_OP_REPLACE:
-            ylog_debug("replace %s in %s\n", key ? key : "-", path ? path : "top");
+            ylog_info("replace %s in %s\n", key ? key : "-", path ? path : "top");
             break;
         case YHOOK_OP_DELETE:
-            ylog_debug("delete %s from %s\n", key ? key : "-", path ? path : "top");
+            ylog_info("delete %s from %s\n", key ? key : "-", path ? path : "top");
             break;
         default:
             break;
@@ -2811,9 +2820,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
             {
                 ynode *src_child = ytree_data(iter);
                 ynode *cur_child = ynode_find_child(new, ynode_key(src_child));
-                ynode *new_child = ynode_control(cur_child, src_child, new, ynode_key(src_child), hook_pool, log);
-                if (!new_child)
-                    ylog_error("unable to add child node (key: %s)\n", ynode_key(src_child));
+                ynode_control(cur_child, src_child, new, ynode_key(src_child), hook_pool, log);
             }
             break;
         }
@@ -2824,9 +2831,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
             {
                 ynode *src_child = ymap_data(iter);
                 ynode *cur_child = ynode_find_child(new, ynode_key(src_child));
-                ynode *new_child = ynode_control(cur_child, src_child, new, ynode_key(src_child), hook_pool, log);
-                if (!new_child)
-                    ylog_error("unable to add child node (key: %s)\n", ynode_key(src_child));
+                ynode_control(cur_child, src_child, new, ynode_key(src_child), hook_pool, log);
             }
             break;
         }
@@ -2838,9 +2843,7 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
                  iter = ylist_next(src->list, iter))
             {
                 ynode *src_child = ylist_data(iter);
-                ynode *new_child = ynode_control(NULL, src_child, new, NULL, hook_pool, log);
-                if (!new_child)
-                    ylog_error("unable to add child node (key: %d)\n", ynode_index(src_child));
+                ynode_control(NULL, src_child, new, NULL, hook_pool, log);
             }
             break;
         }

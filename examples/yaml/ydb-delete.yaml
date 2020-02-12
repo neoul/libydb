@@ -1,0 +1,10 @@
+# YAML data
+system:
+  fan:
+    fan[1]:
+      current_speed: !ydb!delete
+    fan[2]:
+      current_speed: !ydb!delete
+  ram: 8G
+  cpu: pentium
+  mainboard: gigabyte
