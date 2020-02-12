@@ -1042,6 +1042,8 @@ int ydb_dump(ydb *datablock, FILE *stream)
 {
     if (!datablock)
         return -1;
+    if (ynode_type(datablock->top) == YNODE_TYPE_VAL)
+        return fprintf(stream, "%s", ynode_value(datablock->top));
     return ynode_printf_to_fp(stream, datablock->top, 1, YDB_LEVEL_MAX);
 }
 
@@ -1049,7 +1051,7 @@ int ydb_dump_debug(ydb *datablock, FILE *stream)
 {
     if (!datablock)
         return -1;
-    ynode_dump_to_fp(stream, datablock->top, 1, YDB_LEVEL_MAX);
+    ynode_dump_to_fp(stream, datablock->top, 0, YDB_LEVEL_MAX);
     return 0;
 }
 
@@ -1948,7 +1950,10 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
     if (target)
     {
         int level = ynode_level(datablock->top, target);
-        ret = ynode_printf_to_fp(stream, target, 1 - level, YDB_LEVEL_MAX);
+        if (level == 0 && ynode_type(datablock->top) == YNODE_TYPE_VAL)
+            ret = fprintf(stream, "%s", ynode_value(target));
+        else
+            ret = ynode_printf_to_fp(stream, target, 1 - level, YDB_LEVEL_MAX);
     }
 failed:
     CLEAR_BUF(path, pathlen);

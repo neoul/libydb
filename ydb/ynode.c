@@ -1068,7 +1068,7 @@ void ynode_log_close(struct _ynode_log *log, char **buf, size_t *buflen)
     }
 }
 
-static void ynode_log_print(struct _ynode_log *log, ynode *_cur, ynode *_new)
+static void ynode_log_print(struct _ynode_log *log, bool is_del, ynode *_cur, ynode *_new)
 {
     int indent = 0;
     ynode *n, *last;
@@ -1157,7 +1157,7 @@ static void ynode_log_print(struct _ynode_log *log, ynode *_cur, ynode *_new)
 node_print:
 #endif
 
-    for (; !ylist_done(nodes, iter); iter = ylist_next(nodes, iter))
+    for (; !ylist_done(nodes, iter);)
     {
         int only_val = 0;
         n = ylist_data(iter);
@@ -1183,6 +1183,13 @@ node_print:
             fprintf(log->fp, "-");
         else
             only_val = 1;
+        
+        iter = ylist_next(nodes, iter);
+        if (is_del && ylist_done(nodes, iter))
+        {
+            fprintf(log->fp, "%s!ydb!delete", only_val ? "": " ");
+            break;
+        }
 
         // print value
         if (n->type == YNODE_TYPE_VAL)
@@ -2775,18 +2782,18 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
         hook = yhook_pre_run(op, parent, cur, new);
         if (hook)
             yhook_push_for_pending(hook, hook_pool);
-        ynode_log_print(log, cur, new);
+        ynode_log_print(log, false, cur, new);
         break;
     case YHOOK_OP_REPLACE:
         ynode_attach(new, parent, key);
         hook = yhook_pre_run(op, parent, cur, new);
         if (hook)
             yhook_push_for_pending(hook, hook_pool);
-        ynode_log_print(log, cur, new);
+        ynode_log_print(log, false, cur, new);
         break;
     case YHOOK_OP_DELETE:
         yhook_pre_run_for_delete(cur, hook_pool);
-        ynode_log_print(log, cur, new);
+        ynode_log_print(log, true, cur, new);
         break;
     case YHOOK_OP_NONE:
     default:
@@ -2882,7 +2889,7 @@ int ynode_get_with_origin(ynode *src, int origin, ynode_log *log)
         n += 1;
     }
 
-    ynode_log_print(log, src, NULL);
+    ynode_log_print(log, false, src, NULL);
     switch (src->type)
     {
     case YNODE_TYPE_MAP:

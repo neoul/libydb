@@ -619,10 +619,8 @@ int main(int argc, char *argv[])
                         break;
                     }
                     case 'p':
-                    {
                         ydb_path_fprintf(stdout, datablock, "%s", path);
                         break;
-                    }
                     case 'w':
                         res = ydb_path_write(datablock, "%s", path);
                         break;
