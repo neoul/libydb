@@ -1187,7 +1187,7 @@ node_print:
         iter = ylist_next(nodes, iter);
         if (is_del && ylist_done(nodes, iter))
         {
-            fprintf(log->fp, "%s!ydb!delete", only_val ? "": " ");
+            fprintf(log->fp, "%s!ydb!delete\n", only_val ? "": " ");
             break;
         }
 
