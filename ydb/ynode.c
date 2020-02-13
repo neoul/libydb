@@ -222,7 +222,7 @@ static ynode *ynode_new(node_type type, const char *tag, const char *value, int 
     node->origin = origin;
     node->flags = 0x0;
     if (tag)
-        node->tag = ystrdup((char *) tag);
+        node->tag = ystrdup((char *)tag);
     return node;
 _error:
     free(node);
@@ -800,8 +800,8 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
     case YNODE_TYPE_SET:
     case YNODE_TYPE_IMAP:
     {
-        res = _ynode_record_print(record, " %s: num=%d,", 
-            ynode_type_debug_str[node->type], ytree_size(node->map));
+        res = _ynode_record_print(record, " %s: num=%d,",
+                                  ynode_type_debug_str[node->type], ytree_size(node->map));
         break;
     }
     case YNODE_TYPE_OMAP:
@@ -1237,13 +1237,13 @@ node_print:
             fprintf(log->fp, "-");
         else
             only_val = 1;
-        
+
         iter = ylist_next(nodes, iter);
 
         // !ydb!delete tag processing
         if (is_del && ylist_done(nodes, iter))
         {
-            fprintf(log->fp, "%s!ydb!delete\n", only_val ? "": " ");
+            fprintf(log->fp, "%s!ydb!delete\n", only_val ? "" : " ");
             break;
         }
 
@@ -1766,7 +1766,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 }
             }
             // don't create top if YAML document restarted.
-            if (level==1 && top)
+            if (level == 1 && top)
                 if (token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
                     token.type == YAML_FLOW_MAPPING_START_TOKEN)
                     break;

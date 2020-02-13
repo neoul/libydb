@@ -13,6 +13,7 @@ r7=`ydb -f ../examples/yaml/yaml-empty-list.yaml --read '/0' --read '/2'`
 r8=`ydb -f ../examples/yaml/yaml-anchor-reference1.yaml --read '/foo/K1'`
 r9=`ydb -f ../examples/yaml/yaml-anchor-reference2.yaml --read '/5/step/instrument'`
 r10=`ydb -f ../examples/yaml/yaml-anchor-reference3.yaml --read '/merge/5/r'`
+r13=`ydb -f ../examples/yaml/ydb-write.yaml -f ../examples/yaml/ydb-delete.yaml --read '/system/fan/fan[1]/current_speed'`
 
 ydb -f ../examples/yaml/yaml-reference-card.yaml -s > r11.yaml
 
@@ -41,6 +42,7 @@ r10=$(printf "$r10" | tr '\n' ' ')
 r11=$(printf "$r11" | tr '\n' ' ')
 [ "x$r11" != "x" ]  && echo " - r11 TEST: failed ($r11)" && exit 1
 echo "ok"
+[ "x$r13" = "x100" ]             && echo " - r13 TEST: failed ($r2)" && exit 1
 
 test_deinit
 exit 0

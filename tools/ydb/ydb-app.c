@@ -614,8 +614,6 @@ int main(int argc, char *argv[])
                         const char *data = ydb_path_read(datablock, "%s", path);
                         if (data)
                             fprintf(stdout, "%s", data);
-                        else
-                            res = YDB_E_NO_ENTRY;
                         break;
                     }
                     case 'p':
