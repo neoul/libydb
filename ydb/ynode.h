@@ -9,12 +9,15 @@ extern "C"
 #endif
 
 // ynode type
-#define YNODE_TYPE_NONE 0
-#define YNODE_TYPE_VAL 1
-#define YNODE_TYPE_MAP 2
-#define YNODE_TYPE_OMAP 3
-#define YNODE_TYPE_LIST 4
-#define YNODE_TYPE_MAX 5
+typedef enum
+{
+    YNODE_TYPE_NONE,
+    YNODE_TYPE_VAL,
+    YNODE_TYPE_MAP,
+    YNODE_TYPE_OMAP,
+    YNODE_TYPE_LIST,
+    YNODE_TYPE_MAX = YNODE_TYPE_LIST,
+} node_type;
 
 typedef struct _ynode ynode;
 typedef struct _ynode_log ynode_log;
@@ -28,7 +31,7 @@ int ynode_get(ynode *src, ynode_log *log);
 // ynode operation (Create, Merge, Delete) interfaces
 // create single ynode and attach to parent.
 // return created ynode.
-ynode *ynode_create(unsigned char type, const char *key, char *value, ynode *parent, ynode_log *log);
+ynode *ynode_create(node_type type, const char *key, char *value, ynode *parent, ynode_log *log);
 
 // create new ynodes to parent using src.
 // return created ynode top.

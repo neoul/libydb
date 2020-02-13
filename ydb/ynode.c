@@ -68,8 +68,8 @@ struct _ynode
         ymap *omap;
         const char *value;
     };
+    node_type type;
     unsigned char flags;
-    unsigned char type;
     unsigned short origin;
     struct _ynode *parent;
     struct _ynode *meta; // for meta data
@@ -132,7 +132,7 @@ static int imap_cmp(char *a, char *b)
 }
 
 // create ynode
-static ynode *ynode_new(unsigned char type, const char *value, int origin, unsigned char flags)
+static ynode *ynode_new(node_type type, const char *value, int origin, unsigned char flags)
 {
     ynode *node = malloc(sizeof(ynode));
     if (!node)
@@ -1507,7 +1507,7 @@ _done:
         v = NULL;     \
     } while (0)
 
-static ynode *ynode_new_and_attach(unsigned char type,
+static ynode *ynode_new_and_attach(node_type type,
     const char *tag, const char *key, char *value, int origin, ynode *parent)
 {
     unsigned int flags;
@@ -1642,7 +1642,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     ytree *meta = NULL;
     ytree *dirv = NULL;
     const char *tag = NULL;
-    unsigned char type;
+    node_type type;
 
     if ((!fp && !buf) || !n)
     {
@@ -2950,7 +2950,7 @@ int ynode_get(ynode *src, ynode_log *log)
 
 // create single ynode and attach to parent
 // return created ynode
-ynode *ynode_create(unsigned char type, const char *key, char *value, ynode *parent, ynode_log *log)
+ynode *ynode_create(node_type type, const char *key, char *value, ynode *parent, ynode_log *log)
 {
     ynode *cur, *new;
     new = ynode_new(type, value, 0, 0);
