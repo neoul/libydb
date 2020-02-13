@@ -49,8 +49,6 @@ typedef struct _yhook yhook;
 // ynode flags
 #define YNODE_FLAG_HASH 0x1
 #define YNODE_FLAG_LIST 0x2
-#define YNODE_FLAG_SET 0x4  // the same key and value
-#define YNODE_FLAG_IMAP 0x8 // integer key map
 
 struct _ynode
 {
@@ -67,6 +65,7 @@ struct _ynode
         ytree *map;
         ymap *omap;
         const char *value;
+        void *nval;
     };
     node_type type;
     unsigned char flags;
@@ -78,12 +77,23 @@ struct _ynode
 };
 
 static char *ynode_type_str[] = {
-    "none",
-    "val",
-    "map",
-    "omap",
-    "list",
-    "max",
+    "!!none",
+    "",
+    "",
+    "",
+    "!!set",
+    "!!imap",
+    "!!omap",
+};
+
+static char *ynode_type_debug_str[] = {
+    "!!none",
+    "!!str",
+    "!!seq",
+    "!!map",
+    "!!set",
+    "!!imap",
+    "!!omap",
 };
 
 #define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
@@ -104,6 +114,8 @@ static void ynode_free(ynode *node)
             yfree(node->value);
         break;
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         ytree_destroy_custom(node->map, (user_free)ynode_free);
         break;
     case YNODE_TYPE_OMAP:
@@ -142,33 +154,28 @@ static ynode *ynode_new(node_type type, const char *value, int origin, unsigned 
     {
     case YNODE_TYPE_VAL:
         node->value = ystrdup((char *)value);
-        if (!node->value)
-            goto _error;
         break;
     case YNODE_TYPE_MAP:
-        if (IS_SET(flags, YNODE_FLAG_IMAP))
-            node->map = ytree_create((ytree_cmp)imap_cmp, (user_free)yfree);
-        else
-            node->map = ytree_create((ytree_cmp)strcmp, (user_free)yfree);
-        if (!node->map)
-            goto _error;
+    case YNODE_TYPE_SET:
+        node->map = ytree_create((ytree_cmp)strcmp, (user_free)yfree);
+        break;
+    case YNODE_TYPE_IMAP:
+        node->map = ytree_create((ytree_cmp)imap_cmp, (user_free)yfree);
         break;
     case YNODE_TYPE_OMAP:
         node->omap = ymap_create((ytree_cmp)strcmp, (user_free)yfree);
-        if (!node->omap)
-            goto _error;
         break;
     case YNODE_TYPE_LIST:
         node->list = ylist_create();
-        if (!node->list)
-            goto _error;
         break;
     default:
         assert(!YDB_E_TYPE_ERR);
     }
+    if (!node->nval)
+        goto _error;
     node->type = type;
     node->origin = origin;
-    node->flags = (flags & (YNODE_FLAG_IMAP | YNODE_FLAG_SET));
+    node->flags = 0x0;
     return node;
 _error:
     free(node);
@@ -189,6 +196,8 @@ static ynode *ynode_detach(ynode *node)
     switch (parent->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         searched_node = ytree_delete(parent->map, ytree_key(node->itree));
         UNSET_FLAG(node->flags, YNODE_FLAG_HASH);
         assert(searched_node && YDB_E_NO_ENTRY);
@@ -228,6 +237,8 @@ static ynode *ynode_attach(ynode *node, ynode *parent, const char *key)
     switch (parent->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         ykey = (char *)ystrdup((char *)key);
         SET_FLAG(node->flags, YNODE_FLAG_HASH);
         node->itree = ytree_push(parent->map, ykey, node, (void **)&old);
@@ -453,6 +464,8 @@ static int yhook_pre_run_for_delete(ynode *cur, ytree **hook_pool)
     switch (cur->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         res = ytree_traverse(cur->map, yhook_pre_run_for_delete_dict, hook_pool);
         break;
     case YNODE_TYPE_OMAP:
@@ -737,10 +750,11 @@ static int _ynode_record_debug_ynode(struct _ynode_record *record, ynode *node)
         break;
     }
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
     {
-        res = _ynode_record_print(record, " %s: num=%d,",
-                                  IS_SET(node->flags, YNODE_FLAG_SET) ? "set" : IS_SET(node->flags, YNODE_FLAG_IMAP) ? "imap" : "map",
-                                  ytree_size(node->map));
+        res = _ynode_record_print(record, " %s: num=%d,", 
+            ynode_type_debug_str[node->type], ytree_size(node->map));
         break;
     }
     case YNODE_TYPE_OMAP:
@@ -786,7 +800,7 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
         key = to_yaml(ynode_key(node), -1, &is_new, 0);
         if (node->parent->type == YNODE_TYPE_OMAP)
             res = _ynode_record_print(record, "- %s:", key);
-        else if (IS_SET(node->parent->flags, YNODE_FLAG_SET))
+        else if (node->parent->type == YNODE_TYPE_SET)
             res = _ynode_record_print(record, "? %s", key);
         else
             res = _ynode_record_print(record, "%s:", key);
@@ -818,21 +832,12 @@ static int _ynode_record_print_ynode(struct _ynode_record *record, ynode *node)
         if (is_new)
             free(value);
     }
-    else if (IS_SET(node->flags, YNODE_FLAG_SET))
-    {
-        res = _ynode_record_print(record, " !!set\n");
-    }
-    else if (node->type == YNODE_TYPE_OMAP)
-    {
-        res = _ynode_record_print(record, " !!omap\n");
-    }
-    else if (IS_SET(node->flags, YNODE_FLAG_IMAP))
-    {
-        res = _ynode_record_print(record, " !!imap\n");
-    }
     else
     {
-        res = _ynode_record_print(record, "%s%s\n", node->tag?" ":"", node->tag?node->tag:"");
+        if (node->tag)
+            res = _ynode_record_print(record, " %s\n", node->tag);
+        else
+            res = _ynode_record_print(record, " %s\n", ynode_type_str[node->type]);
     }
     return res;
 }
@@ -907,6 +912,8 @@ static int _ynode_record_dump_childen(struct _ynode_record *record, ynode *node)
     switch (node->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         res = ytree_traverse(node->map, _ynode_record_traverse_dict, record);
         break;
     case YNODE_TYPE_OMAP:
@@ -1172,7 +1179,7 @@ node_print:
             key = to_yaml(ynode_key(n), -1, &is_new, 0);
             if (n->parent->type == YNODE_TYPE_OMAP)
                 fprintf(log->fp, "- %s:", key);
-            else if (IS_SET(n->parent->flags, YNODE_FLAG_SET))
+            if (n->parent->type == YNODE_TYPE_SET)
                 fprintf(log->fp, "? %s", key);
             else
                 fprintf(log->fp, "%s:", key);
@@ -1206,14 +1213,13 @@ node_print:
             if (is_new)
                 free(value);
         }
-        else if (IS_SET(n->flags, YNODE_FLAG_SET))
-            fprintf(log->fp, " !!set\n");
-        else if (IS_SET(n->flags, YNODE_FLAG_IMAP))
-            fprintf(log->fp, " !!imap\n");
-        else if (n->type == YNODE_TYPE_OMAP)
-            fprintf(log->fp, " !!omap\n");
         else
-            fprintf(log->fp, "%s%s\n", n->tag?" ":"", n->tag?n->tag:"");
+        {
+            if (n->tag)
+                fprintf(log->fp, " %s\n", n->tag);
+            else
+                fprintf(log->fp, " %s\n", ynode_type_str[n->type]);
+        }
         indent++;
     }
 
@@ -1533,14 +1539,12 @@ static ynode *ynode_new_and_attach(node_type type,
         }
         else if (strcmp(tag, "!!set") == 0)
         {
-            type = YNODE_TYPE_MAP;
-            SET_FLAG(flags, YNODE_FLAG_SET);
+            type = YNODE_TYPE_SET;
             tag = NULL;
         }
         else if (strcmp(tag, "!!imap") == 0)
         {
-            type = YNODE_TYPE_MAP;
-            SET_FLAG(flags, YNODE_FLAG_IMAP);
+            type = YNODE_TYPE_IMAP;
             tag = NULL;
         }
     }
@@ -1552,10 +1556,6 @@ static ynode *ynode_new_and_attach(node_type type,
         if (old->type != type)
             goto create_new;
         if (type == YNODE_TYPE_VAL)
-            goto create_new;
-        if (IS_SET(old->flags, YNODE_FLAG_SET) != IS_SET(flags, YNODE_FLAG_SET))
-            goto create_new;
-        if (IS_SET(old->flags, YNODE_FLAG_IMAP) != IS_SET(flags, YNODE_FLAG_IMAP))
             goto create_new;
         if (old->tag && tag)
         {
@@ -1713,7 +1713,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 new = ynode_new_and_attach(YNODE_TYPE_MAP, "!!map", NULL, NULL, origin, top);
                 YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
                 ylog_debug("%d_%.*s%s %s (created [pairs])\n", level, level, space,
-                           ynode_type_str[new->type], "no-key");
+                           ynode_type_debug_str[new->type], "no-key");
                 top = new;
             }
             if (key)
@@ -1765,7 +1765,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             new = ynode_new_and_attach(type, tag, key, NULL, origin, top);
             YNODE_SCAN_FAIL(!new, YDB_E_MEM_ALLOC);
             ylog_debug("%d_%.*s%s %s (created %p)\n", level, level, space,
-                       ynode_type_str[new->type], key ? key : "no-key", new);
+                       ynode_type_debug_str[new->type], key ? key : "no-key", new);
             CLEAR_YSTR(tag);
             CLEAR_YSTR(key);
             top = new;
@@ -1844,7 +1844,10 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             case YAML_FLOW_SEQUENCE_START_TOKEN:
             case YAML_FLOW_MAPPING_START_TOKEN:
             case YAML_FLOW_ENTRY_TOKEN:
-                if (top->type == YNODE_TYPE_MAP || top->type == YNODE_TYPE_OMAP)
+                if (top->type == YNODE_TYPE_MAP ||
+                    top->type == YNODE_TYPE_SET ||
+                    top->type == YNODE_TYPE_IMAP ||
+                    top->type == YNODE_TYPE_OMAP)
                 {
                     if (!key)
                     {
@@ -2063,6 +2066,8 @@ ynode *ynode_find_child(ynode *node, const char *key)
     switch (node->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         return ytree_search(node->map, (char *)key);
     case YNODE_TYPE_OMAP:
         return ymap_search(node->omap, (char *)key);
@@ -2290,18 +2295,11 @@ const char *ynode_tag(ynode *node)
     switch (node->type)
     {
     case YNODE_TYPE_VAL:
-        return node->tag;
     case YNODE_TYPE_MAP:
-        if (IS_SET(node->flags, YNODE_FLAG_SET))
-            return "!!set";
-        else if (IS_SET(node->flags, YNODE_FLAG_IMAP))
-            return "!!imap";
-        else
-            return "!!map";
+    case YNODE_TYPE_IMAP:
     case YNODE_TYPE_OMAP:
-        return "!!omap";
     case YNODE_TYPE_LIST:
-        return "!!seq";
+        return ynode_type_debug_str[node->type];
     default:
         assert(!YDB_E_TYPE_ERR);
     }
@@ -2318,6 +2316,8 @@ int ynode_empty(ynode *node)
     case YNODE_TYPE_VAL:
         return (node->value) ? 0 : 1;
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         return (ytree_size(node->map) <= 0) ? 1 : 0;
     case YNODE_TYPE_OMAP:
         return (ymap_size(node->omap) <= 0) ? 1 : 0;
@@ -2339,6 +2339,8 @@ int ynode_size(ynode *node)
     case YNODE_TYPE_VAL:
         return 0;
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         return ytree_size(node->map);
     case YNODE_TYPE_OMAP:
         return ymap_size(node->omap);
@@ -2434,6 +2436,8 @@ ynode *ynode_down(ynode *node)
     switch (node->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         return ytree_data(ytree_first(node->map));
     case YNODE_TYPE_OMAP:
         return ymap_data(ymap_first(node->omap));
@@ -2454,6 +2458,8 @@ ynode *ynode_prev(ynode *node)
     switch (node->parent->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         return ytree_data(ytree_prev(node->parent->map, node->itree));
     case YNODE_TYPE_OMAP:
         return ymap_data(ymap_prev(node->parent->omap, node->imap));
@@ -2474,6 +2480,8 @@ ynode *ynode_next(ynode *node)
     switch (node->parent->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         return ytree_data(ytree_next(node->parent->map, node->itree));
     case YNODE_TYPE_OMAP:
         return ymap_data(ymap_next(node->parent->omap, node->imap));
@@ -2494,6 +2502,8 @@ ynode *ynode_first(ynode *node)
     switch (node->parent->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         return ytree_data(ytree_first(node->parent->map));
     case YNODE_TYPE_OMAP:
         return ymap_data(ymap_first(node->parent->omap));
@@ -2514,6 +2524,8 @@ ynode *ynode_last(ynode *node)
     switch (node->parent->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         return ytree_data(ytree_last(node->parent->map));
     case YNODE_TYPE_OMAP:
         return ymap_data(ymap_last(node->parent->omap));
@@ -2685,8 +2697,8 @@ static char ynode_op_get(ynode *cur, ynode *new)
         }
         else
         {
-            if ((cur->type == YNODE_TYPE_MAP || cur->type == YNODE_TYPE_OMAP) &&
-                (new->type == YNODE_TYPE_MAP || new->type == YNODE_TYPE_OMAP))
+            // Both are equal if map, set, imap and omap.
+            if (cur->type >= YNODE_TYPE_MAP && new->type >= YNODE_TYPE_MAP)
                 return YHOOK_OP_NONE;
             return YHOOK_OP_REPLACE;
         }
@@ -2727,6 +2739,8 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
             key = NULL;
             break;
         case YNODE_TYPE_MAP:
+        case YNODE_TYPE_SET:
+        case YNODE_TYPE_IMAP:
             if (!cur && key)
                 cur = ytree_search(parent->map, (void *)key);
             break;
@@ -2820,6 +2834,8 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
         switch (src->type)
         {
         case YNODE_TYPE_MAP:
+        case YNODE_TYPE_SET:
+        case YNODE_TYPE_IMAP:
         {
             ytree_iter *iter = ytree_first(src->map);
             for (; iter != NULL; iter = ytree_next(src->map, iter))
@@ -2902,6 +2918,8 @@ int ynode_get_with_origin(ynode *src, int origin, ynode_log *log)
     switch (src->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
     {
         ytree_iter *iter = ytree_first(src->map);
         for (; iter != NULL; iter = ytree_next(src->map, iter))
@@ -3069,6 +3087,8 @@ ynode *ynode_copy(ynode *src)
     switch (src->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
     {
         ytree_iter *iter = ytree_first(src->map);
         for (; iter != NULL; iter = ytree_next(src->map, iter))
@@ -3213,6 +3233,8 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
             switch (cur->type)
             {
             case YNODE_TYPE_MAP:
+            case YNODE_TYPE_SET:
+            case YNODE_TYPE_IMAP:
                 if (ytree_size(cur->map) <= 0)
                     res = tdata->cb(cur, tdata->addition);
                 break;
@@ -3247,6 +3269,8 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
     switch (cur->type)
     {
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
         res = ytree_traverse(cur->map, ynode_traverse_map, tdata);
         break;
     case YNODE_TYPE_OMAP:
@@ -3271,6 +3295,8 @@ static ydb_res ynode_traverse_sub(ynode *cur, struct ynode_traverse_data *tdata)
             switch (cur->type)
             {
             case YNODE_TYPE_MAP:
+            case YNODE_TYPE_SET:
+            case YNODE_TYPE_IMAP:
                 if (ytree_size(cur->map) <= 0)
                     res = tdata->cb(cur, tdata->addition);
                 break;

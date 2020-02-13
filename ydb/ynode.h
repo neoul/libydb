@@ -13,9 +13,11 @@ typedef enum
 {
     YNODE_TYPE_NONE,
     YNODE_TYPE_VAL,
-    YNODE_TYPE_MAP,
-    YNODE_TYPE_OMAP,
     YNODE_TYPE_LIST,
+    YNODE_TYPE_MAP,
+    YNODE_TYPE_SET, // a map only has keys.
+    YNODE_TYPE_IMAP, // integer key map
+    YNODE_TYPE_OMAP,
     YNODE_TYPE_MAX = YNODE_TYPE_LIST,
 } node_type;
 
