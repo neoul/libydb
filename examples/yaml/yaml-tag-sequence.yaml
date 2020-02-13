@@ -1,0 +1,7 @@
+foobar: !sexy
+  - bunny
+  - chocolate
+
+foobar: !!seq
+  ob: abc
+  cce: fd
