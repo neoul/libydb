@@ -33,7 +33,7 @@ int ynode_get(ynode *src, ynode_log *log);
 // ynode operation (Create, Merge, Delete) interfaces
 // create single ynode and attach to parent.
 // return created ynode.
-ynode *ynode_create(node_type type, const char *key, char *value, ynode *parent, ynode_log *log);
+ynode *ynode_create(node_type type, const char *tag, const char *key, char *value, ynode *parent, ynode_log *log);
 
 // create new ynodes to parent using src.
 // return created ynode top.

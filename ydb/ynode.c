@@ -143,13 +143,58 @@ static int imap_cmp(char *a, char *b)
     return strcmp(a, b);
 }
 
+static void ynode_tag_ctrl(node_type *_type, const char **_tag)
+{
+    node_type type = *_type;
+    const char *tag = *_tag;
+    if (tag)
+    {
+        if (tag[0] == '!' && tag[1] == '!')
+        {
+            if (strcmp(tag, "!!map") == 0)
+            {
+                type = YNODE_TYPE_MAP;
+                tag = NULL;
+            }
+            else if (strcmp(tag, "!!seq") == 0)
+            {
+                type = YNODE_TYPE_LIST;
+                tag = NULL;
+            }
+            else if (strcmp(tag, "!!omap") == 0)
+            {
+                type = YNODE_TYPE_OMAP;
+                tag = NULL;
+            }
+            else if (strcmp(tag, "!!set") == 0)
+            {
+                type = YNODE_TYPE_SET;
+                tag = NULL;
+            }
+            else if (strcmp(tag, "!!imap") == 0)
+            {
+                type = YNODE_TYPE_IMAP;
+                tag = NULL;
+            }
+            else if (strcmp(tag, "!!str") == 0)
+            {
+                type = YNODE_TYPE_VAL;
+                tag = NULL;
+            }
+        }
+    }
+    *_type = type;
+    *_tag = tag;
+}
+
 // create ynode
-static ynode *ynode_new(node_type type, const char *value, int origin, unsigned char flags)
+static ynode *ynode_new(node_type type, const char *tag, const char *value, int origin)
 {
     ynode *node = malloc(sizeof(ynode));
     if (!node)
         return NULL;
     memset(node, 0x0, sizeof(ynode));
+    ynode_tag_ctrl(&type, &tag);
     switch (type)
     {
     case YNODE_TYPE_VAL:
@@ -176,6 +221,8 @@ static ynode *ynode_new(node_type type, const char *value, int origin, unsigned 
     node->type = type;
     node->origin = origin;
     node->flags = 0x0;
+    if (tag)
+        node->tag = ystrdup((char *) tag);
     return node;
 _error:
     free(node);
@@ -1513,41 +1560,10 @@ _done:
         v = NULL;     \
     } while (0)
 
-static ynode *ynode_new_and_attach(node_type type,
-    const char *tag, const char *key, char *value, int origin, ynode *parent)
+static ynode *ynode_new_and_attach(node_type type, const char *tag, const char *key, char *value, int origin, ynode *parent)
 {
-    unsigned int flags;
-    ynode *new, *old;
-    old = NULL;
-    flags = 0x0;
-    if (tag)
-    {
-        if (strcmp(tag, "!!map") == 0)
-        {
-            type = YNODE_TYPE_MAP;
-            tag = NULL;
-        }
-        else if (strcmp(tag, "!!seq") == 0)
-        {
-            type = YNODE_TYPE_LIST;
-            tag = NULL;
-        }
-        else if (strcmp(tag, "!!omap") == 0)
-        {
-            type = YNODE_TYPE_OMAP;
-            tag = NULL;
-        }
-        else if (strcmp(tag, "!!set") == 0)
-        {
-            type = YNODE_TYPE_SET;
-            tag = NULL;
-        }
-        else if (strcmp(tag, "!!imap") == 0)
-        {
-            type = YNODE_TYPE_IMAP;
-            tag = NULL;
-        }
-    }
+    ynode *new, *old = NULL;
+    ynode_tag_ctrl(&type, &tag);
 
     if (parent && key)
         old = ynode_find_child(parent, key);
@@ -1566,13 +1582,11 @@ static ynode *ynode_new_and_attach(node_type type,
         return old;
     }
 create_new:
-    new = ynode_new(type, value, origin, flags);
+    new = ynode_new(type, tag, value, origin);
     if (new)
     {
         old = ynode_attach(new, parent, key);
         ynode_free(old);
-        if (tag)
-            new->tag = ystrdup((char *)tag);
     }
     return new;
 }
@@ -1581,11 +1595,11 @@ static ynode *ynode_set_tag_directive(ynode *node, char *key, char *value)
 {
     ynode *p;
     if (!node)
-        node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+        node = ynode_new(YNODE_TYPE_MAP, "!!map", NULL, 0);
     if (!node)
         return NULL;
     if (!node->meta)
-        node->meta = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+        node->meta = ynode_new(YNODE_TYPE_MAP, "!!map", NULL, 0);
     if (!node->meta)
         return node;
     p = ynode_find_child(node->meta, "%TAG");
@@ -1600,11 +1614,11 @@ static ynode *ynode_set_meta(ynode *base_node, ynode *meta_node)
 {
     ynode *m;
     if (!base_node)
-        base_node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+        base_node = ynode_new(YNODE_TYPE_MAP, "!!map", NULL, 0);
     if (!base_node)
         return NULL;
     if (!base_node->meta)
-        base_node->meta = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+        base_node->meta = ynode_new(YNODE_TYPE_MAP, "!!map", NULL, 0);
     if (!base_node->meta)
         return base_node;
     m = ynode_find_child(base_node->meta, "$META");
@@ -2759,11 +2773,10 @@ static ynode *ynode_control(ynode *cur, ynode *src, ynode *parent, const char *k
 
     if (op == YHOOK_OP_CREATE || op == YHOOK_OP_REPLACE)
     {
-        new = ynode_new(src->type, src->value, src->origin, src->flags);
+        new = ynode_new(src->type, src->tag, src->value, src->origin);
         if (!new)
             return NULL;
         yhook_copy(new, cur);
-        new->tag = src->tag ? ystrdup((char *)src->tag) : NULL;
     }
     else if (op == YHOOK_OP_DELETE)
     {
@@ -2968,10 +2981,10 @@ int ynode_get(ynode *src, ynode_log *log)
 
 // create single ynode and attach to parent
 // return created ynode
-ynode *ynode_create(node_type type, const char *key, char *value, ynode *parent, ynode_log *log)
+ynode *ynode_create(node_type type, const char *tag, const char *key, char *value, ynode *parent, ynode_log *log)
 {
     ynode *cur, *new;
-    new = ynode_new(type, value, 0, 0);
+    new = ynode_new(type, tag, value, 0);
     cur = ynode_control(NULL, new, parent, key, NULL, log);
     ynode_free(new);
     return cur;
@@ -3000,9 +3013,9 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
     if (!keylist)
         return NULL;
     if (parent)
-        new = ynode_new(parent->type, NULL, 0, 0);
+        new = ynode_new(parent->type, parent->tag, NULL, 0);
     else
-        new = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+        new = ynode_new(YNODE_TYPE_MAP, NULL, NULL, 0);
     if (!new)
         goto failed;
 
@@ -3017,7 +3030,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
             if (ylist_empty(keylist))
             {
                 type = val ? YNODE_TYPE_VAL : YNODE_TYPE_MAP;
-                node = ynode_new(type, val, 0, 0);
+                node = ynode_new(type, NULL, val, 0);
                 ynode_attach(node, new, key);
             }
             else
@@ -3026,7 +3039,7 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
                     type = YNODE_TYPE_MAP;
                 else
                     type = found->type;
-                node = ynode_new(type, val, 0, 0);
+                node = ynode_new(type, NULL, val, 0);
                 ynode_attach(node, new, key);
             }
         }
@@ -3035,12 +3048,12 @@ ynode *ynode_create_path(char *path, ynode *parent, ynode_log *log)
             if (ylist_empty(keylist))
             {
                 type = val ? YNODE_TYPE_VAL : YNODE_TYPE_MAP;
-                node = ynode_new(type, val, 0, 0);
+                node = ynode_new(type, NULL, val, 0);
                 ynode_attach(node, new, key);
             }
             else
             {
-                node = ynode_new(YNODE_TYPE_MAP, NULL, 0, 0);
+                node = ynode_new(YNODE_TYPE_MAP, NULL, NULL, 0);
                 ynode_attach(node, new, key);
             }
         }
@@ -3077,7 +3090,7 @@ ynode *ynode_copy(ynode *src)
     ynode *dest;
     if (!src)
         return NULL;
-    dest = ynode_new(src->type, src->value, src->origin, src->flags);
+    dest = ynode_new(src->type, src->tag, src->value, src->origin);
     if (!dest)
         return NULL;
 

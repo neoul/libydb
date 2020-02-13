@@ -1,0 +1,14 @@
+---
+doc:
+  title: Golang handbook
+  author: neoul
+...
+
+---
+index:
+  chapter 1: commands
+  chapter 2: environment
+  Chapter 3: Package
+  Chapter 4: Build, install and execute
+  chapter 5: Go Syntax
+...

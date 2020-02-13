@@ -170,7 +170,7 @@ int test_ynode_crud()
 	ynode_printf(top, 1, YDB_LEVEL_MAX);
 	log = ynode_log_open(top, stdout);
 	printf("== ynode_create ==\n");
-	node = ynode_create(YNODE_TYPE_VAL, "create", "first", top, log);
+	node = ynode_create(YNODE_TYPE_VAL, NULL, "create", "first", top, log);
 
 	node = ynode_next(node);
 	printf("== ynode_copy (%s) ==\n", ynode_key(node));
@@ -191,8 +191,8 @@ int test_ynode_crud()
 	ynode_printf(c, -2, 5);	
 	
 	printf("== ynode_create (b) ==\n");
-	ynode_create(YNODE_TYPE_VAL, "io", "100", ynode_down(b), NULL);
-	ynode_create(YNODE_TYPE_VAL, "cpu", "x86", ynode_down(b), NULL);
+	ynode_create(YNODE_TYPE_VAL, NULL, "io", "100", ynode_down(b), NULL);
+	ynode_create(YNODE_TYPE_VAL, NULL, "cpu", "x86", ynode_down(b), NULL);
 	ynode_printf(b, -2, 5);
 
 	// only copy the existent ynode's data
@@ -285,7 +285,7 @@ int test_yhook()
 	
 
 	printf("== ynode_create to check yhook ==\n");
-	ynode_create(YNODE_TYPE_VAL, "1-2-4", "v13", top, NULL);
+	ynode_create(YNODE_TYPE_VAL, NULL, "1-2-4", "v13", top, NULL);
 	// yhook_unregister(top);
 
 	printf("== top ==\n");
