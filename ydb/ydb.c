@@ -958,7 +958,7 @@ ydb_res ydb_clean(ydb *datablock, ynode *n)
     ynode *c;
     ylog_in();
     YDB_FAIL(!datablock || !n, YDB_E_INVALID_ARGS);
-    
+
     log = ynode_log_open(datablock->top, NULL);
     c = ynode_down(n);
     while (c)
@@ -1250,7 +1250,7 @@ failed:
 }
 
 // ydb_add --
-// Add data to YDB using YAML input string 
+// Add data to YDB using YAML input string
 // (that shod be terminated with null as a string)
 ydb_res ydb_add(ydb *datablock, char *s)
 {
@@ -1258,7 +1258,7 @@ ydb_res ydb_add(ydb *datablock, char *s)
 }
 
 // ydb_rm --
-// Delete data from YDB using YAML input string 
+// Delete data from YDB using YAML input string
 // (that shod be terminated with null as a string)
 ydb_res ydb_rm(ydb *datablock, char *s)
 {
@@ -1976,7 +1976,8 @@ struct yconn_socket_head
         ymsg_type type;
         FILE *fp;
         char *buf;
-        size_t len;
+        size_t buflen;
+        size_t bufused;
         int next;
     } recv;
 };
@@ -2114,13 +2115,7 @@ ydb_res yconn_socket_init(yconn *conn)
         struct yconn_socket_head *head;
         head = malloc(sizeof(struct yconn_socket_head));
         if (!head)
-        {
-            close(fd);
-            YCONN_FAILED(conn, YDB_E_MEM_ALLOC);
-            return YDB_E_MEM_ALLOC;
-        }
-        memset(head, 0x0, sizeof(struct yconn_socket_head));
-        conn->head = head;
+        {        // char *bufpos;
     }
     conn->fd = fd;
     conn->flags = flags;
@@ -2248,10 +2243,9 @@ void yconn_default_recv_head(
                   IS_SET(*flags, YCONN_WRITABLE) ? "w" : "_",
                   IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
     }
-    ylog_info("ydb[%s] datalen {%ld} data {\n%s}\n",
+    ylog_info("ydb[%s] datalen {%ld} data {\n%.*s}\n",
               (conn->datablock) ? conn->datablock->name : "...",
-              datalen ? *datalen : -1,
-              *data ? *data : "...");
+              *datalen, *datalen, *data);
     return;
 failed:
     *op = head->recv.op = YOP_NONE;
@@ -2266,49 +2260,48 @@ ydb_res yconn_default_recv(
     ydb_res res = YDB_OK;
     struct yconn_socket_head *head;
     char recvbuf[2048 + 4];
-    char *start, *end;
-    ssize_t len;
-    ssize_t msglen;
+    char *end;
+    ssize_t len, used;
     head = conn->head;
     *data = NULL;
     *datalen = 0;
+    *next = 0;
     if (IS_SET(conn->flags, STATUS_DISCONNECT))
         return YDB_E_CONN_FAILED;
-
-    if (head->recv.next && head->recv.fp && head->recv.buf)
+    if (!head->recv.fp)
     {
-        start = head->recv.buf;
-        end = strstr(start, YMSG_END_DELIMITER);
+        if (head->recv.buf)
+            free(head->recv.buf);
+        head->recv.buf = NULL;
+        head->recv.buflen = 0;
+        head->recv.bufused = 0;
+        head->recv.fp = open_memstream(&head->recv.buf, &head->recv.buflen);
+        if (!head->recv.fp)
+            goto conn_failed;
+        fflush(head->recv.fp);
+    }
+    if (head->recv.next)
+    {
+        end = strstr(head->recv.buf + head->recv.bufused, YMSG_END_DELIMITER);
         if (end)
         {
-            msglen = (end + YMSG_END_DELIMITER_LEN) - start;
-            fclose(head->recv.fp);
-            start = head->recv.buf;
-            len = head->recv.len;
-            *data = start;
-            *datalen = msglen;
-            yconn_default_recv_head(conn, op, type, flags, data, datalen);
-            ylog_debug("len=%ld msglen=%ld\n", len, msglen);
-            head->recv.buf = NULL;
-            head->recv.len = 0;
-            head->recv.fp = NULL;
-            if (len - msglen > 0)
-            {
-                head->recv.fp = open_memstream(&head->recv.buf, &head->recv.len);
-                if (!head->recv.fp)
-                    goto conn_failed;
-                if (fwrite(start + msglen, len - msglen, 1, head->recv.fp) != 1)
-                    goto conn_failed;
-                fflush(head->recv.fp);
-                start[msglen] = 0;
+            used = (end + YMSG_END_DELIMITER_LEN) - head->recv.buf;
+            len = used - head->recv.bufused;
+            if (used < head->recv.buflen)
                 *next = head->recv.next = 1;
-                return YDB_OK;
-            }
             else
             {
                 *next = head->recv.next = 0;
-                return YDB_OK;
+                fclose(head->recv.fp);
+                head->recv.fp = NULL;
             }
+            *data = head->recv.buf + head->recv.bufused;
+            *datalen = len;
+            head->recv.bufused = used;
+            ylog_debug("message-len %ld, bufused %ld, recv.buflen %ld %s\n",
+                       *datalen, head->recv.bufused, head->recv.buflen, (*next) ? "next on" : "");
+            yconn_default_recv_head(conn, op, type, flags, data, datalen);
+            return YDB_OK;
         }
         else
         {
@@ -2316,76 +2309,49 @@ ydb_res yconn_default_recv(
             // The recv process continues to get more messages.
         }
     }
-    if (!head->recv.fp)
-    {
-        head->recv.fp = open_memstream(&head->recv.buf, &head->recv.len);
-        if (!head->recv.fp)
-            goto conn_failed;
-    }
-    if (head->recv.buf && head->recv.len >= (YMSG_END_DELIMITER_LEN - 1))
-    {
-        int copybytes = YMSG_END_DELIMITER_LEN - 1;
-        // copy the last YMSG_END_DELIMITER_LEN - 1 bytes to check the message end.
-        memcpy(recvbuf, &head->recv.buf[head->recv.len - copybytes], copybytes);
-        recvbuf[copybytes] = 0;
-        start = &recvbuf[copybytes];
-    }
-    else
-        start = recvbuf;
 
     if (IS_SET(conn->flags, (YCONN_TYPE_INET | YCONN_TYPE_UNIX)))
-        len = recv(conn->fd, start, 2048, MSG_DONTWAIT);
+        len = recv(conn->fd, recvbuf, 2048, MSG_DONTWAIT);
     else
-        len = read(conn->fd, start, 2048);
+        len = read(conn->fd, recvbuf, 2048);
     if (len <= 0)
     {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            goto wait_next_recv;
         if (len == 0)
         {
             res = YDB_E_CONN_CLOSED;
             goto conn_closed;
         }
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            goto keep_data;
         if (len < 0)
             goto conn_failed;
     }
-    start[len] = 0;
-    end = strstr(recvbuf, YMSG_END_DELIMITER);
-    if (!end)
-        goto keep_data;
-    msglen = (end + YMSG_END_DELIMITER_LEN) - start;
-    if (fwrite(start, msglen, 1, head->recv.fp) != 1)
+    recvbuf[len] = 0;
+    if (fwrite(recvbuf, len, 1, head->recv.fp) != 1)
         goto conn_failed;
-    fclose(head->recv.fp);
-    *data = head->recv.buf;
-    *datalen = head->recv.len;
-    yconn_default_recv_head(conn, op, type, flags, data, datalen);
-    ylog_debug("len=%ld msglen=%ld\n", len, msglen);
-    head->recv.buf = NULL;
-    head->recv.len = 0;
-    head->recv.fp = NULL;
-    if (len - msglen > 0)
-    {
-        head->recv.fp = open_memstream(&head->recv.buf, &head->recv.len);
-        if (!head->recv.fp)
-            goto conn_failed;
-        if (fwrite(start + msglen, len - msglen, 1, head->recv.fp) != 1)
-            goto conn_failed;
-        fflush(head->recv.fp);
+    fflush(head->recv.fp);
+    end = strstr(head->recv.buf + head->recv.bufused, YMSG_END_DELIMITER);
+    if (!end)
+        goto wait_next_recv;
+    used = (end + YMSG_END_DELIMITER_LEN) - head->recv.buf;
+    len = used - head->recv.bufused;
+    if (used < head->recv.buflen)
         *next = head->recv.next = 1;
-    }
     else
     {
         *next = head->recv.next = 0;
+        fclose(head->recv.fp);
+        head->recv.fp = NULL;
     }
+    *data = head->recv.buf + head->recv.bufused;
+    *datalen = len;
+    head->recv.bufused = used;
+    ylog_debug("message-len %ld, bufused %ld, recv.buflen %ld %s\n",
+               *datalen, head->recv.bufused, head->recv.buflen, (*next) ? "next on" : "");
+    yconn_default_recv_head(conn, op, type, flags, data, datalen);
     return YDB_OK;
-keep_data:
-    if (len > 0)
-    {
-        if (fwrite(start, len, 1, head->recv.fp) != 1)
-            goto conn_failed;
-        fflush(head->recv.fp);
-    }
+
+wait_next_recv:
     *next = head->recv.next = 0;
     return YDB_OK;
 conn_failed:
@@ -2399,7 +2365,8 @@ conn_closed:
         free(head->recv.buf);
     head->recv.fp = NULL;
     head->recv.buf = NULL;
-    head->recv.len = 0;
+    head->recv.buflen = 0;
+    head->recv.bufused = 0;
     *next = head->recv.next = 0;
     return res;
 }
@@ -3742,7 +3709,6 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
     res = recv_conn->func_recv(recv_conn, op, type, &flags, &buf, &buflen, next);
     if (res)
     {
-        CLEAR_BUF(buf, buflen);
         yconn_deferred_close(recv_conn);
         return YDB_OK;
     }
@@ -3795,10 +3761,11 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
                 }
                 else
                 {
-                    CLEAR_BUF(buf, buflen);
-                    ydb_dumps(recv_conn->datablock, &buf, &buflen);
-                    yconn_response(recv_conn, YOP_INIT, true, res ? false : true, buf, buflen);
-                    CLEAR_BUF(buf, buflen);
+                    char *ibuf = NULL;
+                    size_t ibuflen = 0;
+                    ydb_dumps(recv_conn->datablock, &ibuf, &ibuflen);
+                    yconn_response(recv_conn, YOP_INIT, true, res ? false : true, ibuf, ibuflen);
+                    CLEAR_BUF(ibuf, ibuflen);
                 }
                 YCONN_INFO(recv_conn, "updated");
             }
@@ -3860,7 +3827,6 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
     default:
         break;
     }
-    CLEAR_BUF(buf, buflen);
     return YDB_OK;
 }
 
