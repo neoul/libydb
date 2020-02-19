@@ -2115,7 +2115,13 @@ ydb_res yconn_socket_init(yconn *conn)
         struct yconn_socket_head *head;
         head = malloc(sizeof(struct yconn_socket_head));
         if (!head)
-        {        // char *bufpos;
+        {
+            close(fd);
+            YCONN_FAILED(conn, YDB_E_MEM_ALLOC);
+            return YDB_E_MEM_ALLOC;
+        }
+        memset(head, 0x0, sizeof(struct yconn_socket_head));
+        conn->head = head;
     }
     conn->fd = fd;
     conn->flags = flags;
