@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     fprintf(stdout, "YDB example for YAML mapping (hash)\n");
     fprintf(stdout, "=============================\n");
 
-    // ylog_severity = YLOG_DEBUG;
+    // ylog_level = YLOG_DEBUG;
     fprintf(stdout, "\n[ydb_write]\n");
 
     ydb_write(datablock, yaml_map1, "eth0", "172.17.0.1", "255.255.0.0");

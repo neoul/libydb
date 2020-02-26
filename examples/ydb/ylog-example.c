@@ -9,7 +9,7 @@
 extern FILE *ylog_fp;
 int main(int argc, char *argv[])
 {
-    ylog_severity = YLOG_DEBUG;
+    ylog_level = YLOG_DEBUG;
 
     ylog_debug("logging for debug\n");
     ylog_info("logging for info\n");

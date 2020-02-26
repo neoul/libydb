@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    // ylog_severity = YLOG_DEBUG;
+    // ylog_level = YLOG_DEBUG;
     datablock = ydb_open("top");
     if (!datablock)
     {
@@ -105,9 +105,9 @@ int main(int argc, char *argv[])
         // check the whispering target exists and whisper my data once.
         if (!whispered)
         {
-            ylog_severity = YLOG_CRITICAL;
+            ylog_level = YLOG_CRITICAL;
             res = ydb_whisper_merge(datablock, dest, "%s", buf);
-            ylog_severity = YLOG_ERROR;
+            ylog_level = YLOG_ERROR;
             if (!res)
             {
                 whispered = 1;

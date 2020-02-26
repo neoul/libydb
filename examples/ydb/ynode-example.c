@@ -159,7 +159,7 @@ int test_ynode_scanf_from_buf()
 
 int test_ynode_crud()
 {
-	// ylog_severity = YLOG_DEBUG;
+	// ylog_level = YLOG_DEBUG;
 	printf("\n\n=== %s ===\n", __func__);
 	ynode *node, *clone;
 	ynode *a, *b, *c;
@@ -355,13 +355,13 @@ int main(int argc, char *argv[])
 	// 	printf("test_ynode_path() failed.\n");
 	// }
 
-	// ylog_severity = YLOG_DEBUG;
+	// ylog_level = YLOG_DEBUG;
 	// if(test_ynode_crud())
 	// {
 	// 	printf("test_ynode_crud() failed.\n");
 	// }
 
-	// ylog_severity = YLOG_INFO;
+	// ylog_level = YLOG_INFO;
 	if(test_yhook())
 	{
 		printf("test_yhook() failed.\n");

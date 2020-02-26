@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
     ydb_path_write(datablock, "/omap/Bestiary/anaconda=update!");
     ydb_path_fprintf(stdout, datablock, "/omap/Bestiary");
     
-    ylog_severity = YLOG_DEBUG;
+    ylog_level = YLOG_DEBUG;
     ydb_path_write(datablock, "/merge/0/x=1000");
     ydb_path_fprintf(stdout, datablock, "/merge");
 
-    ylog_severity = YLOG_ERROR;
+    ylog_level = YLOG_ERROR;
     ydb_close(datablock);
     return 0;
 }

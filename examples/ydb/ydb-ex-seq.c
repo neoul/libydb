@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     fprintf(stdout, "YDB example for YAML sequence (list)\n");
     fprintf(stdout, "=============================\n");
 
-    // ylog_severity = YLOG_DEBUG;
+    // ylog_level = YLOG_DEBUG;
     fprintf(stdout, "\n[ydb_parses]\n");
     ydb_parses(datablock, yaml_seq1, strlen(yaml_seq1));
     ydb_dump(datablock, stdout);

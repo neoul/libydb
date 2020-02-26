@@ -38,8 +38,8 @@ int main(int argc, char *argv[])
     }
 
     res = YDB_OK;
-    // ylog_severity = YLOG_INFO;
-    ylog_severity = YLOG_DEBUG;
+    // ylog_level = YLOG_INFO;
+    ylog_level = YLOG_DEBUG;
     datablock = ydb_open("select");
     if (!datablock)
     {

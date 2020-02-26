@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
         printf("[EXIT] no argument\n");
         return -1;
     }
-    // ylog_severity = YLOG_DEBUG;
+    // ylog_level = YLOG_DEBUG;
     ylist *list = ylist_create();
 
     while((line = fgets(buf, 512, fp)) != NULL)
@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
         if(newline)
             *newline=0;
         key = (char *) ystrdup(line);
-        if (ylog_severity < YLOG_DEBUG)
+        if (ylog_level < YLOG_DEBUG)
             printf("key (%p) %s\n", key, key);
         ylist_push_back(list, key);
     }

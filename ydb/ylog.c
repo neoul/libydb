@@ -11,9 +11,9 @@
 
 #include "ylog.h"
 
-char *ylog_severity_str(int severity)
+char *ylog_level_str(int level)
 {
-    switch (severity)
+    switch (level)
     {
     case YLOG_DEBUG:
         return "debug";
@@ -69,24 +69,24 @@ char *ylog_pname(void)
     return unit;
 }
 
-unsigned int ylog_severity = YLOG_ERROR;
+unsigned int ylog_level = YLOG_ERROR;
 ylog_func ylog_logger = ylog_general;
 ylog_func last_logger = NULL;
 
 int ylog_general(
-    int severity, const char *func, int line, const char *format, ...)
+    int level, const char *func, int line, const char *format, ...)
 {
     int len;
     int n = 0;
     va_list args;
     FILE *fp = NULL;
-    if (severity <= YLOG_ERROR)
+    if (level <= YLOG_ERROR)
         fp = stderr;
     else
         fp = stdout;
     if (ferror(fp))
         goto end_log;
-    len = fprintf(fp, "++ %s.%d::%s::%s:%d: ", ylog_pname(), getpid(), ylog_severity_str(severity), func, line);
+    len = fprintf(fp, "++ %s.%d::%s::%s:%d: ", ylog_pname(), getpid(), ylog_level_str(level), func, line);
     n += len;
     va_start(args, format);
     len = vfprintf(fp, format, args);
@@ -144,7 +144,7 @@ void ylog_file_close(void)
     }
 }
 
-int ylog_file(int severity, const char *func, int line, const char *format, ...)
+int ylog_file(int level, const char *func, int line, const char *format, ...)
 {
     int n = 0;
     if (!ylog_fp)
@@ -172,7 +172,7 @@ int ylog_file(int severity, const char *func, int line, const char *format, ...)
         va_list args;
         if (ferror(ylog_fp))
             goto close_fp;
-        len = fprintf(ylog_fp, "++ %s.%d::%s::%s:%d: ", ylog_pname(), getpid(), ylog_severity_str(severity), func, line);
+        len = fprintf(ylog_fp, "++ %s.%d::%s::%s:%d: ", ylog_pname(), getpid(), ylog_level_str(level), func, line);
         if (len < 0)
             goto close_fp;
         n += len;
@@ -193,7 +193,7 @@ int ylog_file(int severity, const char *func, int line, const char *format, ...)
 }
 
 int ylog_quiet(
-    int severity, const char *func, int line, const char *format, ...)
+    int level, const char *func, int line, const char *format, ...)
 {
     return 0;
 }

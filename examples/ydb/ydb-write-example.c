@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 {
     if (argc >= 2)
     {
-        ylog_severity = YLOG_DEBUG;
+        ylog_level = YLOG_DEBUG;
         test_remote_hook(atoi(argv[1]));
     }
     return 0;

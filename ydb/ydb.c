@@ -62,7 +62,7 @@ extern ylog_func ylog_logger;
         if (state)                                                                \
         {                                                                         \
             res = caused_res;                                                     \
-            if (ylog_severity >= (YLOG_ERROR))                                    \
+            if (ylog_level >= (YLOG_ERROR))                                    \
             {                                                                     \
                 ylog_logger(YLOG_ERROR, __func__, __LINE__,                       \
                             "ydb[%s] '%s': %s %s%s%s\n",                          \

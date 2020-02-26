@@ -76,7 +76,7 @@ ydb_res ydb_traverse_cb(ydb *datablock, ynode *cur, void *U1)
 
 int main(int argc, char *argv[])
 {
-    ylog_severity = YLOG_DEBUG;
+    ylog_level = YLOG_DEBUG;
     ydb *block1;
     block1 = ydb_open("my-block");
 

@@ -171,12 +171,12 @@ int main(int argc, char *argv[])
 {
     if (argc >= 2)
     {
-        ylog_severity = YLOG_INFO;
+        ylog_level = YLOG_INFO;
         test_remote_hook(atoi(argv[1]));
     }
     else
     {
-        ylog_severity = YLOG_INFO;
+        ylog_level = YLOG_INFO;
         test_hook();
     }
     return 0;

@@ -258,10 +258,10 @@ _done:
 
 int main(int argc, char *argv[])
 {
-    // ylog_severity = YLOG_DEBUG;
+    // ylog_level = YLOG_DEBUG;
     TEST_FUNC(test_ydb_open_close);
 
-    // ylog_severity = YLOG_INFO;
+    // ylog_level = YLOG_INFO;
     TEST_FUNC(test_ydb_read_write);
     return 0;
 }

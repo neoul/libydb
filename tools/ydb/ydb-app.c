@@ -453,7 +453,7 @@ int main(int argc, char *argv[])
         signal(SIGINT, HANDLER_SIGINT);
 
         if (verbose)
-            ylog_severity = verbose;
+            ylog_level = verbose;
 
         datablock = ydb_open((char *)ydb_path_read(config, "/config/name"));
         if (!datablock)
@@ -652,7 +652,7 @@ int main(int argc, char *argv[])
 end:
     ydb_close(datablock);
     if (verbose)
-        ylog_severity = YLOG_ERROR;
+        ylog_level = YLOG_ERROR;
     ydb_close(config);
     if (res)
         return 1;
