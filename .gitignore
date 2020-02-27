@@ -1,4 +1,4 @@
-.vscode/
+
 .deps
 .libs
 *.o
@@ -51,3 +51,4 @@ python/ydb-installed3.txt
 python/ydb-installed.txt
 go/bin
 go/pkg
+go/main
