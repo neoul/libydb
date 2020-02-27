@@ -27,6 +27,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+// #define PTHREAD_LOCK
+#ifdef PTHREAD_LOCK
+#include <pthread.h>
+#endif
+
 #include "ylog.h"
 #include "ystr.h"
 #include "ytree.h"
@@ -58,12 +63,12 @@ extern ylog_func ylog_logger;
 #define YDB_FAIL(state, caused_res)                                               \
     do                                                                            \
     {                                                                             \
-        char *stderrstr = strerror(errno);                                        \
         if (state)                                                                \
         {                                                                         \
             res = caused_res;                                                     \
-            if (ylog_level >= (YLOG_ERROR))                                    \
+            if (ylog_level >= (YLOG_ERROR))                                       \
             {                                                                     \
+                char *stderrstr = strerror(errno);                                \
                 ylog_logger(YLOG_ERROR, __func__, __LINE__,                       \
                             "ydb[%s] '%s': %s %s%s%s\n",                          \
                             datablock ? datablock->name : "...",                  \
@@ -300,7 +305,54 @@ struct _ydb
     int epollfd;      // EPOLL for YDB IPC
     int synccount;    // The number of connections (needs sync)
     int timeout;      // timeout for ydb_sync, ydb_path_sync
+#ifdef PTHREAD_LOCK
+    pthread_mutex_t lock;
+    pthread_t lock_id;
+    int lock_count;
+#endif
 };
+
+static inline void lock(struct _ydb *datablock)
+{
+#ifdef PTHREAD_LOCK
+    if (datablock)
+    {
+        if (datablock->lock_id != pthread_self())
+            pthread_mutex_lock(&datablock->lock);
+        datablock->lock_id = pthread_self();
+        datablock->lock_count++;
+    }
+#endif
+}
+
+static inline void unlock(struct _ydb *datablock)
+{
+#ifdef PTHREAD_LOCK
+    if (datablock)
+    {
+        if (datablock->lock_id == pthread_self())
+        {
+            datablock->lock_count--;
+            if (datablock->lock_count <= 0)
+            {
+                datablock->lock_id = 0;
+                datablock->lock_count = 0;
+                pthread_mutex_unlock(&datablock->lock);
+            }
+        }
+    }
+#endif
+}
+
+void ydb_lock(struct _ydb *datablock)
+{
+    lock(datablock);
+}
+
+void ydb_unlock(struct _ydb *datablock)
+{
+    unlock(datablock);
+}
 
 static ytrie *ydb_pool;
 static ytrie *ymsg_pool;
@@ -553,6 +605,10 @@ ydb *ydb_open(char *name)
     YDB_FAIL(!datablock->disconn, YDB_E_CTRL);
     datablock->updater = ytrie_create();
     YDB_FAIL(!datablock->updater, YDB_E_CTRL);
+#ifdef PTHREAD_LOCK
+    int ret = pthread_mutex_init(&datablock->lock, NULL);
+    YDB_FAIL(ret, YDB_E_CTRL);
+#endif
     ytrie_insert(ydb_pool, datablock->name, namelen, datablock);
     YDB_INFO(datablock, "opened");
     ylog_out();
@@ -585,6 +641,7 @@ ydb_res ydb_connect(ydb *datablock, char *addr, char *flags)
     char _addr[256];
     ylog_in();
     YDB_FAIL(!datablock || !flags, YDB_E_INVALID_ARGS);
+    lock(datablock);
     res = ydb_epoll_create(datablock);
     YDB_FAIL(res || datablock->epollfd < 0, YDB_E_SYSTEM_FAILED);
 
@@ -601,11 +658,13 @@ ydb_res ydb_connect(ydb *datablock, char *addr, char *flags)
     ylog_info("try to connect %s (%s)\n", addr, flags);
     res = yconn_open(addr, flags, datablock);
     YDB_FAIL(res, res);
+    unlock(datablock);
     ylog_out();
     return res;
 failed:
     yconn_close(conn);
     ydb_epoll_destroy(datablock);
+    unlock(datablock);
     ylog_out();
     return res;
 }
@@ -616,9 +675,9 @@ ydb_res ydb_disconnect(ydb *datablock, char *addr)
 {
     ydb_res res = YDB_E_NO_ENTRY;
     ylist *conns;
-
     char _addr[256];
     ylog_in();
+    lock(datablock);
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
     if (!addr)
     {
@@ -640,6 +699,7 @@ ydb_res ydb_disconnect(ydb *datablock, char *addr)
     if (res == YDB_OK)
         ylog_info("disconnected %s\n", addr);
 failed:
+    unlock(datablock);
     ylog_out();
     return res;
 }
@@ -648,45 +708,51 @@ failed:
 // Check the YDB IPC channel connected or not.
 int ydb_is_connected(ydb *datablock, char *addr)
 {
+    int ret = 0;
     yconn *conn = NULL;
+    lock(datablock);
     conn = yconn_get(addr, datablock);
     if (conn)
     {
-        if (IS_DISCONNECTED(conn))
-            return 0;
-        return 1;
+        if (!IS_DISCONNECTED(conn))
+            ret = 1;
     }
-    return 0;
+    unlock(datablock);
+    return ret;
 }
 
 // ydb_is_server()
 // Check the YDB IPC channel is running as server
 int ydb_is_server(ydb *datablock, char *addr)
 {
+    int ret = 0;
     yconn *conn = NULL;
+    lock(datablock);
     conn = yconn_get(addr, datablock);
     if (conn)
     {
         if (IS_SERVER(conn))
-            return 1;
-        return 0;
+            ret = 1;
     }
-    return 0;
+    unlock(datablock);
+    return ret;
 }
 
 // ydb_is_publisher()
 // Check the YDB IPC channel is running as server
 int ydb_is_publisher(ydb *datablock, char *addr)
 {
+    int ret = 0;
     yconn *conn = NULL;
+    lock(datablock);
     conn = yconn_get(addr, datablock);
     if (conn)
     {
         if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
-            return 1;
-        return 0;
+            ret = 1;
     }
-    return 0;
+    unlock(datablock);
+    return ret;
 }
 
 // Clear all data in YAML DataBlock
@@ -699,6 +765,7 @@ ydb_res ydb_clear(ydb *datablock)
     ynode *n;
     ylog_in();
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
+    lock(datablock);
     log = ynode_log_open(datablock->top, NULL);
     n = ynode_down(datablock->top);
     while (n)
@@ -710,6 +777,7 @@ ydb_res ydb_clear(ydb *datablock)
     yconn_publish(NULL, NULL, datablock, YOP_DELETE, buf, buflen);
 failed:
     CLEAR_BUF(buf, buflen);
+    unlock(datablock);
     ylog_out();
     return res;
 }
@@ -723,6 +791,7 @@ void ydb_close(ydb *datablock)
     if (datablock)
     {
         YDB_INFO(datablock, "closed");
+        lock(datablock);
         ytrie_delete(ydb_pool, datablock->name, strlen(datablock->name));
         if (datablock->disconn)
             ylist_destroy_custom(datablock->disconn, (user_free)_yconn_free_with_deinit);
@@ -736,6 +805,10 @@ void ydb_close(ydb *datablock)
             yfree(datablock->name);
         if (datablock->epollfd > 0)
             close(datablock->epollfd);
+#ifdef PTHREAD_LOCK
+        unlock(datablock);
+        pthread_mutex_destroy(&datablock->lock);
+#endif
         free(datablock);
     }
     ypool_destroy();
@@ -752,11 +825,13 @@ ydb *ydb_get(char *name_and_path, ynode **node)
     if (!ydb_pool)
         return NULL;
     datablock = ytrie_best_match(ydb_pool, name_and_path, slen, &mlen);
+    lock(datablock);
     if (datablock && node)
     {
         if (mlen < slen)
             *node = ynode_search(datablock->top, name_and_path + mlen);
     }
+    unlock(datablock);
     return datablock;
 }
 
@@ -775,6 +850,7 @@ const char *ydb_name(ydb *datablock)
 // return the node in the path of the yaml data block.
 ynode *ydb_search(ydb *datablock, const char *format, ...)
 {
+    ynode *node = NULL;
     char *path = NULL;
     size_t pathlen = 0;
     FILE *fp;
@@ -790,26 +866,34 @@ ynode *ydb_search(ydb *datablock, const char *format, ...)
         va_end(args);
         fclose(fp);
     }
+    lock(datablock);
     if (path)
     {
-        ynode *node;
         node = ynode_search(datablock->top, path);
         free(path);
-        return node;
     }
-    return NULL;
+    unlock(datablock);
+    return node;
 }
 
 // return the path of the node. (the path must be free.)
 char *ydb_path(ydb *datablock, ynode *node, int *pathlen)
 {
-    return ynode_path(node, ynode_level(datablock->top, node), pathlen);
+    char *p;
+    lock(datablock);
+    p = ynode_path(node, ynode_level(datablock->top, node), pathlen);
+    unlock(datablock);
+    return p;
 }
 
 // return the path of the node. (the path must be free.)
 char *ydb_path_and_value(ydb *datablock, ynode *node, int *pathlen)
 {
-    return ynode_path_and_val(node, ynode_level(datablock->top, node), pathlen);
+    char *p;
+    lock(datablock);
+    p = ynode_path_and_val(node, ynode_level(datablock->top, node), pathlen);
+    unlock(datablock);
+    return p;
 }
 
 char *ydb_path_nodes(ynode *ancestor, ynode *descendant, int *pathlen)
@@ -958,7 +1042,7 @@ ydb_res ydb_clean(ydb *datablock, ynode *n)
     ynode *c;
     ylog_in();
     YDB_FAIL(!datablock || !n, YDB_E_INVALID_ARGS);
-
+    lock(datablock);
     log = ynode_log_open(datablock->top, NULL);
     c = ynode_down(n);
     while (c)
@@ -969,6 +1053,7 @@ ydb_res ydb_clean(ydb *datablock, ynode *n)
     ynode_log_close(log, &buf, &buflen);
     yconn_publish(NULL, NULL, datablock, YOP_DELETE, buf, buflen);
 failed:
+    unlock(datablock);
     CLEAR_BUF(buf, buflen);
     ylog_out();
     return res;
@@ -987,6 +1072,7 @@ ydb_res ydb_parse(ydb *datablock, FILE *stream)
     {
         ynode *top;
         ynode_log *log = NULL;
+        lock(datablock);
         log = ynode_log_open(datablock->top, NULL);
         top = ynode_merge(datablock->top, src, log);
         ynode_log_close(log, &buf, &buflen);
@@ -1001,6 +1087,7 @@ ydb_res ydb_parse(ydb *datablock, FILE *stream)
         }
     }
 failed:
+    unlock(datablock);
     CLEAR_BUF(buf, buflen);
     ynode_remove(src);
     ylog_out();
@@ -1018,6 +1105,7 @@ ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen)
     {
         ynode *top;
         ynode_log *log = NULL;
+        lock(datablock);
         log = ynode_log_open(datablock->top, NULL);
         top = ynode_merge(datablock->top, src, log);
         ynode_log_close(log, &buf, &buflen);
@@ -1032,6 +1120,7 @@ ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen)
         }
     }
 failed:
+    lock(datablock);
     CLEAR_BUF(buf, buflen);
     ynode_remove(src);
     ylog_out();
@@ -1040,18 +1129,25 @@ failed:
 
 int ydb_dump(ydb *datablock, FILE *stream)
 {
+    int len;
     if (!datablock)
         return -1;
+    lock(datablock);
     if (ynode_type(datablock->top) == YNODE_TYPE_VAL)
-        return fprintf(stream, "%s", ynode_value(datablock->top));
-    return ynode_printf_to_fp(stream, datablock->top, 1, YDB_LEVEL_MAX);
+        len = fprintf(stream, "%s", ynode_value(datablock->top));
+    else
+        len = ynode_printf_to_fp(stream, datablock->top, 1, YDB_LEVEL_MAX);
+    unlock(datablock);
+    return len;
 }
 
 int ydb_dump_debug(ydb *datablock, FILE *stream)
 {
     if (!datablock)
         return -1;
+    lock(datablock);
     ynode_dump_to_fp(stream, datablock->top, 0, YDB_LEVEL_MAX);
+    unlock(datablock);
     return 0;
 }
 
@@ -1065,7 +1161,10 @@ int ydb_dumps(ydb *datablock, char **buf, size_t *buflen)
     fp = open_memstream(buf, buflen);
     if (fp)
     {
-        int n = ynode_printf_to_fp(fp, datablock->top, 1, YDB_LEVEL_MAX);
+        int n;
+        lock(datablock);
+        n = ynode_printf_to_fp(fp, datablock->top, 1, YDB_LEVEL_MAX);
+        unlock(datablock);
         fclose(fp);
         return n;
     }
@@ -1100,6 +1199,7 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         res = ynode_scanf_from_buf(buf, buflen, 0, &src);
         YDB_FAIL(res || !src, res);
         CLEAR_BUF(buf, buflen);
+        lock(datablock);
         log = ynode_log_open(datablock->top, NULL);
         // ynode_dump(src, 0, 24);
         top = ynode_merge(datablock->top, src, log);
@@ -1109,6 +1209,7 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         yconn_publish(NULL, NULL, datablock, YOP_MERGE, buf, buflen);
     }
 failed:
+    unlock(datablock);
     CLEAR_BUF(buf, buflen);
     ynode_remove(src);
     ylog_out();
@@ -1127,7 +1228,7 @@ ydb_res ydb_whisper_merge(ydb *datablock, char *path, const char *format, ...)
 
     ylog_in();
     YDB_FAIL(!datablock || !path, YDB_E_INVALID_ARGS);
-
+    lock(datablock);
     target = ynode_search(datablock->top, path);
     YDB_FAIL(!target, YDB_E_NO_ENTRY);
     YDB_FAIL(ynode_origin(target) == 0, YDB_E_UNKNOWN_TARGET);
@@ -1145,6 +1246,7 @@ ydb_res ydb_whisper_merge(ydb *datablock, char *path, const char *format, ...)
 
     yconn_whisper(ynode_origin(target), datablock, YOP_MERGE, buf, buflen);
 failed:
+    unlock(datablock);
     CLEAR_BUF(buf, buflen);
     ylog_out();
     return res;
@@ -1162,7 +1264,7 @@ ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...)
 
     ylog_in();
     YDB_FAIL(!datablock || !path, YDB_E_INVALID_ARGS);
-
+    lock(datablock);
     target = ynode_search(datablock->top, path);
     YDB_FAIL(!target, YDB_E_NO_ENTRY);
     YDB_FAIL(ynode_origin(target) == 0, YDB_E_UNKNOWN_TARGET);
@@ -1180,6 +1282,7 @@ ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...)
 
     yconn_whisper(ynode_origin(target), datablock, YOP_DELETE, buf, buflen);
 failed:
+    unlock(datablock);
     CLEAR_BUF(buf, buflen);
     ylog_out();
     return res;
@@ -1230,6 +1333,7 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
         res = ynode_scanf_from_buf(buf, buflen, 0, &src);
         YDB_FAIL(res || !src, res);
         CLEAR_BUF(buf, buflen);
+        lock(datablock);
         ddata.log = ynode_log_open(datablock->top, NULL);
         ddata.node = datablock->top;
         flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
@@ -1243,6 +1347,7 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
         }
     }
 failed:
+    unlock(datablock);
     CLEAR_BUF(buf, buflen);
     ynode_remove(src);
     ylog_out();
@@ -1274,6 +1379,7 @@ ydb_res ydb_rm(ydb *datablock, char *s)
         slen = strlen(s);
         res = ynode_scanf_from_buf(s, slen, 0, &src);
         YDB_FAIL(res || !src, res);
+        lock(datablock);
         ddata.log = ynode_log_open(datablock->top, NULL);
         ddata.node = datablock->top;
         flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
@@ -1287,6 +1393,7 @@ ydb_res ydb_rm(ydb *datablock, char *s)
         }
     }
 failed:
+    unlock(datablock);
     ynode_remove(src);
     ylog_out();
     return res;
@@ -1499,6 +1606,7 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
         }
         va_end(ap);
     }
+    lock(datablock);
     oldhook = ytrie_insert(datablock->updater, rhook->path, rhook->pathlen, rhook);
     if (oldhook)
     {
@@ -1510,6 +1618,7 @@ ydb_res ydb_read_hook_add(ydb *datablock, char *path, ydb_read_hook func, int nu
     ylog_info("ydb[%s] read hook (%p) added to %s (%d)\n",
               datablock->name, rhook->hook, rhook->path, rhook->pathlen);
 failed:
+    unlock(datablock);
     if (newpath)
         free(newpath);
     ynode_remove(ynode_top(src));
@@ -1540,7 +1649,7 @@ void ydb_read_hook_delete(ydb *datablock, char *path)
     if (!newpath) // set root
         newpath = strdup("/");
     pathlen = strlen(newpath);
-
+    lock(datablock);
     rhook = ytrie_delete(datablock->updater, newpath, pathlen);
     if (rhook)
     {
@@ -1550,6 +1659,7 @@ void ydb_read_hook_delete(ydb *datablock, char *path)
             yfree(rhook->path);
         free(rhook);
     }
+    unlock(datablock);
     if (newpath)
         free(newpath);
     ylog_out();
@@ -1668,6 +1778,7 @@ int ydb_read(ydb *datablock, const char *format, ...)
     }
 
     flags = YNODE_LEAF_FIRST | YNODE_VAL_ONLY;
+    lock(datablock);
     if (datablock->synccount > 0)
     {
         res = yconn_sync(NULL, datablock, false, (char *)format, formatlen, false);
@@ -1679,6 +1790,7 @@ int ydb_read(ydb *datablock, const char *format, ...)
     YDB_FAIL(res, res);
     ylog_debug("var read = %d\n", data.varnum);
 failed:
+    unlock(datablock);
     yarray_destroy(data.vararray);
     ynode_remove(src);
     ylog_out();
@@ -1736,7 +1848,7 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
     vfprintf(fp, format, args);
     va_end(args);
     fclose(fp);
-
+    lock(datablock);
     if (datablock->synccount > 0)
     {
         res = yconn_sync(NULL, datablock, false, buf, buflen, false);
@@ -1763,6 +1875,7 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
         // fprintf(stream, "%s", buf);
     }
 failed:
+    unlock(datablock);
     ret = buflen;
     CLEAR_BUF(buf, buflen);
     ynode_remove(src);
@@ -1791,6 +1904,7 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
     va_end(args);
     fclose(fp);
 
+    lock(datablock);
     {
         char *rbuf = NULL;
         size_t rbuflen = 0;
@@ -1807,6 +1921,7 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
     }
     YDB_FAIL(!src, YDB_E_MERGE_FAILED);
 failed:
+    unlock(datablock);
     CLEAR_BUF(pathbuf, pathbuflen);
     ylog_out();
     return res;
@@ -1833,6 +1948,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
     va_end(args);
     fclose(fp);
 
+    lock(datablock);
     {
         char *rbuf = NULL;
         size_t rbuflen = 0;
@@ -1857,6 +1973,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
     }
     YDB_FAIL(!target, YDB_E_DELETE_FAILED);
 failed:
+    unlock(datablock);
     CLEAR_BUF(buf, buflen);
     ylog_out();
     return res;
@@ -1887,6 +2004,7 @@ const char *ydb_path_read(ydb *datablock, const char *format, ...)
 
         src = ynode_top(ynode_create_path(path, NULL, NULL));
         YDB_FAIL(!src, YDB_E_CTRL);
+        lock(datablock);
         if (datablock->synccount > 0)
         {
             char buf[512];
@@ -1901,6 +2019,7 @@ const char *ydb_path_read(ydb *datablock, const char *format, ...)
         target = ynode_search(datablock->top, path);
     }
 failed:
+    unlock(datablock);
     CLEAR_BUF(path, pathlen);
     ynode_remove(src);
     ylog_out();
@@ -1932,6 +2051,7 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
 
     src = ynode_top(ynode_create_path(path, NULL, NULL));
     YDB_FAIL(!src, YDB_E_CTRL);
+    lock(datablock);
     if (datablock->synccount > 0)
     {
         char buf[512];
@@ -1956,6 +2076,7 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
             ret = ynode_printf_to_fp(stream, target, 1 - level, YDB_LEVEL_MAX);
     }
 failed:
+    unlock(datablock);
     CLEAR_BUF(path, pathlen);
     ynode_remove(src);
     ylog_out();
@@ -3843,6 +3964,7 @@ ydb_res ydb_recv(ydb *datablock, int timeout)
     struct epoll_event event[YDB_CONN_MAX];
     ylog_inout();
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
+    lock(datablock);
     YDB_FAIL(datablock->epollfd < 0, YDB_E_NO_CONN);
     res = YDB_OK;
     n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
@@ -3882,6 +4004,7 @@ ydb_res ydb_recv(ydb *datablock, int timeout)
             break;
     }
 failed:
+    unlock(datablock);
     return res;
 }
 
@@ -3908,14 +4031,12 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write
     YDB_FAIL(!datablock || !func || num < 0, YDB_E_INVALID_ARGS);
     YDB_FAIL(num > 4 || num < 0, YDB_E_INVALID_ARGS);
 
-    if (!datablock || !func)
-        return YDB_E_INVALID_ARGS;
-
     if (suppressed)
         SET_FLAG(flags, YNODE_SUPPRESS_HOOK);
 
     if (path)
     {
+        lock(datablock);
         cur = ynode_search(datablock->top, path);
         if (!cur)
         {
@@ -3958,6 +4079,7 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write
     res = yhook_register(cur, flags, (yhook_func)func, num, user);
     YDB_FAIL(res, YDB_E_HOOK_ADD);
 failed:
+    unlock(datablock);
     ylog_out();
     return res;
 }
@@ -3967,17 +4089,20 @@ void ydb_write_hook_delete(ydb *datablock, char *path)
     ynode *cur;
     if (!datablock)
         return;
+    lock(datablock);
     if (path)
     {
         cur = ynode_search(datablock->top, path);
         if (!cur)
-            return;
+            goto failed;
     }
     else
     {
         cur = datablock->top;
     }
     yhook_unregister(cur);
+failed:
+    unlock(datablock);
 }
 
 // set the timeout of the YDB synchonization
@@ -3985,8 +4110,10 @@ ydb_res ydb_timeout(ydb *datablock, int msec)
 {
     if (datablock)
     {
+        lock(datablock);
         datablock->timeout = msec;
         ylog_debug("set timeout %d\n", datablock->timeout);
+        unlock(datablock);
         return YDB_OK;
     }
     return YDB_E_INVALID_ARGS;
@@ -4012,7 +4139,7 @@ ydb_res ydb_sync(ydb *datablock, const char *format, ...)
     vfprintf(fp, format, args);
     va_end(args);
     fclose(fp);
-
+    lock(datablock);
     sync_res = yconn_sync(NULL, datablock, true, buf, buflen, false);
     YDB_FAIL(YDB_FAILED(sync_res), sync_res);
 
@@ -4024,6 +4151,7 @@ ydb_res ydb_sync(ydb *datablock, const char *format, ...)
     if (ytrie_size(datablock->updater) > 0)
         ydb_update(NULL, datablock, src);
 failed:
+    unlock(datablock);
     CLEAR_BUF(buf, buflen);
     ynode_remove(src);
     ylog_out();
@@ -4061,6 +4189,7 @@ ydb_res ydb_path_sync(ydb *datablock, const char *format, ...)
         buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
         if (buflen >= 0)
             buf[buflen] = 0;
+        lock(datablock);
         res = yconn_sync(NULL, datablock, true, buf, buflen, false);
         YDB_FAIL(YDB_FAILED(res), res);
     }
@@ -4069,6 +4198,7 @@ ydb_res ydb_path_sync(ydb *datablock, const char *format, ...)
         ydb_update(NULL, datablock, src);
 
 failed:
+    unlock(datablock);
     CLEAR_BUF(path, pathlen);
     ynode_remove(src);
     ylog_out();
@@ -4113,14 +4243,13 @@ ydb_res ydb_traverse_sub(ynode *cur, void *U1)
 
 ydb_res ydb_traverse(ydb *datablock, ynode *cur, ydb_traverse_callback func, char *flags, int num, ...)
 {
+    ydb_res res;
     unsigned int trflags = 0x0;
     struct ydb_traverse_data data;
     if (!datablock || !func || num < 0)
         return YDB_E_INVALID_ARGS;
     if (num > 4 || num < 0)
         return YDB_E_INVALID_ARGS;
-    if (!cur)
-        cur = datablock->top;
     if (flags)
     {
         if (strstr(flags, "leaf-first"))
@@ -4148,5 +4277,10 @@ ydb_res ydb_traverse(ydb *datablock, ynode *cur, ydb_traverse_callback func, cha
         }
         va_end(ap);
     }
-    return ynode_traverse(cur, ydb_traverse_sub, &data, trflags);
+    lock(datablock);
+    if (!cur)
+        cur = datablock->top;
+    res = ynode_traverse(cur, ydb_traverse_sub, &data, trflags);
+    unlock(datablock);
+    return res;
 }

@@ -92,6 +92,14 @@ char *binary_to_base64_lf(unsigned char *binary, size_t binarylen, size_t *base6
 // It should be free
 unsigned char *base64_to_binary(char *base64, size_t base64len, size_t *binarylen);
 
+// ydb_lock --
+// Lock the entrace of the YDB instance
+void ydb_lock(struct _ydb *datablock);
+
+// ydb_unlock --
+// Unlock the entrace of the YDB instance
+void ydb_unlock(struct _ydb *datablock);
+
 // ydb_open --
 // Open an instance of YAML DataBlock
 ydb *ydb_open(char *name);
