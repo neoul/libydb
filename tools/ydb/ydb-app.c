@@ -338,7 +338,7 @@ int main(int argc, char *argv[])
                       optarg);
             break;
         case 'n':
-            ydb_write(config, "config: {name: %s}", optarg);
+            ydb_write(config, "config: {name: '%s'}", optarg);
             break;
         case 'r':
             if (strncmp(optarg, "pub", 3) == 0)
