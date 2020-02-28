@@ -22,7 +22,12 @@ static inline void callbackExample(void *p) {
 import "C"
 import (
 	"errors"
+	"log"
+
+	"sync"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -49,20 +54,26 @@ func SetLog(loglevel uint) {
 type YDB struct {
 	Name  string
 	block *C.ydb
+	mutex sync.Mutex
+	fd    int
 }
 
 // Close the YDB instance
 func (y *YDB) Close() {
-	C.ydb_close(y.block)
-	y.block = nil
+	y.mutex.Lock()
+	if y.block != nil {
+		C.ydb_close(y.block)
+		y.block = nil
+	}
+	y.mutex.Unlock()
 }
 
 // Open an YDB instance with a name
-func Open(name string) (YDB, func()) {
+func Open(name string) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 	y := YDB{Name: name, block: C.ydb_open(cname)}
-	return y, func() {
+	return &y, func() {
 		y.Close()
 	}
 }
@@ -81,8 +92,11 @@ func (y *YDB) Connect(addr string, flags ...string) error {
 	cflags := C.CString(gflags)
 	defer C.free(unsafe.Pointer(caddr))
 	defer C.free(unsafe.Pointer(cflags))
+	y.mutex.Lock()
 	res := C.ydb_connect(y.block, caddr, cflags)
+	y.mutex.Unlock()
 	if res == C.YDB_OK {
+		go y.serve()
 		return nil
 	}
 	return errors.New(C.GoString(C.ydb_res_str(res)))
@@ -92,7 +106,9 @@ func (y *YDB) Connect(addr string, flags ...string) error {
 func (y *YDB) Disconnect(addr string) error {
 	caddr := C.CString(addr)
 	defer C.free(unsafe.Pointer(caddr))
+	y.mutex.Lock()
 	res := C.ydb_disconnect(y.block, caddr)
+	y.mutex.Unlock()
 	if res == C.YDB_OK {
 		return nil
 	}
@@ -102,27 +118,43 @@ func (y *YDB) Disconnect(addr string) error {
 // Serve --
 // Run Serve() in the main loop if YDB IPC channel is used.
 // Serve() updates the local YDB instance using the received YAML data from remotes.
-func (y *YDB) Serve(msec int) error {
-	res := C.ydb_serve(y.block, C.int(msec))
-	if res == C.YDB_OK {
-		return nil
-	} else if res >= C.YDB_WARNING_MIN && res <= C.YDB_WARNING_MAX {
-		return nil
-	}
-	return errors.New(C.GoString(C.ydb_res_str(res)))
+func (y *YDB) Serve() {
+	go y.serve()
 }
 
-// Service --
-// Run Service() in the main loop if YDB IPC channel is used.
-// Service() updates the local YDB instance using the received YAML data from remotes.
-func (y *YDB) Service(msec int) error {
-
-	res := C.ydb_serve(y.block, C.int(msec))
-	if res == C.YDB_OK {
-		return nil
-	} else if res >= C.YDB_WARNING_MIN && res <= C.YDB_WARNING_MAX {
+// serve --
+// Receive the YAML data from remotes.
+func (y *YDB) serve() error {
+	var rfds unix.FdSet
+	if y.fd > 0 {
+		// log.Println("serve() already running")
 		return nil
 	}
-
-	return errors.New(C.GoString(C.ydb_res_str(res)))
+	for {
+		y.fd = int(C.ydb_fd(y.block))
+		if y.fd <= 0 {
+			err := errors.New(C.GoString(C.ydb_res_str(C.YDB_E_CONN_FAILED)))
+			log.Printf("serve:%v", err)
+			return err
+		}
+		rfds.Set(y.fd)
+		n, err := unix.Select(y.fd+1, &rfds, nil, nil, nil)
+		if err != nil {
+			log.Printf("serve:%v", err)
+			y.fd = 0
+			return err
+		}
+		if n == 1 && rfds.IsSet(y.fd) {
+			rfds.Clear(y.fd)
+			y.mutex.Lock()
+			res := C.ydb_serve(y.block, C.int(0))
+			y.mutex.Unlock()
+			if res >= C.YDB_ERROR {
+				err = errors.New(C.GoString(C.ydb_res_str(res)))
+				log.Printf("serve:%v", err)
+				y.fd = 0
+				return err
+			}
+		}
+	}
 }
