@@ -52,3 +52,4 @@ python/ydb-installed.txt
 go/bin
 go/pkg
 go/main
+go/app

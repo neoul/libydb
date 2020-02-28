@@ -123,5 +123,6 @@ func (y *YDB) Service(msec int) error {
 	} else if res >= C.YDB_WARNING_MIN && res <= C.YDB_WARNING_MAX {
 		return nil
 	}
+
 	return errors.New(C.GoString(C.ydb_res_str(res)))
 }

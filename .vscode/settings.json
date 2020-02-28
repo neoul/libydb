@@ -1,57 +1,7 @@
 {
-    "files.associations": {
-        "*.tcc": "cpp",
-        "cctype": "cpp",
-        "clocale": "cpp",
-        "cmath": "cpp",
-        "cstdarg": "cpp",
-        "cstdint": "cpp",
-        "cstdio": "cpp",
-        "cstdlib": "cpp",
-        "cwchar": "cpp",
-        "cwctype": "cpp",
-        "exception": "cpp",
-        "fstream": "cpp",
-        "initializer_list": "cpp",
-        "iosfwd": "cpp",
-        "iostream": "cpp",
-        "istream": "cpp",
-        "limits": "cpp",
-        "new": "cpp",
-        "ostream": "cpp",
-        "stdexcept": "cpp",
-        "streambuf": "cpp",
-        "string_view": "cpp",
-        "system_error": "cpp",
-        "cinttypes": "cpp",
-        "type_traits": "cpp",
-        "typeinfo": "cpp",
-        "*.i": "cpp",
-        "optional": "c",
-        "ratio": "c",
-        "array": "c",
-        "tuple": "c",
-        "utility": "c",
-        "unordered_map": "c"
-    },
-    // // // "C_Cpp.errorSquiggles": "Disabled"
-    // "go.gopath": "${workspaceFolder}/go",
-    // // // "go.toolsGopath": "${workspaceFolder}/go/bin",
-    // // "go.inferGopath": true,
-    // "terminal.integrated.env.linux": {
-    //     "GOPATH": "${workspaceFolder}/go",
-    //     "GO111MODULE": "off"
-    //     // "GOBIN": "${workspaceFolder}/go/bin"
-    // },
-    // // "go.autocompleteUnimportedPackages": true,
-    // // "terminal.integrated.shellArgs.linux": ["--rcfile", "go/env.sh"]
-
-    // // "go.gopath": "${workspaceFolder}/go",
-    // // "go.autocompleteUnimportedPackages": true,
-    // // "go.gocodePackageLookupMode": "go",
-    // // "go.gotoSymbol.includeImports": true,
-    // // "go.useCodeSnippetsOnFunctionSuggest": true,
-    // // "go.useCodeSnippetsOnFunctionSuggestWithoutType": true,
-    // // "go.docsTool": "gogetdoc",
-    // // "go.inferGopath": true
+    "go.docsTool": "guru",
+    "go.useLanguageServer": true,
+    "go.gopath": "${workspaceFolder}/go",
+    "go.autocompleteUnimportedPackages": true,
+    "go.toolsGopath": "${env:HOME}/go",
 }
