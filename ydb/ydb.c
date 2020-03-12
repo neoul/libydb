@@ -32,6 +32,11 @@
 #include <pthread.h>
 #endif
 
+#define WRITEV_SEND 1
+#ifdef WRITEV_SEND
+#include <sys/uio.h>
+#endif
+
 #include "ylog.h"
 #include "ystr.h"
 #include "ytree.h"
@@ -2379,6 +2384,7 @@ failed:
     return;
 }
 
+#define RECV_BUF_SIZE 2048
 ydb_res yconn_default_recv(
     yconn *conn, yconn_op *op, ymsg_type *type,
     unsigned int *flags, char **data, size_t *datalen,
@@ -2386,8 +2392,8 @@ ydb_res yconn_default_recv(
 {
     ydb_res res = YDB_OK;
     struct yconn_socket_head *head;
-    char recvbuf[2048 + 4];
-    char *end;
+    char recvbuf[RECV_BUF_SIZE + 4];
+    char *end, *start;
     ssize_t len, used;
     head = conn->head;
     *data = NULL;
@@ -2432,15 +2438,33 @@ ydb_res yconn_default_recv(
         }
         else
         {
-            *next = head->recv.next = 0;
             // The recv process continues to get more messages.
+            char *remain;
+            size_t remainlen = 0;
+            *next = head->recv.next = 0;
+            fclose(head->recv.fp);
+            head->recv.fp = NULL;
+            remain = head->recv.buf + head->recv.bufused;
+            remainlen = head->recv.buflen - head->recv.bufused;
+            head->recv.buf = NULL;
+            head->recv.buflen = 0;
+            head->recv.bufused = 0;
+            head->recv.fp = open_memstream(&head->recv.buf, &head->recv.buflen);
+            if (!head->recv.fp)
+                goto conn_failed;
+            if (remainlen > 0)
+                if (fwrite(remain, remainlen, 1, head->recv.fp) != 1)
+                    goto conn_failed;
+            fflush(head->recv.fp);
+            if (remain)
+                free(remain);
         }
     }
 
     if (IS_SET(conn->flags, (YCONN_TYPE_INET | YCONN_TYPE_UNIX)))
-        len = recv(conn->fd, recvbuf, 2048, MSG_DONTWAIT);
+        len = recv(conn->fd, recvbuf, RECV_BUF_SIZE, MSG_DONTWAIT);
     else
-        len = read(conn->fd, recvbuf, 2048);
+        len = read(conn->fd, recvbuf, RECV_BUF_SIZE);
     if (len <= 0)
     {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -2457,7 +2481,12 @@ ydb_res yconn_default_recv(
     if (fwrite(recvbuf, len, 1, head->recv.fp) != 1)
         goto conn_failed;
     fflush(head->recv.fp);
-    end = strstr(head->recv.buf + head->recv.bufused, YMSG_END_DELIMITER);
+
+    if ((head->recv.buflen - head->recv.bufused) >= (len + YMSG_END_DELIMITER_LEN))
+        start = head->recv.buf + head->recv.buflen - (len + YMSG_END_DELIMITER_LEN);
+    else
+        start = head->recv.buf + head->recv.bufused;
+    end = strstr(start, YMSG_END_DELIMITER);
     if (!end)
         goto wait_next_recv;
     used = (end + YMSG_END_DELIMITER_LEN) - head->recv.buf;
@@ -2558,6 +2587,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     fd = conn->fd;
     if (head->send.fd > 0)
         fd = head->send.fd;
+#ifndef WRITEV_SEND
     n = write(fd, msghead, n);
     if (n < 0)
         goto conn_failed;
@@ -2578,6 +2608,25 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
               (conn->datablock) ? conn->datablock->name : "...",
               msghead, datalen, data ? data : "", "\n...\n");
     n = write(fd, YMSG_END_DELIMITER, YMSG_END_DELIMITER_LEN);
+#else
+    struct iovec iov[3];
+    iov[0].iov_base = msghead;
+    iov[0].iov_len = n;
+    n = 1;
+    if (datalen > 0)
+    {
+        iov[n].iov_base = data;
+        iov[n].iov_len = datalen;
+        n++;
+    }
+    iov[n].iov_base = YMSG_END_DELIMITER;
+    iov[n].iov_len = YMSG_END_DELIMITER_LEN;
+    n++;
+    ylog_info("ydb[%s] data {\n%s%.*s%s}\n",
+              (conn->datablock) ? conn->datablock->name : "...",
+              msghead, datalen, data ? data : "", "\n...\n");
+    n = writev(fd, iov, n);
+#endif
     if (n < 0)
         goto conn_failed;
     ylog_out();

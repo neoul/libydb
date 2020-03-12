@@ -5,4 +5,9 @@
     "go.autocompleteUnimportedPackages": true,
     "go.toolsGopath": "${env:HOME}/go",
     "go.gotoSymbol.includeImports": true,
+    "files.associations": {
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
+    },
 }
