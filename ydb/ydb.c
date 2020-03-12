@@ -2444,6 +2444,7 @@ ydb_res yconn_default_recv(
             *next = head->recv.next = 0;
             fclose(head->recv.fp);
             head->recv.fp = NULL;
+            start = head->recv.buf;
             remain = head->recv.buf + head->recv.bufused;
             remainlen = head->recv.buflen - head->recv.bufused;
             head->recv.buf = NULL;
@@ -2456,8 +2457,8 @@ ydb_res yconn_default_recv(
                 if (fwrite(remain, remainlen, 1, head->recv.fp) != 1)
                     goto conn_failed;
             fflush(head->recv.fp);
-            if (remain)
-                free(remain);
+            if (start)
+                free(start);
         }
     }
 
