@@ -158,3 +158,16 @@ func (y *YDB) serve() error {
 		}
 	}
 }
+
+// ydb_read --
+// Read the date from ydb such as the scanf() (YAML format)
+// ydb_read() only fills the scalar value of the YAML mapping or list nodes.
+// And it returns the number of found values.
+//  - ydb_read(datablock, "key: %s\n"); // ok.
+//  - ydb_read(datablock, "%s: value\n"); // not allowed.
+func (y *YDB) Scanf(format string, a ...interface{}) (n int, err error)
+{
+	// os.Stdout
+	// C.ydb_fprintf
+	return 0, nil
+}

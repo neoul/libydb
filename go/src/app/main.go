@@ -17,9 +17,6 @@ func main() {
 		log.Println(err)
 	}
 
-	go datablock.Serve()
-	<-time.After(time.Second * 1)
-
 	err = datablock.Disconnect("uss://test")
 	if err != nil {
 		log.Println(err)
