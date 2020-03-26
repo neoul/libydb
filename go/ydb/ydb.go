@@ -6,28 +6,15 @@ package ydb
 #include <stdlib.h>
 #include <ylog.h>
 #include <ydb.h>
-extern int sum(int a, int b);
-
-static inline void CExample() {
-	int r = sum(1, 2);
-	printf("%d\n", r);
-}
-
-extern void callbackInGo(void *p, int n);
-static inline void callbackExample(void *p) {
-	callbackInGo(p, 100);
-}
-
 */
 import "C"
 import (
 	"errors"
 	"log"
 
+	"golang.org/x/sys/unix"
 	"sync"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -165,8 +152,7 @@ func (y *YDB) serve() error {
 // And it returns the number of found values.
 //  - ydb_read(datablock, "key: %s\n"); // ok.
 //  - ydb_read(datablock, "%s: value\n"); // not allowed.
-func (y *YDB) Scanf(format string, a ...interface{}) (n int, err error)
-{
+func (y *YDB) Scanf(format string, a ...interface{}) (n int, err error) {
 	// os.Stdout
 	// C.ydb_fprintf
 	return 0, nil

@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "go/main.go",
+            "name": "ydb/demo",
             "type": "go",
             "request": "launch",
             "mode": "debug",

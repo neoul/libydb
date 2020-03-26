@@ -1,13 +1,23 @@
 {
-    "go.docsTool": "gogetdoc",
     // "go.useLanguageServer": true,
-    "go.gopath": "${workspaceFolder}/go",
+    "go.gopath": "${env:HOME}/go",
     "go.autocompleteUnimportedPackages": true,
     "go.toolsGopath": "${env:HOME}/go",
     "go.gotoSymbol.includeImports": true,
-    "files.associations": {
-        "array": "c",
-        "string": "c",
-        "string_view": "c"
+    "go.useLanguageServer": true,
+    "go.languageServerExperimentalFeatures": {
+        "format": true,
+        "diagnostics": true,
+        "documentLink": false
     },
+    "terminal.integrated.env.linux": {
+        "GO111MODULE": "on",
+        "GOPATH": "${env:HOME}/go",
+        "GOBIN": "${env:HOME}/go/bin"
+    },
+    "go.inferGopath": false,
+    "gopls": {
+        
+        "completeUnimported": true
+    }
 }
