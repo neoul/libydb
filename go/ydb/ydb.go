@@ -4,17 +4,49 @@ package ydb
 #cgo LDFLAGS: -lydb -lyaml
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <ylog.h>
 #include <ydb.h>
+
+extern void updateYdb(void *p, char op, ynode *node);
+static void ydb_hook(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1)
+{
+	switch (op)
+	{
+	case 'c':
+		updateYdb(U1, op, _new);
+		break;
+	case 'r':
+		updateYdb(U1, op, _new);
+		break;
+	case 'd':
+		updateYdb(U1, op, _cur);
+		break;
+	}
+}
+
+static void ydb_register(ydb *datablock, void *U1)
+{
+	ydb_res res;
+	res = ydb_write_hook_add(datablock, "/", 0, ydb_hook, 1, U1);
+}
+
+static void ydb_unregister(ydb *datablock)
+{
+	ydb_write_hook_delete(datablock, "/");
+}
+
 */
 import "C"
 import (
 	"errors"
+	"fmt"
 	"log"
 
-	"golang.org/x/sys/unix"
 	"sync"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -30,7 +62,49 @@ const (
 	LogError = C.YLOG_ERROR
 	// LogCritical YDB log level
 	LogCritical = C.YLOG_CRITICAL
+
+	// OpCreate for data creation
+	OpCreate = 'c'
+	// OpReplace for data update
+	OpReplace = 'r'
+	// OpDelete for data deletion
+	OpDelete = 'd'
 )
+
+type (
+	Datablock map[string]interface{}
+)
+
+type Update interface {
+	Update(op int, keys []string, tag string, value string)
+}
+
+func (d *Datablock) Update(op int, keys []string, tag string, value string) {
+	switch op {
+	case OpCreate:
+		fmt.Println("create", keys, tag, value)
+		// for index, key range keys {
+
+		// }
+	case OpReplace:
+		fmt.Println("replace", keys, tag, value)
+	case OpDelete:
+		fmt.Println("Delete", keys, tag, value)
+	}
+
+}
+
+//export updateYdb
+// updateYdb -- Update YAML Data Block instance
+func updateYdb(ygo unsafe.Pointer, op C.char, node *C.ynode) {
+	var y *YDB = (*YDB)(ygo)
+	var keys = make([]string, int(C.YDB_LEVEL_MAX))
+	for n := node; n != nil; n = C.ydb_up(n) {
+		key := C.GoString(C.ydb_key(n))
+		keys = append([]string{key}, keys...)
+	}
+	y.top.Update(int(op), keys, C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
+}
 
 // SetLog configures the log level of YDB
 func SetLog(loglevel uint) {
@@ -39,8 +113,9 @@ func SetLog(loglevel uint) {
 
 // YDB (YAML Datablock type) to indicate an YDB instance
 type YDB struct {
-	Name  string
 	block *C.ydb
+	Name  string
+	top   *Datablock
 	mutex sync.Mutex
 	fd    int
 }
@@ -49,6 +124,7 @@ type YDB struct {
 func (y *YDB) Close() {
 	y.mutex.Lock()
 	if y.block != nil {
+		// C.ydb_unregister(y.block)
 		C.ydb_close(y.block)
 		y.block = nil
 	}
@@ -56,10 +132,14 @@ func (y *YDB) Close() {
 }
 
 // Open an YDB instance with a name
-func Open(name string) (*YDB, func()) {
+// name: The name of the creating YDB instance
+// top: The go structure instance synced with the YDB instance
+// recursive: The
+func Open(name string, top *Datablock) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-	y := YDB{Name: name, block: C.ydb_open(cname)}
+	y := YDB{Name: name, block: C.ydb_open(cname), top: top}
+	C.ydb_register(y.block, unsafe.Pointer(&y.block))
 	return &y, func() {
 		y.Close()
 	}
