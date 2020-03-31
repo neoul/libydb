@@ -8,21 +8,10 @@ package ydb
 #include <ylog.h>
 #include <ydb.h>
 
-extern void updateYdb(void *p, char op, ynode *node);
+extern void handle(void *p, char op, ynode *old, ynode *cur);
 static void ydb_hook(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1)
 {
-	switch (op)
-	{
-	case 'c':
-		updateYdb(U1, op, _new);
-		break;
-	case 'r':
-		updateYdb(U1, op, _new);
-		break;
-	case 'd':
-		updateYdb(U1, op, _cur);
-		break;
-	}
+	handle(U1, op, _cur, _new);
 }
 
 static void ydb_register(ydb *datablock, void *U1)
@@ -63,47 +52,74 @@ const (
 	// LogCritical YDB log level
 	LogCritical = C.YLOG_CRITICAL
 
-	// OpCreate for data creation
-	OpCreate = 'c'
-	// OpReplace for data update
-	OpReplace = 'r'
-	// OpDelete for data deletion
-	OpDelete = 'd'
+	// // OpCreate for data creation
+	// OpCreate = 'c'
+	// // OpReplace for data update
+	// OpReplace = 'r'
+	// // OpDelete for data deletion
+	// OpDelete = 'd'
 )
 
 type (
 	Datablock map[string]interface{}
 )
 
-type Update interface {
-	Update(op int, keys []string, tag string, value string)
+type Handler interface {
+	// Handler(op int, keys []string, tag string, value string)
+	Create(keys []string, tag string, value string)
+	Replace(keys []string, cTag string, cVal string, nTag string, nVal string)
+	Delete(keys []string, tag string, value string)
 }
 
-func (d *Datablock) Update(op int, keys []string, tag string, value string) {
-	switch op {
-	case OpCreate:
-		fmt.Println("create", keys, tag, value)
-		// for index, key range keys {
+// func (d *Datablock) Handler(op int, keys []string, tag string, value string) {
+// 	switch op {
+// 	case OpCreate:
+// 		fmt.Println("create", keys, tag, value)
+// 	case OpReplace:
+// 		fmt.Println("replace", keys, tag, value)
+// 	case OpDelete:
+// 		fmt.Println("Delete", keys, tag, value)
+// 	}
+// }
 
-		// }
-	case OpReplace:
-		fmt.Println("replace", keys, tag, value)
-	case OpDelete:
-		fmt.Println("Delete", keys, tag, value)
-	}
-
+func (d *Datablock) Create(keys []string, new string, value string) {
+	fmt.Println("Create", keys, new, value)
 }
 
-//export updateYdb
-// updateYdb -- Update YAML Data Block instance
-func updateYdb(ygo unsafe.Pointer, op C.char, node *C.ynode) {
+func (d *Datablock) Replace(keys []string, cTag string, cVal string, nTag string, nVal string) {
+	fmt.Println("Replace", keys, cTag, cVal, nTag, nVal)
+}
+
+func (d *Datablock) Delete(keys []string, tag string, value string) {
+	fmt.Println("Delete", keys, tag, value)
+}
+
+//export handle
+// handle -- Update YAML Data Block instance
+func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	var y *YDB = (*YDB)(ygo)
+	var node *C.ynode
 	var keys = make([]string, int(C.YDB_LEVEL_MAX))
+	if new != nil {
+		node = new
+	} else {
+		node = cur
+	}
 	for n := node; n != nil; n = C.ydb_up(n) {
 		key := C.GoString(C.ydb_key(n))
 		keys = append([]string{key}, keys...)
 	}
-	y.top.Update(int(op), keys, C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
+	switch int(op) {
+	case 'c':
+		y.top.Create(keys, C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
+		// for index, key range keys {
+		// }
+	case 'r':
+		y.top.Replace(keys, C.GoString(C.ydb_tag(cur)), C.GoString(C.ydb_value(cur)),
+			C.GoString(C.ydb_tag(new)), C.GoString(C.ydb_value(new)))
+	case 'd':
+		y.top.Delete(keys, C.GoString(C.ydb_tag(cur)), C.GoString(C.ydb_value(cur)))
+	}
 }
 
 // SetLog configures the log level of YDB
@@ -115,7 +131,7 @@ func SetLog(loglevel uint) {
 type YDB struct {
 	block *C.ydb
 	Name  string
-	top   *Datablock
+	top   Handler
 	mutex sync.Mutex
 	fd    int
 }
@@ -134,8 +150,7 @@ func (y *YDB) Close() {
 // Open an YDB instance with a name
 // name: The name of the creating YDB instance
 // top: The go structure instance synced with the YDB instance
-// recursive: The
-func Open(name string, top *Datablock) (*YDB, func()) {
+func Open(name string, top Handler) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 	y := YDB{Name: name, block: C.ydb_open(cname), top: top}
@@ -149,7 +164,7 @@ func Open(name string, top *Datablock) (*YDB, func()) {
 func (y *YDB) Connect(addr string, flags ...string) error {
 	var gflags string
 	if y.block == nil {
-		return errors.New("no instance exists")
+		return fmt.Errorf("no instance exists")
 	}
 	for _, flag := range flags {
 		gflags = gflags + ":" + flag
@@ -166,7 +181,7 @@ func (y *YDB) Connect(addr string, flags ...string) error {
 		go y.serve()
 		return nil
 	}
-	return errors.New(C.GoString(C.ydb_res_str(res)))
+	return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 }
 
 // Disconnect to YDB IPC channel
@@ -179,7 +194,7 @@ func (y *YDB) Disconnect(addr string) error {
 	if res == C.YDB_OK {
 		return nil
 	}
-	return errors.New(C.GoString(C.ydb_res_str(res)))
+	return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 }
 
 // Serve --
@@ -226,8 +241,7 @@ func (y *YDB) serve() error {
 	}
 }
 
-// ydb_read --
-// Read the date from ydb such as the scanf() (YAML format)
+// Scanf -- Read the date from ydb such as the scanf() (YAML format)
 // ydb_read() only fills the scalar value of the YAML mapping or list nodes.
 // And it returns the number of found values.
 //  - ydb_read(datablock, "key: %s\n"); // ok.
