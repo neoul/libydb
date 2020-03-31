@@ -31,6 +31,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 
 	"sync"
 	"unsafe"
@@ -68,7 +69,7 @@ type Handler interface {
 	// Handler(op int, keys []string, tag string, value string)
 	Create(keys []string, tag string, value string)
 	Replace(keys []string, cTag string, cVal string, nTag string, nVal string)
-	Delete(keys []string, tag string, value string)
+	Delete(keys []string)
 }
 
 // func (d *Datablock) Handler(op int, keys []string, tag string, value string) {
@@ -82,24 +83,88 @@ type Handler interface {
 // 	}
 // }
 
-func (d *Datablock) Create(keys []string, new string, value string) {
-	fmt.Println("Create", keys, new, value)
+func (d *Datablock) Search(keys []string) *Datablock {
+	cur := d
+	for _, key := range keys {
+		log.Println(key, cur)
+		cur = (*cur)[key].(*Datablock)
+	}
+	return cur
 }
 
+// Create - Interface to create an entity to the Datablock
+func (d *Datablock) Create(keys []string, tag string, value string) {
+	datablock := d
+	fmt.Println("Create", keys, tag, value)
+	if len(keys) >= 1 {
+		if (*datablock)[keys[0]] != nil {
+			datablock = (*datablock)[keys[0]].(*Datablock)
+			datablock.Create(keys[1:], tag, value)
+			log.Println(reflect.ValueOf(datablock), (*datablock)[keys[0]])
+		} else {
+			switch tag {
+			case "!!map":
+				subblock := make(Datablock)
+				(*datablock)[keys[0]] = &subblock
+			default:
+				(*datablock)[keys[0]] = value
+			}
+		}
+
+	}
+}
+
+// Replace - Interface to replace the entity in the Datablock
 func (d *Datablock) Replace(keys []string, cTag string, cVal string, nTag string, nVal string) {
 	fmt.Println("Replace", keys, cTag, cVal, nTag, nVal)
 }
 
-func (d *Datablock) Delete(keys []string, tag string, value string) {
-	fmt.Println("Delete", keys, tag, value)
+// Delete - Interface to delete the entity from the Datablock
+func (d *Datablock) Delete(keys []string) {
+	fmt.Println("Delete", keys)
 }
+
+// Search the data in the keys
+// func Search(d *Datablock, keys []string) interface{} {
+// 	var n interface{} = d
+// 	fmt.Println(d)
+// 	// fmt.Println(len(keys))
+// 	for _, key := range keys {
+// 		fmt.Println(key, reflect.ValueOf(n))
+// 		// v := reflect.ValueOf(n).Elem()
+// 		// typ := v.Type()
+// 		// switch typ.Kind() {
+// 		// case reflect.Map:
+
+// 		// 	// fmt.Printf("Map Type:\t%v %s\n", reflect.MapOf(typ.Key(), typ.Elem()), reflect.ValueOf(n).Elem().MapIndex(key))
+// 		// case reflect.Invalid:
+// 		// 	fmt.Println("invalid")
+// 		// case reflect.Int, reflect.Int8, reflect.Int16,
+// 		// 	reflect.Int32, reflect.Int64:
+// 		// 	fmt.Println(strconv.FormatInt(v.Int(), 10))
+// 		// case reflect.Uint, reflect.Uint8, reflect.Uint16,
+// 		// 	reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+// 		// 	fmt.Println(strconv.FormatUint(v.Uint(), 10))
+// 		// // ...floating-point and complex cases omitted for brevity...
+// 		// case reflect.Bool:
+// 		// 	fmt.Println(strconv.FormatBool(v.Bool()))
+// 		// case reflect.String:
+// 		// 	fmt.Println(strconv.Quote(v.String()))
+// 		// case reflect.Chan, reflect.Func, reflect.Ptr, reflect.Slice:
+// 		// 	fmt.Println(v.Type().String() + " 0x" + strconv.FormatUint(uint64(v.Pointer()), 16))
+// 		// default: // reflect.Array, reflect.Struct, reflect.Interface
+// 		// 	fmt.Println(v.Type().String() + " value")
+// 		// }
+// 	}
+// 	return nil
+// }
 
 //export handle
 // handle -- Update YAML Data Block instance
 func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	var y *YDB = (*YDB)(ygo)
 	var node *C.ynode
-	var keys = make([]string, int(C.YDB_LEVEL_MAX))
+	var keys = make([]string, 0, int(C.YDB_LEVEL_MAX))
 	if new != nil {
 		node = new
 	} else {
@@ -107,18 +172,22 @@ func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	}
 	for n := node; n != nil; n = C.ydb_up(n) {
 		key := C.GoString(C.ydb_key(n))
-		keys = append([]string{key}, keys...)
+		if key != "" {
+			keys = append([]string{key}, keys...)
+		}
 	}
 	switch int(op) {
 	case 'c':
+		// fmt.Println("len", len(keys))
 		y.top.Create(keys, C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
 		// for index, key range keys {
 		// }
 	case 'r':
-		y.top.Replace(keys, C.GoString(C.ydb_tag(cur)), C.GoString(C.ydb_value(cur)),
+		y.top.Replace(keys,
+			C.GoString(C.ydb_tag(cur)), C.GoString(C.ydb_value(cur)),
 			C.GoString(C.ydb_tag(new)), C.GoString(C.ydb_value(new)))
 	case 'd':
-		y.top.Delete(keys, C.GoString(C.ydb_tag(cur)), C.GoString(C.ydb_value(cur)))
+		y.top.Delete(keys)
 	}
 }
 
@@ -154,6 +223,7 @@ func Open(name string, top Handler) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 	y := YDB{Name: name, block: C.ydb_open(cname), top: top}
+	y.top.Create([]string{name}, "!!map", "")
 	C.ydb_register(y.block, unsafe.Pointer(&y.block))
 	return &y, func() {
 		y.Close()
