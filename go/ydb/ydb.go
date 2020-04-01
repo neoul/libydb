@@ -52,108 +52,187 @@ const (
 	LogError = C.YLOG_ERROR
 	// LogCritical YDB log level
 	LogCritical = C.YLOG_CRITICAL
-
-	// // OpCreate for data creation
-	// OpCreate = 'c'
-	// // OpReplace for data update
-	// OpReplace = 'r'
-	// // OpDelete for data deletion
-	// OpDelete = 'd'
 )
 
 type (
 	Datablock map[string]interface{}
+	Map map[string]interface{}
+	IntegerMap map[int]string
+	Seq []interface{}
+	Set map[string]string
+	// Str string
+	// Int int64
+	// Bool bool
 )
 
 type Handler interface {
 	// Handler(op int, keys []string, tag string, value string)
-	Create(keys []string, tag string, value string)
-	Replace(keys []string, cTag string, cVal string, nTag string, nVal string)
-	Delete(keys []string)
+	Create(keys []string, key string, tag string, value string)
+	Replace(keys []string, key string, cTag string, cVal string, nTag string, nVal string)
+	Delete(keys []string, key string)
 }
 
-// func (d *Datablock) Handler(op int, keys []string, tag string, value string) {
-// 	switch op {
-// 	case OpCreate:
-// 		fmt.Println("create", keys, tag, value)
-// 	case OpReplace:
-// 		fmt.Println("replace", keys, tag, value)
-// 	case OpDelete:
-// 		fmt.Println("Delete", keys, tag, value)
+
+
+// // Create - Interface to create an entity to the Datablock
+// func (data *Datablock) Create(keys []string, tag string, value string) {
+// 	log.Println("Create", keys, tag, value)
+// 	datablock := data
+// 	if len(keys) >= 1 {
+// 		if (*datablock)[keys[0]] != nil {
+// 			// if (*datablock)[keys[0]].(type) != *Datablock {
+// 			// }
+// 			// switch (*datablock)[keys[0]].(type) {
+// 			// case string:
+// 			// case *Datablock:
+
+// 			// }
+// 			datablock = (*datablock)[keys[0]].(*Datablock)
+// 			datablock.Create(keys[1:], tag, value)
+// 			log.Println(reflect.ValueOf(datablock), (*datablock)[keys[0]])
+// 		} else {
+// 			switch tag {
+// 			case "!!map":
+// 				subblock := make(Datablock)
+// 				(*datablock)[keys[0]] = &subblock
+// 			default:
+// 				(*datablock)[keys[0]] = value
+// 			}
+// 		}
 // 	}
 // }
 
-func (d *Datablock) Search(keys []string) *Datablock {
-	cur := d
-	for _, key := range keys {
-		log.Println(key, cur)
-		cur = (*cur)[key].(*Datablock)
+// // Replace - Interface to replace the entity in the Datablock
+// func (data *Datablock) Replace(keys []string, cTag string, cVal string, nTag string, nVal string) {
+// 	log.Println("Replace", keys, cTag, cVal, nTag, nVal)
+// 	datablock := data
+// 	if len(keys) > 1 {
+// 		if (*datablock)[keys[0]] != nil {
+// 			datablock = (*datablock)[keys[0]].(*Datablock)
+// 			datablock.Delete(keys[1:])
+// 			// log.Println(reflect.ValueOf(datablock), (*datablock)[keys[0]])
+// 		}
+// 	} else if len(keys) == 1 {
+// 		delete(*datablock, keys[0])
+// 	}
+// }
+
+// // Delete - Interface to delete the entity from the Datablock
+// func (data *Datablock) Delete(keys []string) {
+// 	log.Println("Delete", keys)
+// 	datablock := data
+// 	if len(keys) > 1 {
+// 		if (*datablock)[keys[0]] != nil {
+// 			datablock = (*datablock)[keys[0]].(*Datablock)
+// 			datablock.Delete(keys[1:])
+// 			log.Println(reflect.ValueOf(datablock), (*datablock)[keys[0]])
+// 		}
+// 	} else if len(keys) == 1 {
+// 		delete(*datablock, keys[0])
+// 	}
+// }
+
+func newNode(tag string, value string) interface{} {
+	log.Printf("new(%s %s)\n", tag, value)
+	switch tag {
+	case "!!map":
+		node := make(Map)
+		return node
+	// case "!!seq":
+	// 	return &make(Seq)
+	default:
+		return value
 	}
-	return cur
 }
 
 // Create - Interface to create an entity to the Datablock
-func (d *Datablock) Create(keys []string, tag string, value string) {
-	datablock := d
-	fmt.Println("Create", keys, tag, value)
-	if len(keys) >= 1 {
-		if (*datablock)[keys[0]] != nil {
-			datablock = (*datablock)[keys[0]].(*Datablock)
-			datablock.Create(keys[1:], tag, value)
-			log.Println(reflect.ValueOf(datablock), (*datablock)[keys[0]])
-		} else {
-			switch tag {
-			case "!!map":
-				subblock := make(Datablock)
-				(*datablock)[keys[0]] = &subblock
-			default:
-				(*datablock)[keys[0]] = value
-			}
+func (m *Map) Create(keys []string, key string, tag string, value string) {
+	log.Println("Create", keys, key, tag, value)
+	if keys != nil && len(keys) > 0 {
+		if (*m)[keys[0]] == nil {
+			m.Create([]string{}, keys[0], "!!map", "")
 		}
-
+		switch (*m)[keys[0]].(type) {
+		case Map:
+			n := (*m)[keys[0]].(Map)
+			n.Create(keys[1:], key, tag, value)
+		default:
+			panic("Not supported type")
+		// case *Seq:
+		// 	n := (*m)[keys[0]].(*Seq)
+		// 	n.Create(keys[1:], key, tag, value)
+		}
+	} else {
+		(*m)[key] = newNode(tag, value)
 	}
 }
 
 // Replace - Interface to replace the entity in the Datablock
-func (d *Datablock) Replace(keys []string, cTag string, cVal string, nTag string, nVal string) {
-	fmt.Println("Replace", keys, cTag, cVal, nTag, nVal)
+func (m *Map) Replace(keys []string, key string, cTag string, cVal string, nTag string, nVal string) {
+	log.Println("Replace", keys, key, cTag, cVal, nTag, nVal)
+	if keys != nil && len(keys) > 0 {
+		if (*m)[keys[0]] == nil {
+			m.Create([]string{}, keys[0], "!!map", "")
+		}
+		switch (*m)[keys[0]].(type) {
+		case Map:
+			n := (*m)[keys[0]].(Map)
+			n.Replace(keys[1:], key, cTag, cVal, nTag, nVal)
+		}
+	} else {
+		(*m)[key] = newNode(nTag, nVal)
+		log.Println("Replaced", reflect.ValueOf(m), (*m)[key])
+	}
 }
 
 // Delete - Interface to delete the entity from the Datablock
-func (d *Datablock) Delete(keys []string) {
-	fmt.Println("Delete", keys)
+func (m *Map) Delete(keys []string, key string) {
+	log.Println("Delete", keys, key)
+	if keys != nil && len(keys) > 0 {
+		if (*m)[keys[0]] != nil {
+			switch (*m)[keys[0]].(type) {
+			case Map:
+				n := (*m)[keys[0]].(Map)
+				n.Delete(keys[1:], key)
+			default:
+				panic("Not supported type")
+			}
+		}
+	} else {
+		delete(*m, key)
+	}
 }
 
 // Search the data in the keys
-// func Search(d *Datablock, keys []string) interface{} {
-// 	var n interface{} = d
-// 	fmt.Println(d)
-// 	// fmt.Println(len(keys))
+// func Search(data *Datablock, keys []string) interface{} {
+// 	var n interface{} = data
+// 	log.Println(data)
+// 	// log.Println(len(keys))
 // 	for _, key := range keys {
-// 		fmt.Println(key, reflect.ValueOf(n))
+// 		log.Println(key, reflect.ValueOf(n))
 // 		// v := reflect.ValueOf(n).Elem()
 // 		// typ := v.Type()
 // 		// switch typ.Kind() {
 // 		// case reflect.Map:
 
-// 		// 	// fmt.Printf("Map Type:\t%v %s\n", reflect.MapOf(typ.Key(), typ.Elem()), reflect.ValueOf(n).Elem().MapIndex(key))
+// 		// 	// log.Printf("Map Type:\t%v %s\n", reflect.MapOf(typ.Key(), typ.Elem()), reflect.ValueOf(n).Elem().MapIndex(key))
 // 		// case reflect.Invalid:
-// 		// 	fmt.Println("invalid")
+// 		// 	log.Println("invalid")
 // 		// case reflect.Int, reflect.Int8, reflect.Int16,
 // 		// 	reflect.Int32, reflect.Int64:
-// 		// 	fmt.Println(strconv.FormatInt(v.Int(), 10))
+// 		// 	log.Println(strconv.FormatInt(v.Int(), 10))
 // 		// case reflect.Uint, reflect.Uint8, reflect.Uint16,
 // 		// 	reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-// 		// 	fmt.Println(strconv.FormatUint(v.Uint(), 10))
+// 		// 	log.Println(strconv.FormatUint(v.Uint(), 10))
 // 		// // ...floating-point and complex cases omitted for brevity...
 // 		// case reflect.Bool:
-// 		// 	fmt.Println(strconv.FormatBool(v.Bool()))
+// 		// 	log.Println(strconv.FormatBool(v.Bool()))
 // 		// case reflect.String:
-// 		// 	fmt.Println(strconv.Quote(v.String()))
+// 		// 	log.Println(strconv.Quote(v.String()))
 // 		// case reflect.Chan, reflect.Func, reflect.Ptr, reflect.Slice:
-// 		// 	fmt.Println(v.Type().String() + " 0x" + strconv.FormatUint(uint64(v.Pointer()), 16))
+// 		// 	log.Println(v.Type().String() + " 0x" + strconv.FormatUint(uint64(v.Pointer()), 16))
 // 		// default: // reflect.Array, reflect.Struct, reflect.Interface
-// 		// 	fmt.Println(v.Type().String() + " value")
+// 		// 	log.Println(v.Type().String() + " value")
 // 		// }
 // 	}
 // 	return nil
@@ -170,7 +249,7 @@ func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	} else {
 		node = cur
 	}
-	for n := node; n != nil; n = C.ydb_up(n) {
+	for n := C.ydb_up(node); n != nil; n = C.ydb_up(n) {
 		key := C.GoString(C.ydb_key(n))
 		if key != "" {
 			keys = append([]string{key}, keys...)
@@ -178,16 +257,16 @@ func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	}
 	switch int(op) {
 	case 'c':
-		// fmt.Println("len", len(keys))
-		y.top.Create(keys, C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
+		// log.Println("len", len(keys))
+		y.Top.Create(keys, C.GoString(C.ydb_key(node)), C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
 		// for index, key range keys {
 		// }
 	case 'r':
-		y.top.Replace(keys,
+		y.Top.Replace(keys, C.GoString(C.ydb_key(node)),
 			C.GoString(C.ydb_tag(cur)), C.GoString(C.ydb_value(cur)),
 			C.GoString(C.ydb_tag(new)), C.GoString(C.ydb_value(new)))
 	case 'd':
-		y.top.Delete(keys)
+		y.Top.Delete(keys, C.GoString(C.ydb_key(node)))
 	}
 }
 
@@ -200,7 +279,7 @@ func SetLog(loglevel uint) {
 type YDB struct {
 	block *C.ydb
 	Name  string
-	top   Handler
+	Top   Handler
 	mutex sync.Mutex
 	fd    int
 }
@@ -208,11 +287,13 @@ type YDB struct {
 // Close the YDB instance
 func (y *YDB) Close() {
 	y.mutex.Lock()
+	log.Println("Top:", y.Top)
 	if y.block != nil {
 		// C.ydb_unregister(y.block)
 		C.ydb_close(y.block)
 		y.block = nil
 	}
+	log.Println("Top:", y.Top)
 	y.mutex.Unlock()
 }
 
@@ -222,8 +303,13 @@ func (y *YDB) Close() {
 func Open(name string, top Handler) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-	y := YDB{Name: name, block: C.ydb_open(cname), top: top}
-	y.top.Create([]string{name}, "!!map", "")
+	y := YDB{Name: name, block: C.ydb_open(cname)}
+	if top == nil {
+		y.Top = &	Map{}
+		y.Top.Create([]string{}, name, "!!map", "")
+	} else {
+		y.Top = top
+	}
 	C.ydb_register(y.block, unsafe.Pointer(&y.block))
 	return &y, func() {
 		y.Close()
