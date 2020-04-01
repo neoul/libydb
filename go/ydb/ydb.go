@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strconv"
 
 	"sync"
 	"unsafe"
@@ -55,7 +56,6 @@ const (
 )
 
 type (
-	Datablock map[string]interface{}
 	Map map[string]interface{}
 	IntegerMap map[int]string
 	Seq []interface{}
@@ -68,138 +68,152 @@ type (
 type Handler interface {
 	// Handler(op int, keys []string, tag string, value string)
 	Create(keys []string, key string, tag string, value string)
-	Replace(keys []string, key string, cTag string, cVal string, nTag string, nVal string)
+	Replace(keys []string, key string, tag string, value string)
 	Delete(keys []string, key string)
 }
 
-
-
-// // Create - Interface to create an entity to the Datablock
-// func (data *Datablock) Create(keys []string, tag string, value string) {
-// 	log.Println("Create", keys, tag, value)
-// 	datablock := data
-// 	if len(keys) >= 1 {
-// 		if (*datablock)[keys[0]] != nil {
-// 			// if (*datablock)[keys[0]].(type) != *Datablock {
-// 			// }
-// 			// switch (*datablock)[keys[0]].(type) {
-// 			// case string:
-// 			// case *Datablock:
-
-// 			// }
-// 			datablock = (*datablock)[keys[0]].(*Datablock)
-// 			datablock.Create(keys[1:], tag, value)
-// 			log.Println(reflect.ValueOf(datablock), (*datablock)[keys[0]])
-// 		} else {
-// 			switch tag {
-// 			case "!!map":
-// 				subblock := make(Datablock)
-// 				(*datablock)[keys[0]] = &subblock
-// 			default:
-// 				(*datablock)[keys[0]] = value
-// 			}
-// 		}
-// 	}
-// }
-
-// // Replace - Interface to replace the entity in the Datablock
-// func (data *Datablock) Replace(keys []string, cTag string, cVal string, nTag string, nVal string) {
-// 	log.Println("Replace", keys, cTag, cVal, nTag, nVal)
-// 	datablock := data
-// 	if len(keys) > 1 {
-// 		if (*datablock)[keys[0]] != nil {
-// 			datablock = (*datablock)[keys[0]].(*Datablock)
-// 			datablock.Delete(keys[1:])
-// 			// log.Println(reflect.ValueOf(datablock), (*datablock)[keys[0]])
-// 		}
-// 	} else if len(keys) == 1 {
-// 		delete(*datablock, keys[0])
-// 	}
-// }
-
-// // Delete - Interface to delete the entity from the Datablock
-// func (data *Datablock) Delete(keys []string) {
-// 	log.Println("Delete", keys)
-// 	datablock := data
-// 	if len(keys) > 1 {
-// 		if (*datablock)[keys[0]] != nil {
-// 			datablock = (*datablock)[keys[0]].(*Datablock)
-// 			datablock.Delete(keys[1:])
-// 			log.Println(reflect.ValueOf(datablock), (*datablock)[keys[0]])
-// 		}
-// 	} else if len(keys) == 1 {
-// 		delete(*datablock, keys[0])
-// 	}
-// }
 
 func newNode(tag string, value string) interface{} {
 	log.Printf("new(%s %s)\n", tag, value)
 	switch tag {
 	case "!!map":
-		node := make(Map)
-		return node
-	// case "!!seq":
-	// 	return &make(Seq)
+		return make(Map)
+	case "!!seq":
+		return make(Seq, 32, 32)
 	default:
 		return value
 	}
 }
 
-// Create - Interface to create an entity to the Datablock
+func moveToCreate(node interface{}, keys []string, key string, tag string, value string) {
+	switch node.(type) {
+	case Map:
+		n :=node.(Map)
+		n.Create(keys[1:], key, tag, value)
+	case Seq:
+		n :=node.(Seq)
+		n.Create(keys[1:], key, tag, value)
+	default:
+		panic("Not supported type")
+	}
+}
+
+func moveToReplace(node interface{}, keys []string, key string, tag string, value string) {
+	switch node.(type) {
+	case Map:
+		n :=node.(Map)
+		n.Replace(keys[1:], key, tag, value)
+	case Seq:
+		n :=node.(Seq)
+		n.Replace(keys[1:], key, tag, value)
+	default:
+		panic("Not supported type")
+	}
+}
+
+func moveToDelete(node interface{}, keys []string, key string) {
+	switch node.(type) {
+	case Map:
+		n :=node.(Map)
+		n.Delete(keys[1:], key)
+	case Seq:
+		n :=node.(Seq)
+		n.Delete(keys[1:], key)
+	default:
+		panic("Not supported type")
+	}
+}
+
+// Create - Interface to create an entity on !!map object
 func (m *Map) Create(keys []string, key string, tag string, value string) {
-	log.Println("Create", keys, key, tag, value)
+	log.Println("map.Create", keys, key, tag, value)
 	if keys != nil && len(keys) > 0 {
 		if (*m)[keys[0]] == nil {
 			m.Create([]string{}, keys[0], "!!map", "")
 		}
-		switch (*m)[keys[0]].(type) {
-		case Map:
-			n := (*m)[keys[0]].(Map)
-			n.Create(keys[1:], key, tag, value)
-		default:
-			panic("Not supported type")
-		// case *Seq:
-		// 	n := (*m)[keys[0]].(*Seq)
-		// 	n.Create(keys[1:], key, tag, value)
-		}
+		moveToCreate((*m)[keys[0]], keys, key, tag, value)
 	} else {
 		(*m)[key] = newNode(tag, value)
 	}
 }
 
-// Replace - Interface to replace the entity in the Datablock
-func (m *Map) Replace(keys []string, key string, cTag string, cVal string, nTag string, nVal string) {
-	log.Println("Replace", keys, key, cTag, cVal, nTag, nVal)
+// Replace - Interface to replace the entity on !!map object
+func (m *Map) Replace(keys []string, key string, tag string, value string) {
+	log.Println("map.Replace", keys, key, tag, value)
 	if keys != nil && len(keys) > 0 {
 		if (*m)[keys[0]] == nil {
 			m.Create([]string{}, keys[0], "!!map", "")
 		}
-		switch (*m)[keys[0]].(type) {
-		case Map:
-			n := (*m)[keys[0]].(Map)
-			n.Replace(keys[1:], key, cTag, cVal, nTag, nVal)
-		}
+		moveToReplace((*m)[keys[0]], keys, key, tag, value)
 	} else {
-		(*m)[key] = newNode(nTag, nVal)
+		(*m)[key] = newNode(tag, value)
 		log.Println("Replaced", reflect.ValueOf(m), (*m)[key])
 	}
 }
 
-// Delete - Interface to delete the entity from the Datablock
+// Delete - Interface to delete the entity from !!map object
 func (m *Map) Delete(keys []string, key string) {
-	log.Println("Delete", keys, key)
+	log.Println("map.Delete", keys, key)
 	if keys != nil && len(keys) > 0 {
 		if (*m)[keys[0]] != nil {
-			switch (*m)[keys[0]].(type) {
-			case Map:
-				n := (*m)[keys[0]].(Map)
-				n.Delete(keys[1:], key)
-			default:
-				panic("Not supported type")
-			}
+			moveToDelete((*m)[keys[0]], keys, key)
 		}
 	} else {
 		delete(*m, key)
+	}
+}
+
+// Create - Interface to create an entity on !!map object
+func (seq *Seq) Create(keys []string, key string, tag string, value string) {
+	log.Println("seq.Create", keys, key, tag, value)
+	if keys != nil && len(keys) > 0 {
+		i, err := strconv.Atoi(keys[0])
+		if err != nil {
+			panic("non-integer index on !!seq")
+		}
+		if (*seq)[i] == nil {
+			seq.Create([]string{}, keys[0], "!!seq", "")
+		}
+		moveToCreate((*seq)[i], keys, key, tag, value)
+	} else {
+		// *seq = append(*seq, newNode(tag, value))
+		(*seq)[0] = newNode(tag, value)
+		log.Println("XXXX", reflect.TypeOf(*seq), *seq)
+		// seq = &array
+	}
+}
+
+// Replace - Interface to replace the entity on !!map object
+func (seq *Seq) Replace(keys []string, key string, tag string, value string) {
+	log.Println("seq.Replace", keys, key, tag, value)
+	if keys != nil && len(keys) > 0 {
+		i, err := strconv.Atoi(keys[0])
+		if err != nil {
+			panic("non-integer index on !!seq")
+		}
+		if (*seq)[i] == nil {
+			seq.Create([]string{}, keys[0], "!!seq", "")
+		}
+		moveToReplace((*seq)[i], keys, key, tag, value)
+	} else {
+		*seq = append(*seq, newNode(tag, value))
+		// log.Println("Replaced", reflect.ValueOf(seq), (*seq)[i])
+	}
+}
+
+// Delete - Interface to delete the entity from !!map object
+func (seq *Seq) Delete(keys []string, key string) {
+	log.Println("seq.Delete", keys, key)
+	if keys != nil && len(keys) > 0 {
+		i, err := strconv.Atoi(keys[0])
+		if err != nil {
+			panic("non-integer index on !!seq")
+		}
+		if (*seq)[i] != nil {
+			moveToDelete((*seq)[i], keys, key)
+		}
+	} else {
+		*seq = (*seq)[1:]
 	}
 }
 
@@ -257,13 +271,10 @@ func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	}
 	switch int(op) {
 	case 'c':
-		// log.Println("len", len(keys))
-		y.Top.Create(keys, C.GoString(C.ydb_key(node)), C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
-		// for index, key range keys {
-		// }
+		y.Top.Create(keys, C.GoString(C.ydb_key(node)),
+			C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
 	case 'r':
 		y.Top.Replace(keys, C.GoString(C.ydb_key(node)),
-			C.GoString(C.ydb_tag(cur)), C.GoString(C.ydb_value(cur)),
 			C.GoString(C.ydb_tag(new)), C.GoString(C.ydb_value(new)))
 	case 'd':
 		y.Top.Delete(keys, C.GoString(C.ydb_key(node)))
