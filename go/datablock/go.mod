@@ -1,4 +1,4 @@
-module ydb
+module datablock
 
 go 1.14
 
