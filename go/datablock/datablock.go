@@ -31,6 +31,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"sync"
 	"unsafe"
 
@@ -52,169 +53,195 @@ const (
 	LogCritical = C.YLOG_CRITICAL
 )
 
-func (node *C.ynode) Empty() bool {
-	empty := int(C.ydb_empty(node))
-	if empty == 0 {
-		return false
+// Size - Get the number of children
+func (node *YNode) Size() int {
+	switch node.Value.(type) {
+	case map[string]interface{}:
+		return len(node.Value.(map[string]interface{}))
+	case []interface{}:
+		return len(node.Value.([]interface{}))
+	default:
+		return 0
 	}
-	return true
 }
 
-func (node *C.ynode) Size() int {
-	return int(C.ydb_size(node))
+// Find - Find a child from the current YNode
+func (node *YNode) Find(key string) *YNode {
+	switch node.Value.(type) {
+	case map[string]interface{}:
+		children := node.Value.(map[string]interface{})
+		child, ok := children[key]
+		if ok {
+			return child.(*YNode)
+		}
+		return nil
+	case []interface{}: // unable to find a key due to no key.
+		return nil
+	default:
+		return nil
+	}
 }
 
-func (node *C.ynode) Find(key string) *C.ynode {
-	k := C.CString(key)
-	defer C.free(unsafe.Pointer(k))
-	return C.ydb_find_child(node, k)
+// GetParent - Get the parent YNode
+func (node *YNode) GetParent() *YNode {
+	return node.Parent
 }
 
-func (node *C.ynode) Up() *C.ynode {
-	return C.ydb_up(node)
+// GetChildKeys - Get all child keys
+func (node *YNode) GetChildKeys() []string {
+	switch node.Value.(type) {
+	case map[string]interface{}:
+		len := len(node.Value.(map[string]interface{}))
+		children := make([]string, 0, len)
+		for childkey := range node.Value.(map[string]interface{}) {
+			children = append(children, childkey)
+		}
+		return children
+	// case []interface{}: // not support key lists in YAML sequence (!!seq)
+	default:
+		return make([]string, 0, 0)
+	}
 }
 
-func (node *C.ynode) Down() *C.ynode {
-	return C.ydb_down(node)
+
+// GetChildren - Get all child YNodes
+func (node *YNode) GetChildren() []*YNode {
+	switch node.Value.(type) {
+	case map[string]interface{}:
+		len := len(node.Value.(map[string]interface{}))
+		children := make([]*YNode, 0, len)
+		for _, child := range node.Value.(map[string]interface{}) {
+			children = append(children, child.(*YNode))
+		}
+		return children
+	case []interface{}:
+		len := len(node.Value.([]interface{}))
+		children := make([]*YNode, 0, len)
+		for _, child := range node.Value.([]interface{}) {
+			children = append(children, child.(*YNode))
+		}
+		return children
+	default:
+		return make([]*YNode, 0, 0)
+	}
 }
 
-func (node *C.ynode) Next() *C.ynode {
-	return C.ydb_next(node)
+// GetMap - Get all child YNodes
+func (node *YNode) GetMap() map[string]interface{} {
+	switch node.Value.(type) {
+	case map[string]interface{}:
+		return node.Value.(map[string]interface{})
+	default:
+		return make(map[string]interface{}, 0)
+	}
 }
 
-func (node *C.ynode) Prev() *C.ynode {
-	return C.ydb_prev(node)
+
+// GetTag - Get the current YNode YAML Tag
+func (node *YNode) GetTag() string {
+	return node.Tag
 }
 
-func (node *C.ynode) First() *C.ynode {
-	return C.ydb_first(node)
+// GetKey - Get the current YNode YAML Key
+func (node *YNode) GetKey() string {
+	return node.Key
 }
 
-func (node *C.ynode) Last() *C.ynode {
-	return C.ydb_last(node)
+// GetValue - Get the current YNode YAML value
+func (node *YNode) GetValue() string {
+	switch node.Value.(type) {
+	case string:
+		return node.Value.(string)
+	default:
+		return ""
+	}
 }
 
-func (node *C.ynode) Tag() string {
-	return C.GoString(C.ydb_tag(node))
-}
-
-func (node *C.ynode) Key() string {
-	return C.GoString(C.ydb_key(node))
-}
-
-func (node *C.ynode) Value() string {
-	return C.GoString(C.ydb_value(node))
-}
-
-type Datablock struct {
-	Tag string
-	Key string
-	Value string
-	// Children map[string]Datablock
-	Children []Datablock
+// YNode YAML Data Block node
+type YNode struct {
+	Parent *YNode
+	Tag    string
+	Key    string
+	Value  interface{}
 }
 
 type retrieveOption struct {
-	keys []string
-	all bool
+	keys  []string
+	all   bool
 	depth int
 }
 
+// RetrieveOption - The option to retrieve YNodes from an YDB instance.
 type RetrieveOption func(*retrieveOption)
- 
+
 // func ordering(o func(cell, cell) bool) RetrieveOption {
 //     return func(s *retrieveOption) { s.ordering = o }
 // }
- 
+
+// RetrieveDepth - The option to set the depth of the YDB retrieval
 func RetrieveDepth(d int) RetrieveOption {
-    return func(s *retrieveOption) { s.depth = d }
+	return func(s *retrieveOption) { s.depth = d }
 }
 
+// RetrieveAll - The option to retrieve all descendants
 func RetrieveAll() RetrieveOption {
-    return func(s *retrieveOption) { s.all = true }
-}
- 
-func RetrieveKeys(k []string) RetrieveOption {
-    return func(s *retrieveOption) { s.keys = k }
+	return func(s *retrieveOption) { s.all = true }
 }
 
-func (node *C.ynode) Retrieve(options ...RetrieveOption) Datablock {
-	var opt retrieveOption
-    for _, o := range options {
-        o(&opt)
-    }
-	nodeinfo := Datablock{
-		Tag: C.GoString(C.ydb_tag(node)),
-		Key: C.GoString(C.ydb_key(node)),
-		Value: C.GoString(C.ydb_value(node))}
-	if opt.all || opt.depth > 0 {
-		num := int(C.ydb_size(node))
-		if num > 0 {
-			children := make([]*C.ynode, 0, num)
-			Children := make([]Datablock, 0, num)
-			for n := C.ydb_down(node); n != nil; n = C.ydb_next(n) {
-				children = append(children, n)
-			}
-			for _, child := range children {
-				datablock := child.Retrieve(RetrieveAll(), RetrieveDepth(opt.depth-1))
-				Children = append(Children, datablock)
-			}
-			nodeinfo.Children = Children
-		}
-	}
-	return nodeinfo
+// RetrieveKeys - The option to set the start point of the retrieval
+func RetrieveKeys(k ...string) RetrieveOption {
+	return func(s *retrieveOption) { s.keys = k }
 }
 
+type Updater interface {
+	Create(keys []string, key string, tag string, value string)
+	Replace(keys []string, key string, tag string, value string)
+	Delete(keys []string, key string)
+}
 
-// type Handler interface {
-// 	// Handler(op int, keys []string, tag string, value string)
-// 	Create(keys []string, key string, tag string, value string)
-// 	Replace(keys []string, key string, tag string, value string)
-// 	Delete(keys []string, key string)
-// }
+type EmptyUpdater struct {}
 
-// // Create - Interface to create an entity on !!map object
-// func (node *C.ynode) Create(keys []string, key string, tag string, value string) {
-// 	log.Println("Node.Create", keys, key, tag, value)
-// }
+// Create - Interface to create an entity on !!map object
+func (updater *EmptyUpdater) Create(keys []string, key string, tag string, value string) {
+	log.Println("Node.Create", keys, key, tag, value)
+}
 
-// // Replace - Interface to replace the entity on !!map object
-// func (node *C.ynode) Replace(keys []string, key string, tag string, value string) {
-// 	log.Println("Node.Replace", keys, key, tag, value)
-// }
+// Replace - Interface to replace the entity on !!map object
+func (updater *EmptyUpdater) Replace(keys []string, key string, tag string, value string) {
+	log.Println("Node.Replace", keys, key, tag, value)
+}
 
-// // Delete - Interface to delete the entity from !!map object
-// func (node *C.ynode) Delete(keys []string, key string) {
-// 	log.Println("Node.Delete", keys, key)
-// }
+// Delete - Interface to delete the entity from !!map object
+func (updater *EmptyUpdater) Delete(keys []string, key string) {
+	log.Println("Node.Delete", keys, key)
+}
 
 //export handle
 // handle -- Update YAML Data Block instance
 func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
-	// var y *YDB = (*YDB)(ygo)
-	var node *C.ynode
-	var keys = make([]string, 0, int(C.YDB_LEVEL_MAX))
+	var db *YDB = (*YDB)(ygo)
+	var n *C.ynode
+	var keys = make([]string, 0, 0)
 	if new != nil {
-		node = new
+		n = new
 	} else {
-		node = cur
+		n = cur
 	}
-	for n := C.ydb_up(node); n != nil; n = C.ydb_up(n) {
-		key := C.GoString(C.ydb_key(n))
+	for n := n.up(); n != nil; n = n.up() {
+		key := n.key()
 		if key != "" {
 			keys = append([]string{key}, keys...)
 		}
 	}
-	// switch int(op) {
-	// case 'c':
-	// 	node.Create(keys, C.GoString(C.ydb_key(node)),
-	// 		C.GoString(C.ydb_tag(node)), C.GoString(C.ydb_value(node)))
-	// case 'r':
-	// 	node.Replace(keys, C.GoString(C.ydb_key(node)),
-	// 		C.GoString(C.ydb_tag(new)), C.GoString(C.ydb_value(new)))
-	// case 'd':
-	// 	node.Delete(keys, C.GoString(C.ydb_key(node)))
-	// }
+	// log.Println(keys)
+	switch int(op) {
+	case 'c':
+		db.Updater.Create(keys, n.key(), n.tag(), n.value())
+	case 'r':
+		db.Updater.Replace(keys, n.key(), n.tag(), n.value())
+	case 'd':
+		db.Updater.Delete(keys, n.key())
+	}
 }
 
 // SetLog configures the log level of YDB
@@ -222,65 +249,55 @@ func SetLog(loglevel uint) {
 	C.ylog_level = C.uint(loglevel)
 }
 
-// YDB (YAML Datablock type) to indicate an YDB instance
+// YDB (YAML YNode type) to indicate an YDB instance
 type YDB struct {
 	block *C.ydb
-	Name  string
 	mutex sync.Mutex
 	fd    int
+	Name  string
+	Updater Updater
 }
 
-func (y *YDB) Top() *C.ynode {
-	return C.ydb_top(y.block)
-}
-
-func (y *YDB) Retrieve(options ...RetrieveOption) Datablock {
+// Retrieve - Retrieve the data that consists of YNodes.
+func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
+	var node, parent *YNode
 	var opt retrieveOption
-    for _, o := range options {
-        o(&opt)
+	for _, o := range options {
+		o(&opt)
 	}
-	node := C.ydb_top(y.block)
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	n := db.top()
+	node = n.createYNode(nil)
+	// log.Println(opt.keys)
 	if len(opt.keys) > 0 {
 		for _, key := range opt.keys {
-			node = node.Find(key)
-			if node == nil {
-				return Datablock{}
+			parent = node
+			n = n.find(key)
+			if n == nil {
+				return nil
 			}
+			node = n.createYNode(parent)
 		}
 	}
-	nodeinfo := Datablock{
-		Tag: C.GoString(C.ydb_tag(node)),
-		Key: C.GoString(C.ydb_key(node)),
-		Value: C.GoString(C.ydb_value(node))}
 	if opt.all || opt.depth > 0 {
-		num := int(C.ydb_size(node))
-		if num > 0 {
-			children := make([]*C.ynode, 0, num)
-			Children := make([]Datablock, 0, num)
-			for n := C.ydb_down(node); n != nil; n = C.ydb_next(n) {
-				children = append(children, n)
-			}
-			for _, child := range children {
-				datablock := child.Retrieve(RetrieveAll(), RetrieveDepth(opt.depth-1))
-				Children = append(Children, datablock)
-			}
-			nodeinfo.Children = Children
+		parent = node
+		for n := n.down(); n != nil; n = n.next() {
+			n.addYnode(parent, opt.depth-1, opt.all)
 		}
 	}
-	return nodeinfo
+	return node
 }
 
-
-
 // Close the YDB instance
-func (y *YDB) Close() {
-	y.mutex.Lock()
-	if y.block != nil {
-		// C.ydb_unregister(y.block)
-		C.ydb_close(y.block)
-		y.block = nil
+func (db *YDB) Close() {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	if db.block != nil {
+		// C.ydb_unregister(db.block)
+		C.ydb_close(db.block)
+		db.block = nil
 	}
-	y.mutex.Unlock()
 }
 
 // Open an YDB instance with a name
@@ -289,17 +306,17 @@ func (y *YDB) Close() {
 func Open(name string) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-	y := YDB{Name: name, block: C.ydb_open(cname)}
-	C.ydb_register(y.block, unsafe.Pointer(&y.block))
-	return &y, func() {
-		y.Close()
+	db := YDB{Name: name, block: C.ydb_open(cname), Updater: &EmptyUpdater{}}
+	C.ydb_register(db.block, unsafe.Pointer(&db.block))
+	return &db, func() {
+		db.Close()
 	}
 }
 
 // Connect to YDB IPC (Inter Process Communication) channel
-func (y *YDB) Connect(addr string, flags ...string) error {
+func (db *YDB) Connect(addr string, flags ...string) error {
 	var gflags string
-	if y.block == nil {
+	if db.block == nil {
 		return fmt.Errorf("no instance exists")
 	}
 	for _, flag := range flags {
@@ -310,9 +327,9 @@ func (y *YDB) Connect(addr string, flags ...string) error {
 	cflags := C.CString(gflags)
 	defer C.free(unsafe.Pointer(caddr))
 	defer C.free(unsafe.Pointer(cflags))
-	y.mutex.Lock()
-	res := C.ydb_connect(y.block, caddr, cflags)
-	y.mutex.Unlock()
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	res := C.ydb_connect(db.block, caddr, cflags)
 	if res == C.YDB_OK {
 		return nil
 	}
@@ -320,12 +337,12 @@ func (y *YDB) Connect(addr string, flags ...string) error {
 }
 
 // Disconnect to YDB IPC channel
-func (y *YDB) Disconnect(addr string) error {
+func (db *YDB) Disconnect(addr string) error {
 	caddr := C.CString(addr)
 	defer C.free(unsafe.Pointer(caddr))
-	y.mutex.Lock()
-	res := C.ydb_disconnect(y.block, caddr)
-	y.mutex.Unlock()
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	res := C.ydb_disconnect(db.block, caddr)
 	if res == C.YDB_OK {
 		return nil
 	}
@@ -335,43 +352,159 @@ func (y *YDB) Disconnect(addr string) error {
 // Serve --
 // Run Serve() in the main loop if YDB IPC channel is used.
 // Serve() updates the local YDB instance using the received YAML data from remotes.
-func (y *YDB) Serve() {
-	go y.Receive()
+func (db *YDB) Serve() {
+	go db.Receive()
 }
 
 // Receive --
 // Receive the YAML data from remotes.
-func (y *YDB) Receive() error {
+func (db *YDB) Receive() error {
 	var rfds unix.FdSet
-	if y.fd > 0 {
+	if db.fd > 0 {
 		// log.Println("serve() already running")
 		return nil
 	}
 	for {
-		y.fd = int(C.ydb_fd(y.block))
-		if y.fd <= 0 {
+		db.fd = int(C.ydb_fd(db.block))
+		if db.fd <= 0 {
 			err := errors.New(C.GoString(C.ydb_res_str(C.YDB_E_CONN_FAILED)))
 			log.Printf("serve:%v", err)
 			return err
 		}
-		rfds.Set(y.fd)
-		n, err := unix.Select(y.fd+1, &rfds, nil, nil, nil)
+		rfds.Set(db.fd)
+		n, err := unix.Select(db.fd+1, &rfds, nil, nil, nil)
 		if err != nil {
 			log.Printf("serve:%v", err)
-			y.fd = 0
+			db.fd = 0
 			return err
 		}
-		if n == 1 && rfds.IsSet(y.fd) {
-			rfds.Clear(y.fd)
-			y.mutex.Lock()
-			res := C.ydb_serve(y.block, C.int(0))
-			y.mutex.Unlock()
+		if n == 1 && rfds.IsSet(db.fd) {
+			rfds.Clear(db.fd)
+			db.mutex.Lock()
+			defer db.mutex.Unlock()
+			res := C.ydb_serve(db.block, C.int(0))
 			if res >= C.YDB_ERROR {
 				err = errors.New(C.GoString(C.ydb_res_str(res)))
 				log.Printf("serve:%v", err)
-				y.fd = 0
+				db.fd = 0
 				return err
 			}
 		}
 	}
+}
+
+func (db *YDB) top() *C.ynode {
+	return C.ydb_top(db.block)
+}
+
+// new - create new YNode based on *C.ynode
+func (n *C.ynode) createYNode(parent *YNode) *YNode {
+	node := new(YNode)
+	node.Tag = n.tag()
+	node.Key = n.key()
+	switch node.Tag {
+	case "!!map", "!!imap", "!!set", "!!omap":
+		node.Value = make(map[string]interface{})
+	case "!!seq":
+		node.Value = make([]interface{}, 0, 0)
+	default:
+		node.Value = n.value()
+	}
+	if parent != nil {
+		val := reflect.ValueOf(parent.Value)
+		typ := reflect.TypeOf(parent.Value)
+		switch typ.Kind() {
+		case reflect.Map:
+			key, elem := reflect.ValueOf(node.Key), reflect.ValueOf(node)
+			keytyp := typ.Key()
+			if !key.Type().ConvertibleTo(keytyp) {
+				log.Fatalln("Invalid map key type -", node)
+				return nil
+			}
+			key = key.Convert(keytyp)
+			elemtyp := typ.Elem()
+			// log.Printf("key=%s, elem=%s", key, elem)
+			// log.Printf("keytyp=%s, elemtyp=%v", keytyp, elemtyp)
+			if elemtyp.Kind() != val.Kind() && !elem.Type().ConvertibleTo(elemtyp) {
+				log.Fatalln("Invalid element type -", node)
+				return nil
+			}
+			val.SetMapIndex(key, elem.Convert(elemtyp))
+		case reflect.Slice:
+			parentval := reflect.ValueOf(parent).Elem()
+			parentFieldVal := parentval.FieldByName("Value")
+			// log.Println("parentFieldVal", parentFieldVal.CanSet())
+			newslice := reflect.Append(val, reflect.ValueOf(node))
+			parentFieldVal.Set(newslice)
+		}
+		node.Parent = parent
+	}
+	// log.Println(node)
+	return node
+}
+
+// addYnode - Add child node to the parent YNode
+func (n *C.ynode) addYnode(parent *YNode, depth int, all bool) *YNode {
+	node := n.createYNode(parent)
+	if all || depth > 0 {
+		parent = node
+		for n := n.down(); n != nil; n = n.next() {
+			n.addYnode(parent, depth-1, all)
+		}
+	}
+	return node
+}
+
+func (n *C.ynode) empty() bool {
+	empty := int(C.ydb_empty(n))
+	if empty == 0 {
+		return false
+	}
+	return true
+}
+
+func (n *C.ynode) size() int {
+	return int(C.ydb_size(n))
+}
+
+func (n *C.ynode) find(key string) *C.ynode {
+	k := C.CString(key)
+	defer C.free(unsafe.Pointer(k))
+	return C.ydb_find_child(n, k)
+}
+
+func (n *C.ynode) up() *C.ynode {
+	return C.ydb_up(n)
+}
+
+func (n *C.ynode) down() *C.ynode {
+	return C.ydb_down(n)
+}
+
+func (n *C.ynode) next() *C.ynode {
+	return C.ydb_next(n)
+}
+
+func (n *C.ynode) prev() *C.ynode {
+	return C.ydb_prev(n)
+}
+
+func (n *C.ynode) first() *C.ynode {
+	return C.ydb_first(n)
+}
+
+func (n *C.ynode) last() *C.ynode {
+	return C.ydb_last(n)
+}
+
+func (n *C.ynode) tag() string {
+	return C.GoString(C.ydb_tag(n))
+}
+
+func (n *C.ynode) key() string {
+	return C.GoString(C.ydb_key(n))
+}
+
+func (n *C.ynode) value() string {
+	return C.GoString(C.ydb_value(n))
 }
