@@ -1,4 +1,4 @@
-package datablock
+package ydb
 
 /*
 #cgo LDFLAGS: -lydb -lyaml
