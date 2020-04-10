@@ -1,4 +1,4 @@
-package main
+package main // import "demo"
 
 import (
 	"log"
@@ -26,7 +26,7 @@ func main() {
 			log.Println(child)
 		}
 	}
-	
+
 	err = db.Disconnect("uss://test")
 	if err != nil {
 		log.Println(err)

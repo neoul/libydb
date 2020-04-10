@@ -53,3 +53,5 @@ go/bin
 go/pkg
 go/main
 go/app
+go/demo/demo
+go/demo/pkg
