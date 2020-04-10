@@ -288,7 +288,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...);
 
 // ydb_path_read --
 // Read the value from ydb using input path
-// const char *value = ydb_path_read(datablock, "/path/to/update")
+// const char *value = ydb_path_read(datablock, "/path/to/read")
 const char *ydb_path_read(ydb *datablock, const char *format, ...);
 
 int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...);

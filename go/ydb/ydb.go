@@ -8,6 +8,11 @@ package ydb
 #include <ylog.h>
 #include <ydb.h>
 
+typedef struct {
+	int buflen;
+	void *buf;
+} bufinfo;
+
 extern void handle(void *p, char op, ynode *old, ynode *cur);
 static void ydb_hook(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1)
 {
@@ -25,11 +30,37 @@ static void ydb_unregister(ydb *datablock)
 	ydb_write_hook_delete(datablock, "/");
 }
 
+static ydb_res ydb_parses_wrapper(ydb *datablock, void *d, size_t dlen)
+{
+	return ydb_parses(datablock, (char *)d, dlen);
+}
+
+// The return must be free.
+static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, void *path)
+{
+    FILE *fp;
+    char *buf = NULL;
+	size_t buflen = 0;
+	fp = open_memstream(&buf, &buflen);
+	if (fp)
+	{
+		int n;
+		n = ydb_path_fprintf(fp, datablock, "%s", path);
+		fclose(fp);
+	}
+	bufinfo bi;
+	bi.buflen = buflen;
+	bi.buf = (void *) buf;
+	return bi;
+}
+
 */
 import "C"
 import (
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"reflect"
 	"sync"
@@ -103,7 +134,6 @@ func (node *YNode) GetChildKeys() []string {
 	}
 }
 
-
 // GetChildren - Get all child YNodes
 func (node *YNode) GetChildren() []*YNode {
 	switch node.Value.(type) {
@@ -135,7 +165,6 @@ func (node *YNode) GetMap() map[string]interface{} {
 		return make(map[string]interface{}, 0)
 	}
 }
-
 
 // GetTag - Get the current YNode YAML Tag
 func (node *YNode) GetTag() string {
@@ -193,13 +222,15 @@ func RetrieveKeys(k ...string) RetrieveOption {
 	return func(s *retrieveOption) { s.keys = k }
 }
 
+// Updater interface to update user structure
 type Updater interface {
 	Create(keys []string, key string, tag string, value string)
 	Replace(keys []string, key string, tag string, value string)
 	Delete(keys []string, key string)
 }
 
-type EmptyUpdater struct {}
+// EmptyUpdater - Empty Updater interface
+type EmptyUpdater struct{}
 
 // Create - Interface to create an entity on !!map object
 func (updater *EmptyUpdater) Create(keys []string, key string, tag string, value string) {
@@ -251,10 +282,10 @@ func SetLog(loglevel uint) {
 
 // YDB (YAML YNode type) to indicate an YDB instance
 type YDB struct {
-	block *C.ydb
-	mutex sync.Mutex
-	fd    int
-	Name  string
+	block   *C.ydb
+	mutex   sync.Mutex
+	fd      int
+	Name    string
 	Updater Updater
 }
 
@@ -384,13 +415,76 @@ func (db *YDB) Receive() error {
 			defer db.mutex.Unlock()
 			res := C.ydb_serve(db.block, C.int(0))
 			if res >= C.YDB_ERROR {
-				err = errors.New(C.GoString(C.ydb_res_str(res)))
+				err = fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 				log.Printf("serve:%v", err)
 				db.fd = 0
 				return err
 			}
 		}
 	}
+}
+
+// A Decoder reads and decodes YAML values from an input stream to an YDB instance.
+type Decoder struct {
+	db  *YDB
+	r   io.Reader
+	err error
+}
+
+// NewDecoder returns a new decoder that reads from r.
+//
+// The decoder introduces its own buffering and may
+// read data from r beyond the YAML values requested.
+func (db *YDB) NewDecoder(r io.Reader) *Decoder {
+	return &Decoder{r: r, db: db}
+}
+
+// Decode reads the YAML value from its
+// input and stores it into an YDB instance.
+func (dec *Decoder) Decode() error {
+	if dec.err != nil {
+		return dec.err
+	}
+	byt, err := ioutil.ReadAll(dec.r)
+	if err == nil {
+		res := C.ydb_parses_wrapper(dec.db.block, unsafe.Pointer(&byt[0]), C.ulong(len(byt)))
+		if res >= C.YDB_ERROR {
+			dec.err = err
+			return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+		}
+	} else {
+		dec.err = err
+	}
+	return err
+}
+
+// An Encoder writes JSON values to an output stream.
+type Encoder struct {
+	db  *YDB
+	w   io.Writer
+	err error
+}
+
+// NewEncoder returns a new encoder that writes to w.
+func (db *YDB) NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{w: w, db: db}
+}
+
+// Encode writes the YAML data of an YDB instance to the output stream.
+func (enc *Encoder) Encode() error {
+	if enc.err != nil {
+		return enc.err
+	}
+	path := byte(0)
+	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, unsafe.Pointer(&path))
+	log.Printf("%T %d", cptr, cptr.buflen)
+	if cptr.buf != nil {
+		defer C.free(unsafe.Pointer(cptr.buf))
+		byt := C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen)
+		_, err := enc.w.Write(byt)
+		return err
+	}
+	return fmt.Errorf("empty path printf in ydb")
 }
 
 func (db *YDB) top() *C.ynode {
