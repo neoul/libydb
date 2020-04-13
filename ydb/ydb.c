@@ -1103,6 +1103,8 @@ ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen)
 {
     ydb_res res = YDB_OK;
     ynode *src = NULL;
+    char *ibuf = NULL;
+    size_t ibuflen = 0;
     ylog_in();
     res = ynode_scanf_from_buf(buf, buflen, 0, &src);
     YDB_FAIL(res, res);
@@ -1113,11 +1115,11 @@ ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen)
         lock(datablock);
         log = ynode_log_open(datablock->top, NULL);
         top = ynode_merge(datablock->top, src, log);
-        ynode_log_close(log, &buf, &buflen);
+        ynode_log_close(log, &ibuf, &ibuflen);
         if (top)
         {
             datablock->top = top;
-            yconn_publish(NULL, NULL, datablock, YOP_MERGE, buf, buflen);
+            yconn_publish(NULL, NULL, datablock, YOP_MERGE, ibuf, ibuflen);
         }
         else
         {
@@ -1126,7 +1128,7 @@ ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen)
     }
 failed:
     lock(datablock);
-    CLEAR_BUF(buf, buflen);
+    CLEAR_BUF(ibuf, ibuflen);
     ynode_remove(src);
     ylog_out();
     return res;
