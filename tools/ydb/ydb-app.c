@@ -476,7 +476,7 @@ int main(int argc, char *argv[])
         if (!ydb_empty(ydb_search(config, "/config/connection")))
         {
             ynode *n;
-            ydb_connection_log(1);
+            // ydb_connection_log(1);
             n = ydb_search(config, "/config/connection");
             for (n = ydb_down(n); n; n = ydb_next(n))
             {
