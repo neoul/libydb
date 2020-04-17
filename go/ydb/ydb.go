@@ -166,6 +166,15 @@ func (node *YNode) GetMap() map[string]interface{} {
 	}
 }
 
+// Lookup - Get the value of the key named node.
+func (node *YNode) Lookup(key string) string {
+	child := node.Find(key)
+	if child != nil {
+		return child.GetValue()
+	}
+	return ""
+}
+
 // GetTag - Get the current YNode YAML Tag
 func (node *YNode) GetTag() string {
 	return node.Tag
@@ -198,6 +207,7 @@ type retrieveOption struct {
 	keys  []string
 	all   bool
 	depth int
+	user interface{}
 }
 
 // RetrieveOption - The option to retrieve YNodes from an YDB instance.
@@ -206,6 +216,11 @@ type RetrieveOption func(*retrieveOption)
 // func ordering(o func(cell, cell) bool) RetrieveOption {
 //     return func(s *retrieveOption) { s.ordering = o }
 // }
+
+// RetrieveStruct - The option to set the depth of the YDB retrieval
+func RetrieveStruct(user interface{}) RetrieveOption {
+	return func(s *retrieveOption) { s.user = user}
+}
 
 // RetrieveDepth - The option to set the depth of the YDB retrieval
 func RetrieveDepth(d int) RetrieveOption {
@@ -318,6 +333,34 @@ func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 		}
 	}
 	return node
+}
+
+// Convert - Convert the YDB data to the target struct.
+func (db *YDB) Convert(options ...RetrieveOption) interface{} {
+	var user interface{}
+	var opt retrieveOption
+	for _, o := range options {
+		o(&opt)
+	}
+	user = opt.user
+	
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	// n := db.top()
+	// v := reflect.ValueOf(user)
+	// t := reflect.TypeOf(user)
+	// if len(opt.keys) > 0 {
+	// 	for _, key := range opt.keys {
+	// 		parent = node
+	// 		n = n.find(key)
+	// 		if n == nil {
+	// 			return nil
+	// 		}
+	// 		node = n.createYNode(parent)
+	// 	}
+	// }
+
+	return user
 }
 
 // Close the YDB instance
