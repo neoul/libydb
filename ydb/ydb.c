@@ -2397,6 +2397,8 @@ ydb_res yconn_default_recv(
     char recvbuf[RECV_BUF_SIZE + 4];
     char *end, *start;
     ssize_t len, used;
+    if (conn == NULL || conn->head == NULL)
+        return YDB_E_CONN_FAILED;
     head = conn->head;
     *data = NULL;
     *datalen = 0;
