@@ -856,7 +856,9 @@ void ytree_destroy(ytree *tree)
 
 unsigned int ytree_size(ytree *tree)
 {
-    return tree->size;
+    if (tree)
+        return tree->size;
+    return 0;
 }
 
 // return NULL if ok, otherwise return old data.

@@ -3045,6 +3045,8 @@ yconn *yconn_get(char *address, ydb *datablock)
 {
     ytree_iter *i;
     ylist_iter *j;
+    if (!datablock || !address)
+        return NULL;
     i = ytree_first(datablock->conn);
     for (; i; i = ytree_next(datablock->conn, i))
     {
@@ -3068,10 +3070,12 @@ ylist *yconn_getall(char *address, ydb *datablock)
     ylist *yconns;
     ytree_iter *i;
     ylist_iter *j;
+    if (!datablock || !address)
+        return NULL;
     yconns = ylist_create();
     if (!yconns)
         return NULL;
-
+    
     i = ytree_first(datablock->conn);
     for (; i; i = ytree_next(datablock->conn, i))
     {
@@ -3526,6 +3530,7 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
     int timeout;
     int waitingfor;
     ylog_in();
+    YDB_FAIL(datablock == NULL, YDB_E_CTRL);
     YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
     synclist = ytree_create(NULL, NULL);
     YDB_FAIL(!synclist, YDB_E_MEM_ALLOC);
