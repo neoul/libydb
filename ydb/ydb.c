@@ -3469,7 +3469,6 @@ static ydb_res yconn_whisper(int origin, ydb *datablock, yconn_op op, char *buf,
         ylog_info("ydb[%s] no data to whisper.\n", datablock->name);
         return YDB_OK;
     }
-    datablock = datablock;
     tar_conn = ytree_search(datablock->conn, &origin);
     if (!tar_conn)
     {
