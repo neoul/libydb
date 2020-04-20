@@ -3203,6 +3203,11 @@ static ydb_res yconn_detach_from_conn(yconn *conn)
     ydb_res res;
     yconn *found;
     ydb *datablock;
+    if (!conn || !conn->datablock)
+    {
+        YCONN_FAILED(conn, YDB_E_NO_CONN);
+        return YDB_E_NO_CONN;
+    }
     datablock = conn->datablock;
     if (conn->fd <= 0)
         return YDB_OK;
@@ -3226,6 +3231,11 @@ static ydb_res yconn_attach_to_conn(yconn *conn)
     ydb_res res;
     yconn *found;
     ydb *datablock;
+    if (!conn || !conn->datablock)
+    {
+        YCONN_FAILED(conn, YDB_E_NO_CONN);
+        return YDB_E_NO_CONN;
+    }
     datablock = conn->datablock;
     YDB_ASSERT(conn->fd <= 0, YDB_E_CTRL);
     found = ytree_search(datablock->conn, &conn->fd);
@@ -3248,7 +3258,13 @@ static ydb_res yconn_attach_to_conn(yconn *conn)
 static ydb_res yconn_detach_from_disconn(yconn *conn)
 {
     ydb_res res = YDB_OK;
-    ydb *datablock = conn->datablock;
+    ydb *datablock;
+    if (!conn || !conn->datablock)
+    {
+        YCONN_FAILED(conn, YDB_E_NO_CONN);
+        return YDB_E_NO_CONN;
+    }
+    datablock = conn->datablock;
     if (conn->iter)
         ylist_erase(datablock->disconn, conn->iter, NULL);
     conn->iter = NULL;
@@ -3271,6 +3287,11 @@ static ydb_res yconn_attach_to_disconn(yconn *conn)
     ydb *datablock;
     int timerfd, ret;
     struct itimerspec timespec;
+    if (!conn || !conn->datablock)
+    {
+        YCONN_FAILED(conn, YDB_E_NO_CONN);
+        return YDB_E_NO_CONN;
+    }
     datablock = conn->datablock;
     if (conn->iter || conn->timerfd > 0)
         return YDB_OK;
