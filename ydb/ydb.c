@@ -1518,12 +1518,14 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
             while (!ylist_empty(child_rhooks))
             {
                 rhook = ylist_pop_front(child_rhooks);
-                ylog_info("ydb[%s] read hook (%s) %s\n", datablock->name,
-                          rhook->path, rhook ? "found" : "not found");
-                res = ydb_update_rhook_exec(params, rhook);
-                if (res)
-                    ylog_error("ydb[%s] read hook (%s) failed with %s\n",
-                               datablock->name, rhook->path, ydb_res_str(res));
+                if (rhook)
+                {
+                    ylog_info("ydb[%s] read hook (%s) found\n", datablock->name, rhook->path);
+                    res = ydb_update_rhook_exec(params, rhook);
+                    if (res)
+                        ylog_error("ydb[%s] read hook (%s) failed with %s\n",
+                                datablock->name, rhook->path, ydb_res_str(res));
+                }
             }
         }
         else
@@ -1535,8 +1537,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
                 if (params->rhook)
                 {
                     // run rhook before change rhook
-                    ylog_info("ydb[%s] read hook (%s) %s\n",
-                              datablock->name, params->rhook->path, params->rhook ? "found" : "not found");
+                    ylog_info("ydb[%s] read hook (%s) found\n", datablock->name, params->rhook->path);
                     res = ydb_update_rhook_exec(params, params->rhook);
                     if (res)
                         ylog_error("ydb[%s] read hook (%s) failed with %s\n",
@@ -1565,8 +1566,7 @@ bool ydb_update(yconn *src_conn, ydb *datablock, ynode *target)
     if (params.rhook)
     {
         // run the last rhook.
-        ylog_info("ydb[%s] read hook (%s) %s\n",
-                  datablock->name, params.rhook->path, params.rhook ? "found" : "not found");
+        ylog_info("ydb[%s] read hook (%s) found\n", datablock->name, params.rhook->path);
         res = ydb_update_rhook_exec(&params, params.rhook);
         if (res)
             ylog_error("ydb[%s] read hook (%s) failed with %s\n",
