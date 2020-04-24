@@ -2,8 +2,8 @@
 . ./util.sh
 test_init $0 $1
 echo -n "TEST: $TESTNAME : "
-run_bg "ydb -r pub -a uss://test -d -s > $TESTNAME.PUB.log"
-run_fg "ydb -r sub -s -w -a uss://test -f ../examples/yaml/ydb-sample.yaml > $TESTNAME.SUB.log"
+run_bg "ydb -n Y -r pub -a uss://test -d -s > $TESTNAME.PUB.log"
+run_fg "ydb -n Y -r sub -s -w -a uss://test -f ../examples/yaml/ydb-sample.yaml > $TESTNAME.SUB.log"
 test_deinit
 
 RESULT=`diff -q $TESTNAME.PUB.log $TESTNAME.SUB.log`

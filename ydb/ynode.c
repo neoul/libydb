@@ -1276,7 +1276,7 @@ node_print:
     return;
 }
 
-int ydb_log_err_yaml(yaml_parser_t *parser)
+int ydb_log_err_yaml(yaml_parser_t *parser, char *buf, int buflen)
 {
 
     /* Display a parser error message. */
@@ -1360,33 +1360,30 @@ int ydb_log_err_yaml(yaml_parser_t *parser)
         break;
     }
 
-    if (parser->raw_buffer.start)
+    if (buf)
     {
-        if (parser->raw_buffer.pointer)
-        {
-            ylog_error("raw_bffer(pointer-start):: \n%.*s\n",
-                       parser->raw_buffer.pointer - parser->raw_buffer.start,
-                       parser->raw_buffer.start);
-        }
-        else if (parser->raw_buffer.end)
-        {
-            ylog_error("raw_bffer(end-start):: \n%.*s\n",
-                       parser->raw_buffer.end - parser->raw_buffer.start,
-                       parser->raw_buffer.start);
-        }
+        ylog_error("buf:: \n%.*s\n", buflen, buf);
     }
-    else if (parser->buffer.start)
+    else if (parser->raw_buffer.start)
     {
-        if (parser->buffer.pointer)
+        // ylog_error("parser->raw->start=%d\n", parser->raw_buffer.start - parser->raw_buffer.start);
+        // ylog_error("parser->raw->point=%d\n", parser->raw_buffer.pointer - parser->raw_buffer.start);
+        // ylog_error("parser->raw->end  =%d\n", parser->raw_buffer.end - parser->raw_buffer.start);
+        // ylog_error("parser->raw->last =%d\n", parser->raw_buffer.last - parser->raw_buffer.start);
+        // ylog_error("parser->buf->start=%d\n", parser->buffer.start - parser->buffer.start);
+        // ylog_error("parser->buf->point=%d\n", parser->buffer.pointer- parser->buffer.start);
+        // ylog_error("parser->buf->end  =%d\n", parser->buffer.end - parser->buffer.start);
+        // ylog_error("parser->buf->last =%d\n", parser->buffer.last - parser->buffer.start);
+        if (parser->raw_buffer.last && parser->raw_buffer.last - parser->raw_buffer.start > 0)
         {
-            ylog_error("buffer(pointer-start):: \n%.*s\n",
-                       parser->buffer.pointer - parser->buffer.start,
-                       parser->buffer.start);
+            ylog_error("raw_bffer:: \n%.*s\n",
+                       parser->raw_buffer.last - parser->raw_buffer.start,
+                       parser->raw_buffer.start);
         }
-        else if (parser->buffer.end)
+        else if (parser->buffer.last)
         {
-            ylog_error("buffer(end-start):: \n%.*s\n",
-                       parser->buffer.end - parser->buffer.start,
+            ylog_error("buffer:: \n%.*s\n",
+                       parser->buffer.last - parser->buffer.start,
                        parser->buffer.start);
         }
     }
@@ -1667,7 +1664,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
     /* Initialize parser */
     if (!yaml_parser_initialize(&parser))
     {
-        ydb_log_err_yaml(&parser);
+        ydb_log_err_yaml(&parser, buf, buflen);
         yaml_parser_delete(&parser);
         res = YDB_E_YAML_INIT_FAILED;
         return res;
@@ -1699,7 +1696,7 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
         yaml_parser_scan(&parser, &token);
         if (!token.type)
         {
-            ydb_log_err_yaml(&parser);
+            ydb_log_err_yaml(&parser, buf, buflen);
             res = YDB_E_YAML_PARSING_FAILED;
             break;
         }
@@ -1708,8 +1705,11 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
             token.type == YAML_FLOW_MAPPING_END_TOKEN ||
             token.type == YAML_FLOW_SEQUENCE_END_TOKEN)
             level--;
-
-        ylog_debug("%d_%.*s%s\n", level, level, space, yaml_token_str[token.type]);
+        if (level < 0)
+        {
+            ylog_error("Invalid Block or Flow token\n");
+        }
+        ylog_debug("%d_%.*s%s\n", level, (level>0)?level:0, space, yaml_token_str[token.type]);
 
         if (token.type == YAML_BLOCK_SEQUENCE_START_TOKEN ||
             token.type == YAML_BLOCK_MAPPING_START_TOKEN ||
@@ -1816,7 +1816,19 @@ ydb_res ynode_scan(FILE *fp, char *buf, int buflen, int origin, ynode **n, int *
                 CLEAR_YSTR(tag);
                 CLEAR_YSTR(key);
             }
-            top = (top->parent) ? top->parent : top;
+            if (top == NULL)
+            {
+                ydb_log_err_yaml(&parser, buf, buflen);
+                ylog_error("CRASH is avoided. origin(fd: %d) should be checked...\n", origin);
+                res = YDB_E_YAML_PARSING_FAILED;
+                // [FIXME]
+                if (ylog_severity > YLOG_ERROR)
+                    ylog_severity = YLOG_ERROR;
+            }
+            else
+            {
+                top = (top->parent) ? top->parent : top;
+            }
             break;
         case YAML_SCALAR_TOKEN:
             token_save = false;

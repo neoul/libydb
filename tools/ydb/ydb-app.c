@@ -55,6 +55,9 @@ void usage(char *argv_0)
   -I, --input                      Standard Input\n\
   -t, --timeout                    Set timeout of sync\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
+  -l, --logging-config             Enable Runtime logging configuration\n\
+            ydb -r pub -a uss://test --write '+logging/hub/level=debug'\\\n\
+                       --write '+logging/hub/logfile=/tmp/ydb.hub1.log'\n\
     , --read PATH/TO/DATA          Read data (value only) from YDB.\n\
     , --print PATH/TO/DATA         Print data from YDB.\n\
     , --write PATH/TO/DATA=DATA    Write data to YDB.\n\
@@ -239,6 +242,37 @@ ydb_res interpret_mode_run(ydb *datablock)
     return res;
 }
 
+void logging_config(ydb *datablock, char op, ynode *base, ynode *cur, ynode *_new)
+{
+    if (op == 'd')
+    {
+        ylog_severity = YLOG_ERROR;
+        ylog_file_close(); 
+    }
+    else
+    {
+        ynode *level = ydb_find_child(base, "level");
+        ynode *logfile = ydb_find_child(base, "logfile");
+        if (logfile && ydb_value(logfile))
+            ylog_file_open("%s", ydb_value(logfile));
+        if (level && ydb_value(level))
+        {
+            if (strcmp(ydb_value(level), "none") == 0)
+                ylog_severity = YLOG_CRITICAL;
+            else if (strcmp(ydb_value(level), "error") == 0)
+                ylog_severity = YLOG_ERROR;
+            else if (strcmp(ydb_value(level), "warn") == 0)
+                ylog_severity = YLOG_WARN;
+            else if (strcmp(ydb_value(level), "info") == 0)
+                ylog_severity = YLOG_INFO;
+            else if (strcmp(ydb_value(level), "inout") == 0)
+                ylog_severity = YLOG_INOUT;
+            else if (strcmp(ydb_value(level), "debug") == 0)
+                ylog_severity = YLOG_DEBUG;
+        }
+    }
+}
+
 typedef struct _ydbcmd
 {
     enum
@@ -284,13 +318,15 @@ int main(int argc, char *argv[])
     }
     ydb_write(config,
               "config:\n"
-              " name: top\n"
+              " name: ydb.%d\n"
               " summary: false\n"
               " change-log: false\n"
               " verbose: none\n"
               " timeout: 0 ms\n"
               " daemon: false\n"
-              " interpret: false\n");
+              " interpret: false\n",
+              getpid()
+              );
 
     while (1)
     {
@@ -310,6 +346,7 @@ int main(int argc, char *argv[])
             {"input", no_argument, 0, 'I'},
             {"timeout", required_argument, 0, 't'},
             {"verbose", required_argument, 0, 'v'},
+            {"logging-config", no_argument, 0, 'l'},
             {"tx", required_argument, 0, 'T'},
             {"read", required_argument, 0, 0},
             {"print", required_argument, 0, 0},
@@ -319,7 +356,7 @@ int main(int argc, char *argv[])
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIt:v:T:h",
+        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIt:v:lT:h",
                         long_options, &index);
         if (c == -1)
             break;
@@ -395,6 +432,9 @@ int main(int argc, char *argv[])
             }
             ydb_write(config, "config: {verbose: %s}", optarg);
             break;
+        case 'l':
+            ydb_write(config, "config: {logging-config: true}");
+            break;
         case 'w':
             strcat(con_flags, ":writeable");
             break;
@@ -460,6 +500,14 @@ int main(int argc, char *argv[])
         {
             fprintf(stderr, "ydb error: %s\n", "ydb failed");
             goto end;
+        }
+
+        const char *lc = ydb_path_read(config, "/config/logging-config");
+        if (lc && strcmp(lc, "true") == 0)
+        {
+            char p[256];
+            snprintf(p, sizeof(p), "+logging/%s", ydb_path_read(config, "/config/name"));
+            ydb_write_hook_add(datablock, p, 1, (ydb_write_hook)logging_config, 0);
         }
 
         if (strcmp(ydb_path_read(config, "/config/change-log"), "true") == 0)

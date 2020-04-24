@@ -15,9 +15,9 @@ r9=`ydb -f ../examples/yaml/yaml-anchor-reference2.yaml --read '/5/step/instrume
 r10=`ydb -f ../examples/yaml/yaml-anchor-reference3.yaml --read '/merge/5/r'`
 r13=`ydb -f ../examples/yaml/ydb-write.yaml -f ../examples/yaml/ydb-delete.yaml --read '/system/fan/fan[1]/current_speed'`
 
-ydb -f ../examples/yaml/yaml-reference-card.yaml -s > r11.yaml
+ydb -n YDB -f ../examples/yaml/yaml-reference-card.yaml -s > r11.yaml
 
-ydb -f r11.yaml -s > r12.yaml
+ydb -n YDB -f r11.yaml -s > r12.yaml
 r11=`diff r11.yaml r12.yaml`
 
 [ "x$r1" != "xvalue-only" ]     && echo " - r1 TEST: failed ($r1)" && exit 1

@@ -243,6 +243,7 @@ struct _yconn
     void *head;
     int error_num; // errno for error reporting under the system call
     int timeout;   // timeout value received for ydb_sync
+    const char *name; // The name of the peer
 };
 
 static bool ydb_conn_log;
@@ -2319,6 +2320,7 @@ void yconn_default_recv_head(
     int n = 0;
     struct yconn_socket_head *head;
     char *recvdata;
+    char name[128];
     char opstr[32];
     char typestr[32];
     head = conn->head;
@@ -2327,10 +2329,12 @@ void yconn_default_recv_head(
         goto failed;
     recvdata += YMSG_START_DELIMITER_LEN;
     n = sscanf(recvdata,
+               "#name: %s\n"
                "#seq: %u\n"
                "#type: %s\n"
                "#op: %s\n"
                "#timeout: %d\n",
+               name,
                &head->recv.seq,
                typestr,
                opstr,
@@ -2364,10 +2368,13 @@ void yconn_default_recv_head(
             else
                 UNSET_FLAG(*flags, YCONN_UNSUBSCRIBE);
         }
+        if (conn->name)
+            yfree(conn->name);
+        conn->name = ystrdup(name);
     }
-    ylog_info("ydb[%s] head {seq: %u, type: %s, op: %s, to: %d}\n",
+    ylog_info("ydb[%s] head {peer name: %s, seq: %u, type: %s, op: %s, to: %d}\n",
               (conn->datablock) ? conn->datablock->name : "...",
-              head->recv.seq, ymsg_str[*type], yconn_op_str[*op],
+              (name[0])?name:"...", head->recv.seq, ymsg_str[*type], yconn_op_str[*op],
               conn->timeout);
     if (*flags)
     {
@@ -2535,7 +2542,7 @@ conn_closed:
 ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
 {
     int n, fd;
-    char msghead[256];
+    char msghead[256+128];
     struct yconn_socket_head *head;
     ylog_in();
     if (IS_SET(conn->flags, STATUS_DISCONNECT))
@@ -2547,9 +2554,11 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     head->send.seq++;
     n = sprintf(msghead,
                 YMSG_START_DELIMITER
+                "#name: %s\n"
                 "#seq: %u\n"
                 "#type: %s\n"
                 "#op: %s\n",
+                (conn->datablock) ? conn->datablock->name : "...",
                 head->send.seq,
                 ymsg_str[type],
                 yconn_op_str[op]);
@@ -2614,23 +2623,24 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
               msghead, datalen, data ? data : "", "\n...\n");
     n = write(fd, YMSG_END_DELIMITER, YMSG_END_DELIMITER_LEN);
 #else
+    int cnt =0;
     struct iovec iov[3];
-    iov[0].iov_base = msghead;
-    iov[0].iov_len = n;
-    n = 1;
-    if (datalen > 0)
+    iov[cnt].iov_base = msghead;
+    iov[cnt].iov_len = n;
+    cnt++;
+    if (datalen > 0 && data)
     {
-        iov[n].iov_base = data;
-        iov[n].iov_len = datalen;
-        n++;
+        iov[cnt].iov_base = data;
+        iov[cnt].iov_len = datalen;
+        cnt++;
     }
-    iov[n].iov_base = YMSG_END_DELIMITER;
-    iov[n].iov_len = YMSG_END_DELIMITER_LEN;
-    n++;
+    iov[cnt].iov_base = YMSG_END_DELIMITER;
+    iov[cnt].iov_len = YMSG_END_DELIMITER_LEN;
+    cnt++;
     ylog_info("ydb[%s] data {\n%s%.*s%s}\n",
               (conn->datablock) ? conn->datablock->name : "...",
               msghead, datalen, data ? data : "", "\n...\n");
-    n = writev(fd, iov, n);
+    n = writev(fd, iov, cnt);
 #endif
     if (n < 0)
         goto conn_failed;
@@ -2802,10 +2812,10 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         fp = fopen(connlog, "a");
         if (fp)
         {
-            fprintf(fp, "%s:%s:ydb[%s]:epoll(%d):%s(%d):%s(%s)::%s:%s:%s:%s:%s:%s:%s:%s\n",
+            fprintf(fp, "%s:%s:ydb[%s]:epoll(%d):%s(%s,%d):%s(%s)::%s:%s:%s:%s:%s:%s:%s:%s\n",
                     ylog_datetime(),
                     ylog_pname(), conn->datablock->name, conn->datablock->epollfd,
-                    conn->address, conn->fd, state ? state : "???",
+                    conn->address, conn->name?conn->name:"...", conn->fd, state ? state : "???",
                     (conn->error_num > 0) ? strerror(conn->error_num) : "no-err",
                     IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "pub" : "sub",
                     IS_SET(conn->flags, YCONN_WRITABLE) ? "writable" : "-",
@@ -2827,7 +2837,8 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         if (state)
             ylog_logger(YLOG_INFO, func, line, "ydb[%s] %s conn:\n",
                         conn->datablock ? conn->datablock->name : "...", state);
-        ylog_logger(YLOG_INFO, func, line, " address: %s (fd: %d)\n", conn->address, conn->fd);
+        ylog_logger(YLOG_INFO, func, line, " address: %s (peer name: %s, fd: %d)\n",
+            conn->address, conn->name?conn->name:"...", conn->fd);
         if (conn->error_num > 0)
             ylog_logger(YLOG_INFO, func, line, " sys-err: %s\n", strerror(conn->error_num));
         if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
@@ -2855,9 +2866,9 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
     }
     else
     {
-        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (fd: %d)\n",
+        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (peer name: %s, fd: %d)\n",
                     conn->datablock ? conn->datablock->name : "...",
-                    conn->address, conn->fd);
+                    conn->address, conn->name?conn->name:"...", conn->fd);
     }
 }
 
@@ -2964,6 +2975,7 @@ static yconn *_yconn_new(const char *address, unsigned int flags, ydb *datablock
     conn->func_deinit = func_deinit;
     conn->datablock = datablock;
     conn->timeout = datablock->timeout;
+    // conn->name = NULL;
     return conn;
 }
 
@@ -2977,6 +2989,8 @@ static void _yconn_free(yconn *conn)
             close(conn->fd);
         if (conn->address)
             yfree(conn->address);
+        if (conn->name)
+            yfree(conn->name);
         free(conn);
     }
 }
