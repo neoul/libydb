@@ -135,4 +135,10 @@ ydb_base64_CPPFLAGS = -I $(top_srcdir)/ydb
 ydb_base64_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml -lm
 ydb_base64_CFLAGS = -g -Wall
 
+bin_PROGRAMS += ytimer-ex
+ytimer_ex_SOURCES = ytimer-ex.c
+ytimer_ex_CPPFLAGS = -I $(top_srcdir)/ydb
+ytimer_ex_LDFLAGS = -L$(top_srcdir)/ydb/.libs -lydb -lyaml -lm
+ytimer_ex_CFLAGS = -g -Wall
+
 # dist_pkgdata_DATA = ytrie-input.txt
