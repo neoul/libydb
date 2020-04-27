@@ -310,6 +310,10 @@ struct _ydb
     ytrie *updater;   // ydb updater (ydb read hook)
     ytree *conn;      // connected remote list
     ylist *disconn;   // disconnected remote list
+    struct {
+        ytree *rx;
+        ytree *tx;
+    } waiting;
     int epollfd;      // EPOLL for YDB IPC
     int synccount;    // The number of connections (needs sync)
     int timeout;      // timeout for ydb_sync, ydb_path_sync
@@ -522,11 +526,101 @@ static void ydb_print(ydb *datablock, const char *func, int line, char *state)
     if (!datablock || !YLOG_SEVERITY_INFO || !ylog_logger)
         return;
     ylog_logger(YLOG_INFO, func, line, "%s ydb[%s]:\n", state ? state : "", datablock->name);
-    ylog_logger(YLOG_INFO, func, line, " epollfd: %d, timeout: %d\n", datablock->epollfd, datablock->timeout);
-    ylog_logger(YLOG_INFO, func, line, " synccount: %d, w-hook: %d\n", datablock->synccount, ytrie_size(datablock->updater));
-    ylog_logger(YLOG_INFO, func, line, " conn: %d, disconn: %d\n", ytree_size(datablock->conn), ylist_size(datablock->disconn));
+    ylog_logger(YLOG_INFO, func, line, " epollfd: %d, timeout: %d, waiting.rx: %d, waiting.tx: %d\n", 
+        datablock->epollfd, datablock->timeout, ytree_size(datablock->waiting.rx), ytree_size(datablock->waiting.tx));
+    ylog_logger(YLOG_INFO, func, line, " synccount: %d, w-hook: %d, conn: %d, disconn: %d\n", 
+        datablock->synccount, ytrie_size(datablock->updater), ytree_size(datablock->conn), ylist_size(datablock->disconn));
 }
 #define YDB_INFO(conn, state) ydb_print((conn), __func__, __LINE__, (state))
+
+struct respwait
+{
+    struct {
+        int fd;
+        unsigned int seq;
+    } waitrx;
+    struct {
+        int fd;
+        unsigned int seq;
+    } waittx;
+    yconn_op op;
+    int rxnum;
+};
+
+
+static int _waittx_cmp(struct respwait *r1, struct respwait *r2)
+{
+    int r = r1->waittx.fd - r2->waittx.fd;
+    if (r == 0) {
+        return r1->waittx.seq - r2->waittx.seq;
+    }
+    return r;
+}
+
+static int _waitrx_cmp(struct respwait * r1, struct respwait *r2)
+{
+    int r = r1->waitrx.fd - r2->waitrx.fd;
+    if (r == 0) {
+        return r1->waitrx.seq - r2->waitrx.seq;
+    }
+    return r;
+}
+
+struct respwait *waittx(int fd, unsigned int seq, yconn_op op) {
+    struct respwait *r = malloc(sizeof(struct respwait));
+    if (!r)
+        return NULL;
+    r->waitrx.fd = 0;
+    r->waitrx.seq = 0;
+    r->waittx.fd = fd;
+    r->waittx.seq = seq;
+    r->op = op;
+    r->rxnum = 0;
+    return r;
+}
+
+struct respwait *waitrx(int fd, unsigned int seq, struct respwait *relativetx) {
+    struct respwait *r = malloc(sizeof(struct respwait));
+    if (!r)
+        return NULL;
+    r->waitrx.fd = fd;
+    r->waitrx.seq = seq;
+    r->waittx.fd = relativetx->waittx.fd;
+    r->waittx.seq = relativetx->waittx.seq;
+    r->op = relativetx->op;
+    r->rxnum = 0;
+    relativetx->rxnum++;
+    return r;
+}
+
+void respwait_free(struct respwait *r) {
+    if (r)
+        free(r);
+}
+
+struct respwait *respwait_rxcheck(ydb *datablock, int fd, int seq) {
+    if (datablock) {
+        if (datablock->waiting.rx && datablock->waiting.tx)
+        {
+            struct respwait rw;
+            rw.waitrx.fd = fd;
+            rw.waitrx.seq = seq;
+            struct respwait *wrx, *wtx;
+            wrx = ytree_delete(datablock->waiting.rx, &rw);
+            if (wrx) {
+                wtx = ytree_search(datablock->waiting.tx, wrx);
+                respwait_free(wrx);
+                if (wtx) {
+                    wtx->rxnum--;
+                    if (wtx->rxnum <= 0)
+                        return ytree_delete(datablock->waiting.tx, wtx);
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
 
 // str2yaml --
 // Return new string converted to YAML character set.
@@ -613,6 +707,10 @@ ydb *ydb_open(char *name)
     YDB_FAIL(!datablock->disconn, YDB_E_CTRL);
     datablock->updater = ytrie_create();
     YDB_FAIL(!datablock->updater, YDB_E_CTRL);
+    datablock->waiting.rx = ytree_create((ytree_cmp)_waitrx_cmp, NULL);
+    YDB_FAIL(!datablock->waiting.rx, YDB_E_CTRL);
+    datablock->waiting.tx = ytree_create((ytree_cmp)_waittx_cmp, NULL);
+    YDB_FAIL(!datablock->waiting.tx, YDB_E_CTRL);
 #ifdef PTHREAD_LOCK
     int ret = pthread_mutex_init(&datablock->lock, NULL);
     YDB_FAIL(ret, YDB_E_CTRL);
@@ -805,6 +903,10 @@ void ydb_close(ydb *datablock)
             ylist_destroy_custom(datablock->disconn, (user_free)_yconn_free_with_deinit);
         if (datablock->conn)
             ytree_destroy_custom(datablock->conn, (user_free)_yconn_free_with_deinit);
+        if (datablock->waiting.rx)
+            ytrie_destroy_custom(datablock->waiting.rx, (user_free)respwait_free);
+        if (datablock->waiting.tx)
+            ytrie_destroy_custom(datablock->waiting.tx, (user_free)respwait_free);
         if (datablock->updater)
             ytrie_destroy_custom(datablock->updater, (user_free)ydb_read_hook_free);
         if (datablock->top)
