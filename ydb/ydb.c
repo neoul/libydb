@@ -241,6 +241,8 @@ struct _yconn
     yconn_func_accept func_accept;
     yconn_func_deinit func_deinit;
     void *head;
+    unsigned int sendseq;
+    unsigned int recvseq;
     int error_num; // errno for error reporting under the system call
     int timeout;   // timeout value received for ydb_sync
     const char *name; // The name of the peer
@@ -2095,12 +2097,10 @@ struct yconn_socket_head
 {
     struct
     {
-        unsigned int seq;
         int fd;
     } send;
     struct
     {
-        unsigned int seq;
         yconn_op op;
         ymsg_type type;
         FILE *fp;
@@ -2335,7 +2335,7 @@ void yconn_default_recv_head(
                "#op: %s\n"
                "#timeout: %d\n",
                name,
-               &head->recv.seq,
+               &conn->recvseq,
                typestr,
                opstr,
                &conn->timeout);
@@ -2374,7 +2374,7 @@ void yconn_default_recv_head(
     }
     ylog_info("ydb[%s] head {peer name: %s, seq: %u, type: %s, op: %s, to: %d}\n",
               (conn->datablock) ? conn->datablock->name : "...",
-              (name[0])?name:"...", head->recv.seq, ymsg_str[*type], yconn_op_str[*op],
+              (name[0])?name:"...", conn->recvseq, ymsg_str[*type], yconn_op_str[*op],
               conn->timeout);
     if (*flags)
     {
@@ -2551,7 +2551,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
         return YDB_E_CONN_FAILED;
     }
     head = (struct yconn_socket_head *)conn->head;
-    head->send.seq++;
+    conn->sendseq++;
     n = sprintf(msghead,
                 YMSG_START_DELIMITER
                 "#name: %s\n"
@@ -2559,13 +2559,13 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
                 "#type: %s\n"
                 "#op: %s\n",
                 (conn->datablock) ? conn->datablock->name : "...",
-                head->send.seq,
+                conn->sendseq,
                 ymsg_str[type],
                 yconn_op_str[op]);
 
     ylog_info("ydb[%s] head {seq: %u, type: %s, op: %s}\n",
               (conn->datablock) ? conn->datablock->name : "...",
-              head->send.seq,
+              conn->sendseq,
               ymsg_str[type],
               yconn_op_str[op]);
     switch (op)
