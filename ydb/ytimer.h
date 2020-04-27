@@ -11,7 +11,12 @@
 extern "C" {
 #endif
 
-typedef int (*ytimer_func)(unsigned int timer_id, void *cookie);
+typedef enum {
+    YTIMER_ABORT,
+    YTIMER_EXPIRED,
+} ytimer_status;
+
+typedef int (*ytimer_func)(unsigned int timer_id, ytimer_status status, void *cookie);
 
 typedef struct _yimer
 {
@@ -22,17 +27,6 @@ typedef struct _yimer
     unsigned int next_id;
 } ytimer;
 
-
-typedef struct _ytimer_cb
-{
-    bool timer_periodic;
-    unsigned int timer_id;
-    ytimer_func timer_cbfn;
-    struct timespec starttime;
-    // duration_ms is msec
-    unsigned int duration_ms; /* seconds */
-    void *timer_cookie;
-} ytimer_cb;
 
 ytimer *ytimer_create(void);
 void ytimer_destroy(ytimer *timer);

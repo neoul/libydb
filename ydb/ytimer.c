@@ -6,6 +6,17 @@
 #include <ylog.h>
 #include <ytimer.h>
 
+typedef struct _ytimer_cb
+{
+    bool timer_periodic;
+    unsigned int timer_id;
+    ytimer_func timer_cbfn;
+    struct timespec starttime;
+    // duration_ms is msec
+    unsigned int duration_ms; /* seconds */
+    void *timer_cookie;
+} ytimer_cb;
+
 static ytimer_cb *new_timer_cb(void)
 {
     ytimer_cb *timer_cb;
@@ -20,7 +31,8 @@ static ytimer_cb *new_timer_cb(void)
 
 static void free_timer_cb(ytimer_cb *timer_cb)
 {
-    free(timer_cb);
+    if (timer_cb)
+        free(timer_cb);
 } /* free_timer_cb */
 
 // get timer remained...
@@ -130,10 +142,18 @@ void ytimer_destroy(ytimer *timer)
 {
     if (timer)
     {
+        ytree_iter *i;
         if (timer->timerfd > 0)
         {
             close(timer->timerfd);
             timer->timerfd = 0;
+        }
+        for (i = ytree_first(timer->timers); i; i = ytree_next(timer->timers, i))
+        {
+            ytimer_cb *timer_cb = ytree_data(i);
+            (*timer_cb->timer_cbfn)(timer_cb->timer_id,
+                                YTIMER_ABORT,
+                                timer_cb->timer_cookie);
         }
         ylist_destroy(timer->dtimers);
         ytree_destroy(timer->timer_ids);
@@ -147,6 +167,7 @@ ytimer *ytimer_create(void)
     ytimer *timer = malloc(sizeof(ytimer));
     if (timer == NULL)
         return NULL;
+    memset(timer, 0x0, sizeof(ytimer));
     timer->timers = ytree_create((ytree_cmp)timer_cb_cmp, NULL);
     timer->timer_ids = ytree_create((ytree_cmp)timer_id_cmp, NULL);
     timer->dtimers = ylist_create();
@@ -269,8 +290,9 @@ int ytimer_delete(ytimer *timer, unsigned int timer_id)
     if (timer_cb)
     {
         ytree_delete(timer->timer_ids, timer_cb);
-        ytree_delete_custom(timer->timers, timer_cb, (user_free)free_timer_cb);
+        ytree_delete(timer->timers, timer_cb);
         ylog_debug("ytimer[fd=%d]: timer_func[%d] deleted\n", timer->timerfd, timer_cb->timer_id);
+        free_timer_cb(timer_cb);
     }
     else
     {
@@ -314,6 +336,7 @@ int ytimer_handle(ytimer *timer)
     {
         int ret;
         ret = (*timer_cb->timer_cbfn)(timer_cb->timer_id,
+                                      YTIMER_EXPIRED,
                                       timer_cb->timer_cookie);
         if (ret || !timer_cb->timer_periodic)
         {
