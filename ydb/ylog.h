@@ -45,6 +45,7 @@ extern ylog_func ylog_logger;
 #define ylog_info(format, ...) ylog(YLOG_INFO, format, ##__VA_ARGS__)
 #define ylog_warn(format, ...) ylog(YLOG_WARN, format, ##__VA_ARGS__)
 #define ylog_error(format, ...) ylog(YLOG_ERROR, format, ##__VA_ARGS__)
+#define ylog_critical(format, ...) ylog(YLOG_CRITICAL, format, ##__VA_ARGS__)
 
 #define YLOG_SEVERITY_DEBUG (ylog_level >= YLOG_DEBUG)
 #define YLOG_SEVERITY_INFO (ylog_level >= YLOG_INFO)

@@ -24,6 +24,7 @@ extern "C"
 typedef enum _ydb_res
 {
     YDB_OK = 0,
+    YDB_NO_ERR = YDB_OK,
     YDB_W_TIMEOUT,
     YDB_W_MORE_RECV,
     YDB_W_DISCONN,
@@ -31,6 +32,8 @@ typedef enum _ydb_res
     YDB_WARNING_MAX = YDB_W_DISCONN,
 
     YDB_ERROR,
+    YDB_E_TIMER,
+    YDB_E_EVENT,
     YDB_E_CTRL,
     YDB_E_SYSTEM_FAILED,
     YDB_E_STREAM_FAILED,

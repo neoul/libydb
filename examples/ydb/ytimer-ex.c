@@ -16,13 +16,13 @@ void HANDLER_SIGINT(int signal)
     done = true;
 }
 
-int timer_func2(unsigned int timer_id, void *cookie)
+int timer_func2(unsigned int timer_id, ytimer_status status, void *cookie)
 {
     fprintf(stdout, "%s\n", __func__);
     return 0;
 }
 
-int timer_func1(unsigned int timer_id, void *cookie)
+int timer_func1(unsigned int timer_id, ytimer_status status, void *cookie)
 {
     ytimer *timer;
     timer = (ytimer *) cookie;
