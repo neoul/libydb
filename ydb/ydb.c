@@ -66,24 +66,24 @@ extern ylog_func ylog_logger;
         }                                                                    \
     } while (0)
 
-#define YDB_FAIL(state, caused_res)                                               \
-    do                                                                            \
-    {                                                                             \
-        if (state)                                                                \
-        {                                                                         \
-            res = caused_res;                                                     \
-            if (ylog_level >= (YLOG_ERROR))                                       \
-            {                                                                     \
-                ylog_logger(YLOG_ERROR, __func__, __LINE__,                       \
-                            "ydb[%s] '%s': %s %s%s%s\n",                          \
-                            datablock ? datablock->name : "...",                  \
-                            #state, ydb_res_str(caused_res),                      \
-                            (caused_res == YDB_E_SYSTEM_FAILED) ? ":" : "",       \
-                            (caused_res == YDB_E_SYSTEM_FAILED) ? strerror(errno) : "", \
-                            (caused_res == YDB_E_SYSTEM_FAILED) ? ":" : "");      \
-            }                                                                     \
-            goto failed;                                                          \
-        }                                                                         \
+#define YDB_FAIL(state, caused_res)                                              \
+    do                                                                           \
+    {                                                                            \
+        if (state)                                                               \
+        {                                                                        \
+            res = caused_res;                                                    \
+            if (ylog_level >= (YLOG_ERROR))                                      \
+            {                                                                    \
+                ylog_logger(YLOG_ERROR, __func__, __LINE__,                      \
+                            "ydb[%s] '%s': %s %s%s%s\n",                         \
+                            datablock ? datablock->name : "...",                 \
+                            #state, ydb_res_str(res),                            \
+                            (res == YDB_E_SYSTEM_FAILED) ? ":" : "",             \
+                            (res == YDB_E_SYSTEM_FAILED) ? strerror(errno) : "", \
+                            (res == YDB_E_SYSTEM_FAILED) ? ":" : "");            \
+            }                                                                    \
+            goto failed;                                                         \
+        }                                                                        \
     } while (0)
 
 #define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
@@ -163,7 +163,7 @@ typedef struct _yconn yconn;
 #define STATUS_CLIENT 0x020000
 #define STATUS_COND_CLIENT 0x040000 // connected client
 #define STATUS_DISCONNECT 0x080000
-#define STATUS_WAITEVENT  0x100000
+#define STATUS_WAITEVENT 0x100000
 #define STATUS_MASK 0xff0000
 
 #define SET_DISCONNECTED(conn) ((conn)->flags = (((conn)->flags & (~STATUS_MASK)) | STATUS_DISCONNECT))
@@ -225,8 +225,8 @@ char *ymsg_str[] = {
 #define YMSG_WHISPER_DELIMITER "+whisper-target:"
 #define YMSG_WHISPER_DELIMITER_LEN (sizeof(YMSG_WHISPER_DELIMITER) - 1)
 
-
-typedef struct _eventid {
+typedef struct _eventid
+{
     int fd;
     unsigned int seq;
 } eventid;
@@ -236,7 +236,6 @@ typedef struct _waitevent
     ydb *datablock;
     eventid id;
     eventid pid; // parent event id
-    yconn_op op; // expected operation
     int cevents; // child events number
     unsigned int timerid;
 } waitevent;
@@ -268,7 +267,8 @@ struct _yconn
     unsigned int sendseq;
     unsigned int recvseq;
     int error_num; // errno for error reporting under the system call
-    int timeout;   // timeout value received for ydb_sync
+    int send_timeout;
+    int recv_timeout;
     const char *name; // The name of the peer
 };
 
@@ -305,18 +305,17 @@ static ydb_res yconn_attach_to_conn(yconn *conn);
 static ydb_res yconn_detach_from_disconn(yconn *conn);
 static ydb_res yconn_attach_to_disconn(yconn *conn);
 
-static ydb_res yconn_request(yconn *req_conn, yconn_op op, char *buf, size_t buflen);
-static ydb_res yconn_response(yconn *req_conn, yconn_op op, bool done, bool failed, char *buf, size_t buflen);
-static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, yconn_op op, char *buf, size_t buflen);
-static ydb_res yconn_whisper(int origin, ydb *datablock, yconn_op op, char *buf, size_t buflen);
-static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *buf, size_t buflen, bool deferred_close);
-static ydb_res yconn_init(yconn *req_conn);
-static ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen);
-static ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen);
-static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type *type, int *next);
+eventid yconn_request(yconn *req_conn, yconn_op op, int timeout, char *buf, size_t buflen, eventid peid);
+eventid yconn_init(yconn *req_conn);
+eventid yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *buf, size_t buflen);
+ydb_res yconn_response(yconn *req_conn, yconn_op op, unsigned int respseq, bool done, bool ok, char *buf, size_t buflen);
+ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, yconn_op op, char *buf, size_t buflen);
+ydb_res yconn_whisper(int origin, ydb *datablock, yconn_op op, char *buf, size_t buflen);
+ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen);
+ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen);
 
-eventid yconn_init_e(yconn *req_conn);
-ydb_res yconn_recv_event(ydb *datablock, eventid eid);
+eventid yconn_recv(yconn *recv_conn, yconn_op *op, ymsg_type *type, int *next);
+ydb_res yconn_serve_blocking(ydb *datablock, eventid eid, int timeout);
 
 #define YCONN_FAILED(conn, res)                                                     \
     do                                                                              \
@@ -570,121 +569,43 @@ static void ydb_print(ydb *datablock, const char *func, int line, char *state)
     if (!datablock || !YLOG_SEVERITY_INFO || !ylog_logger)
         return;
     ylog_logger(YLOG_INFO, func, line, "%s ydb[%s]:\n", state ? state : "", datablock->name);
-    ylog_logger(YLOG_INFO, func, line, " epollfd: %d, timeout: %d, event: %d\n", 
-        datablock->epollfd, datablock->timeout, ytree_size(datablock->event));
-    ylog_logger(YLOG_INFO, func, line, " synccount: %d, w-hook: %d, conn: %d, disconn: %d\n", 
-        datablock->synccount, ytrie_size(datablock->updater), ytree_size(datablock->conn), ylist_size(datablock->disconn));
+    ylog_logger(YLOG_INFO, func, line, " epollfd: %d, timeout: %d, event: %d\n",
+                datablock->epollfd, datablock->timeout, ytree_size(datablock->event));
+    ylog_logger(YLOG_INFO, func, line, " synccount: %d, w-hook: %d, conn: %d, disconn: %d\n",
+                datablock->synccount, ytrie_size(datablock->updater),
+                ytree_size(datablock->conn), ylist_size(datablock->disconn));
 }
 #define YDB_INFO(conn, state) ydb_print((conn), __func__, __LINE__, (state))
 
-
+static unsigned int waiteventseq; // local event seq
 static int waitevent_cmp(eventid *e1, eventid *e2)
 {
     int e = e1->fd - e2->fd;
-    if (e == 0) {
+    if (e == 0)
+    {
         return e1->seq - e2->seq;
     }
     return e;
 }
 
-void waitevent_free(waitevent *e) {
+void waitevent_free(waitevent *e)
+{
     if (e)
         free(e);
 }
 
-waitevent *waitevent_search(ydb *datablock, eventid eid)
-{
-    return ytree_search(datablock->event, &eid);
-}
-
-eventid waitevent_reset(ydb *datablock, int fd, unsigned int seq, yconn_op op, bool expired);
-int waitevent_expire(unsigned int timer_id, ytimer_status status, void *cookie)
-{
-    waitevent *we = cookie;
-    if (status == YTIMER_ABORT)
-        return 0;
-    waitevent_reset(we->datablock, we->id.fd, we->id.seq, we->op, true);
-    return 0;
-}
-
-eventid waitevent_set(ydb *datablock, int fd, unsigned int seq, int timeout, yconn_op op, eventid pevent) {
-    waitevent *we, *pwe, *fwe;
-    eventid eid = {.fd = -1, .seq = 0};
-    we = malloc(sizeof(waitevent));
-    if (!we)
-        return eid;
-    we->id.fd = eid.fd = fd;
-    we->id.seq = eid.seq = seq;
-    we->datablock = datablock;
-    we->op = op;
-    we->cevents = 0;
-    we->timerid = 0;
-    // fwe = old we
-    fwe = (waitevent *) ytree_insert(datablock->event, &(we->id), we);
-    if (fwe) {
-        free(we);
-        return eid;
-    }
-    pwe = ytree_search(datablock->event, &pevent);
-    if (pwe)
-    {
-        we->pid.fd = pevent.fd;
-        we->pid.seq = pevent.seq;
-        pwe->cevents++;
-    }
-    else
-    {
-        we->pid.fd = -1;
-        we->pid.seq = 0;
-    }
-    we->timerid = ytimer_set_msec(datablock->timer, timeout, false, waitevent_expire, we);
-    eid = we->id;
-    ylog_info("set waitevent e(%d:%d)\n", eid.fd, eid.seq);
-    return eid;
-}
-
-eventid waitevent_reset(ydb *datablock, int fd, unsigned int seq, yconn_op op, bool expired)
-{
-    waitevent *we, *pwe;
-    eventid emptyid = {.fd = -1, .seq = 0};
-    eventid eid = {.fd = fd, .seq = seq};
-    we = ytree_delete(datablock->event, &eid);
-    if (we) {
-        eventid peid = {.fd = we->pid.fd, .seq = we->pid.seq};
-        if (!expired)
-            ytimer_delete(datablock->timer, we->timerid);
-        waitevent_free(we);
-        ylog_info("%s waitevent e(%d:%d)\n", expired?"expired":"complete", eid.fd, eid.seq);
-        if (peid.fd > 0 && peid.seq > 0)
-        {
-            pwe = ytree_search(datablock->event, &(peid));
-            if (pwe) {
-                pwe->cevents--;
-                if (pwe->cevents <= 0)
-                {
-                    ytree_delete(datablock->event, &(peid));
-                    if (!expired)
-                        ytimer_delete(datablock->timer, pwe->timerid);
-                    waitevent_free(pwe);
-                    return peid;
-                }
-            }
-        }
-        return eid;
-    }
-    return emptyid;
-}
-
-eventid waitevent_complete(yconn *conn, yconn_op op)
-{
-    return waitevent_reset(conn->datablock, conn->fd, conn->recvseq, op, false);
-}
-
-inline bool no_waitevent(eventid eid)
+inline bool invalid_waitevent(eventid eid)
 {
     if (eid.fd < 0)
         return true;
     return false;
+}
+
+inline bool valid_waitevent(eventid eid)
+{
+    if (eid.fd < 0)
+        return false;
+    return true;
 }
 
 inline bool is_equal_waitevent(eventid eid1, eventid eid2)
@@ -695,6 +616,137 @@ inline bool is_equal_waitevent(eventid eid1, eventid eid2)
     return false;
 }
 
+waitevent *waitevent_search(ydb *datablock, eventid eid)
+{
+    return ytree_search(datablock->event, &eid);
+}
+
+eventid waitevent_reset(ydb *datablock, int fd, unsigned int seq, bool expired);
+int waitevent_expire(unsigned int timer_id, ytimer_status status, void *cookie)
+{
+    waitevent *we = cookie;
+    if (status == YTIMER_ABORT)
+        return 0;
+    waitevent_reset(we->datablock, we->id.fd, we->id.seq, true);
+    return 0;
+}
+
+eventid waitevent_set_childevent(ydb *datablock, int fd, unsigned int seq, int timeout, eventid pevent)
+{
+    waitevent *we, *pwe, *fwe;
+    eventid eid = {.fd = -1, .seq = 0};
+    we = malloc(sizeof(waitevent));
+    if (!we)
+        return eid;
+    we->id.fd = eid.fd = fd;
+    we->id.seq = eid.seq = seq;
+    we->datablock = datablock;
+    we->cevents = 0;
+    we->timerid = 0;
+    we->pid.fd = -1;
+    we->pid.seq = 0;
+    // fwe = old we
+    fwe = (waitevent *)ytree_insert(datablock->event, &(we->id), we);
+    if (fwe)
+    {
+        free(we);
+        return eid;
+    }
+    if (valid_waitevent(pevent))
+    {
+        pwe = ytree_search(datablock->event, &pevent);
+        if (pwe)
+        {
+            we->pid.fd = pevent.fd;
+            we->pid.seq = pevent.seq;
+            pwe->cevents++;
+        }
+    }
+    we->timerid = ytimer_set_msec(datablock->timer, timeout, false, waitevent_expire, we);
+    eid = we->id;
+    ylog_info("set waitevent e(%d:%d)\n", eid.fd, eid.seq);
+    return eid;
+}
+
+eventid waitevent_set_parentevent(ydb *datablock, int timeout)
+{
+    waitevent *we, *fwe;
+    eventid eid = {.fd = -1, .seq = 0};
+    we = malloc(sizeof(waitevent));
+    if (!we)
+        return eid;
+    we->id.fd = eid.fd = 0;
+    we->id.seq = eid.seq = (++waiteventseq) % 100000;
+    we->datablock = datablock;
+    we->cevents = 0;
+    we->timerid = 0;
+    we->pid.fd = -1;
+    we->pid.seq = 0;
+    // fwe = old we
+    fwe = (waitevent *)ytree_insert(datablock->event, &(we->id), we);
+    if (fwe)
+    {
+        free(we);
+        return eid;
+    }
+    we->timerid = ytimer_set_msec(datablock->timer, timeout, false, waitevent_expire, we);
+    ylog_info("set waitevent e(%d:%d)\n", we->id.fd, we->id.seq);
+    eid = we->id;
+    return eid;
+}
+
+eventid waitevent_reset(ydb *datablock, int fd, unsigned int seq, bool expired)
+{
+    waitevent *we, *pwe;
+    eventid emptyid = {.fd = -1, .seq = 0};
+    eventid eid = {.fd = fd, .seq = seq};
+    we = ytree_delete(datablock->event, &eid);
+    if (we)
+    {
+        eventid peid = {.fd = we->pid.fd, .seq = we->pid.seq};
+        if (!expired)
+            ytimer_delete(datablock->timer, we->timerid);
+        waitevent_free(we);
+        ylog_info("%s waitevent e(%d:%d)\n", expired ? "expired" : "complete", eid.fd, eid.seq);
+        if (!invalid_waitevent(peid))
+        {
+            pwe = ytree_search(datablock->event, &(peid));
+            if (pwe)
+            {
+                pwe->cevents--;
+                if (pwe->cevents <= 0)
+                {
+                    ytree_delete(datablock->event, &(peid));
+                    if (!expired)
+                        ytimer_delete(datablock->timer, pwe->timerid);
+                    ylog_info("%s waitevent e(%d:%d)\n", expired ? "expired" : "complete", peid.fd, peid.seq);
+                    waitevent_free(pwe);
+                    return peid;
+                }
+            }
+            else
+            {
+                return emptyid;
+            }
+        }
+        return eid;
+    }
+    return emptyid;
+}
+
+eventid waitevent_complete(ydb *datablock, eventid eid)
+{
+    return waitevent_reset(datablock, eid.fd, eid.seq, false);
+}
+
+yconn *waitevent_get_conn(ydb *datablock, eventid eid)
+{
+    if (invalid_waitevent(eid))
+        return NULL;
+    if (valid_waitevent(eid))
+        return NULL;
+    return ytree_search(datablock->conn, &(eid.fd));
+}
 
 // str2yaml --
 // Return new string converted to YAML character set.
@@ -1703,7 +1755,7 @@ static ydb_res ydb_update_sub(ynode *cur, void *addition)
                     res = ydb_update_rhook_exec(params, rhook);
                     if (res)
                         ylog_error("ydb[%s] read hook (%s) failed with %s\n",
-                                datablock->name, rhook->path, ydb_res_str(res));
+                                   datablock->name, rhook->path, ydb_res_str(res));
                 }
             }
         }
@@ -1967,7 +2019,8 @@ int ydb_read(ydb *datablock, const char *format, ...)
     lock(datablock);
     if (datablock->synccount > 0)
     {
-        res = yconn_sync(NULL, datablock, false, (char *)format, formatlen, false);
+        eventid eid = yconn_sync(NULL, datablock, false, (char *)format, formatlen);
+        res = yconn_serve_blocking(datablock, eid, datablock->timeout);
         YDB_FAIL(YDB_FAILED(res), res);
     }
     if (ytrie_size(datablock->updater) > 0)
@@ -2037,7 +2090,8 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
     lock(datablock);
     if (datablock->synccount > 0)
     {
-        res = yconn_sync(NULL, datablock, false, buf, buflen, false);
+        eventid eid = yconn_sync(NULL, datablock, false, buf, buflen);
+        res = yconn_serve_blocking(datablock, eid, datablock->timeout);
         YDB_FAIL(YDB_FAILED(res), res);
     }
 
@@ -2197,7 +2251,8 @@ const char *ydb_path_read(ydb *datablock, const char *format, ...)
             int buflen;
             buf[0] = 0;
             buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
-            res = yconn_sync(NULL, datablock, false, buf, buflen, false);
+            eventid eid = yconn_sync(NULL, datablock, false, buf, buflen);
+            res = yconn_serve_blocking(datablock, eid, datablock->timeout);
             YDB_FAIL(YDB_FAILED(res), res);
         }
         if (ytrie_size(datablock->updater) > 0)
@@ -2246,7 +2301,8 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
         buflen = ynode_printf_to_buf(buf, sizeof(buf), src, 1, YDB_LEVEL_MAX);
         if (buflen >= 0)
             buf[buflen] = 0;
-        res = yconn_sync(NULL, datablock, false, buf, buflen, false);
+        eventid eid = yconn_sync(NULL, datablock, false, buf, buflen);
+        res = yconn_serve_blocking(datablock, eid, datablock->timeout);
         YDB_FAIL(YDB_FAILED(res), res);
     }
     if (ytrie_size(datablock->updater) > 0)
@@ -2514,7 +2570,7 @@ void yconn_default_recv_head(
                &conn->recvseq,
                typestr,
                opstr,
-               &conn->timeout);
+               &conn->recv_timeout);
     if (n < 3)
         goto failed;
     // Operation type
@@ -2549,19 +2605,19 @@ void yconn_default_recv_head(
         conn->name = ystrdup(name);
     }
     ylog_info("ydb[%s] head {peer name: %s, seq: %u, type: %s, op: %s, to: %d}\n",
-              (conn->datablock) ? conn->datablock->name : "...",
-              (name[0])?name:"...", conn->recvseq, ymsg_str[*type], yconn_op_str[*op],
-              conn->timeout);
+              conn->datablock->name,
+              (name[0]) ? name : "...", conn->recvseq, ymsg_str[*type], yconn_op_str[*op],
+              conn->recv_timeout);
     if (*flags)
     {
         ylog_info("ydb[%s] head {flags: %s%s%s}\n",
-                  (conn->datablock) ? conn->datablock->name : "...",
+                  conn->datablock->name,
                   IS_SET(*flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
                   IS_SET(*flags, YCONN_WRITABLE) ? "w" : "_",
                   IS_SET(*flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
     }
     ylog_info("ydb[%s] datalen {%ld} data {\n%.*s}\n",
-              (conn->datablock) ? conn->datablock->name : "...",
+              conn->datablock->name,
               *datalen, *datalen, *data);
     return;
 failed:
@@ -2718,7 +2774,7 @@ conn_closed:
 ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data, size_t datalen)
 {
     int n, fd;
-    char msghead[256+128];
+    char msghead[256 + 128];
     struct yconn_socket_head *head;
     ylog_in();
     if (IS_SET(conn->flags, STATUS_DISCONNECT))
@@ -2727,20 +2783,19 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
         return YDB_E_CONN_FAILED;
     }
     head = (struct yconn_socket_head *)conn->head;
-    conn->sendseq++;
     n = sprintf(msghead,
                 YMSG_START_DELIMITER
                 "#name: %s\n"
                 "#seq: %u\n"
                 "#type: %s\n"
                 "#op: %s\n",
-                (conn->datablock) ? conn->datablock->name : "...",
+                conn->datablock->name,
                 conn->sendseq,
                 ymsg_str[type],
                 yconn_op_str[op]);
 
     ylog_info("ydb[%s] head {seq: %u, type: %s, op: %s}\n",
-              (conn->datablock) ? conn->datablock->name : "...",
+              conn->datablock->name,
               conn->sendseq,
               ymsg_str[type],
               yconn_op_str[op]);
@@ -2749,8 +2804,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     case YOP_INIT:
         if (type == YMSG_REQUEST)
         {
-            n += sprintf(msghead + n, "#timeout: %d\n",
-                         (conn->timeout > YDB_DELIVERY_LATENCY) ? (conn->timeout - YDB_DELIVERY_LATENCY) : conn->timeout);
+            n += sprintf(msghead + n, "#timeout: %d\n", conn->send_timeout);
         }
         n += sprintf(msghead + n,
                      "#flags: %s%s%s\n",
@@ -2758,7 +2812,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
                      IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "_",
                      IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
         ylog_info("ydb[%s] head {flags: %s%s%s}\n",
-                  (conn->datablock) ? conn->datablock->name : "...",
+                  conn->datablock->name,
                   IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "p" : "s",
                   IS_SET(conn->flags, YCONN_WRITABLE) ? "w" : "_",
                   IS_SET(conn->flags, YCONN_UNSUBSCRIBE) ? "u" : "_");
@@ -2766,8 +2820,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     case YOP_SYNC:
         if (type == YMSG_REQUEST)
         {
-            n += sprintf(msghead + n, "#timeout: %d\n",
-                         (conn->timeout > YDB_DELIVERY_LATENCY) ? (conn->timeout - YDB_DELIVERY_LATENCY) : conn->timeout);
+            n += sprintf(msghead + n, "#timeout: %d\n", conn->send_timeout);
         }
         break;
     default:
@@ -2795,11 +2848,11 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
             goto conn_failed;
     }
     ylog_info("ydb[%s] data {\n%s%.*s%s}\n",
-              (conn->datablock) ? conn->datablock->name : "...",
+              conn->datablock->name,
               msghead, datalen, data ? data : "", "\n...\n");
     n = write(fd, YMSG_END_DELIMITER, YMSG_END_DELIMITER_LEN);
 #else
-    int cnt =0;
+    int cnt = 0;
     struct iovec iov[3];
     iov[cnt].iov_base = msghead;
     iov[cnt].iov_len = n;
@@ -2814,7 +2867,7 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     iov[cnt].iov_len = YMSG_END_DELIMITER_LEN;
     cnt++;
     ylog_info("ydb[%s] data {\n%s%.*s%s}\n",
-              (conn->datablock) ? conn->datablock->name : "...",
+              conn->datablock->name,
               msghead, datalen, data ? data : "", "\n...\n");
     n = writev(fd, iov, cnt);
 #endif
@@ -2991,7 +3044,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
             fprintf(fp, "%s:%s:ydb[%s]:epoll(%d):%s(%s,%d):%s(%s)::%s:%s:%s:%s:%s:%s:%s:%s\n",
                     ylog_datetime(),
                     ylog_pname(), conn->datablock->name, conn->datablock->epollfd,
-                    conn->address, conn->name?conn->name:"...", conn->fd, state ? state : "???",
+                    conn->address, conn->name ? conn->name : "...", conn->fd, state ? state : "???",
                     (conn->error_num > 0) ? strerror(conn->error_num) : "no-err",
                     IS_SET(conn->flags, YCONN_ROLE_PUBLISHER) ? "pub" : "sub",
                     IS_SET(conn->flags, YCONN_WRITABLE) ? "writable" : "-",
@@ -3014,7 +3067,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
             ylog_logger(YLOG_INFO, func, line, "ydb[%s] %s conn:\n",
                         conn->datablock ? conn->datablock->name : "...", state);
         ylog_logger(YLOG_INFO, func, line, " address: %s (peer name: %s, fd: %d)\n",
-            conn->address, conn->name?conn->name:"...", conn->fd);
+                    conn->address, conn->name ? conn->name : "...", conn->fd);
         if (conn->error_num > 0)
             ylog_logger(YLOG_INFO, func, line, " sys-err: %s\n", strerror(conn->error_num));
         if (IS_SET(conn->flags, YCONN_ROLE_PUBLISHER))
@@ -3033,8 +3086,6 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         n += sprintf(flagstr + n, "/%s)", IS_SET(conn->flags, STATUS_COND_CLIENT) ? "connected" : "-");
         ylog_logger(YLOG_INFO, func, line, " status: %s\n", flagstr);
         ylog_logger(YLOG_INFO, func, line,
-                    " sync-timeout: %d\n", conn->timeout);
-        ylog_logger(YLOG_INFO, func, line,
                     " ydb(epollfd): %s(%d)\n",
                     conn->datablock->name, conn->datablock->epollfd);
         ylog_logger(YLOG_INFO, func, line,
@@ -3044,7 +3095,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
     {
         ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (peer name: %s, fd: %d)\n",
                     conn->datablock ? conn->datablock->name : "...",
-                    conn->address, conn->name?conn->name:"...", conn->fd);
+                    conn->address, conn->name ? conn->name : "...", conn->fd);
     }
 }
 
@@ -3150,8 +3201,9 @@ static yconn *_yconn_new(const char *address, unsigned int flags, ydb *datablock
     conn->func_accept = func_accept;
     conn->func_deinit = func_deinit;
     conn->datablock = datablock;
-    conn->timeout = datablock->timeout;
-    // conn->name = NULL;
+    conn->send_timeout = datablock->timeout;
+    conn->recv_timeout = datablock->timeout;
+    conn->name = NULL;
     return conn;
 }
 
@@ -3265,7 +3317,7 @@ ylist *yconn_getall(char *address, ydb *datablock)
     yconns = ylist_create();
     if (!yconns)
         return NULL;
-    
+
     i = ytree_first(datablock->conn);
     for (; i; i = ytree_next(datablock->conn, i))
     {
@@ -3337,9 +3389,9 @@ ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
     YCONN_INFO(conn, "opened");
     if (IS_SET(conn->flags, STATUS_CLIENT))
     {
-        eventid eid = yconn_init_e(conn);
-        res = yconn_recv_event(datablock, eid);
-        ylog_debug("res=%s\n", ydb_res_str(res));
+        eventid eid = yconn_init(conn);
+        if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE) && valid_waitevent(eid))
+            yconn_serve_blocking(datablock, eid, datablock->timeout);
     }
     return res;
 }
@@ -3393,7 +3445,12 @@ ydb_res yconn_reopen_or_close(yconn *conn, ydb *datablock)
         return res;
     }
     YCONN_INFO(conn, "reopened");
-    yconn_init(conn);
+    if (IS_SET(conn->flags, STATUS_CLIENT))
+    {
+        eventid eid = yconn_init(conn);
+        if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE) && valid_waitevent(eid))
+            yconn_serve_blocking(datablock, eid, datablock->timeout);
+    }
     return res;
 }
 
@@ -3548,24 +3605,11 @@ static ydb_res yconn_attach_to_disconn(yconn *conn)
     return YDB_OK;
 }
 
-static ydb_res yconn_request(yconn *req_conn, yconn_op op, char *buf, size_t buflen)
-{
-    ydb_res res = YDB_OK;
-    ylog_inout();
-    if (!req_conn)
-        return YDB_E_INVALID_ARGS;
-    YCONN_SIMPLE_INFO(req_conn);
-    YDB_ASSERT(!req_conn->func_send, YDB_E_FUNC);
-    res = req_conn->func_send(req_conn, op, YMSG_REQUEST, buf, buflen);
-    if (res)
-        yconn_deferred_close(req_conn);
-    return res;
-}
-
-static ydb_res yconn_response(yconn *req_conn, yconn_op op, bool done, bool ok, char *buf, size_t buflen)
+ydb_res yconn_response(yconn *req_conn, yconn_op op, unsigned int respseq, bool done, bool ok, char *buf, size_t buflen)
 {
     ydb_res res = YDB_OK;
     ymsg_type msgtype;
+    unsigned int curseq;
     ylog_inout();
     if (!req_conn)
         return YDB_E_INVALID_ARGS;
@@ -3580,23 +3624,28 @@ static ydb_res yconn_response(yconn *req_conn, yconn_op op, bool done, bool ok, 
     else
         msgtype = YMSG_RESP_CONTINUED;
     YDB_ASSERT(!req_conn->func_send, YDB_E_FUNC);
+    curseq = req_conn->sendseq;
+    req_conn->sendseq = respseq;
     res = req_conn->func_send(req_conn, op, msgtype, buf, buflen);
+    req_conn->sendseq = curseq;
     if (res)
         yconn_deferred_close(req_conn);
     return res;
 }
 
-eventid yconn_request_e(yconn *req_conn, yconn_op op, char *buf, size_t buflen, eventid peid)
+eventid yconn_request(yconn *req_conn, yconn_op op, int timeout, char *buf, size_t buflen, eventid peid)
 {
     ydb_res res = YDB_OK;
-    eventid eid = {
-        .fd = 0,
-        .seq = 0
-    };
+    eventid eid = {.fd = -1, .seq = 0};
     ylog_inout();
     if (!req_conn)
         return eid;
     YCONN_SIMPLE_INFO(req_conn);
+    req_conn->sendseq++;
+    if ((timeout - YDB_DELIVERY_LATENCY) > 0)
+        req_conn->send_timeout = timeout - YDB_DELIVERY_LATENCY;
+    else
+        req_conn->send_timeout = timeout;
     YDB_ASSERT(!req_conn->func_send, YDB_E_FUNC);
     res = req_conn->func_send(req_conn, op, YMSG_REQUEST, buf, buflen);
     if (res)
@@ -3604,10 +3653,10 @@ eventid yconn_request_e(yconn *req_conn, yconn_op op, char *buf, size_t buflen, 
         yconn_deferred_close(req_conn);
         return eid;
     }
-    return waitevent_set(req_conn->datablock, req_conn->fd, req_conn->sendseq, req_conn->datablock->timeout, op, peid);
+    return waitevent_set_childevent(req_conn->datablock, req_conn->fd, req_conn->sendseq, req_conn->send_timeout, peid);
 }
 
-static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, yconn_op op, char *buf, size_t buflen)
+ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, yconn_op op, char *buf, size_t buflen)
 {
     yconn *conn;
     ylist *publist = NULL;
@@ -3661,6 +3710,7 @@ static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, 
         ydb_res res;
         YCONN_SIMPLE_INFO(conn);
         YDB_ASSERT(!conn->func_send, YDB_E_FUNC);
+        conn->sendseq++;
         res = conn->func_send(conn, op, YMSG_PUBLISH, buf, buflen);
         if (res)
             yconn_deferred_close(conn);
@@ -3671,7 +3721,7 @@ static ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, 
     return YDB_OK;
 }
 
-static ydb_res yconn_whisper(int origin, ydb *datablock, yconn_op op, char *buf, size_t buflen)
+ydb_res yconn_whisper(int origin, ydb *datablock, yconn_op op, char *buf, size_t buflen)
 {
     ydb_res res;
     yconn *tar_conn;
@@ -3694,6 +3744,7 @@ static ydb_res yconn_whisper(int origin, ydb *datablock, yconn_op op, char *buf,
 
     ylog_in();
     YCONN_SIMPLE_INFO(tar_conn);
+    tar_conn->sendseq++;
     res = tar_conn->func_send(tar_conn, op, YMSG_WHISPER, buf, buflen);
     if (res)
         yconn_deferred_close(tar_conn);
@@ -3733,28 +3784,30 @@ static char *yconn_remove_head_tail(char *buf, size_t buflen, size_t *outbuflen)
     return rbuf;
 }
 
-static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *buf, size_t buflen, bool deferred_close)
+eventid yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *buf, size_t buflen)
 {
     ydb_res res = YDB_OK;
     ytree_iter *iter;
-    ytree *synclist = NULL;
-    struct timespec base;
-    bool is_timeout = false;
     char *rbuf = buf;
     size_t rbuflen = buflen;
+    eventid eid = {.fd = -1, .seq = 0};
     int timeout;
-    int waitingfor;
+
     ylog_in();
     YDB_FAIL(datablock == NULL, YDB_E_CTRL);
     YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
-    synclist = ytree_create(NULL, NULL);
-    YDB_FAIL(!synclist, YDB_E_MEM_ALLOC);
-    waitingfor = req_conn ? req_conn->timeout : datablock->timeout;
-    ydb_time_set_base(&base);
     if (req_conn)
     {
         // removed the head from buf. (for relay)
         rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
+        timeout = req_conn->recv_timeout;
+        eid = waitevent_set_childevent(datablock, req_conn->fd, req_conn->recvseq, timeout, eid);
+    }
+    else
+    {
+        // local sync request
+        timeout = datablock->timeout;
+        eid = waitevent_set_parentevent(datablock, timeout);
     }
     iter = ytree_first(datablock->conn);
     for (; iter != NULL; iter = ytree_next(datablock->conn, iter))
@@ -3774,219 +3827,41 @@ static ydb_res yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *bu
             if (!IS_SET(conn->flags, YCONN_WRITABLE))
                 continue;
         }
-        conn->timeout = waitingfor;
         YCONN_SIMPLE_INFO(conn);
-        res = yconn_request(conn, YOP_SYNC, rbuf, rbuflen);
-        if (!res) // no error
-        {
-            ytree_insert(synclist, conn, conn);
-        }
-    }
-    ylog_info("ydb[%s] sync (n %d, timeout %d ms)\n",
-              datablock->name, ytree_size(synclist), waitingfor);
-    while (ytree_size(synclist) > 0)
-    {
-        int i, n;
-        struct epoll_event event[YDB_CONN_MAX];
-        int timeout = ydb_time_get_elapsed(&base);
-        timeout = waitingfor - timeout;
-        if (timeout > waitingfor || timeout < 0)
-        {
-            is_timeout = true;
-            break;
-        }
-        ylog_debug("epoll_wait timeout %d\n", timeout);
-        n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
-        if (n < 0)
-        {
-            if (errno == EINTR)
-                continue;
-            YDB_FAIL(n < 0, YDB_E_SYSTEM_FAILED);
-        }
-
-        for (i = 0; i < n; i++)
-        {
-            yconn *recv_conn = event[i].data.ptr;
-            if (event[i].data.ptr == NULL)
-            {
-                if (ytimer_handle(datablock->timer) < 0)
-                    res = YDB_E_CTRL;
-            }
-            else if (IS_DISCONNECTED(recv_conn))
-            {
-                ytree_delete(synclist, recv_conn);
-                // if yconn_sync() is executed in yconn_sync_in_read,
-                // deferred yconn_close()
-                if (deferred_close)
-                    yconn_deferred_close(recv_conn);
-                else
-                    yconn_reopen_or_close(recv_conn, datablock);
-            }
-            else if (IS_SET(recv_conn->flags, STATUS_SERVER))
-            {
-                yconn_accept(recv_conn);
-            }
-            else
-            {
-                int next = 0;
-                yconn_op op = YOP_NONE;
-                ymsg_type type = YMSG_NONE;
-            recv_again:
-                res = yconn_recv(recv_conn, req_conn, &op, &type, &next);
-                if (YDB_FAILED(res))
-                {
-                    ytree_delete(synclist, recv_conn);
-                }
-                else if (op == YOP_SYNC &&
-                         (type == YMSG_RESPONSE || type == YMSG_RESP_FAILED))
-                {
-                    if (type == YMSG_RESP_FAILED)
-                        is_timeout = true;
-                    ytree_delete(synclist, recv_conn);
-                    ylog_debug("sync responsed (op=%d, type=%d)\n", op, type);
-                }
-                if (next)
-                    goto recv_again;
-            }
-        }
-    }
-failed:
-    if (YLOG_SEVERITY_INFO)
-    {
-        timeout = ydb_time_get_elapsed(&base);
-        ylog_info("ydb[%s] sync elapsed :%d ms (%s)\n",
-                  datablock->name, timeout,
-                  (is_timeout) ? "YDB_W_TIMEOUT" : "IN_TIME");
-    }
-    ytree_destroy(synclist);
-    ylog_out();
-    if (is_timeout)
-        return YDB_W_TIMEOUT;
-    return res;
-}
-
-static ydb_res yconn_init(yconn *req_conn)
-{
-    ydb_res res = YDB_OK;
-    struct timespec base;
-    struct epoll_event event[YDB_CONN_MAX];
-    int i, n, timeout, done = false;
-    ydb *datablock = req_conn->datablock;
-    if (!IS_SET(req_conn->flags, STATUS_CLIENT))
-        return YDB_OK;
-    ylog_in();
-    YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
-    ydb_time_set_base(&base);
-    // send
-    {
-        char *buf = NULL;
-        size_t buflen = 0;
-        if (IS_SET(req_conn->flags, YCONN_WRITABLE) && !ydb_empty(datablock->top))
-            ydb_dumps(req_conn->datablock, &buf, &buflen);
-        YCONN_SIMPLE_INFO(req_conn);
-        res = yconn_request(req_conn, YOP_INIT, buf, buflen);
-        CLEAR_BUF(buf, buflen);
-        YDB_FAIL(res, res);
-    }
-
-    ylog_info("ydb[%s] init (timeout %d ms)\n",
-              datablock->name, req_conn->timeout);
-
-    // recv
-    do
-    {
-        int timeout = ydb_time_get_elapsed(&base);
-        timeout = req_conn->timeout - timeout;
-        if (timeout > req_conn->timeout || timeout < 0)
-            break;
-        ylog_debug("epoll_wait timeout %d\n", timeout);
-        n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
-        if (n < 0)
-        {
-            if (errno == EINTR)
-                continue;
-            YDB_FAIL(n < 0, YDB_E_SYSTEM_FAILED);
-        }
-
-        for (i = 0; i < n; i++)
-        {
-            yconn *recv_conn = event[i].data.ptr;
-            if (event[i].data.ptr == NULL)
-            {
-                if (ytimer_handle(datablock->timer) < 0)
-                    res = YDB_E_CTRL;
-            }
-            else if (IS_DISCONNECTED(recv_conn))
-            {
-                if (recv_conn == req_conn)
-                    done = true;
-                res = yconn_reopen_or_close(recv_conn, datablock);
-            }
-            else if (IS_SET(recv_conn->flags, STATUS_SERVER))
-            {
-                res = yconn_accept(recv_conn);
-            }
-            else
-            {
-                int next = 0;
-                yconn_op op = YOP_NONE;
-                ymsg_type type = YMSG_NONE;
-            recv_again:
-                res = yconn_recv(recv_conn, req_conn, &op, &type, &next);
-                if (YDB_FAILED(res))
-                {
-                    if (recv_conn == req_conn)
-                        done = true;
-                }
-                else if (recv_conn == req_conn)
-                {
-                    if (op == YOP_INIT && (type == YMSG_RESPONSE || type == YMSG_RESP_FAILED))
-                        done = true;
-                    ylog_debug("init responsed (res=%d, op=%d, type=%d)\n", res, op, type);
-                }
-                if (next)
-                    goto recv_again;
-            }
-        }
-    } while (!done);
-failed:
-    if (YLOG_SEVERITY_INFO)
-    {
-        timeout = ydb_time_get_elapsed(&base);
-        // ylog_debug("start time: %u.%u\n", start.tv_sec, start.tv_usec);
-        // ylog_debug("end time: %u.%u\n", end.tv_sec, end.tv_usec);
-        ylog_info("ydb[%s] init elapsed time: %d ms\n", datablock->name, timeout);
-    }
-    ylog_out();
-    return res;
-}
-
-
-eventid yconn_init_e(yconn *req_conn)
-{
-    ydb_res res = YDB_OK;
-    eventid eid = {.fd= 0, .seq = 0};
-    ydb *datablock = req_conn->datablock;
-    if (!IS_SET(req_conn->flags, STATUS_CLIENT))
-        return eid;
-    ylog_in();
-    YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
-    // send
-    {
-        char *buf = NULL;
-        size_t buflen = 0;
-        if (IS_SET(req_conn->flags, YCONN_WRITABLE) && !ydb_empty(datablock->top))
-            ydb_dumps(req_conn->datablock, &buf, &buflen);
-        eid = yconn_request_e(req_conn, YOP_INIT, buf, buflen, eid);
-        CLEAR_BUF(buf, buflen);
-        YDB_FAIL((eid.fd == 0 && eid.seq == 0), YDB_E_EVENT);
+        yconn_request(conn, YOP_SYNC, timeout, rbuf, rbuflen, eid);
     }
 failed:
     ylog_out();
     return eid;
 }
 
-static ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen)
+eventid yconn_init(yconn *req_conn)
+{
+    ydb_res res = YDB_OK;
+    ydb *datablock;
+    char *buf = NULL;
+    size_t buflen = 0;
+    eventid eid = {.fd = -1, .seq = 0};
+    datablock = req_conn->datablock;
+
+    ylog_in();
+    YDB_FAIL(datablock == NULL, YDB_E_CTRL);
+    YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
+    // send
+    if (IS_SET(req_conn->flags, YCONN_WRITABLE) && !ydb_empty(datablock->top))
+        ydb_dumps(req_conn->datablock, &buf, &buflen);
+    // set local event for waiting
+    eid = waitevent_set_parentevent(datablock, datablock->timeout);
+    yconn_request(req_conn, YOP_INIT, datablock->timeout, buf, buflen, eid);
+    CLEAR_BUF(buf, buflen);
+    YDB_FAIL(invalid_waitevent(eid), YDB_E_EVENT);
+    ylog_debug("waitevent e(%d:%d), res = %s\n", eid.fd, eid.seq, ydb_res_str(res));
+failed:
+    ylog_out();
+    return eid;
+}
+
+ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen)
 {
     ydb_res res;
     ynode *src = NULL;
@@ -4024,7 +3899,7 @@ static ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, bool not_publish, 
 }
 
 // delete ydb using the input string
-static ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen)
+ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish, char *buf, size_t buflen)
 {
     ydb_res res;
     ynode *src = NULL;
@@ -4060,18 +3935,14 @@ static ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish,
     return res;
 }
 
-static ydb_res yconn_sync_in_recv(yconn *conn, char *inbuf, size_t inbuflen, char **outbuf, size_t *outbuflen)
+ydb_res yconn_sync_local(yconn *req_conn, char *inbuf, size_t inbuflen, char **outbuf, size_t *outbuflen)
 {
     ydb_res res;
     ydb *datablock;
     ynode *src = NULL;
-    bool is_timeout = false;
     ylog_in();
-    datablock = conn->datablock;
-    res = yconn_sync(conn, datablock, false, inbuf, inbuflen, true);
-    if (res == YDB_W_TIMEOUT)
-        is_timeout = true;
-    res = ynode_scanf_from_buf(inbuf, inbuflen, conn->fd, &src);
+    datablock = req_conn->datablock;
+    res = ynode_scanf_from_buf(inbuf, inbuflen, req_conn->fd, &src);
     if (res)
     {
         ynode_remove(src);
@@ -4088,7 +3959,7 @@ static ydb_res yconn_sync_in_recv(yconn *conn, char *inbuf, size_t inbuflen, cha
         struct ydb_fprintf_data data;
         // ynode_dump(src, 0, 24);
         if (ytrie_size(datablock->updater) > 0)
-            ydb_update(conn, datablock, src);
+            ydb_update(req_conn, datablock, src);
         log = ynode_log_open(datablock->top, NULL);
         data.log = log;
         data.datablock = datablock;
@@ -4105,8 +3976,6 @@ static ydb_res yconn_sync_in_recv(yconn *conn, char *inbuf, size_t inbuflen, cha
         ynode_remove(src);
     }
     ylog_out();
-    if (is_timeout)
-        return YDB_W_TIMEOUT;
     return res;
 }
 
@@ -4151,24 +4020,30 @@ static int yconn_whisper_process(yconn *recv_conn, char *inbuf, size_t inbuflen,
     return -1;
 }
 
-static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type *type, int *next)
+eventid yconn_recv(yconn *recv_conn, yconn_op *op, ymsg_type *type, int *next)
 {
     ydb_res res;
     char *buf = NULL;
     size_t buflen = 0;
     unsigned int flags = 0x0;
+    unsigned int recvseq = 0;
+    eventid eid = {.fd = -1, .seq = 0};
+    yconn *req_conn = NULL;
 
     *next = 0;
     if (IS_DISCONNECTED(recv_conn))
-        return YDB_E_CONN_FAILED;
+        return eid;
     YCONN_SIMPLE_INFO(recv_conn);
     YDB_ASSERT(!recv_conn->func_recv, YDB_E_FUNC);
     res = recv_conn->func_recv(recv_conn, op, type, &flags, &buf, &buflen, next);
     if (res)
     {
         yconn_deferred_close(recv_conn);
-        return YDB_OK;
+        return eid;
     }
+    eid.fd = recv_conn->fd;
+    eid.seq = recv_conn->recvseq;
+    recvseq = recv_conn->recvseq;
     switch (*type)
     {
     case YMSG_PUBLISH:
@@ -4188,21 +4063,25 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
         switch (*op)
         {
         case YOP_MERGE:
-            res = yconn_merge(recv_conn, req_conn, false, buf, buflen);
-            yconn_response(recv_conn, YOP_MERGE, true, res ? false : true, NULL, 0);
+            res = yconn_merge(recv_conn, NULL, false, buf, buflen);
+            yconn_response(recv_conn, YOP_MERGE, recvseq, true, YDB_FAILED(res) ? false : true, NULL, 0);
             break;
         case YOP_DELETE:
-            res = yconn_delete(recv_conn, req_conn, false, buf, buflen);
-            yconn_response(recv_conn, YOP_DELETE, true, res ? false : true, NULL, 0);
+            res = yconn_delete(recv_conn, NULL, false, buf, buflen);
+            yconn_response(recv_conn, YOP_DELETE, recvseq, true, YDB_FAILED(res) ? false : true, NULL, 0);
             break;
         case YOP_SYNC:
         {
-            bool ok;
+            bool done = true;
             char *rbuf = NULL;
             size_t rbuflen = 0;
-            res = yconn_sync_in_recv(recv_conn, buf, buflen, &rbuf, &rbuflen);
-            ok = (res == YDB_W_TIMEOUT) ? false : true;
-            yconn_response(recv_conn, YOP_SYNC, true, ok, rbuf, rbuflen);
+            if (recv_conn->datablock->synccount > 0)
+            {
+                eid = yconn_sync(recv_conn, recv_conn->datablock, false, buf, buflen);
+                done = false;
+            }
+            res = yconn_sync_local(recv_conn, buf, buflen, &rbuf, &rbuflen);
+            yconn_response(recv_conn, YOP_SYNC, recvseq, done, YDB_FAILED(res) ? false : true, rbuf, rbuflen);
             CLEAR_BUF(rbuf, rbuflen);
             break;
         }
@@ -4211,17 +4090,17 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
             {
                 // updated flags
                 recv_conn->flags = flags | (recv_conn->flags & (YCONN_TYPE_MASK | STATUS_MASK));
-                res = yconn_merge(recv_conn, req_conn, false, buf, buflen);
+                res = yconn_merge(recv_conn, NULL, false, buf, buflen);
                 if (IS_SET(recv_conn->flags, YCONN_UNSUBSCRIBE))
                 {
-                    yconn_response(recv_conn, YOP_INIT, true, res ? false : true, NULL, 0);
+                    yconn_response(recv_conn, YOP_INIT, recvseq, true, YDB_FAILED(res) ? false : true, NULL, 0);
                 }
                 else
                 {
                     char *ibuf = NULL;
                     size_t ibuflen = 0;
                     ydb_dumps(recv_conn->datablock, &ibuf, &ibuflen);
-                    yconn_response(recv_conn, YOP_INIT, true, res ? false : true, ibuf, ibuflen);
+                    yconn_response(recv_conn, YOP_INIT, recvseq, true, YDB_FAILED(res) ? false : true, ibuf, ibuflen);
                     CLEAR_BUF(ibuf, ibuflen);
                 }
                 YCONN_INFO(recv_conn, "updated");
@@ -4231,229 +4110,48 @@ static ydb_res yconn_recv(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_
             break;
         }
         break;
-    case YMSG_RESPONSE:
     case YMSG_RESP_CONTINUED:
-        if (*op == YOP_SYNC || *op == YOP_INIT)
-        {
-            yconn_merge(recv_conn, req_conn, false, buf, buflen);
-            if (req_conn && *op == YOP_SYNC)
-            {
-                ylog_info("ydb[%s] relay response from %d to %d\n",
-                          req_conn->datablock ? req_conn->datablock->name : "...",
-                          recv_conn->fd, req_conn->fd);
-                char *rbuf;
-                size_t rbuflen = 0;
-                rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
-                yconn_response(req_conn, *op, false, true, rbuf, rbuflen);
-            }
-        }
-        break;
-    case YMSG_RESP_FAILED:
-        break;
-    case YMSG_WHISPER:
-    {
-        char *rbuf = NULL;
-        size_t rbuflen = 0;
-        int origin_to_relay;
-        origin_to_relay = yconn_whisper_process(recv_conn, buf, buflen, &rbuf, &rbuflen);
-        ylog_info("ydb[%s] origin_to_relay %d\n",
-                  recv_conn->datablock ? recv_conn->datablock->name : "...", origin_to_relay);
-        if (origin_to_relay < 0)
-            break;
-        if (origin_to_relay > 0)
-        {
-            if (recv_conn->fd != origin_to_relay)
-                yconn_whisper(origin_to_relay, recv_conn->datablock, *op, rbuf, rbuflen);
-        }
-        else
-        {
-            switch (*op)
-            {
-            case YOP_MERGE:
-                yconn_merge(recv_conn, NULL, true, rbuf, rbuflen);
-                break;
-            case YOP_DELETE:
-                yconn_delete(recv_conn, NULL, true, rbuf, rbuflen);
-                break;
-            default:
-                break;
-            }
-        }
-        break;
-    }
-    default:
-        break;
-    }
-    return YDB_OK;
-}
-
-ydb_res ydb_recv(ydb *datablock, int timeout)
-{
-    ydb_res res;
-    int i, n;
-    struct epoll_event event[YDB_CONN_MAX];
-    ylog_inout();
-    YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
-    lock(datablock);
-    YDB_FAIL(datablock->epollfd < 0, YDB_E_NO_CONN);
-    res = YDB_OK;
-    n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
-    if (n < 0)
-    {
-        if (errno == EINTR)
-            goto failed; // no error
-        YDB_FAIL(n < 0, YDB_E_SYSTEM_FAILED);
-    }
-    if (n > 0)
-        ylog_debug("ydb[%s] %d events received\n", datablock->name, n);
-    for (i = 0; i < n; i++)
-    {
-        yconn *conn = event[i].data.ptr;
-        if (event[i].data.ptr == NULL)
-        {
-            if (ytimer_handle(datablock->timer) < 0)
-                res = YDB_E_CTRL;
-        }
-        else if (IS_DISCONNECTED(conn))
-        {
-            res = yconn_reopen_or_close(conn, datablock);
-        }
-        else if (IS_SERVER(conn))
-        {
-            res = yconn_accept(conn);
-        }
-        else
-        {
-            int next = 0;
-            yconn_op op = YOP_NONE;
-            ymsg_type type = YMSG_NONE;
-        recv_again:
-            res = yconn_recv(conn, NULL, &op, &type, &next);
-            if (!YDB_FAILED(res))
-            {
-                if (next)
-                    goto recv_again;
-            }
-            sleep(100);
-        }
-        if (res)
-            break;
-    }
-failed:
-    unlock(datablock);
-    return res;
-}
-
-ydb_res ydb_serve(ydb *datablock, int timeout)
-{
-    return ydb_recv(datablock, timeout);
-}
-
-
-eventid yconn_recv_e(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type *type, int *next)
-{
-    ydb_res res;
-    char *buf = NULL;
-    size_t buflen = 0;
-    unsigned int flags = 0x0;
-    eventid eid = {
-        .fd = 0,
-        .seq = 0
-    };
-
-    *next = 0;
-    if (IS_DISCONNECTED(recv_conn))
-        return eid;
-    YCONN_SIMPLE_INFO(recv_conn);
-    YDB_ASSERT(!recv_conn->func_recv, YDB_E_FUNC);
-    res = recv_conn->func_recv(recv_conn, op, type, &flags, &buf, &buflen, next);
-    if (res)
-    {
-        yconn_deferred_close(recv_conn);
-        return eid;
-    }
-    switch (*type)
-    {
-    case YMSG_PUBLISH:
-        switch (*op)
-        {
-        case YOP_MERGE:
-            yconn_merge(recv_conn, NULL, false, buf, buflen);
-            break;
-        case YOP_DELETE:
-            yconn_delete(recv_conn, NULL, false, buf, buflen);
-            break;
-        default:
-            break;
-        }
-        break;
-    case YMSG_REQUEST:
-        switch (*op)
-        {
-        case YOP_MERGE:
-            res = yconn_merge(recv_conn, req_conn, false, buf, buflen);
-            yconn_response(recv_conn, YOP_MERGE, true, res ? false : true, NULL, 0);
-            break;
-        case YOP_DELETE:
+        // The response is not complete.
+        req_conn = waitevent_get_conn(recv_conn->datablock, eid);
+        eid.fd = -1;
+        eid.seq = 0;
+        if (*op == YOP_DELETE)
             res = yconn_delete(recv_conn, req_conn, false, buf, buflen);
-            yconn_response(recv_conn, YOP_DELETE, true, res ? false : true, NULL, 0);
-            break;
-        case YOP_SYNC:
+        else if (*op == YOP_INIT || *op == YOP_MERGE || *op == YOP_SYNC)
+            res = yconn_merge(recv_conn, req_conn, false, buf, buflen);
+        if (req_conn)
         {
-            bool ok;
-            char *rbuf = NULL;
+            char *rbuf;
             size_t rbuflen = 0;
-            res = yconn_sync_in_recv(recv_conn, buf, buflen, &rbuf, &rbuflen);
-            ok = (res == YDB_W_TIMEOUT) ? false : true;
-            yconn_response(recv_conn, YOP_SYNC, true, ok, rbuf, rbuflen);
-            CLEAR_BUF(rbuf, rbuflen);
-            break;
-        }
-        case YOP_INIT:
-            if (IS_SET(recv_conn->flags, STATUS_COND_CLIENT))
-            {
-                // updated flags
-                recv_conn->flags = flags | (recv_conn->flags & (YCONN_TYPE_MASK | STATUS_MASK));
-                res = yconn_merge(recv_conn, req_conn, false, buf, buflen);
-                if (IS_SET(recv_conn->flags, YCONN_UNSUBSCRIBE))
-                {
-                    yconn_response(recv_conn, YOP_INIT, true, res ? false : true, NULL, 0);
-                }
-                else
-                {
-                    char *ibuf = NULL;
-                    size_t ibuflen = 0;
-                    ydb_dumps(recv_conn->datablock, &ibuf, &ibuflen);
-                    yconn_response(recv_conn, YOP_INIT, true, res ? false : true, ibuf, ibuflen);
-                    CLEAR_BUF(ibuf, ibuflen);
-                }
-                YCONN_INFO(recv_conn, "updated");
-            }
-            break;
-        default:
-            break;
+            ylog_info("ydb[%s] relay response from %d to %d\n",
+                      req_conn->datablock->name, recv_conn->fd, req_conn->fd);
+            rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
+            yconn_response(req_conn, *op, recvseq, false, YDB_FAILED(res) ? false : true, rbuf, rbuflen);
         }
         break;
     case YMSG_RESPONSE:
-    case YMSG_RESP_CONTINUED:
-        if (*op == YOP_SYNC || *op == YOP_INIT)
+        req_conn = waitevent_get_conn(recv_conn->datablock, eid);
+        eid = waitevent_complete(recv_conn->datablock, eid);
+        if (*op == YOP_DELETE)
+            res = yconn_delete(recv_conn, req_conn, false, buf, buflen);
+        else if (*op == YOP_INIT || *op == YOP_MERGE || *op == YOP_SYNC)
+            res = yconn_merge(recv_conn, req_conn, false, buf, buflen);
+        if (req_conn)
         {
-            eid = waitevent_complete(recv_conn, *op);
-            yconn_merge(recv_conn, req_conn, false, buf, buflen);
-            
-            if (req_conn && *op == YOP_SYNC)
-            {
-                ylog_info("ydb[%s] relay response from %d to %d\n",
-                          req_conn->datablock ? req_conn->datablock->name : "...",
-                          recv_conn->fd, req_conn->fd);
-                char *rbuf;
-                size_t rbuflen = 0;
-                rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
-                yconn_response(req_conn, *op, false, true, rbuf, rbuflen);
-            }
+            char *rbuf;
+            size_t rbuflen = 0;
+            ylog_info("ydb[%s] relay response from %d to %d\n",
+                      req_conn->datablock->name, recv_conn->fd, req_conn->fd);
+            rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
+            yconn_response(req_conn, *op, recvseq, true, YDB_FAILED(res) ? false : true, rbuf, rbuflen);
         }
         break;
     case YMSG_RESP_FAILED:
+        // complete event but, does not update datablock.
+        req_conn = waitevent_get_conn(recv_conn->datablock, eid);
+        eid = waitevent_complete(recv_conn->datablock, eid);
+        if (req_conn)
+            yconn_response(req_conn, *op, eid.seq, true, false, NULL, 0);
         break;
     case YMSG_WHISPER:
     {
@@ -4462,7 +4160,7 @@ eventid yconn_recv_e(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type 
         int origin_to_relay;
         origin_to_relay = yconn_whisper_process(recv_conn, buf, buflen, &rbuf, &rbuflen);
         ylog_info("ydb[%s] origin_to_relay %d\n",
-                  recv_conn->datablock ? recv_conn->datablock->name : "...", origin_to_relay);
+                  recv_conn->datablock->name, origin_to_relay);
         if (origin_to_relay < 0)
             break;
         if (origin_to_relay > 0)
@@ -4492,19 +4190,17 @@ eventid yconn_recv_e(yconn *recv_conn, yconn *req_conn, yconn_op *op, ymsg_type 
     return eid;
 }
 
-
-ydb_res yconn_recv_event(ydb *datablock, eventid eid)
+ydb_res yconn_serve(ydb *datablock, int timeout)
 {
     ydb_res res;
-    int i, n, ret;
-    bool nowait = no_waitevent(eid);
+    int i, n;
     struct epoll_event event[YDB_CONN_MAX];
     ylog_inout();
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
     lock(datablock);
     YDB_FAIL(datablock->epollfd < 0, YDB_E_NO_CONN);
     res = YDB_OK;
-    n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, datablock->timeout);
+    n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, timeout);
     if (n < 0)
     {
         if (errno == EINTR)
@@ -4518,34 +4214,23 @@ ydb_res yconn_recv_event(ydb *datablock, eventid eid)
         yconn *conn = event[i].data.ptr;
         if (event[i].data.ptr == NULL)
         {
-            waitevent *we;
-            ytimer_handle(datablock->timer);
-            we = waitevent_search(datablock, eid);
-            if (we == NULL) {
-                res = YDB_W_TIMEOUT;
-                break;
-            }
+            if (ytimer_handle(datablock->timer) < 0)
+                res = YDB_E_CTRL;
         }
         else if (IS_DISCONNECTED(conn))
-        {
-            res = yconn_reopen_or_close(conn, datablock);
-        }
+            yconn_reopen_or_close(conn, datablock);
         else if (IS_SERVER(conn))
-        {
-            res = yconn_accept(conn);
-        }
+            yconn_accept(conn);
         else
         {
             int next = 0;
             yconn_op op = YOP_NONE;
             ymsg_type type = YMSG_NONE;
-            eventid reid;
         recv_again:
-            reid = yconn_recv_e(conn, NULL, &op, &type, &next);
-            if (!nowait && is_equal_waitevent(eid, reid))
-                break;
+            yconn_recv(conn, &op, &type, &next);
             if (next)
                 goto recv_again;
+            // sleep(100);
         }
         if (res)
             break;
@@ -4555,6 +4240,89 @@ failed:
     return res;
 }
 
+ydb_res ydb_serve(ydb *datablock, int timeout)
+{
+    return yconn_serve(datablock, timeout);
+}
+
+ydb_res yconn_serve_blocking(ydb *datablock, eventid eid, int timeout)
+{
+    int i, n, blockingtime;
+    ydb_res res = YDB_NO_ERR;
+    struct epoll_event event[YDB_CONN_MAX];
+    struct timespec base;
+    bool done = false;
+    ylog_inout();
+    YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
+    YDB_FAIL(datablock->epollfd < 0, YDB_E_NO_CONN);
+    ydb_time_set_base(&base);
+    blockingtime = timeout;
+    do
+    {
+        int elapsed = ydb_time_get_elapsed(&base);
+        elapsed = blockingtime - elapsed;
+        if (elapsed > blockingtime || elapsed < 0)
+        {
+            res = YDB_W_TIMEOUT;
+            done = true;
+            break;
+        }
+
+        n = epoll_wait(datablock->epollfd, event, YDB_CONN_MAX, elapsed);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+                goto failed; // no error
+            YDB_FAIL(n < 0, YDB_E_SYSTEM_FAILED);
+        }
+        if (n > 0)
+            ylog_debug("ydb[%s] %d events received\n", datablock->name, n);
+        for (i = 0; i < n; i++)
+        {
+            yconn *conn = event[i].data.ptr;
+            if (event[i].data.ptr == NULL)
+            {
+                waitevent *we;
+                ytimer_handle(datablock->timer);
+                we = waitevent_search(datablock, eid);
+                if (we == NULL)
+                {
+                    res = YDB_W_TIMEOUT;
+                    break;
+                }
+            }
+            else if (IS_DISCONNECTED(conn))
+            {
+                res = yconn_reopen_or_close(conn, datablock);
+            }
+            else if (IS_SERVER(conn))
+            {
+                res = yconn_accept(conn);
+            }
+            else
+            {
+                int next = 0;
+                yconn_op op = YOP_NONE;
+                ymsg_type type = YMSG_NONE;
+                eventid reid;
+            recv_again:
+                reid = yconn_recv(conn, &op, &type, &next);
+                if (is_equal_waitevent(eid, reid))
+                {
+                    res = YDB_NO_ERR;
+                    done = true;
+                    break;
+                }
+                if (next)
+                    goto recv_again;
+            }
+            if (res)
+                break;
+        }
+    } while (!done);
+failed:
+    return res;
+}
 
 int ydb_fd(ydb *datablock)
 {
@@ -4683,7 +4451,8 @@ ydb_res ydb_sync(ydb *datablock, const char *format, ...)
     va_end(args);
     fclose(fp);
     lock(datablock);
-    sync_res = yconn_sync(NULL, datablock, true, buf, buflen, false);
+    eventid eid = yconn_sync(NULL, datablock, true, buf, buflen);
+    sync_res = yconn_serve_blocking(datablock, eid, datablock->timeout);
     YDB_FAIL(YDB_FAILED(sync_res), sync_res);
 
     res = ynode_scanf_from_buf(buf, buflen, 0, &src);
@@ -4733,7 +4502,8 @@ ydb_res ydb_path_sync(ydb *datablock, const char *format, ...)
         if (buflen >= 0)
             buf[buflen] = 0;
         lock(datablock);
-        res = yconn_sync(NULL, datablock, true, buf, buflen, false);
+        eventid eid = yconn_sync(NULL, datablock, true, buf, buflen);
+        res = yconn_serve_blocking(datablock, eid, datablock->timeout);
         YDB_FAIL(YDB_FAILED(res), res);
     }
 

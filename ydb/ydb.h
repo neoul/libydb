@@ -13,7 +13,7 @@
 #define YDB_LEVEL_MAX 16
 #define YDB_CONN_MAX 16
 #define YDB_DEFAULT_TIMEOUT 3000 //ms
-#define YDB_DELIVERY_LATENCY 10 //ms
+#define YDB_DELIVERY_LATENCY 100 //ms
 #define YDB_DEFAULT_PORT 3677
 
 #ifdef __cplusplus
