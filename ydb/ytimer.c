@@ -91,7 +91,7 @@ static int restart_timer(ytimer *timer)
 
     if (ytree_size(timer->timers) <= 0)
     {
-        timespec.it_value.tv_sec = 1;
+        timespec.it_value.tv_sec = 0;
         timespec.it_value.tv_nsec = 0;
         timespec.it_interval.tv_sec = 0;
         timespec.it_interval.tv_nsec = 0;
@@ -112,8 +112,8 @@ static int restart_timer(ytimer *timer)
     {
         timer_cb = ytree_data(i);
         remained = get_timer_remained(timer_cb, &cur);
-        ylog_debug("ytimer[fd=%d]: timer_func[%d] remained %f\n",
-                   timer->timerfd, timer_cb->timer_id, remained);
+        // ylog_debug("ytimer[fd=%d]: timer_func[%d] remained %f\n",
+        //            timer->timerfd, timer_cb->timer_id, remained);
         timespec.it_interval.tv_sec = 0;
         timespec.it_interval.tv_nsec = 0;
         if (remained <= 0.0)
@@ -207,10 +207,10 @@ unsigned int ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic,
         return 0;
     }
 
-    timer_cb->timer_id = ++timer->next_id;
+    timer_cb->timer_id = ((++timer->next_id)%10000)+1;
     while (timer_cb->timer_id > 0 && ytree_search(timer->timer_ids, timer_cb) != NULL)
     {
-        timer_cb->timer_id = ++timer->next_id;
+        timer_cb->timer_id = ((++timer->next_id)%10000)+1;
     }
 
     timer_cb->timer_periodic = is_periodic;
@@ -308,6 +308,7 @@ int ytimer_handle(ytimer *timer)
     ytimer_cb *timer_cb;
     uint64_t num_of_expires = 0;
     struct timespec cur;
+    unsigned long timer_id;
 
     ssize_t len = read(timer->timerfd, &num_of_expires, sizeof(uint64_t));
     if (len < 0)
@@ -323,18 +324,26 @@ int ytimer_handle(ytimer *timer)
         double remained;
         timer_cb = ytree_data(i);
         remained = get_timer_remained(timer_cb, &cur);
-        ylog_debug("ytimer[fd=%d]: timer_func[%d] remained %f\n",
-                   timer->timerfd, timer_cb->timer_id, remained);
+        // ylog_debug("ytimer[fd=%d]: timer_func[%d] remained %f\n",
+        //            timer->timerfd, timer_cb->timer_id, remained);
         if (remained <= 0.0)
-            ylist_push_back(timer->dtimers, timer_cb);
+        {
+            timer_id = timer_cb->timer_id;
+            ylist_push_back(timer->dtimers, (void *) timer_id);
+        }
         else
             break;
     }
 
-    timer_cb = ylist_pop_front(timer->dtimers);
-    while (timer_cb)
+    timer_id = (unsigned long) ylist_pop_front(timer->dtimers);
+    while (timer_id > 0)
     {
         int ret;
+        ytimer_cb temp_timer;
+        temp_timer.timer_id = (unsigned int) timer_id;
+        timer_cb = ytree_search(timer->timer_ids, &temp_timer);
+        if (timer_cb == NULL)
+            continue;
         ret = (*timer_cb->timer_cbfn)(timer_cb->timer_id,
                                       YTIMER_EXPIRED,
                                       timer_cb->timer_cookie);
@@ -359,7 +368,7 @@ int ytimer_handle(ytimer *timer)
             ytree_insert(timer->timers, timer_cb, timer_cb);
             ytree_insert(timer->timer_ids, timer_cb, timer_cb);
         }
-        timer_cb = ylist_pop_front(timer->dtimers);
+        timer_id = (unsigned long) ylist_pop_front(timer->dtimers);
     }
 
     return restart_timer(timer);

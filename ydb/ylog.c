@@ -16,19 +16,19 @@ char *ylog_level_str(int level)
     switch (level)
     {
     case YLOG_DEBUG:
-        return "debug";
+        return "dbg";
     case YLOG_INOUT:
-        return "inout";
+        return "i|o";
     case YLOG_INFO:
-        return "info";
+        return "inf";
     case YLOG_WARN:
-        return "warn";
+        return "war ";
     case YLOG_ERROR:
-        return "error";
+        return "err";
     case YLOG_CRITICAL:
-        return "critical";
+        return "cri";
     default:
-        return "unknown";
+        return "???";
     }
 }
 
