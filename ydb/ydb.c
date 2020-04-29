@@ -4186,12 +4186,15 @@ eventid yconn_recv(yconn *recv_conn, yconn_op *op, ymsg_type *type, int *next)
         {
             char *rbuf;
             size_t rbuflen = 0;
+            bool done = false;
+            if (is_equal_waitevent(reqid, eid))
+                done = true;
             ylog_info("ydb[%s] relay response from %s(%d) to %s(%d)\n",
                       req_conn->datablock->name, 
                       recv_conn->name?recv_conn->name:"...", recv_conn->fd,
                       req_conn->name?req_conn->name:"...", req_conn->fd);
             rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
-            yconn_response(req_conn, *op, reqid.seq, true, YDB_FAILED(res) ? false : true, rbuf, rbuflen);
+            yconn_response(req_conn, *op, reqid.seq, done, YDB_FAILED(res) ? false : true, rbuf, rbuflen);
         }
         break;
     case YMSG_RESP_FAILED:
@@ -4200,11 +4203,14 @@ eventid yconn_recv(yconn *recv_conn, yconn_op *op, ymsg_type *type, int *next)
         eid = waitevent_complete(recv_conn->datablock, eid);
         if (req_conn)
         {
+            bool done = false;
             ylog_info("ydb[%s] relay response from %s(%d) to %s(%d)\n",
                       req_conn->datablock->name, 
                       recv_conn->name?recv_conn->name:"...", recv_conn->fd,
                       req_conn->name?req_conn->name:"...", req_conn->fd);
-            yconn_response(req_conn, *op, reqid.seq, true, false, NULL, 0);
+            if (is_equal_waitevent(reqid, eid))
+                done = true;
+            yconn_response(req_conn, *op, reqid.seq, done, false, NULL, 0);
         }
         break;
     case YMSG_WHISPER:
