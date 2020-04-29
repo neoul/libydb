@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 m4_define([libydb_major_version], [1])
 m4_define([libydb_minor_version], [0])
-m4_define([libydb_micro_version], [56])
+m4_define([libydb_micro_version], [57])
 m4_define([libydb_version],
       [libydb_major_version.libydb_minor_version.libydb_micro_version])
 
@@ -51,6 +51,8 @@ AM_CONDITIONAL([HAVE_EXAMPLES], [test "x$enable_examples" = "xyes"])
 if test "$enable_examples" = "yes"; then
   AC_DEFINE(HAVE_EXAMPLES,, Enable YDB examples)
 fi
+
+AC_CHECK_HEADERS([plog.h], [AC_SUBST(CFLAGS, "$CFLAGS -DENABLED_PLOG=1 -lplog")], [],[])
 
 AM_INIT_AUTOMAKE([subdir-objects])
 

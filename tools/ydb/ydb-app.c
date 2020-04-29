@@ -7,6 +7,10 @@
 #include <errno.h>
 #include <sys/select.h>
 
+#ifdef ENABLED_PLOG
+#include "plog.h"
+#endif
+
 #include "config.h"
 #include "ylog.h"
 #include "ylist.h"
@@ -16,11 +20,33 @@ extern int tx_fail_count;
 extern int tx_fail_en;
 
 static int done;
-void HANDLER_SIGINT(int param)
+void SIG_QUIT(int param)
 {
     done = 1;
 }
 
+#ifdef ENABLED_PLOG
+void plog_init()
+{
+    if (access("/mnt/flash/log", X_OK) == 0)
+    {
+        plog_file_mgmt(1);
+        plog_dir("/mnt/flash/log");
+    }
+    plog_traces(NULL, 0);
+    // plog_logging_enable(SIGCHLD, 0);
+    plog_logging_enable(SIGINT, 0);
+    plog_logging_enable(SIGPIPE, 0);
+    plog_logging_enable(SIGTERM, 0);
+    plog_signal(SIGINT, SIG_QUIT);
+    plog_signal(SIGPIPE, SIG_IGN);
+}
+
+void plog_cleanup()
+{
+    plog_untraces(NULL, 0);
+}
+#endif
 void usage(char *argv_0)
 {
     char *p;
@@ -487,11 +513,14 @@ int main(int argc, char *argv[])
     }
 
     {
+#ifdef ENABLED_PLOG
+        plog_init();
+#else
         // ignore SIGPIPE.
         signal(SIGPIPE, SIG_IGN);
         // add a signal handler to quit this program.
-        signal(SIGINT, HANDLER_SIGINT);
-
+        signal(SIGINT, SIG_QUIT);
+#endif
         if (verbose)
             ylog_level = verbose;
 
@@ -702,6 +731,9 @@ end:
     if (verbose)
         ylog_level = YLOG_ERROR;
     ydb_close(config);
+#ifdef ENABLED_PLOG
+    plog_cleanup();
+#endif
     if (res)
         return 1;
     return 0;
