@@ -594,21 +594,21 @@ void waitevent_free(waitevent *e)
         free(e);
 }
 
-inline bool invalid_waitevent(eventid eid)
+bool invalid_waitevent(eventid eid)
 {
     if (eid.fd < 0)
         return true;
     return false;
 }
 
-inline bool valid_waitevent(eventid eid)
+bool valid_waitevent(eventid eid)
 {
     if (eid.fd < 0)
         return false;
     return true;
 }
 
-inline bool is_equal_waitevent(eventid eid1, eventid eid2)
+bool is_equal_waitevent(eventid eid1, eventid eid2)
 {
     if (eid1.fd == eid2.fd)
         if (eid1.seq == eid2.seq)
