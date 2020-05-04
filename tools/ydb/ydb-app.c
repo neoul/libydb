@@ -273,7 +273,7 @@ void logging_config(ydb *datablock, char op, ynode *base, ynode *cur, ynode *_ne
     if (op == 'd')
     {
         ylog_severity = YLOG_ERROR;
-        ylog_file_close(); 
+        ylog_file_close();
     }
     else
     {
@@ -328,6 +328,7 @@ int main(int argc, char *argv[])
     int daemon_timeout = 0;
     int daemon = 0;
     int interpret = 0;
+    int no_rx = 0;
     ydb *config = NULL;
 
     if (argc <= 1)
@@ -351,8 +352,7 @@ int main(int argc, char *argv[])
               " timeout: 0 ms\n"
               " daemon: false\n"
               " interpret: false\n",
-              getpid()
-              );
+              getpid());
 
     while (1)
     {
@@ -373,16 +373,20 @@ int main(int argc, char *argv[])
             {"timeout", required_argument, 0, 't'},
             {"verbose", required_argument, 0, 'v'},
             {"logging-config", no_argument, 0, 'l'},
-            {"tx", required_argument, 0, 'T'},
             {"read", required_argument, 0, 0},
             {"print", required_argument, 0, 0},
             {"write", required_argument, 0, 0},
             {"delete", required_argument, 0, 0},
             {"sync", required_argument, 0, 0},
+            // diagnositics
+            {"no-rx", no_argument, 0, 0},
+            {"no-tx", no_argument, 0, 0},
+            {"tx-fail", required_argument, 0, 0},
+            //
             {"help", no_argument, 0, 'h'},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIt:v:lT:h",
+        c = getopt_long(argc, argv, "n:r:a:scf:wuSRdiIt:v:lh",
                         long_options, &index);
         if (c == -1)
             break;
@@ -393,12 +397,48 @@ int main(int argc, char *argv[])
             /* If this option set a flag, do nothing else now. */
             if (long_options[index].flag != 0)
                 break;
-            ydb_write(config,
-                      "config:\n"
-                      " command:\n"
-                      "  - {type: %s, path: '%s'}\n",
-                      long_options[index].name,
-                      optarg);
+            if (strcmp(long_options[index].name, "read") == 0 ||
+                strcmp(long_options[index].name, "print") == 0 ||
+                strcmp(long_options[index].name, "write") == 0 ||
+                strcmp(long_options[index].name, "delete") == 0 ||
+                strcmp(long_options[index].name, "sync") == 0)
+            {
+                ydb_write(config,
+                          "config:\n"
+                          " command:\n"
+                          "  - {type: %s, path: '%s'}\n",
+                          long_options[index].name,
+                          optarg);
+            }
+            else
+            {
+                if (strcmp(long_options[index].name, "tx-fail") == 0)
+                {
+                    tx_fail_en = 1;
+                    tx_fail_count = atoi(optarg);
+                }
+                else if (strcmp(long_options[index].name, "no-tx") == 0)
+                {
+                    tx_fail_en = 1;
+                    tx_fail_count = -1;
+                }
+                else if (strcmp(long_options[index].name, "no-rx") == 0)
+                {
+                    no_rx = 1;
+                }
+                if (optarg)
+                    ydb_write(config,
+                              "config:\n"
+                              " test:\n"
+                              "  %s: %s\n",
+                              long_options[index].name, optarg);
+                else
+                    ydb_write(config,
+                              "config:\n"
+                              " test:\n"
+                              "  %s: true\n",
+                              long_options[index].name);
+            }
             break;
         case 'n':
             ydb_write(config, "config: {name: '%s'}", optarg);
@@ -475,16 +515,6 @@ int main(int argc, char *argv[])
             daemon_timeout = 5000;
             ydb_write(config, "config: {daemon: true, timeout: %d ms}", daemon_timeout);
             break;
-        case 'T':
-        {
-            int tx_fail = atoi(optarg);
-            if (tx_fail <= 0)
-                tx_fail = 1;
-            tx_fail_en = 1;
-            tx_fail_count = tx_fail;
-            ydb_write(config, "config: {tx-fail: %d}", tx_fail);
-            break;
-        }
         case 't':
             timeout = atoi(optarg);
             break;
@@ -615,6 +645,11 @@ int main(int argc, char *argv[])
         {
             while (!done)
             {
+                if (no_rx)
+                {
+                    sleep(1);
+                    continue;
+                }
                 res = ydb_serve(datablock, daemon_timeout);
                 if (YDB_FAILED(res))
                 {

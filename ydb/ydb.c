@@ -631,7 +631,7 @@ int waitevent_expire(unsigned int timer_id, ytimer_status status, void *cookie)
     return 0;
 }
 
-eventid waitevent_set_childevent(ydb *datablock, int fd, unsigned int seq, int timeout, eventid pevent)
+eventid waitevent_set_event(ydb *datablock, int fd, unsigned int seq, int timeout, eventid pevent)
 {
     waitevent *we, *pwe, *fwe;
     eventid eid = {.fd = -1, .seq = 0};
@@ -668,7 +668,7 @@ eventid waitevent_set_childevent(ydb *datablock, int fd, unsigned int seq, int t
     return eid;
 }
 
-eventid waitevent_set_parentevent(ydb *datablock, int timeout)
+eventid waitevent_set_rootevent(ydb *datablock, int timeout)
 {
     waitevent *we, *fwe;
     eventid eid = {.fd = -1, .seq = 0};
@@ -2898,6 +2898,22 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
     ylog_info("ydb[%s] data {\n%s%.*s%s}\n",
               conn->datablock->name,
               msghead, datalen, data ? data : "", "\n...\n");
+    if (tx_fail_en)
+    {
+        if (tx_fail_count == 0)
+        {
+            ylog_error("tx-fail for test\n");
+            tx_fail_en = 0;
+            close(fd);
+        }
+        else
+        {
+            ylog_debug("no-tx for test\n");
+            ylog_out();
+            return YDB_OK;
+        }
+        tx_fail_count--;
+    }
     n = writev(fd, iov, cnt);
 #endif
     if (n < 0)
@@ -3682,7 +3698,7 @@ eventid yconn_request(yconn *req_conn, yconn_op op, int timeout, char *buf, size
         yconn_deferred_close(req_conn);
         return eid;
     }
-    return waitevent_set_childevent(req_conn->datablock, req_conn->fd, req_conn->sendseq, req_conn->send_timeout, peid);
+    return waitevent_set_event(req_conn->datablock, req_conn->fd, req_conn->sendseq, req_conn->send_timeout, peid);
 }
 
 ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, yconn_op op, char *buf, size_t buflen)
@@ -3857,13 +3873,13 @@ eventid yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *buf, size
         // removed the head from buf. (for relay)
         rbuf = yconn_remove_head_tail(buf, buflen, &rbuflen);
         timeout = req_conn->recv_timeout;
-        eid = waitevent_set_childevent(datablock, req_conn->fd, req_conn->recvseq, timeout, eid);
+        eid = waitevent_set_event(datablock, req_conn->fd, req_conn->recvseq, timeout, eid);
     }
     else
     {
         // local sync request
         timeout = datablock->timeout;
-        eid = waitevent_set_parentevent(datablock, timeout);
+        eid = waitevent_set_rootevent(datablock, timeout);
     }
     conn = ylist_pop_front(synclist);
     while (conn)
@@ -3894,7 +3910,7 @@ eventid yconn_init(yconn *req_conn)
     if (IS_SET(req_conn->flags, YCONN_WRITABLE) && !ydb_empty(datablock->top))
         ydb_dumps(req_conn->datablock, &buf, &buflen);
     // set local event for waiting
-    eid = waitevent_set_parentevent(datablock, datablock->timeout);
+    eid = waitevent_set_rootevent(datablock, datablock->timeout);
     yconn_request(req_conn, YOP_INIT, datablock->timeout, buf, buflen, eid);
     CLEAR_BUF(buf, buflen);
     YDB_FAIL(invalid_waitevent(eid), YDB_E_EVENT);
