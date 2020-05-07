@@ -3439,7 +3439,7 @@ ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
     if (IS_SET(conn->flags, STATUS_CLIENT))
     {
         eventid eid = yconn_init(conn);
-        if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE) && valid_waitevent(eid))
+        if (valid_waitevent(eid))
             yconn_serve_blocking(datablock, eid, datablock->timeout);
     }
     return res;
@@ -3497,7 +3497,7 @@ ydb_res yconn_reopen_or_close(yconn *conn, ydb *datablock)
     if (IS_SET(conn->flags, STATUS_CLIENT))
     {
         eventid eid = yconn_init(conn);
-        if (!IS_SET(conn->flags, YCONN_UNSUBSCRIBE) && valid_waitevent(eid))
+        if (valid_waitevent(eid))
             yconn_serve_blocking(datablock, eid, datablock->timeout);
     }
     return res;
@@ -3711,14 +3711,18 @@ ydb_res yconn_publish(yconn *recv_conn, yconn *req_conn, ydb *datablock, yconn_o
     ylist *publist = NULL;
     ytree_iter *iter;
     ylog_inout();
-    if (!buf)
-        return YDB_E_INVALID_ARGS;
-    if (op != YOP_MERGE && op != YOP_DELETE)
+    if (op == YOP_SYNC)
         return YDB_E_INVALID_MSG;
-    if (buf == NULL || buflen <= 0)
+    if (op == YOP_MERGE || op == YOP_DELETE)
     {
-        ylog_info("ydb[%s] no data to publish.\n", datablock ? datablock->name : "...");
-        return YDB_OK;
+        if (buf == NULL || buflen <= 0)
+        {
+            if (datablock)
+                ylog_info("ydb[%s] no data to publish.\n", datablock->name);
+            else if (recv_conn)
+                ylog_info("ydb[%s] no data to publish.\n", recv_conn->datablock->name);
+            return YDB_OK;
+        }
     }
     publist = ylist_create();
     if (!publist)
@@ -3910,15 +3914,23 @@ eventid yconn_init(yconn *req_conn)
     ylog_in();
     YDB_FAIL(datablock == NULL, YDB_E_CTRL);
     YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
-    // send
+    // dump the datablock to send.
     if (IS_SET(req_conn->flags, YCONN_WRITABLE) && !ydb_empty(datablock->top))
         ydb_dumps(req_conn->datablock, &buf, &buflen);
-    // set local event for waiting
-    eid = waitevent_set_rootevent(datablock, datablock->timeout);
-    yconn_request(req_conn, YOP_INIT, datablock->timeout, buf, buflen, eid);
+    // send
+    if (IS_SET(req_conn->flags, YCONN_UNSUBSCRIBE))
+    {
+        yconn_publish(req_conn, NULL, NULL, YOP_INIT, buf, buflen);
+    }
+    else // subscribe the YDB data change
+    {
+        // set local event for waiting
+        eid = waitevent_set_rootevent(datablock, datablock->timeout);
+        yconn_request(req_conn, YOP_INIT, datablock->timeout, buf, buflen, eid);
+        YDB_FAIL(invalid_waitevent(eid), YDB_E_EVENT);
+        ylog_debug("waitevent e(%d:%d), res = %s\n", eid.fd, eid.seq, ydb_res_str(res));
+    }
     CLEAR_BUF(buf, buflen);
-    YDB_FAIL(invalid_waitevent(eid), YDB_E_EVENT);
-    ylog_debug("waitevent e(%d:%d), res = %s\n", eid.fd, eid.seq, ydb_res_str(res));
 failed:
     ylog_out();
     return eid;
@@ -4121,6 +4133,14 @@ eventid yconn_recv(yconn *recv_conn, yconn_op *op, ymsg_type *type, int *next)
         case YOP_DELETE:
             yconn_delete(recv_conn, NULL, false, buf, buflen);
             break;
+        case YOP_INIT:
+            if (IS_SET(recv_conn->flags, STATUS_COND_CLIENT))
+            {
+                // updated flags
+                recv_conn->flags = flags | (recv_conn->flags & (YCONN_TYPE_MASK | STATUS_MASK));
+                YCONN_INFO(recv_conn, "updated");
+                yconn_merge(recv_conn, NULL, false, buf, buflen);
+            }
         default:
             break;
         }
@@ -4154,6 +4174,7 @@ eventid yconn_recv(yconn *recv_conn, yconn_op *op, ymsg_type *type, int *next)
             {
                 // updated flags
                 recv_conn->flags = flags | (recv_conn->flags & (YCONN_TYPE_MASK | STATUS_MASK));
+                YCONN_INFO(recv_conn, "updated");
                 res = yconn_merge(recv_conn, NULL, false, buf, buflen);
                 if (IS_SET(recv_conn->flags, YCONN_UNSUBSCRIBE))
                 {
@@ -4167,7 +4188,6 @@ eventid yconn_recv(yconn *recv_conn, yconn_op *op, ymsg_type *type, int *next)
                     yconn_response(recv_conn, YOP_INIT, recvseq, true, YDB_FAILED(res) ? false : true, ibuf, ibuflen);
                     CLEAR_BUF(ibuf, ibuflen);
                 }
-                YCONN_INFO(recv_conn, "updated");
             }
             break;
         default:
