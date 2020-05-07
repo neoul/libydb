@@ -1226,7 +1226,7 @@ node_print:
             key = to_yaml(ynode_key(n), -1, &is_new, 0);
             if (n->parent->type == YNODE_TYPE_OMAP)
                 fprintf(log->fp, "- %s:", key);
-            if (n->parent->type == YNODE_TYPE_SET)
+            else if (n->parent->type == YNODE_TYPE_SET)
                 fprintf(log->fp, "? %s", key);
             else
                 fprintf(log->fp, "%s:", key);
