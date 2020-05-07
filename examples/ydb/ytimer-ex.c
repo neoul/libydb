@@ -16,19 +16,17 @@ void HANDLER_SIGINT(int signal)
     done = true;
 }
 
-int timer_func2(unsigned int timer_id, ytimer_status status, void *cookie)
+ytimer_status timer_func2(ytimer *timer, unsigned int timer_id, ytimer_status status)
 {
     fprintf(stdout, "%s\n", __func__);
-    return 0;
+    return YTIMER_NO_ERR;
 }
 
-int timer_func1(unsigned int timer_id, ytimer_status status, void *cookie)
+ytimer_status timer_func1(ytimer *timer, unsigned int timer_id, ytimer_status status)
 {
-    ytimer *timer;
-    timer = (ytimer *) cookie;
-    ytimer_set_msec(timer, 100, false, timer_func2, NULL);
+    ytimer_set_msec(timer, 100, false, (ytimer_func)timer_func2, 0);
     fprintf(stdout, "%s\n", __func__);
-    return 0;
+    return YTIMER_NO_ERR;
 }
 
 
@@ -49,7 +47,7 @@ int main(int argc, char *argv[])
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, HANDLER_SIGINT);
 
-    unsigned int timerid = ytimer_set_msec(timer, 666, true, timer_func1, timer);
+    unsigned int timerid = ytimer_set_msec(timer, 666, true, (ytimer_func)timer_func1, 0);
 
     while (!done)
     {
@@ -75,7 +73,7 @@ int main(int argc, char *argv[])
             if (FD_ISSET(fd, &read_set))
             {
                 FD_CLR(fd, &read_set);
-                ytimer_handle(timer);
+                ytimer_serve(timer);
                 count++;
             }
         }

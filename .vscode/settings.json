@@ -25,6 +25,8 @@
         "mutex": "c",
         "timerfd.h": "c",
         "ylist.h": "c",
-        "cstring": "c"
+        "cstring": "c",
+        "typeinfo": "c",
+        "ratio": "c"
     }
 }

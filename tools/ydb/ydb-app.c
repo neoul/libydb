@@ -15,6 +15,7 @@
 #include "ylog.h"
 #include "ylist.h"
 #include "ydb.h"
+#include "ytimer.h"
 
 extern int tx_fail_count;
 extern int tx_fail_en;
@@ -82,8 +83,11 @@ void usage(char *argv_0)
   -t, --timeout                    Set timeout of sync\n\
   -v, --verbose (debug|inout|info) Verbose mode for debug\n\
   -l, --logging-config             Enable Runtime logging configuration\n\
-            ydb -r pub -a uss://test --write '+logging/hub/level=debug'\\\n\
-                       --write '+logging/hub/logfile=/tmp/ydb.hub1.log'\n\
+            ydb -r pub -a uss://test --write '+logging/ydbhub/level=debug'\\\n\
+                       --write '+logging/ydbhub/logfile=/tmp/ydb.hub1.log'\n\
+    , --record-to FILE             Record the published data to FILE\n\
+    , --replay-from FILE           Replay the recorded FILE\n\
+    , --replay-interval MSEC       Set replay time of each YAML data in FILE\n\
     , --read PATH/TO/DATA          Read data (value only) from YDB.\n\
     , --print PATH/TO/DATA         Print data from YDB.\n\
     , --write PATH/TO/DATA=DATA    Write data to YDB.\n\
@@ -268,6 +272,74 @@ ydb_res interpret_mode_run(ydb *datablock)
     return res;
 }
 
+
+ytimer_status replay(ytimer *timer, unsigned int timer_id, ytimer_status status, void *user1, void *user2)
+{
+    static char msgqueue[6];
+    static FILE *msgfp;
+    static char *buf;
+    static size_t buflen;
+    ydb *datablock = user1;
+    FILE *recordfp = user2;
+    bool end = false;
+    if (status == YTIMER_ABORTED || recordfp == NULL || datablock == NULL)
+        goto _replay_end;
+    if (msgfp == NULL) {
+        msgfp = open_memstream(&buf, &buflen);
+        if (msgfp == NULL)
+        {
+            status = YTIMER_ABORTED;
+            goto _replay_end;
+        }
+    }
+    do {
+        char c = fgetc(recordfp);
+        if (feof(recordfp)) {
+            return YTIMER_ABORTED;
+        }
+        msgqueue[0] = msgqueue[1];
+        msgqueue[1] = msgqueue[2];
+        msgqueue[2] = msgqueue[3];
+        msgqueue[3] = msgqueue[4];
+        msgqueue[4] = c;
+        fwrite(&c, 1, 1, msgfp);
+        if (strcmp(msgqueue, "\n---\n") == 0)
+        {
+            fclose(msgfp);
+            if (buf)
+            {
+                ydb_parses(datablock, buf, buflen - 5);
+                free(buf);
+            }
+            msgfp = NULL;
+            buf = NULL;
+            buflen = 0;
+        }
+        else if (strcmp(msgqueue, "\n...\n") == 0)
+        {
+            fclose(msgfp);
+            if (buf)
+            {
+                ydb_parses(datablock, buf, buflen);
+                free(buf);
+            }
+            msgfp = NULL;
+            buf = NULL;
+            buflen = 0;
+        }
+    } while (!end);
+    return YTIMER_NO_ERR;
+_replay_end:
+    if (msgfp)
+        fclose(msgfp);
+    if (buf)
+        free(buf);
+    msgfp = NULL;
+    buf = NULL;
+    buflen = 0;
+    return status;
+}
+
 void logging_config(ydb *datablock, char op, ynode *base, ynode *cur, ynode *_new)
 {
     if (op == 'd')
@@ -329,6 +401,8 @@ int main(int argc, char *argv[])
     int daemon = 0;
     int interpret = 0;
     int no_rx = 0;
+    int replay_msec = 0;
+    char replay_from[256 + 7] = "file:///tmp/ydb.record.yaml";
     ydb *config = NULL;
 
     if (argc <= 1)
@@ -373,6 +447,11 @@ int main(int argc, char *argv[])
             {"timeout", required_argument, 0, 't'},
             {"verbose", required_argument, 0, 'v'},
             {"logging-config", no_argument, 0, 'l'},
+            // record and replay
+            {"record-to", required_argument, 0, 0},
+            {"replay-from", required_argument, 0, 0},
+            {"replay-interval", required_argument, 0, 0},
+            // commands
             {"read", required_argument, 0, 0},
             {"print", required_argument, 0, 0},
             {"write", required_argument, 0, 0},
@@ -409,6 +488,30 @@ int main(int argc, char *argv[])
                           "  - {type: %s, path: '%s'}\n",
                           long_options[index].name,
                           optarg);
+            }
+            else if (strcmp(long_options[index].name, "record-to") == 0)
+            {
+                char *yamloptstr = str2yaml(optarg);
+                ydb_write(config,
+                          "config:\n"
+                          " record:\n"
+                          "  %s: %s\n",
+                          long_options[index].name,
+                          yamloptstr);
+                free(yamloptstr);
+            }
+            else if (
+                strcmp(long_options[index].name, "replay-from") == 0 ||
+                strcmp(long_options[index].name, "replay-interval") == 0)
+            {
+                char *yamloptstr = str2yaml(optarg);
+                ydb_write(config,
+                          "config:\n"
+                          " replay:\n"
+                          "  %s: %s\n",
+                          long_options[index].name,
+                          yamloptstr);
+                free(yamloptstr);
             }
             else
             {
@@ -580,6 +683,39 @@ int main(int argc, char *argv[])
             }
         }
 
+        ynode *node = ydb_search(config, "/config/record");
+        if (!ydb_empty(node))
+        {
+            char record_to[256 + 7] = "file:///tmp/ydb.record.yaml";
+            ydb_read(config,
+                     "config:\n"
+                     " record:\n"
+                     "  record-to: %s\n",
+                     &record_to[7]);
+            res = ydb_connect(datablock, record_to, "pub");
+            if (res)
+            {
+                fprintf(stderr, "ydb error: %s\n", ydb_res_str(res));
+                goto end;
+            }
+        }
+        node = ydb_search(config, "/config/replay");
+        if (!ydb_empty(node))
+        {
+            ydb_read(config,
+                     "config:\n"
+                     " replay:\n"
+                     "  replay-interval: %d\n"
+                     "  replay-from: %s\n",
+                     &replay_msec,
+                     &replay_from[7]);
+            if (replay_msec <= 0)
+            {
+                fprintf(stderr, "invalid replay-interval\n");
+                goto end;
+            }
+        }
+
         if (!ydb_empty(ydb_search(config, "/config/connection")))
         {
             ynode *n;
@@ -641,12 +777,13 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (daemon)
+        if (daemon && replay_msec <= 0)
         {
             while (!done)
             {
                 if (no_rx)
                 {
+                    ylog_error("no-rx for test\n");
                     sleep(1);
                     continue;
                 }
@@ -660,11 +797,29 @@ int main(int argc, char *argv[])
                     printf("\nydb warning: %s\n", ydb_res_str(res));
             }
         }
-        else if (interpret)
+        else if (interpret || daemon || replay_msec > 0)
         {
+            ytimer *timer = NULL;
+            unsigned int timerid = 0;
+            if (no_rx)
+            {
+                fprintf(stderr, "--no-rx running on daemon mode.\n");
+                goto end;
+            }
+            if (replay_msec > 0)
+            {
+                FILE *fp = fopen(replay_from, "r");
+                if (fp == NULL)
+                {
+                    fprintf(stderr, "'%s' exists.\n", replay_from);
+                    goto end;
+                }
+                timer = ytimer_create();
+                timerid = ytimer_set_msec(timer, replay_msec, 1, (ytimer_func) replay, 2, datablock, fp);
+            }
             while (!done)
             {
-                int ret, fd;
+                int ret, fd, timerfd = 0, fdmax;
                 fd_set read_set;
                 struct timeval tv;
                 tv.tv_sec = daemon_timeout / 1000;
@@ -673,21 +828,29 @@ int main(int argc, char *argv[])
                 fd = ydb_fd(datablock);
                 if (fd < 0)
                     break;
-
+                fdmax = fd;
                 FD_SET(fd, &read_set);
-                FD_SET(STDIN_FILENO, &read_set);
                 if (interpret == 1)
+                    interpret_mode_help();
+                if (interpret >= 1)
                 {
                     interpret++;
-                    interpret_mode_help();
+                    FD_SET(STDIN_FILENO, &read_set);
                 }
-                ret = select(fd + 1, &read_set, NULL, NULL, (daemon_timeout == 0) ? NULL : &tv);
+                if (timerid > 0)
+                {
+                    timerfd = ytimer_fd(timer);
+                    FD_SET(timerfd, &read_set);
+                    if (timerfd > fd)
+                        fdmax = timerfd;
+                }
+                ret = select(fdmax + 1, &read_set, NULL, NULL, (daemon_timeout == 0) ? NULL : &tv);
                 if (ret < 0)
                 {
                     fprintf(stderr, "\nselect error: %s\n", strerror(errno));
                     done = 1;
                 }
-                else if (ret == 0 || FD_ISSET(fd, &read_set))
+                else if (FD_ISSET(fd, &read_set))
                 {
                     FD_CLR(fd, &read_set);
                     res = ydb_serve(datablock, 0);
@@ -699,13 +862,15 @@ int main(int argc, char *argv[])
                     else if (YDB_WARNING(res))
                         printf("\nydb warning: %s\n", ydb_res_str(res));
                 }
-                else
+                else if (FD_ISSET(timerfd, &read_set))
                 {
-                    if (FD_ISSET(STDIN_FILENO, &read_set))
-                    {
-                        FD_CLR(STDIN_FILENO, &read_set);
-                        interpret_mode_run(datablock);
-                    }
+                    FD_CLR(timerfd, &read_set);
+                    ytimer_serve(timer);
+                }
+                else if (FD_ISSET(STDIN_FILENO, &read_set))
+                {
+                    FD_CLR(STDIN_FILENO, &read_set);
+                    interpret_mode_run(datablock);
                 }
             }
         }

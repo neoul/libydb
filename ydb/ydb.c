@@ -622,13 +622,13 @@ waitevent *waitevent_search(ydb *datablock, eventid eid)
 }
 
 eventid waitevent_reset(ydb *datablock, int fd, unsigned int seq, bool expired);
-int waitevent_expire(unsigned int timer_id, ytimer_status status, void *cookie)
+ytimer_status waitevent_expire(ytimer *timer, unsigned int timer_id, ytimer_status status, void *user)
 {
-    waitevent *we = cookie;
-    if (status == YTIMER_ABORT)
-        return 0;
+    waitevent *we = user;
+    if (status == YTIMER_ABORTED)
+        return YTIMER_NO_ERR;
     waitevent_reset(we->datablock, we->id.fd, we->id.seq, true);
-    return 0;
+    return YTIMER_NO_ERR;
 }
 
 eventid waitevent_set_event(ydb *datablock, int fd, unsigned int seq, int timeout, eventid pevent)
@@ -662,7 +662,7 @@ eventid waitevent_set_event(ydb *datablock, int fd, unsigned int seq, int timeou
             pwe->cevents++;
         }
     }
-    we->timerid = ytimer_set_msec(datablock->timer, timeout, false, waitevent_expire, we);
+    we->timerid = ytimer_set_msec(datablock->timer, timeout, false, (ytimer_func)waitevent_expire, 1, we);
     ylog_info("set waitevent e(%d:%d) pe(%d:%d)\n", we->id.fd, we->id.seq, we->pid.fd, we->pid.seq);
     eid = we->id;
     return eid;
@@ -689,7 +689,7 @@ eventid waitevent_set_rootevent(ydb *datablock, int timeout)
         free(we);
         return eid;
     }
-    we->timerid = ytimer_set_msec(datablock->timer, timeout, false, waitevent_expire, we);
+    we->timerid = ytimer_set_msec(datablock->timer, timeout, false, (ytimer_func) waitevent_expire, 1, we);
     ylog_info("set waitevent e(%d:%d)\n", we->id.fd, we->id.seq);
     eid = we->id;
     return eid;
@@ -2900,19 +2900,23 @@ ydb_res yconn_default_send(yconn *conn, yconn_op op, ymsg_type type, char *data,
               msghead, datalen, data ? data : "", "\n...\n");
     if (tx_fail_en)
     {
+        if (tx_fail_count > 0)
+        {
+            tx_fail_count--;
+            ylog_debug("tx-fail %d\n", tx_fail_count);
+        }
         if (tx_fail_count == 0)
         {
             ylog_error("tx-fail for test\n");
             tx_fail_en = 0;
             close(fd);
         }
-        else
+        else if (tx_fail_count < 0)
         {
-            ylog_debug("no-tx for test\n");
+            ylog_error("no-tx for test\n");
             ylog_out();
             return YDB_OK;
         }
-        tx_fail_count--;
     }
     n = writev(fd, iov, cnt);
 #endif
@@ -4292,7 +4296,7 @@ ydb_res yconn_serve(ydb *datablock, int timeout)
         yconn *conn = event[i].data.ptr;
         if (event[i].data.ptr == NULL)
         {
-            if (ytimer_handle(datablock->timer) < 0)
+            if (ytimer_serve(datablock->timer) < 0)
                 res = YDB_E_CTRL;
         }
         else if (IS_DISCONNECTED(conn))
@@ -4361,7 +4365,7 @@ ydb_res yconn_serve_blocking(ydb *datablock, eventid eid, int timeout)
             if (event[i].data.ptr == NULL)
             {
                 waitevent *we;
-                ytimer_handle(datablock->timer);
+                ytimer_serve(datablock->timer);
                 we = waitevent_search(datablock, eid);
                 if (we == NULL)
                 {

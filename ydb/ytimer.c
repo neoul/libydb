@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,22 +11,23 @@ typedef struct _ytimer_cb
 {
     bool timer_periodic;
     unsigned int timer_id;
-    ytimer_func timer_cbfn;
+    ytimer_func timer_func;
     struct timespec starttime;
     // duration_ms is msec
     unsigned int duration_ms; /* seconds */
-    void *timer_cookie;
+    int user_num;
+    void *user[];
 } ytimer_cb;
 
-static ytimer_cb *new_timer_cb(void)
+static ytimer_cb *new_timer_cb(int user_num)
 {
     ytimer_cb *timer_cb;
-    timer_cb = malloc(sizeof(ytimer_cb));
+    timer_cb = malloc(sizeof(ytimer_cb) + sizeof(void *) * user_num);
     if (timer_cb == NULL)
     {
         return NULL;
     }
-    memset(timer_cb, 0x0, sizeof(ytimer_cb));
+    memset(timer_cb, 0x0, sizeof(ytimer_cb) + sizeof(void *) * user_num);
     return timer_cb;
 } /* new_timer_cb */
 
@@ -34,6 +36,39 @@ static void free_timer_cb(ytimer_cb *timer_cb)
     if (timer_cb)
         free(timer_cb);
 } /* free_timer_cb */
+
+static ytimer_status run_timer_cb(ytimer *timer, ytimer_status cur_status, ytimer_cb *timer_cb)
+{
+    ytimer_status status = YTIMER_NO_ERR;
+    timer->cur_id = timer_cb->timer_id;
+    switch (timer_cb->user_num)
+    {
+    case 0:
+        status = timer_cb->timer_func.f0(timer, timer_cb->timer_id, cur_status);
+        break;
+    case 1:
+        status = timer_cb->timer_func.f1(timer, timer_cb->timer_id, cur_status, timer_cb->user[0]);
+        break;
+    case 2:
+        status = timer_cb->timer_func.f2(timer, timer_cb->timer_id, cur_status, timer_cb->user[0], timer_cb->user[1]);
+        break;
+    case 3:
+        status = timer_cb->timer_func.f3(timer, timer_cb->timer_id, cur_status, timer_cb->user[0], timer_cb->user[1], timer_cb->user[2]);
+        break;
+    case 4:
+        status = timer_cb->timer_func.f4(timer, timer_cb->timer_id, cur_status, timer_cb->user[0], timer_cb->user[1], timer_cb->user[2], timer_cb->user[3]);
+        break;
+    case 5:
+        status = timer_cb->timer_func.f5(timer, timer_cb->timer_id, cur_status, timer_cb->user[0], timer_cb->user[1], timer_cb->user[2], timer_cb->user[3], timer_cb->user[4]);
+        break;
+    default:
+        ylog_error("ytimer[fd=%d]: timer_func[%d] invalid user_num (%d)\n", timer->timerfd, timer_cb->timer_id, timer_cb->user_num);
+        status = YTIMER_ABORTED;
+        break;
+    }
+    timer->cur_id = 0;
+    return status;
+}
 
 // get timer remained...
 static double get_timer_remained(ytimer_cb *timer_cb, struct timespec *cur)
@@ -151,9 +186,7 @@ void ytimer_destroy(ytimer *timer)
         for (i = ytree_first(timer->timers); i; i = ytree_next(timer->timers, i))
         {
             ytimer_cb *timer_cb = ytree_data(i);
-            (*timer_cb->timer_cbfn)(timer_cb->timer_id,
-                                YTIMER_ABORT,
-                                timer_cb->timer_cookie);
+            run_timer_cb(timer, YTIMER_ABORTED, timer_cb);
         }
         ylist_destroy(timer->dtimers);
         ytree_destroy(timer->timer_ids);
@@ -181,7 +214,7 @@ ytimer *ytimer_create(void)
     return timer;
 } /* ytimer_create */
 
-unsigned int ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic, ytimer_func timer_fn, void *cookie)
+static unsigned int _ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic, ytimer_func timer_fn, int user_num, void *user[])
 {
     ytimer_cb *timer_cb;
     if (timer == NULL)
@@ -194,13 +227,18 @@ unsigned int ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic,
         ylog_error("ytimer: no timerfd\n");
         return 0;
     }
-    if (timer_fn == NULL)
+    if (timer_fn.v0 == NULL)
     {
         ylog_error("ytimer[fd=%d]: no timer func\n", timer->timerfd);
         return 0;
     }
+    if (user_num > 5 || user_num < 0)
+    {
+        ylog_error("ytimer[fd=%d]: user-defined arguments supported up to 5\n");
+        return 0;
+    }
 
-    timer_cb = new_timer_cb();
+    timer_cb = new_timer_cb(user_num);
     if (timer_cb == NULL)
     {
         ylog_error("ytimer[fd=%d]: timer_func alloc failed\n", timer->timerfd);
@@ -213,10 +251,12 @@ unsigned int ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic,
         timer_cb->timer_id = ((++timer->next_id)%10000)+1;
     }
 
+    timer_cb->user_num = user_num;
     timer_cb->timer_periodic = is_periodic;
-    timer_cb->timer_cbfn = timer_fn;
+    timer_cb->timer_func = timer_fn;
     timer_cb->duration_ms = msec;
-    timer_cb->timer_cookie = cookie;
+    memcpy(timer_cb->user, user, sizeof(void *) * user_num);
+
     clock_gettime(CLOCK_MONOTONIC, &timer_cb->starttime);
 
     ytree_insert(timer->timer_ids, timer_cb, timer_cb);
@@ -228,9 +268,38 @@ unsigned int ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic,
     return timer_cb->timer_id;
 } /* ytimer_set_msec */
 
-int ytimer_set(ytimer *timer, unsigned int seconds, bool is_periodic, ytimer_func timer_fn, void *cookie)
+unsigned int ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic, ytimer_func timer_fn, int user_num, ...)
 {
-    return ytimer_set_msec(timer, seconds * 1000, is_periodic, timer_fn, cookie);
+    int i;
+    va_list ap;
+    void *user[5] = {0};
+    va_start(ap, user_num);
+    ylog_debug("user total = %d\n", user_num);
+    for (i = 1; i < user_num; i++)
+    {
+        void *p = va_arg(ap, void *);
+        user[i] = p;
+        ylog_debug("user[%d]=%p\n", i, user[i]);
+    }
+    va_end(ap);
+    return _ytimer_set_msec(timer, msec, is_periodic, timer_fn, user_num, user);
+} /* ytimer_set_msec */
+
+unsigned int ytimer_set(ytimer *timer, unsigned int seconds, bool is_periodic, ytimer_func timer_fn, int user_num, ...)
+{
+    int i;
+    va_list ap;
+    void *user[5] = {0};
+    va_start(ap, user_num);
+    ylog_debug("user total = %d\n", user_num);
+    for (i = 1; i < user_num; i++)
+    {
+        void *p = va_arg(ap, void *);
+        user[i] = p;
+        ylog_debug("user[%d]=%p\n", i, user[i]);
+    }
+    va_end(ap);
+    return _ytimer_set_msec(timer, seconds * 1000, is_periodic, timer_fn, user_num, user);
 } /* ytimer_set */
 
 int ytimer_restart_msec(ytimer *timer, unsigned int timer_id, unsigned int msec)
@@ -285,6 +354,11 @@ int ytimer_delete(ytimer *timer, unsigned int timer_id)
         ylog_error("ytimer: no timerfd\n");
         return -1;
     }
+    if (timer->cur_id == timer_id)
+    {
+        ylog_error("ytimer[fd=%d]: timer_func[%d] is running func.\n", timer->timerfd, timer_cb->timer_id);
+        return -1;
+    }
     temp_timer.timer_id = timer_id;
     timer_cb = ytree_search(timer->timer_ids, &temp_timer);
     if (timer_cb)
@@ -302,7 +376,7 @@ int ytimer_delete(ytimer *timer, unsigned int timer_id)
     return restart_timer(timer);
 } /* ytimer_delete */
 
-int ytimer_handle(ytimer *timer)
+int ytimer_serve(ytimer *timer)
 {
     ytree_iter *i;
     ytimer_cb *timer_cb;
@@ -338,23 +412,24 @@ int ytimer_handle(ytimer *timer)
     timer_id = (unsigned long) ylist_pop_front(timer->dtimers);
     while (timer_id > 0)
     {
-        int ret;
+        ytimer_status status;
         ytimer_cb temp_timer;
         temp_timer.timer_id = (unsigned int) timer_id;
         timer_cb = ytree_search(timer->timer_ids, &temp_timer);
         if (timer_cb == NULL)
             continue;
-        ret = (*timer_cb->timer_cbfn)(timer_cb->timer_id,
-                                      YTIMER_EXPIRED,
-                                      timer_cb->timer_cookie);
-        if (ret || !timer_cb->timer_periodic)
+        status = run_timer_cb(timer, YTIMER_EXPIRED, timer_cb);
+        if (!timer_cb->timer_periodic)
         {
-            if (ret)
-                ylog_error("ytimer[fd=%d]: timer_func[%d] return failed\n",
+            ylog_debug("ytimer[fd=%d]: timer_func[%d] expired (non-periodic)\n",
                            timer->timerfd, timer_cb->timer_id);
-            else
-                ylog_debug("ytimer[fd=%d]: timer_func[%d] expired\n",
-                           timer->timerfd, timer_cb->timer_id);
+            ytree_delete(timer->timer_ids, timer_cb);
+            ytree_delete_custom(timer->timers, timer_cb, (user_free)free_timer_cb);
+        }
+        else if (status != YTIMER_NO_ERR)
+        {
+            ylog_error("ytimer[fd=%d]: timer_func[%d] stopped (aborted)\n",
+                        timer->timerfd, timer_cb->timer_id);
             ytree_delete(timer->timer_ids, timer_cb);
             ytree_delete_custom(timer->timers, timer_cb, (user_free)free_timer_cb);
         }
@@ -372,7 +447,7 @@ int ytimer_handle(ytimer *timer)
     }
 
     return restart_timer(timer);
-} /* ytimer_handle */
+} /* ytimer_serve */
 
 int ytimer_fd(ytimer *timer)
 {
