@@ -14,6 +14,7 @@ extern "C" {
 typedef enum {
     YTIMER_NO_ERR,
     YTIMER_EXPIRED = YTIMER_NO_ERR,
+    YTIMER_COMPLETED,
     YTIMER_ABORTED,
 } ytimer_status;
 

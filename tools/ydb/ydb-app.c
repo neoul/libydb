@@ -272,19 +272,21 @@ ydb_res interpret_mode_run(ydb *datablock)
     return res;
 }
 
-
 ytimer_status replay(ytimer *timer, unsigned int timer_id, ytimer_status status, void *user1, void *user2)
 {
-    static char msgqueue[6];
+    static int msgqueue[6];
     static FILE *msgfp;
     static char *buf;
     static size_t buflen;
     ydb *datablock = user1;
     FILE *recordfp = user2;
-    bool end = false;
+    bool start_replay = false;
+
+    printf("replay!\n status=%d, recordfp=%p, datablock=%p\n", status, recordfp, datablock);
     if (status == YTIMER_ABORTED || recordfp == NULL || datablock == NULL)
         goto _replay_end;
-    if (msgfp == NULL) {
+    if (msgfp == NULL)
+    {
         msgfp = open_memstream(&buf, &buflen);
         if (msgfp == NULL)
         {
@@ -292,42 +294,52 @@ ytimer_status replay(ytimer *timer, unsigned int timer_id, ytimer_status status,
             goto _replay_end;
         }
     }
-    do {
-        char c = fgetc(recordfp);
-        if (feof(recordfp)) {
-            return YTIMER_ABORTED;
-        }
+    while (!feof(recordfp))
+    {
+        int c = fgetc(recordfp);
         msgqueue[0] = msgqueue[1];
         msgqueue[1] = msgqueue[2];
         msgqueue[2] = msgqueue[3];
         msgqueue[3] = msgqueue[4];
         msgqueue[4] = c;
         fwrite(&c, 1, 1, msgfp);
-        if (strcmp(msgqueue, "\n---\n") == 0)
+        if (msgqueue[0] == '\n')
         {
-            fclose(msgfp);
-            if (buf)
+            if (msgqueue[1] == '-' && msgqueue[2] == '-' && msgqueue[3] == '-' && msgqueue[4] == '\n')
             {
-                ydb_parses(datablock, buf, buflen - 5);
-                free(buf);
+                fflush(msgfp);
+                if (buflen > sizeof("\n---\n") - 1)
+                { // strlen("\n---\n")
+                    start_replay = true;
+                    break;
+                }
             }
-            msgfp = NULL;
-            buf = NULL;
-            buflen = 0;
+            else if (msgqueue[1] == '.' && msgqueue[2] == '.' && msgqueue[3] == '.' && msgqueue[4] == '\n')
+            {
+                start_replay = true;
+                break;
+            }
         }
-        else if (strcmp(msgqueue, "\n...\n") == 0)
+    }
+
+    if (start_replay)
+    {
+        fclose(msgfp);
+        if (buf)
         {
-            fclose(msgfp);
-            if (buf)
-            {
-                ydb_parses(datablock, buf, buflen);
-                free(buf);
-            }
-            msgfp = NULL;
-            buf = NULL;
-            buflen = 0;
+            ydb_parses(datablock, buf, buflen);
+            free(buf);
         }
-    } while (!end);
+        msgfp = NULL;
+        buf = NULL;
+        buflen = 0;
+    }
+    if (feof(recordfp))
+    {
+        // stop the periodic replay func
+        status = YTIMER_COMPLETED;
+        goto _replay_end;
+    }
     return YTIMER_NO_ERR;
 _replay_end:
     if (msgfp)
@@ -801,6 +813,7 @@ int main(int argc, char *argv[])
         {
             ytimer *timer = NULL;
             unsigned int timerid = 0;
+            FILE *replay_fp = NULL;
             if (no_rx)
             {
                 fprintf(stderr, "--no-rx running on daemon mode.\n");
@@ -808,14 +821,14 @@ int main(int argc, char *argv[])
             }
             if (replay_msec > 0)
             {
-                FILE *fp = fopen(replay_from, "r");
-                if (fp == NULL)
+                replay_fp = fopen(&replay_from[7], "r");
+                if (replay_fp == NULL)
                 {
                     fprintf(stderr, "'%s' exists.\n", replay_from);
                     goto end;
                 }
                 timer = ytimer_create();
-                timerid = ytimer_set_msec(timer, replay_msec, 1, (ytimer_func) replay, 2, datablock, fp);
+                timerid = ytimer_set_msec(timer, replay_msec, 1, (ytimer_func)replay, 2, datablock, replay_fp);
             }
             while (!done)
             {
@@ -873,6 +886,10 @@ int main(int argc, char *argv[])
                     interpret_mode_run(datablock);
                 }
             }
+            if (timer)
+                ytimer_destroy(timer);
+            if (replay_fp)
+                fclose(replay_fp);
         }
         else
         {

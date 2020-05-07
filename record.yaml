@@ -1,0 +1,112 @@
+
+---
+#name: recorder
+#seq: 1
+#type: pubish
+#op: merge
+#_-_-_-_
+omap: 
+ Bestiary: !!omap
+  - aardvark: African pig-like ant eater. Ugly.
+  - anteater: South-American ant eater. Two species.
+  - anaconda: South-American constrictor snake. Scaly.
+ Numbers: !!omap
+  - one: 1
+  - two: 2
+  - three: 3
+
+...
+
+---
+#name: recorder
+#seq: 2
+#type: pubish
+#op: merge
+#_-_-_-_
+Core types: 
+ "!!float": !!float 1.0
+ "!!int": !!int 100
+ "!!map": 
+  key: value
+ "!!seq": 
+  - 1
+  - 2
+  - 3
+ "!!str": Unicode string
+ "!user-tag": !user-tag
+  good: bye
+  hello: world
+
+...
+
+---
+#name: recorder
+#seq: 3
+#type: pubish
+#op: merge
+#_-_-_-_
+data: |
+ There once was a short man from Ealing
+ Who got on a bus to Darjeeling
+     It said on the door
+     "Please don't spit on the floor"
+ So he carefully spat on the ceiling
+ a    b
+ 
+data2: |
+ Wrapped text will be folded into a single paragraph
+ Blank lines denote paragraph breaks
+ 
+example: |
+ Several lines of text, with some "quotes" of various 'types', and also a blank line:
+ plus another line at the end.
+ ok
+ 
+example2: |
+ Several lines of text,
+ with some "quotes" of various 'types',
+ and also a blank line:
+ 
+ plus another line at the end.
+ 
+ ok
+ 
+example3: hello boy
+
+...
+
+---
+#name: recorder
+#seq: 4
+#type: pubish
+#op: merge
+#_-_-_-_
+system: 
+ cpu: pentium
+ fan: 
+  fan[1]: 
+   config_speed: 100
+   current_speed: 100
+  fan[2]: 
+   config_speed: 200
+   current_speed: 200
+ mainboard: gigabyte
+ ram: 4G
+
+...
+
+---
+#name: recorder
+#seq: 5
+#type: pubish
+#op: merge
+#_-_-_-_
+system: 
+ fan: 
+  fan[1]: 
+   current_speed: !ydb!delete
+  fan[2]: 
+   current_speed: !ydb!delete
+ ram: 8G
+
+...

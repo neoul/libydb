@@ -275,7 +275,7 @@ unsigned int ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic,
     void *user[5] = {0};
     va_start(ap, user_num);
     ylog_debug("user total = %d\n", user_num);
-    for (i = 1; i < user_num; i++)
+    for (i = 0; i < user_num; i++)
     {
         void *p = va_arg(ap, void *);
         user[i] = p;
@@ -428,8 +428,12 @@ int ytimer_serve(ytimer *timer)
         }
         else if (status != YTIMER_NO_ERR)
         {
-            ylog_error("ytimer[fd=%d]: timer_func[%d] stopped (aborted)\n",
-                        timer->timerfd, timer_cb->timer_id);
+            if (status == YTIMER_ABORTED)
+                ylog_error("ytimer[fd=%d]: timer_func[%d] stopped (aborted)\n",
+                            timer->timerfd, timer_cb->timer_id);
+            else if (status == YTIMER_COMPLETED)
+                ylog_debug("ytimer[fd=%d]: timer_func[%d] stopped (completed)\n",
+                           timer->timerfd, timer_cb->timer_id);
             ytree_delete(timer->timer_ids, timer_cb);
             ytree_delete_custom(timer->timers, timer_cb, (user_free)free_timer_cb);
         }
