@@ -13,10 +13,10 @@ typedef struct {
 	void *buf;
 } bufinfo;
 
-extern void handle(void *p, char op, ynode *old, ynode *cur);
+extern void construct(void *p, char op, ynode *old, ynode *cur);
 static void ydb_hook(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1)
 {
-	handle(U1, op, _cur, _new);
+	construct(U1, op, _cur, _new);
 }
 
 static void ydb_register(ydb *datablock, void *U1)
@@ -239,32 +239,80 @@ func RetrieveKeys(k ...string) RetrieveOption {
 
 // Updater interface to update user structure
 type Updater interface {
-	Create(keys []string, key string, tag string, value string)
-	Replace(keys []string, key string, tag string, value string)
-	Delete(keys []string, key string)
+	Create(keys []string, key string, tag string, value string) error
+	Replace(keys []string, key string, tag string, value string) error
+	Delete(keys []string, key string) error
 }
 
-// EmptyUpdater - Empty Updater interface
-type EmptyUpdater struct{}
+// EmptyGoStruct - Empty Go Struct for empty Updater interface
+type EmptyGoStruct struct{}
 
 // Create - Interface to create an entity on !!map object
-func (updater *EmptyUpdater) Create(keys []string, key string, tag string, value string) {
+func (emptyStruct *EmptyGoStruct) Create(keys []string, key string, tag string, value string) error {
 	log.Println("Node.Create", keys, key, tag, value)
+	return nil
 }
 
 // Replace - Interface to replace the entity on !!map object
-func (updater *EmptyUpdater) Replace(keys []string, key string, tag string, value string) {
+func (emptyStruct *EmptyGoStruct) Replace(keys []string, key string, tag string, value string) error {
 	log.Println("Node.Replace", keys, key, tag, value)
+	return nil
 }
 
 // Delete - Interface to delete the entity from !!map object
-func (updater *EmptyUpdater) Delete(keys []string, key string) {
+func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
 	log.Println("Node.Delete", keys, key)
+	return nil
 }
 
-//export handle
-// handle -- Update YAML Data Block instance
-func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
+// DefaultStruct - Default Go Struct for YDB unmarshal
+type DefaultStruct map[string]interface{}
+
+// Create - constructs the DefaultStruct structure
+func (defStruct *DefaultStruct) Create(keys []string, key string, tag string, value string) error {
+	log.Println("Node.Create", keys, key, tag, value)
+	log.Printf("%T, %v", defStruct, defStruct)
+	ds := *defStruct
+	for _, k := range keys {
+		ds = ds[k].(DefaultStruct)
+	}
+	if value == "" {
+		(ds)[key] = DefaultStruct{}
+	} else {
+		(ds)[key] = value
+	}
+	return nil
+}
+
+// Replace - constructs the DefaultStruct structure
+func (defStruct *DefaultStruct) Replace(keys []string, key string, tag string, value string) error {
+	log.Println("Node.Replace", keys, key, tag, value)
+	ds := *defStruct
+	for _, k := range keys {
+		ds = ds[k].(DefaultStruct)
+	}
+	if value == "" {
+		(ds)[key] = DefaultStruct{}
+	} else {
+		(ds)[key] = value
+	}
+	return nil
+}
+
+// Delete - constructs the DefaultStruct structure
+func (defStruct *DefaultStruct) Delete(keys []string, key string) error {
+	log.Println("Node.Delete", keys, key)
+	ds := *defStruct
+	for _, k := range keys {
+		ds = ds[k].(DefaultStruct)
+	}
+	delete(ds, key)
+	return nil
+}
+
+//export construct
+// construct -- Update YAML Data Block instance
+func construct(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	var db *YDB = (*YDB)(ygo)
 	var n *C.ynode
 	var keys = make([]string, 0, 0)
@@ -279,14 +327,28 @@ func handle(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 			keys = append([]string{key}, keys...)
 		}
 	}
-	// log.Println(keys)
-	switch int(op) {
-	case 'c':
-		db.Updater.Create(keys, n.key(), n.tag(), n.value())
-	case 'r':
-		db.Updater.Replace(keys, n.key(), n.tag(), n.value())
-	case 'd':
-		db.Updater.Delete(keys, n.key())
+	if len(keys) >= 1 {
+		keys = keys[1:]
+	}
+	if db.Updater != nil {
+		var err error = nil
+		switch int(op) {
+		case 'c':
+			err = db.Updater.Create(keys, n.key(), n.tag(), n.value())
+		case 'r':
+			err = db.Updater.Replace(keys, n.key(), n.tag(), n.value())
+		case 'd':
+			err = db.Updater.Delete(keys, n.key())
+		default:
+			err = fmt.Errorf("unknown op")
+		}
+		if err != nil {
+			db.Errors = append(db.Errors, 
+				fmt.Errorf("%c %s, %s, %s, %s: %s", int(op), keys, n.key(), n.tag(), n.value(), err))
+		}
+	}
+	if db.GoStruct != nil {
+
 	}
 }
 
@@ -302,6 +364,18 @@ type YDB struct {
 	fd      int
 	Name    string
 	Updater Updater
+	GoStruct interface{}
+	Errors   []error
+}
+
+// Lock - Lock the YDB instance for use.
+func (db *YDB) Lock() {
+	db.mutex.Lock()
+}
+
+// Unlock - Unlock of the YDB instance.
+func (db *YDB) Unlock() {
+	db.mutex.Unlock()
 }
 
 // Retrieve - Retrieve the data that consists of YNodes.
@@ -378,9 +452,32 @@ func (db *YDB) Close() {
 // name: The name of the creating YDB instance
 // top: The go structure instance synced with the YDB instance
 func Open(name string) (*YDB, func()) {
+	return OpenWithUpdater(name, nil)
+}
+
+// OpenWithUpdater - Open an YDB instance with a name
+// name: The name of the creating YDB instance
+// top: The go structure instance synced with the YDB instance
+func OpenWithUpdater(name string, updater Updater) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-	db := YDB{Name: name, block: C.ydb_open(cname), Updater: &EmptyUpdater{}}
+	if updater == nil {
+		updater = &EmptyGoStruct{}
+	}
+	db := YDB{Name: name, block: C.ydb_open(cname), Updater: updater}
+	C.ydb_register(db.block, unsafe.Pointer(&db.block))
+	return &db, func() {
+		db.Close()
+	}
+}
+
+// OpenWithAutoUpdater - Open an YDB instance with a name
+// name: The name of the creating YDB instance
+// top: The go structure instance synced with the YDB instance
+func OpenWithAutoUpdater(name string, gostruct interface{}) (*YDB, func()) {
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+	db := YDB{Name: name, block: C.ydb_open(cname), GoStruct: gostruct}
 	C.ydb_register(db.block, unsafe.Pointer(&db.block))
 	return &db, func() {
 		db.Close()
@@ -455,8 +552,8 @@ func (db *YDB) Receive() error {
 		if n == 1 && rfds.IsSet(db.fd) {
 			rfds.Clear(db.fd)
 			db.mutex.Lock()
-			defer db.mutex.Unlock()
 			res := C.ydb_serve(db.block, C.int(0))
+			db.mutex.Unlock()
 			if res >= C.YDB_ERROR {
 				err = fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 				log.Printf("serve:%v", err)
@@ -465,6 +562,7 @@ func (db *YDB) Receive() error {
 			}
 		}
 	}
+	return nil
 }
 
 // A Decoder reads and decodes YAML values from an input stream to an YDB instance.
