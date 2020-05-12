@@ -61,12 +61,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"reflect"
 	"sync"
 	"unsafe"
 
-	"github.com/op/go-logging"
 	"golang.org/x/sys/unix"
 )
 
@@ -84,39 +82,6 @@ const (
 	// LogCritical YDB log level
 	LogCritical = C.YLOG_CRITICAL
 )
-
-var log *logging.Logger
-
-// InitLog - Initialize the log facilities.
-func InitLog(module string, out io.Writer) *logging.Logger {
-	log = logging.MustGetLogger("ydb")
-	// Example format string. Everything except the message has a custom color
-	// which is dependent on the log level. Many fields have a custom output
-	// formatting too, eg. the time returns the hour down to the milli second.
-	var format = logging.MustStringFormatter(
-		`%{color}%{time} %{program}.%{module}.%{shortfunc:.12s} %{level:.5s} ▶%{color:reset} %{message}`,
-	)
-	// For demo purposes, create two backend for out.
-	backend1 := logging.NewLogBackend(out, "", 0)
-	backend2 := logging.NewLogBackend(out, "", 0)
-
-	// For messages written to backend2 we want to add some additional
-	// information to the output, including the used log level and the name of
-	// the function.
-	backend2Formatter := logging.NewBackendFormatter(backend2, format)
-
-	// Only errors and more severe messages should be sent to backend1
-	backend1Leveled := logging.AddModuleLevel(backend1)
-	backend1Leveled.SetLevel(logging.ERROR, "")
-
-	// Set the backends to be used.
-	logging.SetBackend(backend1Leveled, backend2Formatter)
-	return log
-}
-
-func init() {
-	log = InitLog("ydb.go", os.Stderr)
-}
 
 // Size - Get the number of children
 func (node *YNode) Size() int {
@@ -313,47 +278,120 @@ func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
 	return nil
 }
 
-// DefaultStruct - Default Go Struct for YDB unmarshal
-type DefaultStruct map[string]interface{}
+// getUpdater from v to call the custom Updater interface.
+func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
+	var updater Updater = nil
+	var newkey []string = keys
+	if v.Type().NumMethod() > 0 && v.CanInterface() {
+		if u, ok := v.Interface().(Updater); ok {
+			updater = u
+		}
+	}
 
-// Create - constructs the DefaultStruct structure
-func (defStruct *DefaultStruct) Create(keys []string, key string, tag string, value string) error {
+	if len(keys) > 0 {
+		fv := FindValue(v, keys...)
+		if !fv.IsValid() {
+			return updater, newkey
+		}
+		v = fv
+		if v.Type().NumMethod() > 0 && v.CanInterface() {
+			if u, ok := v.Interface().(Updater); ok {
+				updater = u
+				newkey = []string{}
+			}
+		}
+	}
+	return updater, newkey
+}
+
+// create - constructs the non-updater struct
+func create(v reflect.Value, keys []string, key string, tag string, value string) error {
+	var pkey string
+	var cv, pv reflect.Value
 	log.Debug("Node.Create", keys, key, tag, value)
-	ds := *defStruct
-	for _, k := range keys {
-		ds = ds[k].(DefaultStruct)
+	cv = v
+	if len(keys) > 0 {
+		pv, cv, pkey = FindValueWithParent(v, v, keys...)
+		if !cv.IsValid() {
+			return fmt.Errorf("not found target struct")
+		}
+		if IsValueInterface(cv) {
+			if tag == "!!seq" {
+				if cv.Elem().Type().Kind() != reflect.Slice {
+					err := SetChildValue(pv, pkey, reflect.ValueOf([]interface{}{}))
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				if cv.Elem().Type().Kind() != reflect.Map {
+					err := SetChildValue(pv, pkey, reflect.ValueOf(map[string]interface{}{}))
+					if err != nil {
+						return err
+					}
+				}
+			}
+			pv, cv, pkey = FindValueWithParent(v, v, keys...)
+			if !cv.IsValid() {
+				return fmt.Errorf("not found target struct")
+			}
+		}
 	}
-	if value == "" {
-		(ds)[key] = DefaultStruct{}
-	} else {
-		(ds)[key] = value
-	}
+	SetValue(cv, key, value)
 	return nil
 }
 
-// Replace - constructs the DefaultStruct structure
-func (defStruct *DefaultStruct) Replace(keys []string, key string, tag string, value string) error {
+
+// replace - constructs the non-updater struct
+func replace(v reflect.Value, keys []string, key string, tag string, value string) error {
+	var pkey string
+	var cv, pv reflect.Value
 	log.Debug("Node.Replace", keys, key, tag, value)
-	ds := *defStruct
-	for _, k := range keys {
-		ds = ds[k].(DefaultStruct)
+	cv = v
+	if len(keys) > 0 {
+		pv, cv, pkey = FindValueWithParent(v, v, keys...)
+		if !cv.IsValid() {
+			return fmt.Errorf("not found target struct")
+		}
+		if IsValueInterface(cv) {
+			if tag == "!!seq" {
+				if cv.Elem().Type().Kind() != reflect.Slice {
+					err := SetChildValue(pv, pkey, reflect.ValueOf([]interface{}{}))
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				if cv.Elem().Type().Kind() != reflect.Map {
+					err := SetChildValue(pv, pkey, reflect.ValueOf(map[string]interface{}{}))
+					if err != nil {
+						return err
+					}
+				}
+			}
+			pv, cv, pkey = FindValueWithParent(v, v, keys...)
+			if !cv.IsValid() {
+				return fmt.Errorf("not found target struct")
+			}
+		}
 	}
-	if value == "" {
-		(ds)[key] = DefaultStruct{}
-	} else {
-		(ds)[key] = value
-	}
+	SetValue(cv, key, value)
 	return nil
 }
 
-// Delete - constructs the DefaultStruct structure
-func (defStruct *DefaultStruct) Delete(keys []string, key string) error {
+// delete - constructs the non-updater struct
+func delete(v reflect.Value, keys []string, key string) error {
+	// var cv, pv reflect.Value
 	log.Debug("Node.Delete", keys, key)
-	ds := *defStruct
-	for _, k := range keys {
-		ds = ds[k].(DefaultStruct)
-	}
-	delete(ds, key)
+	// cv = v
+	// if len(keys) > 0 {
+	// 	pv, cv, pkey = FindValueWithParent(v, v, keys...)
+	// 	if !cv.IsValid() {
+	// 		return fmt.Errorf("not found target struct")
+	// 	}
+	// }
+	
+	// SetValue(cv, key, value)
 	return nil
 }
 
@@ -377,25 +415,43 @@ func construct(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	if len(keys) >= 1 {
 		keys = keys[1:]
 	}
-	if db.Updater != nil {
-		var err error = nil
-		switch int(op) {
-		case 'c':
-			err = db.Updater.Create(keys, n.key(), n.tag(), n.value())
-		case 'r':
-			err = db.Updater.Replace(keys, n.key(), n.tag(), n.value())
-		case 'd':
-			err = db.Updater.Delete(keys, n.key())
-		default:
-			err = fmt.Errorf("unknown op")
-		}
-		if err != nil {
-			db.Errors = append(db.Errors,
-				fmt.Errorf("%c %s, %s, %s, %s: %s", int(op), keys, n.key(), n.tag(), n.value(), err))
-		}
-	}
-	if db.GoStruct != nil {
 
+	if db.Target != nil {
+		v := reflect.ValueOf(db.Target)
+		updater, newkeys := getUpdater(v, keys)
+		if updater != nil {
+			var err error = nil
+			switch int(op) {
+			case 'c':
+				err = updater.Create(newkeys, n.key(), n.tag(), n.value())
+			case 'r':
+				err = updater.Replace(newkeys, n.key(), n.tag(), n.value())
+			case 'd':
+				err = updater.Delete(newkeys, n.key())
+			default:
+				err = fmt.Errorf("unknown op")
+			}
+			if err != nil {
+				db.Errors = append(db.Errors,
+					fmt.Errorf("%c %s, %s, %s, %s: %s", int(op), keys, n.key(), n.tag(), n.value(), err))
+			}
+		} else {
+			var err error = nil
+			switch int(op) {
+			case 'c':
+				err = create(v, keys, n.key(), n.tag(), n.value())
+			case 'r':
+				err = replace(v, keys, n.key(), n.tag(), n.value())
+			case 'd':
+				err = delete(v, keys, n.key())
+			default:
+				err = fmt.Errorf("unknown op")
+			}
+			if err != nil {
+				db.Errors = append(db.Errors,
+					fmt.Errorf("%c %s, %s, %s, %s: %s", int(op), keys, n.key(), n.tag(), n.value(), err))
+			}
+		}
 	}
 }
 
@@ -406,13 +462,12 @@ func SetLog(loglevel uint) {
 
 // YDB (YAML YNode type) to indicate an YDB instance
 type YDB struct {
-	block    *C.ydb
-	mutex    sync.Mutex
-	fd       int
-	Name     string
-	Updater  Updater
-	GoStruct interface{}
-	Errors   []error
+	block  *C.ydb
+	mutex  sync.Mutex
+	fd     int
+	Name   string
+	Target interface{}
+	Errors []error
 }
 
 // Lock - Lock the YDB instance for use.
@@ -498,32 +553,19 @@ func (db *YDB) Close() {
 // name: The name of the creating YDB instance
 // top: The go structure instance synced with the YDB instance
 func Open(name string) (*YDB, func()) {
-	return OpenWithUpdater(name, nil)
+	return OpenWithTargetStruct(name, nil)
 }
 
-// OpenWithUpdater - Open an YDB instance with a name
+// OpenWithTargetStruct - Open an YDB instance with a target Go struct
 // name: The name of the creating YDB instance
 // top: The go structure instance synced with the YDB instance
-func OpenWithUpdater(name string, updater Updater) (*YDB, func()) {
+func OpenWithTargetStruct(name string, targetStruct interface{}) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-	if updater == nil {
-		updater = &EmptyGoStruct{}
+	if targetStruct == nil {
+		targetStruct = &EmptyGoStruct{}
 	}
-	db := YDB{Name: name, block: C.ydb_open(cname), Updater: updater}
-	C.ydb_register(db.block, unsafe.Pointer(&db.block))
-	return &db, func() {
-		db.Close()
-	}
-}
-
-// OpenWithAutoUpdater - Open an YDB instance with a name
-// name: The name of the creating YDB instance
-// top: The go structure instance synced with the YDB instance
-func OpenWithAutoUpdater(name string, gostruct interface{}) (*YDB, func()) {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	db := YDB{Name: name, block: C.ydb_open(cname), GoStruct: gostruct}
+	db := YDB{Name: name, block: C.ydb_open(cname), Target: targetStruct}
 	C.ydb_register(db.block, unsafe.Pointer(&db.block))
 	return &db, func() {
 		db.Close()
@@ -585,13 +627,13 @@ func (db *YDB) Receive() error {
 		db.fd = int(C.ydb_fd(db.block))
 		if db.fd <= 0 {
 			err := errors.New(C.GoString(C.ydb_res_str(C.YDB_E_CONN_FAILED)))
-			log.Errorf("serve: %v", err)
+			log.Errorf("Receive: %v", err)
 			return err
 		}
 		rfds.Set(db.fd)
 		n, err := unix.Select(db.fd+1, &rfds, nil, nil, nil)
 		if err != nil {
-			log.Errorf("serve: %v", err)
+			log.Errorf("Receive: %v", err)
 			db.fd = 0
 			return err
 		}
@@ -602,10 +644,11 @@ func (db *YDB) Receive() error {
 			db.mutex.Unlock()
 			if res >= C.YDB_ERROR {
 				err = fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-				log.Errorf("serve: %v", err)
+				log.Errorf("Receive: %v", err)
 				db.fd = 0
 				return err
 			}
+			log.Debug(db.Target)
 		}
 	}
 	return nil
