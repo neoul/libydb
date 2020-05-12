@@ -8,9 +8,9 @@ import (
 )
 
 func main() {
-	// db, close := ydb.OpenWithUpdater("hello", &ydb.DefaultStruct{})
+	db, close := ydb.OpenWithUpdater("hello", &ydb.DefaultStruct{})
 	// db, close := ydb.OpenWithUpdater("hello", &ydb.EmptyGoStruct{})
-	db, close := ydb.OpenWithAutoUpdater("hello", &ydb.EmptyGoStruct{})
+	// db, close := ydb.OpenWithAutoUpdater("hello", &ydb.EmptyGoStruct{})
 	defer close()
 	// ydb.SetLog(ydb.LogDebug)
 	err := db.Connect("uss://test", "pub")

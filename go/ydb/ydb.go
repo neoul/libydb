@@ -61,11 +61,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	"os"
 	"reflect"
 	"sync"
 	"unsafe"
 
+	"github.com/op/go-logging"
 	"golang.org/x/sys/unix"
 )
 
@@ -83,6 +84,39 @@ const (
 	// LogCritical YDB log level
 	LogCritical = C.YLOG_CRITICAL
 )
+
+var log *logging.Logger
+
+// InitLog - Initialize the log facilities.
+func InitLog(module string, out io.Writer) *logging.Logger {
+	log = logging.MustGetLogger("ydb")
+	// Example format string. Everything except the message has a custom color
+	// which is dependent on the log level. Many fields have a custom output
+	// formatting too, eg. the time returns the hour down to the milli second.
+	var format = logging.MustStringFormatter(
+		`%{color}%{time} %{program}.%{module}.%{shortfunc:.12s} %{level:.5s} ▶%{color:reset} %{message}`,
+	)
+	// For demo purposes, create two backend for out.
+	backend1 := logging.NewLogBackend(out, "", 0)
+	backend2 := logging.NewLogBackend(out, "", 0)
+
+	// For messages written to backend2 we want to add some additional
+	// information to the output, including the used log level and the name of
+	// the function.
+	backend2Formatter := logging.NewBackendFormatter(backend2, format)
+
+	// Only errors and more severe messages should be sent to backend1
+	backend1Leveled := logging.AddModuleLevel(backend1)
+	backend1Leveled.SetLevel(logging.ERROR, "")
+
+	// Set the backends to be used.
+	logging.SetBackend(backend1Leveled, backend2Formatter)
+	return log
+}
+
+func init() {
+	log = InitLog("ydb.go", os.Stderr)
+}
 
 // Size - Get the number of children
 func (node *YNode) Size() int {
@@ -111,6 +145,20 @@ func (node *YNode) Find(key string) *YNode {
 	default:
 		return nil
 	}
+}
+
+// Search - Search a child from the current YNode
+func (node *YNode) Search(keys ...string) *YNode {
+	found := node
+	if len(keys) > 0 {
+		for _, key := range keys {
+			if found == nil {
+				return nil
+			}
+			found = found.Find(key)
+		}
+	}
+	return found
 }
 
 // GetParent - Get the parent YNode
@@ -207,7 +255,7 @@ type retrieveOption struct {
 	keys  []string
 	all   bool
 	depth int
-	user interface{}
+	user  interface{}
 }
 
 // RetrieveOption - The option to retrieve YNodes from an YDB instance.
@@ -219,7 +267,7 @@ type RetrieveOption func(*retrieveOption)
 
 // RetrieveStruct - The option to set the depth of the YDB retrieval
 func RetrieveStruct(user interface{}) RetrieveOption {
-	return func(s *retrieveOption) { s.user = user}
+	return func(s *retrieveOption) { s.user = user }
 }
 
 // RetrieveDepth - The option to set the depth of the YDB retrieval
@@ -249,19 +297,19 @@ type EmptyGoStruct struct{}
 
 // Create - Interface to create an entity on !!map object
 func (emptyStruct *EmptyGoStruct) Create(keys []string, key string, tag string, value string) error {
-	log.Println("Node.Create", keys, key, tag, value)
+	log.Debug("Node.Create", keys, key, tag, value)
 	return nil
 }
 
 // Replace - Interface to replace the entity on !!map object
 func (emptyStruct *EmptyGoStruct) Replace(keys []string, key string, tag string, value string) error {
-	log.Println("Node.Replace", keys, key, tag, value)
+	log.Debug("Node.Replace", keys, key, tag, value)
 	return nil
 }
 
 // Delete - Interface to delete the entity from !!map object
 func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
-	log.Println("Node.Delete", keys, key)
+	log.Debug("Node.Delete", keys, key)
 	return nil
 }
 
@@ -270,8 +318,7 @@ type DefaultStruct map[string]interface{}
 
 // Create - constructs the DefaultStruct structure
 func (defStruct *DefaultStruct) Create(keys []string, key string, tag string, value string) error {
-	log.Println("Node.Create", keys, key, tag, value)
-	log.Printf("%T, %v", defStruct, defStruct)
+	log.Debug("Node.Create", keys, key, tag, value)
 	ds := *defStruct
 	for _, k := range keys {
 		ds = ds[k].(DefaultStruct)
@@ -286,7 +333,7 @@ func (defStruct *DefaultStruct) Create(keys []string, key string, tag string, va
 
 // Replace - constructs the DefaultStruct structure
 func (defStruct *DefaultStruct) Replace(keys []string, key string, tag string, value string) error {
-	log.Println("Node.Replace", keys, key, tag, value)
+	log.Debug("Node.Replace", keys, key, tag, value)
 	ds := *defStruct
 	for _, k := range keys {
 		ds = ds[k].(DefaultStruct)
@@ -301,7 +348,7 @@ func (defStruct *DefaultStruct) Replace(keys []string, key string, tag string, v
 
 // Delete - constructs the DefaultStruct structure
 func (defStruct *DefaultStruct) Delete(keys []string, key string) error {
-	log.Println("Node.Delete", keys, key)
+	log.Debug("Node.Delete", keys, key)
 	ds := *defStruct
 	for _, k := range keys {
 		ds = ds[k].(DefaultStruct)
@@ -343,7 +390,7 @@ func construct(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 			err = fmt.Errorf("unknown op")
 		}
 		if err != nil {
-			db.Errors = append(db.Errors, 
+			db.Errors = append(db.Errors,
 				fmt.Errorf("%c %s, %s, %s, %s: %s", int(op), keys, n.key(), n.tag(), n.value(), err))
 		}
 	}
@@ -359,11 +406,11 @@ func SetLog(loglevel uint) {
 
 // YDB (YAML YNode type) to indicate an YDB instance
 type YDB struct {
-	block   *C.ydb
-	mutex   sync.Mutex
-	fd      int
-	Name    string
-	Updater Updater
+	block    *C.ydb
+	mutex    sync.Mutex
+	fd       int
+	Name     string
+	Updater  Updater
 	GoStruct interface{}
 	Errors   []error
 }
@@ -389,7 +436,6 @@ func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 	defer db.mutex.Unlock()
 	n := db.top()
 	node = n.createYNode(nil)
-	// log.Println(opt.keys)
 	if len(opt.keys) > 0 {
 		for _, key := range opt.keys {
 			parent = node
@@ -417,7 +463,7 @@ func (db *YDB) Convert(options ...RetrieveOption) interface{} {
 		o(&opt)
 	}
 	user = opt.user
-	
+
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	// n := db.top()
@@ -532,20 +578,20 @@ func (db *YDB) Serve() {
 func (db *YDB) Receive() error {
 	var rfds unix.FdSet
 	if db.fd > 0 {
-		// log.Println("serve() already running")
+		log.Info("Receive() already running.")
 		return nil
 	}
 	for {
 		db.fd = int(C.ydb_fd(db.block))
 		if db.fd <= 0 {
 			err := errors.New(C.GoString(C.ydb_res_str(C.YDB_E_CONN_FAILED)))
-			log.Printf("serve:%v", err)
+			log.Errorf("serve: %v", err)
 			return err
 		}
 		rfds.Set(db.fd)
 		n, err := unix.Select(db.fd+1, &rfds, nil, nil, nil)
 		if err != nil {
-			log.Printf("serve:%v", err)
+			log.Errorf("serve: %v", err)
 			db.fd = 0
 			return err
 		}
@@ -556,7 +602,7 @@ func (db *YDB) Receive() error {
 			db.mutex.Unlock()
 			if res >= C.YDB_ERROR {
 				err = fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-				log.Printf("serve:%v", err)
+				log.Errorf("serve: %v", err)
 				db.fd = 0
 				return err
 			}
@@ -618,7 +664,6 @@ func (enc *Encoder) Encode() error {
 	}
 	path := byte(0)
 	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, unsafe.Pointer(&path))
-	log.Printf("%T %d", cptr, cptr.buflen)
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
 		byt := C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen)
@@ -653,22 +698,19 @@ func (n *C.ynode) createYNode(parent *YNode) *YNode {
 			key, elem := reflect.ValueOf(node.Key), reflect.ValueOf(node)
 			keytyp := typ.Key()
 			if !key.Type().ConvertibleTo(keytyp) {
-				log.Fatalln("Invalid map key type -", node)
+				log.Error("Invalid map key type -", node)
 				return nil
 			}
 			key = key.Convert(keytyp)
 			elemtyp := typ.Elem()
-			// log.Printf("key=%s, elem=%s", key, elem)
-			// log.Printf("keytyp=%s, elemtyp=%v", keytyp, elemtyp)
 			if elemtyp.Kind() != val.Kind() && !elem.Type().ConvertibleTo(elemtyp) {
-				log.Fatalln("Invalid element type -", node)
+				log.Error("Invalid element type -", node)
 				return nil
 			}
 			val.SetMapIndex(key, elem.Convert(elemtyp))
 		case reflect.Slice:
 			parentval := reflect.ValueOf(parent).Elem()
 			parentFieldVal := parentval.FieldByName("Value")
-			// log.Println("parentFieldVal", parentFieldVal.CanSet())
 			newslice := reflect.Append(val, reflect.ValueOf(node))
 			parentFieldVal.Set(newslice)
 		}
