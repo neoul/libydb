@@ -61,8 +61,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"os/signal"
 	"reflect"
 	"sync"
+	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -262,19 +265,19 @@ type EmptyGoStruct struct{}
 
 // Create - Interface to create an entity on !!map object
 func (emptyStruct *EmptyGoStruct) Create(keys []string, key string, tag string, value string) error {
-	log.Debug("Node.Create", keys, key, tag, value)
+	log.Debugf("Node.Create(%s, %s, %s, %s)", keys, key, tag, value)
 	return nil
 }
 
 // Replace - Interface to replace the entity on !!map object
 func (emptyStruct *EmptyGoStruct) Replace(keys []string, key string, tag string, value string) error {
-	log.Debug("Node.Replace", keys, key, tag, value)
+	log.Debugf("Node.Replace(%s, %s, %s, %s)", keys, key, tag, value)
 	return nil
 }
 
 // Delete - Interface to delete the entity from !!map object
 func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
-	log.Debug("Node.Delete", keys, key)
+	log.Debugf("Node.Delete(%s, %s)", keys, key)
 	return nil
 }
 
@@ -287,7 +290,6 @@ func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
 			updater = u
 		}
 	}
-
 	if len(keys) > 0 {
 		fv := FindValue(v, keys...)
 		if !fv.IsValid() {
@@ -304,85 +306,75 @@ func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
 	return updater, newkey
 }
 
-// create - constructs the non-updater struct
-func create(v reflect.Value, keys []string, key string, tag string, value string) error {
-	var pkey string
-	var cv, pv reflect.Value
-	log.Debug("Node.Create", keys, key, tag, value)
-	cv = v
-	if len(keys) > 0 {
-		pv, cv, pkey = FindValueWithParent(v, v, keys...)
-		if !cv.IsValid() {
-			return fmt.Errorf("not found target struct")
-		}
-		if IsValueInterface(cv) {
-			if tag == "!!seq" {
-				if cv.Elem().Type().Kind() != reflect.Slice {
-					err := SetChildValue(pv, pkey, reflect.ValueOf([]interface{}{}))
-					if err != nil {
-						return err
-					}
-				}
-			} else {
-				if cv.Elem().Type().Kind() != reflect.Map {
-					err := SetChildValue(pv, pkey, reflect.ValueOf(map[string]interface{}{}))
-					if err != nil {
-						return err
-					}
-				}
-			}
-			pv, cv, pkey = FindValueWithParent(v, v, keys...)
-			if !cv.IsValid() {
-				return fmt.Errorf("not found target struct")
-			}
-		}
-	}
-	SetValue(cv, key, value)
+// merge - constructs the non-updater struct
+func merge(v reflect.Value, keys []string, key string, tag string, value string) error {
+	return setInterfaceValue(v, v, keys, key, tag, value)
+	// var pkey string
+	// var cv, pv reflect.Value
+	// cv = v
+	// if len(keys) > 0 {
+	// 	pv, cv, pkey = FindValueWithParent(v, v, keys...)
+	// 	if !cv.IsValid() {
+	// 		log.Debug("} failed")
+	// 		return fmt.Errorf("not found target struct")
+	// 	}
+	// 	if IsValueInterface(cv) {
+	// 		if tag == "!!seq" {
+	// 			if cv.Elem().Type().Kind() != reflect.Slice {
+	// 				err := SetChildValue(pv, pkey, reflect.ValueOf([]interface{}{}))
+	// 				if err != nil {
+	// 					log.Debug("} failed")
+	// 					return err
+	// 				}
+	// 			}
+	// 		} else {
+	// 			if cv.Elem().Type().Kind() != reflect.Map {
+	// 				err := SetChildValue(pv, pkey, reflect.ValueOf(map[string]interface{}{}))
+	// 				if err != nil {
+	// 					log.Debug("} failed")
+	// 					return err
+	// 				}
+	// 			}
+	// 		}
+	// 		pv, cv, pkey = FindValueWithParent(v, v, keys...)
+	// 		if !cv.IsValid() {
+	// 			log.Debug("} failed")
+	// 			return fmt.Errorf("not found target struct")
+	// 		}
+	// 	}
+	// }
+	// rv := SetValue(cv, key, value)
+	// if cv.Elem().Type().Kind() == reflect.Slice {
+	// 	err := SetChildValue(pv, pkey, rv)
+	// 	if err != nil {
+	// 		log.Debug("} failed")
+	// 		return err
+	// 	}
+	// }
+
+	// log.Debugf("rv %v, cv %v", rv, cv)
+	// log.Debug("}")
 	return nil
 }
 
+func create(v reflect.Value, keys []string, key string, tag string, value string) error {
+	log.Debugf("Node.Create(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
+	err := merge(v, keys, key, tag, value)
+	log.Debug("}", err)
+	return err
+}
 
-// replace - constructs the non-updater struct
 func replace(v reflect.Value, keys []string, key string, tag string, value string) error {
-	var pkey string
-	var cv, pv reflect.Value
-	log.Debug("Node.Replace", keys, key, tag, value)
-	cv = v
-	if len(keys) > 0 {
-		pv, cv, pkey = FindValueWithParent(v, v, keys...)
-		if !cv.IsValid() {
-			return fmt.Errorf("not found target struct")
-		}
-		if IsValueInterface(cv) {
-			if tag == "!!seq" {
-				if cv.Elem().Type().Kind() != reflect.Slice {
-					err := SetChildValue(pv, pkey, reflect.ValueOf([]interface{}{}))
-					if err != nil {
-						return err
-					}
-				}
-			} else {
-				if cv.Elem().Type().Kind() != reflect.Map {
-					err := SetChildValue(pv, pkey, reflect.ValueOf(map[string]interface{}{}))
-					if err != nil {
-						return err
-					}
-				}
-			}
-			pv, cv, pkey = FindValueWithParent(v, v, keys...)
-			if !cv.IsValid() {
-				return fmt.Errorf("not found target struct")
-			}
-		}
-	}
-	SetValue(cv, key, value)
-	return nil
+	log.Debugf("Node.Replace(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
+	err := merge(v, keys, key, tag, value)
+	log.Debug("}", err)
+	return err
 }
 
 // delete - constructs the non-updater struct
 func delete(v reflect.Value, keys []string, key string) error {
 	// var cv, pv reflect.Value
-	log.Debug("Node.Delete", keys, key)
+	log.Debugf("Node.Delete(%s, %s)", keys, key)
 	// cv = v
 	// if len(keys) > 0 {
 	// 	pv, cv, pkey = FindValueWithParent(v, v, keys...)
@@ -413,6 +405,7 @@ func construct(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 		}
 	}
 	if len(keys) >= 1 {
+		log.Debug(keys, "==>", keys[1:])
 		keys = keys[1:]
 	}
 
@@ -606,6 +599,24 @@ func (db *YDB) Disconnect(addr string) error {
 		return nil
 	}
 	return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+}
+
+// SetSignalFilter -- Set signals to ignore
+func SetSignalFilter() chan bool {
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+	signal.Notify(sigs, syscall.SIGPIPE, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		for {
+			sig := <- sigs
+			fmt.Println("Received signal:", sig)
+			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+				done <- true
+				break
+			}
+		}
+	}()
+	return done
 }
 
 // Serve --

@@ -16,4 +16,8 @@ seq:
   Flow style: !!seq [ Mercury, Venus, Earth, Mars,      # Rocks
                       Jupiter, Saturn, Uranus, Neptune, # Gas
                       Pluto ]                           # Overrated
+# SEQUENCE:
+#   - A
+#   - B
+#   - C
 ...
