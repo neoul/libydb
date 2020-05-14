@@ -1,0 +1,30 @@
+
+---
+#name: ydb.10536
+#seq: 1
+#type: pubish
+#op: merge
+#_-_-_-_
+set: 
+ baseball players: !!set
+  ? Ken Griffey 
+  ? Mark McGwire 
+  ? Sammy Sosa 
+ baseball teams: !!set
+  ? Boston Red Sox 
+  ? Detroit Tigers 
+  ? New York Yankees 
+
+...
+
+---
+#name: ydb.10536
+#seq: 2
+#type: pubish
+#op: delete
+#_-_-_-_
+set: 
+ baseball players: !!set
+  ? !ydb!delete Ken Griffey
+
+...
