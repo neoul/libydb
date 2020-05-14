@@ -282,7 +282,6 @@ ytimer_status replay(ytimer *timer, unsigned int timer_id, ytimer_status status,
     FILE *recordfp = user2;
     bool start_replay = false;
 
-    printf("replay!\n status=%d, recordfp=%p, datablock=%p\n", status, recordfp, datablock);
     if (status == YTIMER_ABORTED || recordfp == NULL || datablock == NULL)
         goto _replay_end;
     if (msgfp == NULL)

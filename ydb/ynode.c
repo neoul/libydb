@@ -1127,6 +1127,7 @@ static void ynode_log_print(struct _ynode_log *log, bool is_del, ynode *_cur, yn
     int indent = 0;
     ynode *n, *last;
     ylist *nodes;
+    bool no_tag_for_delete = false;
     if (!log)
         return;
     nodes = ylist_create();
@@ -1215,6 +1216,9 @@ node_print:
     {
         int only_val = 0;
         n = ylist_data(iter);
+        // move to the next child
+        iter = ylist_next(nodes, iter);
+
         // print nodes and cur to fp using indent
         fprintf(log->fp, "%.*s", indent, space);
         // print key
@@ -1227,7 +1231,16 @@ node_print:
             if (n->parent->type == YNODE_TYPE_OMAP)
                 fprintf(log->fp, "- %s:", key);
             else if (n->parent->type == YNODE_TYPE_SET)
-                fprintf(log->fp, "? %s", key);
+            {
+                // Bugfix - delete tag (!ydb!delete) should be in front of the set node.
+                if (is_del && ylist_done(nodes, iter))
+                {
+                    fprintf(log->fp, "? !ydb!delete %s\n", key);
+                    no_tag_for_delete = true;
+                } 
+                else
+                    fprintf(log->fp, "? %s", key);
+            }
             else
                 fprintf(log->fp, "%s:", key);
             if (is_new)
@@ -1238,9 +1251,9 @@ node_print:
         else
             only_val = 1;
 
-        iter = ylist_next(nodes, iter);
-
         // !ydb!delete tag processing
+        if (no_tag_for_delete)
+            break;
         if (is_del && ylist_done(nodes, iter))
         {
             fprintf(log->fp, "%s!ydb!delete\n", only_val ? "" : " ");
@@ -1262,10 +1275,12 @@ node_print:
         }
         else
         {
-            if (n->tag)
-                fprintf(log->fp, " %s\n", n->tag);
-            else
-                fprintf(log->fp, " %s\n", ynode_type_str[n->type]);
+            if (!no_tag_for_delete) {
+                if (n->tag)
+                    fprintf(log->fp, " %s\n", n->tag);
+                else
+                    fprintf(log->fp, " %s\n", ynode_type_str[n->type]);
+            }
         }
         indent++;
     }
