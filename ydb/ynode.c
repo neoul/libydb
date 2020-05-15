@@ -2337,6 +2337,7 @@ const char *ynode_tag(ynode *node)
     {
     case YNODE_TYPE_VAL:
     case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
     case YNODE_TYPE_IMAP:
     case YNODE_TYPE_OMAP:
     case YNODE_TYPE_LIST:
