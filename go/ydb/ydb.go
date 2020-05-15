@@ -253,9 +253,15 @@ func RetrieveKeys(k ...string) RetrieveOption {
 	return func(s *retrieveOption) { s.keys = k }
 }
 
-// Updater interface to update user structure
-type Updater interface {
+// Create interface to fill a user structure by a YDB data instance
+type Create interface {
 	Create(keys []string, key string, tag string, value string) error
+}
+
+// Updater interface to manipulate user structure
+type Updater interface {
+	// Create(keys []string, key string, tag string, value string) error
+	Create
 	Replace(keys []string, key string, tag string, value string) error
 	Delete(keys []string, key string) error
 }
@@ -265,19 +271,19 @@ type EmptyGoStruct struct{}
 
 // Create - Interface to create an entity on !!map object
 func (emptyStruct *EmptyGoStruct) Create(keys []string, key string, tag string, value string) error {
-	log.Debugf("Node.Create(%s, %s, %s, %s)", keys, key, tag, value)
+	log.Debugf("emptyStruct.Create(%s, %s, %s, %s)", keys, key, tag, value)
 	return nil
 }
 
 // Replace - Interface to replace the entity on !!map object
 func (emptyStruct *EmptyGoStruct) Replace(keys []string, key string, tag string, value string) error {
-	log.Debugf("Node.Replace(%s, %s, %s, %s)", keys, key, tag, value)
+	log.Debugf("emptyStruct.Replace(%s, %s, %s, %s)", keys, key, tag, value)
 	return nil
 }
 
 // Delete - Interface to delete the entity from !!map object
 func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
-	log.Debugf("Node.Delete(%s, %s)", keys, key)
+	log.Debugf("emptyStruct.Delete(%s, %s)", keys, key)
 	return nil
 }
 
@@ -403,7 +409,7 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 		}
 	}
 	if len(keys) >= 1 {
-		log.Debug(keys, "==>", keys[1:])
+		// log.Debug(keys, "==>", keys[1:])
 		keys = keys[1:]
 	}
 
@@ -511,7 +517,6 @@ func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 }
 
 func convert(db *YDB, userStruct interface{}, op int, n *C.ynode) {
-	log.Info(n.key())
 	err := construct(userStruct, op, n, nil)
 	if err != nil {
 		db.Errors = append(db.Errors, err)

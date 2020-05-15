@@ -271,7 +271,7 @@ func ValueString(value interface{}) string {
 	if v.Type() == reflect.TypeOf(nil) {
 		return "nil()"
 	}
-	if isZero(v) {
+	if v.IsZero() {
 		return fmt.Sprintf("%s()", v.Type())
 	}
 
@@ -313,7 +313,7 @@ func valueString(v reflect.Value, ptrcnt int) string {
 		for i := 0; i < v.NumField(); i++ {
 			fv := v.Field(i)
 			ft := t.Field(i)
-			log.Debug(ft.Name, v.Type(), ft.Type)
+			// log.Debug(ft.Name, v.Type(), ft.Type)
 			if areSameType(ft.Type, t) {
 				continue
 			}
@@ -879,7 +879,7 @@ func NewValue(t reflect.Type, values ...interface{}) reflect.Value {
 
 // SetValue - Set a value.
 func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
-	// log.Debugf("SetValue T=%s, V=%s, VALUES=%s", v.Type(), v, values)
+	log.Debugf("SetValue T=%s, V=%v, VALUES=%s", v.Type(), v, values)
 	if !v.IsValid() {
 		return v
 	}
