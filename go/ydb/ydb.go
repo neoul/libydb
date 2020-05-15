@@ -13,10 +13,10 @@ typedef struct {
 	void *buf;
 } bufinfo;
 
-extern void construct(void *p, char op, ynode *old, ynode *cur);
+extern void manipulate(void *p, char op, ynode *old, ynode *cur);
 static void ydb_hook(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1)
 {
-	construct(U1, op, _cur, _new);
+	manipulate(U1, op, _cur, _new);
 }
 
 static void ydb_register(ydb *datablock, void *U1)
@@ -387,10 +387,8 @@ func delete(v reflect.Value, keys []string, key string) error {
 	return nil
 }
 
-//export construct
-// construct -- Update YAML Data Block instance
-func construct(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
-	var db *YDB = (*YDB)(ygo)
+
+func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 	var n *C.ynode
 	var keys = make([]string, 0, 0)
 	if new != nil {
@@ -409,41 +407,50 @@ func construct(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 		keys = keys[1:]
 	}
 
+	v := reflect.ValueOf(target)
+	updater, newkeys := getUpdater(v, keys)
+	if updater != nil {
+		var err error = nil
+		switch op {
+		case 'c':
+			err = updater.Create(newkeys, n.key(), n.tag(), n.value())
+		case 'r':
+			err = updater.Replace(newkeys, n.key(), n.tag(), n.value())
+		case 'd':
+			err = updater.Delete(newkeys, n.key())
+		default:
+			err = fmt.Errorf("unknown op")
+		}
+		if err != nil {
+			return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), err)
+		}
+	} else {
+		var err error = nil
+		switch op {
+		case 'c':
+			err = create(v, keys, n.key(), n.tag(), n.value())
+		case 'r':
+			err = replace(v, keys, n.key(), n.tag(), n.value())
+		case 'd':
+			err = delete(v, keys, n.key())
+		default:
+			err = fmt.Errorf("unknown op")
+		}
+		if err != nil {
+			return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), err)
+		}
+	}
+	return nil
+}
+
+//export manipulate
+// manipulate -- Update YAML Data Block instance
+func manipulate(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
+	var db *YDB = (*YDB)(ygo)
 	if db.Target != nil {
-		v := reflect.ValueOf(db.Target)
-		updater, newkeys := getUpdater(v, keys)
-		if updater != nil {
-			var err error = nil
-			switch int(op) {
-			case 'c':
-				err = updater.Create(newkeys, n.key(), n.tag(), n.value())
-			case 'r':
-				err = updater.Replace(newkeys, n.key(), n.tag(), n.value())
-			case 'd':
-				err = updater.Delete(newkeys, n.key())
-			default:
-				err = fmt.Errorf("unknown op")
-			}
-			if err != nil {
-				db.Errors = append(db.Errors,
-					fmt.Errorf("%c %s, %s, %s, %s: %s", int(op), keys, n.key(), n.tag(), n.value(), err))
-			}
-		} else {
-			var err error = nil
-			switch int(op) {
-			case 'c':
-				err = create(v, keys, n.key(), n.tag(), n.value())
-			case 'r':
-				err = replace(v, keys, n.key(), n.tag(), n.value())
-			case 'd':
-				err = delete(v, keys, n.key())
-			default:
-				err = fmt.Errorf("unknown op")
-			}
-			if err != nil {
-				db.Errors = append(db.Errors,
-					fmt.Errorf("%c %s, %s, %s, %s: %s", int(op), keys, n.key(), n.tag(), n.value(), err))
-			}
+		err := construct(db.Target, int(op), cur, new)
+		if err != nil {
+			db.Errors = append(db.Errors, err)
 		}
 	}
 }
@@ -503,32 +510,53 @@ func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 	return node
 }
 
+func convert(db *YDB, userStruct interface{}, op int, n *C.ynode) {
+	log.Info(n.key())
+	err := construct(userStruct, op, n, nil)
+	if err != nil {
+		db.Errors = append(db.Errors, err)
+	} else {
+		for cn := n.down(); cn != nil; cn = cn.next() {
+			convert(db, userStruct, op, cn)
+		}
+	}
+}
+
 // Convert - Convert the YDB data to the target struct.
-func (db *YDB) Convert(options ...RetrieveOption) interface{} {
+func (db *YDB) Convert(options ...RetrieveOption) (interface{}, error) {
 	var user interface{}
 	var opt retrieveOption
 	for _, o := range options {
 		o(&opt)
 	}
-	user = opt.user
-
+	if opt.depth > 0 {
+		return nil, fmt.Errorf("RetrieveDepth not supported")
+	}
+	if opt.user == nil {
+		user = map[string]interface{}{}
+	} else {
+		user = opt.user
+	}
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	// n := db.top()
-	// v := reflect.ValueOf(user)
-	// t := reflect.TypeOf(user)
-	// if len(opt.keys) > 0 {
-	// 	for _, key := range opt.keys {
-	// 		parent = node
-	// 		n = n.find(key)
-	// 		if n == nil {
-	// 			return nil
-	// 		}
-	// 		node = n.createYNode(parent)
-	// 	}
-	// }
-
-	return user
+	n := db.top()
+	if len(opt.keys) > 0 {
+		for _, key := range opt.keys {
+			n = n.find(key)
+			if n == nil {
+				return nil, fmt.Errorf("Not found data (%s)", key)
+			}
+		}
+	}
+	// top := n
+	errCount := len(db.Errors)
+	for n := n.down(); n != nil; n = n.next() {
+		convert(db, user, 'c', n)
+	}
+	if len(db.Errors) > errCount {
+		return user, fmt.Errorf("Coversion failed in some struct")
+	}
+	return user, nil
 }
 
 // Close the YDB instance

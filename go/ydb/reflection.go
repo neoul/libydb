@@ -1055,7 +1055,7 @@ func FindValue(v reflect.Value, keys ...string) reflect.Value {
 		case reflect.Struct:
 			_, sfv, ok := findStructField(cur, key)
 			if !ok {
-				log.Debug("Not found:", key)
+				// log.Debug("Not found:", key)
 				return reflect.Value{}
 			}
 			cur = sfv
@@ -1063,34 +1063,34 @@ func FindValue(v reflect.Value, keys ...string) reflect.Value {
 			mt := cur.Type()
 			kv := newValue(mt.Key(), key)
 			if !kv.IsValid() {
-				log.Debug("Wrong key:", key)
+				// log.Debug("Wrong key:", key)
 				return reflect.Value{}
 			}
 			vv := cur.MapIndex(kv)
 			if !vv.IsValid() {
-				log.Debug("Not found:", key)
+				// log.Debug("Not found:", key)
 				return reflect.Value{}
 			}
 			cur = vv
 		case reflect.Slice, reflect.Array:
 			idxv := newValue(reflect.TypeOf(0), key)
 			if !idxv.IsValid() {
-				log.Debug("Wrong key:", key)
+				// log.Debug("Wrong key:", key)
 				return reflect.Value{}
 			}
 			index := idxv.Interface().(int)
 			if cur.Len() <= index {
-				log.Debug("Out of range:", index)
+				// log.Debug("Out of range:", index)
 				return reflect.Value{}
 			}
 			vv := cur.Index(index)
 			if !vv.IsValid() {
-				log.Debug("Invalid value found:", key)
+				// log.Debug("Invalid value found:", key)
 				return reflect.Value{}
 			}
 			cur = vv
 		default:
-			log.Debug("Not found:", key)
+			// log.Debug("Not found:", key)
 			return reflect.Value{}
 		}
 	}

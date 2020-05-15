@@ -1,4 +1,4 @@
-package main // import "github.com/neoul/libydb/go/demo"
+package main // import "github.com/neoul/libydb/go/demo/example"
 
 import (
 	"log"
