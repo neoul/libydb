@@ -315,52 +315,6 @@ func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
 // merge - constructs the non-updater struct
 func merge(v reflect.Value, keys []string, key string, tag string, value string) error {
 	return setInterfaceValue(v, v, keys, key, tag, value)
-	// var pkey string
-	// var cv, pv reflect.Value
-	// cv = v
-	// if len(keys) > 0 {
-	// 	pv, cv, pkey = FindValueWithParent(v, v, keys...)
-	// 	if !cv.IsValid() {
-	// 		log.Debug("} failed")
-	// 		return fmt.Errorf("not found target struct")
-	// 	}
-	// 	if IsValueInterface(cv) {
-	// 		if tag == "!!seq" {
-	// 			if cv.Elem().Type().Kind() != reflect.Slice {
-	// 				err := SetChildValue(pv, pkey, reflect.ValueOf([]interface{}{}))
-	// 				if err != nil {
-	// 					log.Debug("} failed")
-	// 					return err
-	// 				}
-	// 			}
-	// 		} else {
-	// 			if cv.Elem().Type().Kind() != reflect.Map {
-	// 				err := SetChildValue(pv, pkey, reflect.ValueOf(map[string]interface{}{}))
-	// 				if err != nil {
-	// 					log.Debug("} failed")
-	// 					return err
-	// 				}
-	// 			}
-	// 		}
-	// 		pv, cv, pkey = FindValueWithParent(v, v, keys...)
-	// 		if !cv.IsValid() {
-	// 			log.Debug("} failed")
-	// 			return fmt.Errorf("not found target struct")
-	// 		}
-	// 	}
-	// }
-	// rv := SetValue(cv, key, value)
-	// if cv.Elem().Type().Kind() == reflect.Slice {
-	// 	err := SetChildValue(pv, pkey, rv)
-	// 	if err != nil {
-	// 		log.Debug("} failed")
-	// 		return err
-	// 	}
-	// }
-
-	// log.Debugf("rv %v, cv %v", rv, cv)
-	// log.Debug("}")
-	return nil
 }
 
 func create(v reflect.Value, keys []string, key string, tag string, value string) error {

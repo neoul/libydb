@@ -1,6 +1,7 @@
 package main // import "github.com/neoul/libydb/go/demo/ygot"
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 
@@ -72,21 +73,48 @@ type GoStruct schema.Example
 
 // Create - constructs schema.Example
 func (example *GoStruct) Create(keys []string, key string, tag string, value string) error {
-	var cv reflect.Value
+	var pkey string
+	var pv, cv reflect.Value
 	ylog.Debugf("Create %v %v %v %v", keys, key, tag, value)
 	dv := reflect.ValueOf(example)
 	cv = dv
 	if len(keys) > 0 {
-		cv = ydb.FindValue(dv, keys...)
+		pv, cv, pkey = ydb.FindValueWithParent(cv, cv, keys...)
 		if !cv.IsValid() {
-			return nil
+			return fmt.Errorf("invalid parent value")
 		}
 	}
-	if cv.IsNil() {
-		cv = ydb.NewValue(cv.Type())
-		dv.Set(cv)
+	// if cv.IsNil() {
+	// 	cv = ydb.NewValue(cv.Type())
+	// 	dv.Set(cv)
+	// }
+	var values []interface{}
+	switch tag {
+	case "!!map", "!!imap", "!!omap":
+		values = []interface{}{key, value}
+	case "!!set":
+		values = []interface{}{key}
+	case "!!seq":
+		values = []interface{}{value}
+	default: // other scalar types:
+		if ydb.IsValueSlice(cv) {
+			if key == "" {
+				values = []interface{}{value}
+			} else {
+				values = []interface{}{key}
+			}
+		} else {
+			values = []interface{}{key, value}
+		}
 	}
-	ydb.SetValue(cv, key, value)
+	nv := ydb.SetValue(cv, values...)
+	if nv.Kind() == reflect.Slice {
+		var err error
+		pv, err = ydb.SetValueChild(pv, nv, pkey)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -127,5 +155,11 @@ func main() {
 	gs := GoStruct{}
 	_, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
 	ylog.Debug(gs)
-	ylog.Debug(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+
+	// gs := schema.Example{}
+	// _, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
+	// ylog.Debug(gs)
+	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+	fmt.Println(*&gs.Company.Address)
 }

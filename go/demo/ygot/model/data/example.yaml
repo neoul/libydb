@@ -9,3 +9,7 @@ operator:
     "name": "Catalyst2"
 "person": "robjs"
 "married": true
+"company":
+  "address": !!set
+    ? "seoul"
+    ? "LA"

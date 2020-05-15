@@ -19,4 +19,13 @@ module network {
     leaf asn { type uint32; }
     leaf name { type string; }
   }
+
+  container company {
+    leaf-list address {
+      type string;
+    }
+    leaf name {
+      type string;
+    }
+  }
 }
