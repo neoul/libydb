@@ -333,18 +333,10 @@ func replace(v reflect.Value, keys []string, key string, tag string, value strin
 
 // delete - constructs the non-updater struct
 func delete(v reflect.Value, keys []string, key string) error {
-	// var cv, pv reflect.Value
-	log.Debugf("Node.Delete(%s, %s)", keys, key)
-	// cv = v
-	// if len(keys) > 0 {
-	// 	pv, cv, pkey = FindValueWithParent(v, v, keys...)
-	// 	if !cv.IsValid() {
-	// 		return fmt.Errorf("not found target struct")
-	// 	}
-	// }
-	
-	// SetValue(cv, key, value)
-	return nil
+	log.Debugf("Node.Delete(%v, %s, %s) {", v, keys, key)
+	err := unsetInterfaceValue(v, v, keys, key)
+	log.Debug("}", err)
+	return err
 }
 
 
@@ -365,6 +357,9 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 	if len(keys) >= 1 {
 		// log.Debug(keys, "==>", keys[1:])
 		keys = keys[1:]
+	} else {
+		// ignore root node deletion.
+		return nil
 	}
 
 	v := reflect.ValueOf(target)

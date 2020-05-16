@@ -984,6 +984,57 @@ func SetChildValue(pv reflect.Value, key interface{}, cv reflect.Value) error {
 	}
 }
 
+func unsetMapValue(mv reflect.Value, key interface{}) error {
+	if mv.Kind() == reflect.Ptr {
+		return unsetMapValue(mv.Elem(), key)
+	}
+	if mv.Kind() != reflect.Map {
+		return fmt.Errorf("not a Map value")
+	}
+	mt := mv.Type()
+	kt := mt.Key()
+	kv := newValue(kt, key)
+	mv.SetMapIndex(kv, reflect.Value{})
+	return nil
+}
+
+func unsetStructField(sv reflect.Value, name interface{}) error {
+	if sv.Kind() == reflect.Ptr {
+		return unsetStructField(sv.Elem(), name)
+	}
+	ft, fv, ok := findStructField(sv, name)
+	if !ok {
+		return fmt.Errorf("Not found %s.%s", sv.Type(), name)
+	}
+	nv := NewValue(ft.Type, nil)
+	fv.Set(nv)
+	return nil
+}
+
+// UnsetValue - Unset a value indicated by the key from parents
+func UnsetValue(v reflect.Value, key interface{}) error {
+	log.Debugf("UnsetValue T=%s, V=%v, KEY=%s", v.Type(), v, key)
+	if !v.IsValid() {
+		return fmt.Errorf("Invalid value")
+	}
+	t := v.Type()
+	pt := getBaseType(t)
+	switch pt.Kind() {
+	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
+		return fmt.Errorf("Not supported value type (%s)", pt.Kind())
+	case reflect.Struct:
+		return unsetStructField(v, key)
+	case reflect.Map:
+		return unsetMapValue(v, key)
+	case reflect.Slice:
+		return fmt.Errorf("TBI[To Be Implemented]")
+	case reflect.Interface:
+		return UnsetValue(v.Elem(), key)
+	default:
+		return fmt.Errorf("Not supported scalar value unset")
+	}
+}
+
 // GetValue - gets a value from the struct, map or slice value using the keys.
 func GetValue(v reflect.Value, keys ...interface{}) reflect.Value {
 	if !v.IsValid() {
@@ -1218,6 +1269,7 @@ func setInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 	var k string
 	var pkey string
 	var err error
+	// log.Debug("setInterfaceValue", keys, key)
 	if !cv.IsValid() {
 		return fmt.Errorf("invalid parent value")
 	}
@@ -1324,4 +1376,76 @@ func setInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 	log.Debugf("After pv: %s, %s", pv.Kind(), ValueString(pv.Interface()))
 	log.Debugf("After cv: %s, %s", cv.Kind(), ValueString(cv.Interface()))
 	return nil
+}
+
+
+// unsetInterfaceValue - finds and unsets a value.
+func unsetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key string) error {
+	var i int
+	var k string
+	// log.Debug("unsetInterfaceValue", keys, key)
+	if !cv.IsValid() {
+		return fmt.Errorf("invalid parent value")
+	}
+	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
+		log.Debug(" * cv:", cv.Kind(), keys)
+		return unsetInterfaceValue(cv, cv.Elem(), keys, key)
+	}
+	for i, k = range keys {
+		log.Debug(" * cv:", cv.Kind(), keys)
+		switch cv.Kind() {
+		case reflect.Ptr, reflect.Interface:
+			rkeys := keys[i:]
+			return unsetInterfaceValue(cv, cv.Elem(), rkeys, key)
+		case reflect.Struct:
+			_, sfv, ok := findStructField(cv, k)
+			if !ok {
+				return fmt.Errorf("Value not found(%s)", k)
+			}
+			pv = cv
+			cv = sfv
+		case reflect.Map:
+			mt := cv.Type()
+			kv := newValue(mt.Key(), k)
+			if !kv.IsValid() {
+				return fmt.Errorf("Wrong key(%s)", k)
+			}
+			vv := cv.MapIndex(kv)
+			if !vv.IsValid() {
+				return fmt.Errorf("Value not found(%s)", k)
+			}
+			pv = cv
+			cv = vv
+		case reflect.Slice:
+			idxv := newValue(reflect.TypeOf(0), k)
+			if !idxv.IsValid() {
+				return fmt.Errorf("Wrong key(%s)", k)
+			}
+			index := idxv.Interface().(int)
+			if cv.Len() <= index {
+				return fmt.Errorf("Index is out of the range(%d)", index)
+			}
+			vv := cv.Index(index)
+			if !vv.IsValid() {
+				return fmt.Errorf("Invalid value found(%s)", k)
+			}
+			pv = cv
+			cv = vv
+		case reflect.Array:
+			return fmt.Errorf("Not supported type (Array)")
+		default: // scalar
+		}
+	}
+	log.Debugf("Before pv: %s, %s", pv.Kind(), ValueString(pv.Interface()))
+	log.Debugf("Before cv: %s, %s", cv.Kind(), ValueString(cv.Interface()))
+
+	var err error
+	cv = getNonInterfaceValueDeep(cv)
+	if key != "" {
+		err = UnsetValue(cv, key)
+	}
+
+	log.Debugf("After pv: %s, %s", pv.Kind(), ValueString(pv.Interface()))
+	log.Debugf("After cv: %s, %s", cv.Kind(), ValueString(cv.Interface()))
+	return err
 }
