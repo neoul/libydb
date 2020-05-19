@@ -410,8 +410,8 @@ func manipulate(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	}
 }
 
-// SetLog configures the log level of YDB
-func SetLog(loglevel uint) {
+// SetInternalLog configures the log level of YDB
+func SetInternalLog(loglevel uint) {
 	C.ylog_level = C.uint(loglevel)
 }
 

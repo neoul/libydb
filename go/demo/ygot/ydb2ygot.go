@@ -7,8 +7,8 @@ import (
 
 	"github.com/neoul/libydb/go/demo/ygot/model/schema"
 	"github.com/neoul/libydb/go/ydb"
-	"github.com/op/go-logging"
 
+	"github.com/op/go-logging"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/ytypes"
 )
@@ -21,12 +21,13 @@ var (
 	Schema *ytypes.Schema
 	// Entries is yang.Entry list rearranged by name
 	Entries map[string][]*yang.Entry
-
 	ylog *logging.Logger
 )
 
 func init() {
-	ylog = ydb.InitLog("ydb", os.Stderr)
+	// ylog = ydb.SetLog("ydb2ygot", os.Stderr, logging.DEBUG, "%{message}")
+	ylog = ydb.SetLog("ydb2ygot", os.Stderr, logging.DEBUG, "")
+	
 	schema, err := schema.Schema()
 	if err != nil {
 		ylog.Panicf("%s\n", err)
