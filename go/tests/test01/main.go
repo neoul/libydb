@@ -1,42 +1,30 @@
-package main // import "github.com/neoul/libydb/go/tests/test01"
+package main
 
 import (
-	"log"
+	"os"
 
 	"github.com/neoul/libydb/go/ydb"
 )
 
+
 func main() {
-	done := ydb.SetSignalFilter()
-	// db, close := ydb.Open("hello")
-	datastore := map[string]interface{}{}
-	db, close := ydb.OpenWithTargetStruct("hello", &datastore)
-	// db, close := ydb.OpenWithTargetStruct("hello", &ydb.EmptyGoStruct{})
+	db, close := ydb.Open("mydb")
 	defer close()
 	// ydb.SetLog(ydb.LogDebug)
-	err := db.Connect("uss://test", "pub")
+
+	r, err := os.Open("../../../examples/yaml/yaml-demo.yaml")
+	defer r.Close()
 	if err != nil {
-		log.Println(err)
+		panic(err)
 	}
-	db.Serve()
-	<- done
-	err = db.Disconnect("uss://test")
+	dec := db.NewDecoder(r)
+	dec.Decode()
+
+	w, err := os.Create("yaml-demo.yaml")
+	defer w.Close()
 	if err != nil {
-		log.Println(err)
+		panic(err)
 	}
-	for num, err := range db.Errors {
-		log.Println(num, err)
-	}
-	// for i := 0; i < 100; i++ {
-	// 	<-time.After(time.Second * 5)
-	// 	// node := db.Retrieve(ydb.RetrieveDepth(2))
-	// 	// log.Println(node)
-	// 	// log.Println(node.GetChildren())
-	// 	// for _, node := range node.GetChildren() {
-	// 	// 	log.Println(node)
-	// 	// 	for _, child := range node.GetChildren() {
-	// 	// 		log.Println(child)
-	// 	// 	}
-	// 	// }
-	// }
+	enc := db.NewEncoder(w)
+	enc.Encode()
 }
