@@ -30,7 +30,7 @@ LT_INIT
 # Checks for header files.
 AC_CHECK_HEADERS([stdio.h time.h stdlib.h string.h stdint.h assert.h ctype.h \
       stdarg.h unistd.h yaml.h sys/socket.h sys/un.h errno.h sys/epoll.h \
-      sys/timerfd.h stdbool.h signal.h sys/types.h yaml.h])
+      sys/timerfd.h stdbool.h signal.h sys/types.h yaml.h],,AC_MSG_ERROR([Could not find certain include header files]),)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T
