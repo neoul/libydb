@@ -1,0 +1,16 @@
+---
+value
+...
+
+---
+[entry1, entry2, entry3]
+...
+
+---
+name: willing
+age: 40
+...
+
+---
+!!set ["e1", "e2"]
+...

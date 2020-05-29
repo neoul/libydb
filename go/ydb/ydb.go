@@ -314,7 +314,7 @@ func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
 
 // merge - constructs the non-updater struct
 func merge(v reflect.Value, keys []string, key string, tag string, value string) error {
-	return setInterfaceValue(v, v, keys, key, tag, value)
+	return SetInterfaceValue(v, v, keys, key, tag, value)
 }
 
 func create(v reflect.Value, keys []string, key string, tag string, value string) error {
@@ -334,11 +334,10 @@ func replace(v reflect.Value, keys []string, key string, tag string, value strin
 // delete - constructs the non-updater struct
 func delete(v reflect.Value, keys []string, key string) error {
 	log.Debugf("Node.Delete(%v, %s, %s) {", v, keys, key)
-	err := unsetInterfaceValue(v, v, keys, key)
+	err := UnsetInterfaceValue(v, v, keys, key)
 	log.Debug("}", err)
 	return err
 }
-
 
 func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 	var n *C.ynode
@@ -348,8 +347,8 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 	} else {
 		n = cur
 	}
-	for n := n.up(); n != nil; n = n.up() {
-		key := n.key()
+	for p := n.up(); p != nil; p = p.up() {
+		key := p.key()
 		if key != "" {
 			keys = append([]string{key}, keys...)
 		}
@@ -359,9 +358,20 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 		keys = keys[1:]
 	} else {
 		// ignore root node deletion.
+		if op == 'd' {
+			return nil
+		}
+		switch n.tag() {
+		case "!!map", "!!seq", "!!imap", "!!omap", "!!set":
+			return nil
+		}
+		v := reflect.ValueOf(target)
+		rv := SetValue(v, n.value())
+		if !rv.IsValid() {
+			return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), "Set failed")
+		}
 		return nil
 	}
-
 	v := reflect.ValueOf(target)
 	updater, newkeys := getUpdater(v, keys)
 	if updater != nil {
@@ -590,7 +600,7 @@ func SetSignalFilter() chan bool {
 	signal.Notify(sigs, syscall.SIGPIPE, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		for {
-			sig := <- sigs
+			sig := <-sigs
 			fmt.Println("Received signal:", sig)
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 				done <- true
