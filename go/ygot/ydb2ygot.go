@@ -122,7 +122,9 @@ func merge(example *GoStruct, keys []string, key string, tag string, value strin
 // Create - constructs schema.Example
 func (example *GoStruct) Create(keys []string, key string, tag string, value string) error {
 	ylog.Debugf("GoStruct.Create %v %v %v %v {", keys, key, tag, value)
-	err := merge(example, keys, key, tag, value)
+	// err := merge(example, keys, key, tag, value)
+	v := reflect.ValueOf(example)
+	err := ydb.SetInterfaceValue(v, v, keys, key, tag, value)
 	ylog.Debugf("}")
 	return err
 }
@@ -130,7 +132,9 @@ func (example *GoStruct) Create(keys []string, key string, tag string, value str
 // Replace - constructs schema.Example
 func (example *GoStruct) Replace(keys []string, key string, tag string, value string) error {
 	ylog.Debugf("GoStruct.Replace %v %v %v %v {", keys, key, tag, value)
-	err := merge(example, keys, key, tag, value)
+	// err := merge(example, keys, key, tag, value)
+	v := reflect.ValueOf(example)
+	err := ydb.SetInterfaceValue(v, v, keys, key, tag, value)
 	ylog.Debugf("}")
 	return err
 }
@@ -138,11 +142,11 @@ func (example *GoStruct) Replace(keys []string, key string, tag string, value st
 // Delete - constructs schema.Example
 func (example *GoStruct) Delete(keys []string, key string) error {
 	ylog.Debugf("GoStruct.Delete %v %v %v %v {", keys, key)
-	// v := reflect.ValueOf(example)
-	// err := ydb.UnsetInterfaceValue(v, v, keys, key)
-	// ylog.Debugf("}")
-	// return err
-	return nil
+	v := reflect.ValueOf(example)
+	err := ydb.UnsetInterfaceValue(v, v, keys, key)
+	ylog.Debugf("}")
+	return err
+	// return nil
 }
 
 func main() {
@@ -151,8 +155,6 @@ func main() {
 
 	db, close := ydb.Open("mydb")
 	defer close()
-	// ydb.SetLog(ydb.LogDebug)
-
 	r, err := os.Open("model/data/example.yaml")
 	defer r.Close()
 	if err != nil {
@@ -160,9 +162,10 @@ func main() {
 	}
 	dec := db.NewDecoder(r)
 	dec.Decode()
-	// var user interface{}
-	// user, err = db.Convert(ydb.RetrieveAll())
-	// ylog.Debug(user)
+
+	var user interface{}
+	user, err = db.Convert(ydb.RetrieveAll())
+	ylog.Debug(user)
 
 	// var user map[string]interface{}
 	// user = map[string]interface{}{}
@@ -175,9 +178,20 @@ func main() {
 	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
 	// fmt.Println(*&gs.Company.Address)
 
-	gs := schema.Example{}
-	_, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
-	ylog.Debug(gs)
-	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
-	fmt.Println(*&gs.Company.Address)
+	// gs := schema.Example{}
+	// _, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
+	// ylog.Debug(gs)
+	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+	// fmt.Println(*&gs.Company.Address)
+
+	// gs := schema.Example{}
+	// db, close := ydb.OpenWithTargetStruct("running", &gs)
+	// defer close()
+	// r, err := os.Open("model/data/example.yaml")
+	// defer r.Close()
+	// if err != nil {
+	// 	ylog.Fatal(err)
+	// }
+	// dec := db.NewDecoder(r)
+	// dec.Decode()
 }

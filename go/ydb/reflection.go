@@ -225,6 +225,9 @@ func isNilDeep(v reflect.Value) bool {
 
 // IsEmptyInterface reports whether x is empty interface
 func IsEmptyInterface(x interface{}) bool {
+	if x == nil {
+		return true
+	}
 	return x == reflect.Zero(reflect.TypeOf(x)).Interface()
 }
 
@@ -1006,7 +1009,7 @@ func unsetStructField(sv reflect.Value, name interface{}) error {
 	if !ok {
 		return fmt.Errorf("Not found %s.%s", sv.Type(), name)
 	}
-	nv := NewValue(ft.Type, nil)
+	nv := NewValue(ft.Type, "")
 	fv.Set(nv)
 	return nil
 }

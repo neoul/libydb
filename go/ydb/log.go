@@ -2,6 +2,7 @@ package ydb
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 
 	"github.com/op/go-logging"
@@ -25,6 +26,11 @@ func SetLog(module string, out io.Writer, level logging.Level, formatstr string)
 	leveledBackend.SetLevel(level, module)
 	logging.SetBackend(leveledBackend)
 	return ilog
+}
+
+// DisableLog - Disable the log facilities.
+func DisableLog(module string) {
+	SetLog(module, ioutil.Discard, logging.CRITICAL, "")
 }
 
 func init() {
