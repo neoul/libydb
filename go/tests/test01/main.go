@@ -1,18 +1,19 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/neoul/libydb/go/ydb"
 )
 
-
 func main() {
-	db, close := ydb.Open("mydb")
+	s := ""
+	db, close := ydb.OpenWithTargetStruct("mydb", &s)
 	defer close()
 	// ydb.SetLog(ydb.LogDebug)
 
-	r, err := os.Open("../../../examples/yaml/yaml-demo.yaml")
+	r, err := os.Open("../../../examples/yaml/yaml-value.yaml")
 	defer r.Close()
 	if err != nil {
 		panic(err)
@@ -20,7 +21,9 @@ func main() {
 	dec := db.NewDecoder(r)
 	dec.Decode()
 
-	w, err := os.Create("yaml-demo.yaml")
+	fmt.Println(s)
+
+	w, err := os.Create("result.yaml")
 	defer w.Close()
 	if err != nil {
 		panic(err)

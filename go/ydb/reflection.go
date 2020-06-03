@@ -225,6 +225,9 @@ func isNilDeep(v reflect.Value) bool {
 
 // IsEmptyInterface reports whether x is empty interface
 func IsEmptyInterface(x interface{}) bool {
+	if x == nil {
+		return true
+	}
 	return x == reflect.Zero(reflect.TypeOf(x)).Interface()
 }
 
@@ -257,7 +260,7 @@ func isZero(v reflect.Value) bool {
 }
 
 func getNonInterfaceValueDeep(v reflect.Value) reflect.Value {
-	for ; v.Kind() == reflect.Interface ; v = v.Elem() {
+	for ; v.Kind() == reflect.Interface; v = v.Elem() {
 	}
 	return v
 }
@@ -1006,7 +1009,7 @@ func unsetStructField(sv reflect.Value, name interface{}) error {
 	if !ok {
 		return fmt.Errorf("Not found %s.%s", sv.Type(), name)
 	}
-	nv := NewValue(ft.Type, nil)
+	nv := NewValue(ft.Type, "")
 	fv.Set(nv)
 	return nil
 }
@@ -1255,7 +1258,7 @@ func SetValueChild(pv reflect.Value, cv reflect.Value, key interface{}) (reflect
 		// nv := copySliceValue(pv)
 		// nv = setSliceValue(nv, cv.Interface())
 	default:
-		if ! pv.CanSet() {
+		if !pv.CanSet() {
 			return pv, fmt.Errorf("Not settable type(%s)", pv.Type())
 		}
 		pv.Set(cv)
@@ -1263,19 +1266,19 @@ func SetValueChild(pv reflect.Value, cv reflect.Value, key interface{}) (reflect
 	return pv, nil
 }
 
-// setInterfaceValue - finds and sets a value.
-func setInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key string, tag string, value string) error {
+// SetInterfaceValue - finds and sets a value.
+func SetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key string, tag string, value string) error {
 	var i int
 	var k string
 	var pkey string
 	var err error
-	// log.Debug("setInterfaceValue", keys, key)
+	// log.Debug("SetInterfaceValue", keys, key)
 	if !cv.IsValid() {
 		return fmt.Errorf("invalid parent value")
 	}
 	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
 		log.Debug(" * cv:", cv.Kind(), keys)
-		return setInterfaceValue(cv, cv.Elem(), keys, key, tag, value)
+		return SetInterfaceValue(cv, cv.Elem(), keys, key, tag, value)
 	}
 	for i, k = range keys {
 		log.Debug(" * cv:", cv.Kind(), keys)
@@ -1283,7 +1286,7 @@ func setInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 		switch cv.Kind() {
 		case reflect.Ptr, reflect.Interface:
 			rkeys := keys[i:]
-			return setInterfaceValue(cv, cv.Elem(), rkeys, key, tag, value)
+			return SetInterfaceValue(cv, cv.Elem(), rkeys, key, tag, value)
 		case reflect.Struct:
 			_, sfv, ok := findStructField(cv, k)
 			if !ok {
@@ -1378,25 +1381,24 @@ func setInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 	return nil
 }
 
-
-// unsetInterfaceValue - finds and unsets a value.
-func unsetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key string) error {
+// UnsetInterfaceValue - finds and unsets a value.
+func UnsetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key string) error {
 	var i int
 	var k string
-	// log.Debug("unsetInterfaceValue", keys, key)
+	// log.Debug("UnsetInterfaceValue", keys, key)
 	if !cv.IsValid() {
 		return fmt.Errorf("invalid parent value")
 	}
 	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
 		log.Debug(" * cv:", cv.Kind(), keys)
-		return unsetInterfaceValue(cv, cv.Elem(), keys, key)
+		return UnsetInterfaceValue(cv, cv.Elem(), keys, key)
 	}
 	for i, k = range keys {
 		log.Debug(" * cv:", cv.Kind(), keys)
 		switch cv.Kind() {
 		case reflect.Ptr, reflect.Interface:
 			rkeys := keys[i:]
-			return unsetInterfaceValue(cv, cv.Elem(), rkeys, key)
+			return UnsetInterfaceValue(cv, cv.Elem(), rkeys, key)
 		case reflect.Struct:
 			_, sfv, ok := findStructField(cv, k)
 			if !ok {
