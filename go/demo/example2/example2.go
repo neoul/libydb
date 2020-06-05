@@ -9,6 +9,7 @@ import (
 
 func main() {
 	ydb.DisableLog("ydb")
+	// ydb.SetLog("ydb", os.Stdout, logging.DEBUG, "")
 
 	datastore := map[string]interface{}{}
 	db, close := ydb.OpenWithTargetStruct("hello", &datastore)
@@ -22,4 +23,5 @@ func main() {
 	dec.Decode()
 
 	fmt.Println(datastore)
+	ydb.DebugValueString(datastore, 4, func(n ...interface{}) { fmt.Print(n) })
 }

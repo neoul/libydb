@@ -1,9 +1,12 @@
 package ydb
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 func typeString(t reflect.Type) string {
@@ -265,52 +268,95 @@ func getNonInterfaceValueDeep(v reflect.Value) reflect.Value {
 	return v
 }
 
-var maxValueStringLen = 150
-
-// ValueString returns a string representation of value which may be a value, ptr,
+// DebugValueString returns a string representation of value which may be a value, ptr,
 // or struct type.
-func ValueString(value interface{}) string {
+// - value: The value to print.
+// - depth: The depth of the printed values and types.
+// - print: The print function
+func DebugValueString(value interface{}, depth int, print func(a ...interface{})) string {
 	v := reflect.ValueOf(value)
-	if v.Type() == reflect.TypeOf(nil) {
-		return "nil()"
+	s := debugValueStr(v, depth, 0, "", false, false)
+	if print != nil {
+		reader := bufio.NewReader(strings.NewReader(s))
+		for {
+			line, err := reader.ReadString('\n')
+			if err == io.EOF {
+				print(line)
+				break
+			}
+			if err != nil {
+				ss := fmt.Sprintf("ValueString error: %s", err)
+				print(ss)
+				break
+			}
+			print(line)
+		}
+		print("\n")
+		return ""
 	}
-	if v.IsZero() {
-		return fmt.Sprintf("%s()", v.Type())
-	}
-
-	out := valueString(v, 0)
-	if len(out) > maxValueStringLen {
-		out = out[:maxValueStringLen] + "..."
-	}
-	return out
+	return s
 }
 
-// ValueStrInternal is the internal implementation of ValueString.
-func valueString(v reflect.Value, ptrcnt int) string {
+// DebugValueStringInline returns a string representation of value which may be a value, ptr,
+// or struct type.
+// - value: The value to print.
+// - depth: The depth of the printed values and types.
+// - print: The print function
+func DebugValueStringInline(value interface{}, depth int, print func(a ...interface{})) string {
+	v := reflect.ValueOf(value)
+	s := debugValueStr(v, depth, 0, "", false, true)
+	s = strings.ReplaceAll(s, "\n", " ")
+	if print != nil {
+		print(s)
+		return ""
+	}
+	return s
+}
+
+func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableIndent bool, noIndent bool) string {
 	var out string
+	if depth < 0 {
+		return "..."
+	}
+	if v.Type() == reflect.TypeOf(nil) {
+		if disableIndent || noIndent {
+			return "nil(nil)"
+		}
+		return indent + "nil(nil)"
+	}
+	if v.IsZero() {
+		if disableIndent || noIndent {
+			return fmt.Sprintf("%s(zero)", v.Type())
+		}
+		return indent + fmt.Sprintf("%s(zero)", v.Type())
+	}
 	if !v.IsValid() {
-		return fmt.Sprintf("%s(invalid)", v.Type())
+		if disableIndent || noIndent {
+			return fmt.Sprintf("%s(invalid)", v.Type())
+		}
+		return indent + fmt.Sprintf("%s(invalid)", v.Type())
 	}
 	if v.Kind() == reflect.Ptr && v.IsNil() || isValueNil(v.Interface()) {
-		return fmt.Sprintf("%s(nil)", v.Type())
+		if disableIndent || noIndent {
+			return fmt.Sprintf("%s(nil)", v.Type())
+		}
+		return indent + fmt.Sprintf("%s(nil)", v.Type())
 	}
 
-	// log.Debug("v:", v)
 	switch v.Kind() {
 	case reflect.Ptr:
 		ptrcnt++
-		out = "*" + valueString(v.Elem(), ptrcnt)
+		out = "*" + debugValueStr(v.Elem(), depth, ptrcnt, indent, true, noIndent)
+	case reflect.Interface:
+		ptrcnt++
+		out = "٭" + debugValueStr(v.Elem(), depth, ptrcnt, indent, true, noIndent)
 	case reflect.Slice:
 		out = fmt.Sprintf("%s(", v.Type())
 		for i := 0; i < v.Len(); i++ {
-			if i != 0 {
-				out += ","
-			}
-			out += ValueString(v.Index(i).Interface())
+			out += debugValueStr(v.Index(i), depth-1, 0, indent+"• ", false, noIndent)
 		}
 		out += ")"
 	case reflect.Struct:
-		comma := false
 		t := v.Type()
 		out = fmt.Sprintf("%s(", v.Type())
 		for i := 0; i < v.NumField(); i++ {
@@ -320,29 +366,32 @@ func valueString(v reflect.Value, ptrcnt int) string {
 			if areSameType(ft.Type, t) {
 				continue
 			}
-			if comma {
-				out += ","
-			}
-			if fv.CanInterface() {
-				out += fmt.Sprintf("%s:%v", ft.Name, ValueString(fv.Interface()))
+			if noIndent {
+				if fv.CanInterface() {
+					out += fmt.Sprintf("\n%s:%v", ft.Name, debugValueStr(fv, depth-1, 0, indent+"• ", true, noIndent))
+				} else {
+					out += fmt.Sprintf("\n%s:%v", ft.Name, fv)
+				}
 			} else {
-				out += fmt.Sprintf("%s:%v", ft.Name, fv)
+				if fv.CanInterface() {
+					out += fmt.Sprintf("\n%s%s:%v", indent+"• ", ft.Name, debugValueStr(fv, depth-1, 0, indent+"• ", true, noIndent))
+				} else {
+					out += fmt.Sprintf("\n%s%s:%v", indent+"• ", ft.Name, fv)
+				}
 			}
-			comma = true
 		}
 		out += ")"
 	case reflect.Map:
-		comma := false
 		out = fmt.Sprintf("%s(", v.Type())
 		iter := v.MapRange()
 		for iter.Next() {
 			k := iter.Key()
 			e := iter.Value()
-			if comma {
-				out += ","
+			if noIndent {
+				out += fmt.Sprintf("\n%v:%s", k, debugValueStr(e, depth-1, 0, indent+"• ", true, noIndent))
+			} else {
+				out += fmt.Sprintf("\n%s%v:%s", indent+"• ", k, debugValueStr(e, depth-1, 0, indent+"• ", true, noIndent))
 			}
-			out += fmt.Sprintf("%v:%s", k, ValueString(e.Interface()))
-			comma = true
 		}
 		out += ")"
 	default:
@@ -352,10 +401,10 @@ func valueString(v reflect.Value, ptrcnt int) string {
 		}
 		out = out + fmt.Sprintf("%v)", v)
 	}
-	if len(out) > maxValueStringLen {
-		out = out[:maxValueStringLen] + "..."
+	if disableIndent || noIndent {
+		return out
 	}
-	return out
+	return indent + out
 }
 
 func setMapValue(mv reflect.Value, key interface{}, element interface{}) error {
@@ -477,7 +526,7 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 					return err
 				}
 				if dv.OverflowInt(val) {
-					return fmt.Errorf("overflowInt: %s", ValueString(val))
+					return fmt.Errorf("overflowInt: %s", DebugValueStringInline(val, 0, nil))
 				}
 				dv.SetInt(val)
 			}
@@ -491,7 +540,7 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 					return err
 				}
 				if dv.OverflowUint(val) {
-					return fmt.Errorf("OverflowUint: %s", ValueString(val))
+					return fmt.Errorf("OverflowUint: %s", DebugValueStringInline(val, 0, nil))
 				}
 				dv.SetUint(val)
 			}
@@ -505,7 +554,7 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 					return err
 				}
 				if dv.OverflowFloat(val) {
-					return fmt.Errorf("OverflowFloat: %s", ValueString(val))
+					return fmt.Errorf("OverflowFloat: %s", DebugValueStringInline(val, 0, nil))
 				}
 				dv.SetFloat(val)
 			}
@@ -587,7 +636,7 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 		dv.Set(sv.Convert(dt))
 		return nil
 	}
-	return fmt.Errorf("Not Convertible: %s", ValueString(v.Interface()))
+	return fmt.Errorf("Not Convertible: %s", DebugValueStringInline(v.Interface(), 0, nil))
 }
 
 func getStructFieldName(ft reflect.StructField) (string, string) {
@@ -873,7 +922,7 @@ func NewValue(t reflect.Type, values ...interface{}) reflect.Value {
 		for _, val := range values {
 			err := setValueScalar(nv, val)
 			if err != nil {
-				log.Warningf("Not settable value inserted '%s'", ValueString(val))
+				log.Warningf("Not settable value inserted '%s'", DebugValueStringInline(val, 0, nil))
 			}
 		}
 		return nv
@@ -935,7 +984,7 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 			if v.Elem().CanSet() {
 				v.Elem().Set(nv.Elem())
 			} else {
-				log.Warning("Not settable value", ValueString(v.Interface()))
+				log.Warning("Not settable value", DebugValueStringInline(v.Interface(), 1, nil))
 			}
 		}
 		return nv
@@ -951,7 +1000,7 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 		for _, val := range values {
 			err := setValueScalar(nv, val)
 			if err != nil {
-				log.Warning("Not settable value:", ValueString(v.Interface()))
+				log.Warning("Not settable value:", DebugValueStringInline(v.Interface(), 0, nil))
 			}
 		}
 		return nv
@@ -1337,8 +1386,8 @@ func SetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 			}
 		}
 	}
-	log.Debugf("Before pv: %s, %s", pv.Kind(), ValueString(pv.Interface()))
-	log.Debugf("Before cv: %s, %s", cv.Kind(), ValueString(cv.Interface()))
+	log.Debugf("Before pv: %s: %s", pv.Kind(), DebugValueStringInline(pv.Interface(), 1, nil))
+	log.Debugf("Before cv: %s: %s", cv.Kind(), DebugValueStringInline(cv.Interface(), 1, nil))
 
 	cv = getNonInterfaceValueDeep(cv)
 	if isYamlSeq(tag) {
@@ -1376,8 +1425,8 @@ func SetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 		}
 	}
 
-	log.Debugf("After pv: %s, %s", pv.Kind(), ValueString(pv.Interface()))
-	log.Debugf("After cv: %s, %s", cv.Kind(), ValueString(cv.Interface()))
+	log.Debugf("After cv: %s", cv.Kind())
+	DebugValueString(cv.Interface(), 1, log.Debug)
 	return nil
 }
 
@@ -1438,8 +1487,8 @@ func UnsetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key 
 		default: // scalar
 		}
 	}
-	log.Debugf("Before pv: %s, %s", pv.Kind(), ValueString(pv.Interface()))
-	log.Debugf("Before cv: %s, %s", cv.Kind(), ValueString(cv.Interface()))
+	log.Debugf("Before pv: %s: %s", pv.Kind(), DebugValueStringInline(pv.Interface(), 1, nil))
+	log.Debugf("Before cv: %s: %s", cv.Kind(), DebugValueStringInline(cv.Interface(), 1, nil))
 
 	var err error
 	cv = getNonInterfaceValueDeep(cv)
@@ -1447,7 +1496,7 @@ func UnsetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key 
 		err = UnsetValue(cv, key)
 	}
 
-	log.Debugf("After pv: %s, %s", pv.Kind(), ValueString(pv.Interface()))
-	log.Debugf("After cv: %s, %s", cv.Kind(), ValueString(cv.Interface()))
+	log.Debugf("After cv: %s", cv.Kind())
+	DebugValueString(cv.Interface(), 1, log.Debug)
 	return err
 }

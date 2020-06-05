@@ -14,12 +14,12 @@ func main() {
 	// db, close := ydb.OpenWithTargetStruct("hello", &ydb.EmptyGoStruct{})
 	defer close()
 	// ydb.SetLog(ydb.LogDebug)
-	err := db.Connect("uss://test", "pub")
+	err := db.Connect("uss://test", "sub")
 	if err != nil {
 		log.Println(err)
 	}
 	db.Serve()
-	<- done
+	<-done
 	err = db.Disconnect("uss://test")
 	if err != nil {
 		log.Println(err)
