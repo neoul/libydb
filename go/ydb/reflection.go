@@ -291,7 +291,7 @@ func DebugValueString(value interface{}, depth int, print func(a ...interface{})
 			}
 			print(line)
 		}
-		print("\n")
+		// print("\n")
 		return ""
 	}
 	return s
@@ -659,6 +659,20 @@ func getStructFieldName(ft reflect.StructField) (string, string) {
 	return prefix, name
 }
 
+func checkStructFieldTagName(ft reflect.StructField, name string) bool {
+	tag := string(ft.Tag)
+	index := strings.Index(tag, name)
+	if index > 0 {
+		if tag[index-1] == '"' || tag[index-1] == '\'' {
+			l := len(name)
+			if tag[index+l] == '"' || tag[index+l] == '\'' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func findStructField(sv reflect.Value, name interface{}) (reflect.StructField, reflect.Value, bool) {
 	var st reflect.Type
 	var fv reflect.Value
@@ -680,8 +694,7 @@ func findStructField(sv reflect.Value, name interface{}) (reflect.StructField, r
 		if !fv.IsValid() || !fv.CanSet() {
 			continue
 		}
-		_, alias := getStructFieldName(ft)
-		if alias == sname {
+		if checkStructFieldTagName(ft, sname) {
 			return ft, fv, true
 		}
 	}

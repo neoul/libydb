@@ -163,20 +163,20 @@ func main() {
 	dec := db.NewDecoder(r)
 	dec.Decode()
 
-	var user interface{}
-	user, err = db.Convert(ydb.RetrieveAll())
-	ylog.Debug(user)
+	// var user interface{}
+	// user, err = db.Convert(ydb.RetrieveAll())
+	// ylog.Debug(user)
 
 	// var user map[string]interface{}
 	// user = map[string]interface{}{}
 	// _, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(user))
 	// ylog.Debug(user)
 
-	// gs := GoStruct{}
-	// _, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
-	// ylog.Debug(gs)
-	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
-	// fmt.Println(*&gs.Company.Address)
+	gs := GoStruct{}
+	_, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
+	ylog.Debug(gs)
+	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+	fmt.Println(*&gs.Company.Address)
 
 	// gs := schema.Example{}
 	// _, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))

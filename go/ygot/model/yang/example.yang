@@ -27,5 +27,14 @@ module network {
     leaf name {
       type string;
     }
+    leaf enumval {
+      type enumeration {
+         enum enum1;
+         enum enum2;
+         enum enum3 {
+           value 30;
+         }
+      }
+    }
   }
 }

@@ -312,21 +312,16 @@ func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
 	return updater, newkey
 }
 
-// merge - constructs the non-updater struct
-func merge(v reflect.Value, keys []string, key string, tag string, value string) error {
-	return SetInterfaceValue(v, v, keys, key, tag, value)
-}
-
 func create(v reflect.Value, keys []string, key string, tag string, value string) error {
 	log.Debugf("Node.Create(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
-	err := merge(v, keys, key, tag, value)
+	err := SetInterfaceValue(v, v, keys, key, tag, value)
 	log.Debug("}", err)
 	return err
 }
 
 func replace(v reflect.Value, keys []string, key string, tag string, value string) error {
 	log.Debugf("Node.Replace(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
-	err := merge(v, keys, key, tag, value)
+	err := SetInterfaceValue(v, v, keys, key, tag, value)
 	log.Debug("}", err)
 	return err
 }

@@ -13,3 +13,4 @@ operator:
   "address": !!set
     ? "seoul"
     ? "LA"
+  "enumval": enum3
