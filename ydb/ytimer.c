@@ -383,6 +383,11 @@ int ytimer_serve(ytimer *timer)
     uint64_t num_of_expires = 0;
     struct timespec cur;
     unsigned long timer_id;
+    if (timer == NULL)
+    {
+        ylog_error("ytimer: no timer created\n");
+        return -1;
+    }
 
     ssize_t len = read(timer->timerfd, &num_of_expires, sizeof(uint64_t));
     if (len < 0)

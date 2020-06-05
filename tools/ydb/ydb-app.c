@@ -831,7 +831,7 @@ int main(int argc, char *argv[])
             }
             while (!done)
             {
-                int ret, fd, timerfd = 0, fdmax;
+                int ret, fd, timerfd = -1, fdmax;
                 fd_set read_set;
                 struct timeval tv;
                 tv.tv_sec = daemon_timeout / 1000;
@@ -874,7 +874,7 @@ int main(int argc, char *argv[])
                     else if (YDB_WARNING(res))
                         printf("\nydb warning: %s\n", ydb_res_str(res));
                 }
-                else if (FD_ISSET(timerfd, &read_set))
+                else if (timerfd >= 0 && FD_ISSET(timerfd, &read_set))
                 {
                     FD_CLR(timerfd, &read_set);
                     ytimer_serve(timer);
