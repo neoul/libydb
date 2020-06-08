@@ -262,8 +262,16 @@ func isZero(v reflect.Value) bool {
 	return result
 }
 
-func getNonInterfaceValueDeep(v reflect.Value) reflect.Value {
+// GetNonInterfaceValueDeep - Find the non-interface reflect.value
+func GetNonInterfaceValueDeep(v reflect.Value) reflect.Value {
 	for ; v.Kind() == reflect.Interface; v = v.Elem() {
+	}
+	return v
+}
+
+// GetNonIfOrPtrValueDeep - Find the non-interface and non-ptr reflect.value
+func GetNonIfOrPtrValueDeep(v reflect.Value) reflect.Value {
+	for ; v.Kind() == reflect.Interface || v.Kind() == reflect.Ptr; v = v.Elem() {
 	}
 	return v
 }
@@ -1214,14 +1222,18 @@ func FindValue(v reflect.Value, keys ...string) reflect.Value {
 }
 
 // FindValueWithParent - finds a value and its parent value from the struct, map or slice value using the string keys.
-func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (reflect.Value, reflect.Value, string) {
+func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (reflect.Value, reflect.Value, string, bool) {
 	var i int
 	var key string
 	if !cv.IsValid() {
-		return reflect.Value{}, reflect.Value{}, ""
+		return reflect.Value{}, reflect.Value{}, "", false
+	}
+	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
+		log.Debug(" * cv:", cv.Kind(), keys)
+		return FindValueWithParent(cv, cv.Elem(), keys...)
 	}
 	for i, key = range keys {
-		// log.Debug("cv:", cv, cv.Type(), key)
+		log.Debug(" * cv:", cv.Kind(), keys)
 		switch cv.Kind() {
 		case reflect.Ptr, reflect.Interface:
 			rkeys := keys[i:]
@@ -1230,7 +1242,7 @@ func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (re
 			_, sfv, ok := findStructField(cv, key)
 			if !ok {
 				log.Warning("Not found:", key)
-				return reflect.Value{}, reflect.Value{}, ""
+				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			pv = cv
 			cv = sfv
@@ -1239,12 +1251,12 @@ func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (re
 			kv := newValue(mt.Key(), key)
 			if !kv.IsValid() {
 				log.Warning("Wrong key:", key)
-				return reflect.Value{}, reflect.Value{}, ""
+				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			vv := cv.MapIndex(kv)
 			if !vv.IsValid() {
 				log.Warning("Not found:", key)
-				return reflect.Value{}, reflect.Value{}, ""
+				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			pv = cv
 			cv = vv
@@ -1252,29 +1264,30 @@ func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (re
 			idxv := newValue(reflect.TypeOf(0), key)
 			if !idxv.IsValid() {
 				log.Warning("Wrong key:", key)
-				return reflect.Value{}, reflect.Value{}, ""
+				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			index := idxv.Interface().(int)
 			if cv.Len() <= index {
 				log.Warning("Out of range:", index)
-				return reflect.Value{}, reflect.Value{}, ""
+				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			vv := cv.Index(index)
 			if !vv.IsValid() {
 				log.Warning("Invalid value found:", key)
-				return reflect.Value{}, reflect.Value{}, ""
+				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			pv = cv
 			cv = vv
 		default:
 			log.Warning("Not found:", key)
-			return reflect.Value{}, reflect.Value{}, ""
+			return pv, cv, key, false
 		}
 	}
-	return pv, cv, key
+	return pv, cv, key, true
 }
 
-func isYamlSeq(tag string) bool {
+// IsYamlSeq - Return true if the tag is sequence object.
+func IsYamlSeq(tag string) bool {
 	switch tag {
 	case "!!seq":
 		return true
@@ -1283,7 +1296,8 @@ func isYamlSeq(tag string) bool {
 	}
 }
 
-func isYamlMap(tag string) bool {
+// IsYamlMap - Return true if the tag is map object.
+func IsYamlMap(tag string) bool {
 	switch tag {
 	case "!!map", "!!imap", "!!set", "!!omap":
 		return true
@@ -1292,7 +1306,8 @@ func isYamlMap(tag string) bool {
 	}
 }
 
-func isYamlScalar(tag string) bool {
+// IsYamlScalar - Return true if the tag is a scalar.
+func IsYamlScalar(tag string) bool {
 	switch tag {
 	case "!!map", "!!imap", "!!set", "!!omap", "!!seq":
 		return false
@@ -1304,18 +1319,19 @@ func isYamlScalar(tag string) bool {
 // SetValueChild - Set a child value to the parent value.
 func SetValueChild(pv reflect.Value, cv reflect.Value, key interface{}) (reflect.Value, error) {
 	log.Debug("SetValueChild", pv.Type(), cv.Type(), key)
-	switch pv.Type().Kind() {
+	v := GetNonIfOrPtrValueDeep(pv)
+	switch v.Type().Kind() {
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Interface:
-		return pv, fmt.Errorf("Not supported parent type (%s)", pv.Type().Kind())
+		return pv, fmt.Errorf("Not supported parent type (%s)", v.Type().Kind())
 	case reflect.Struct:
-		_, fv, ok := findStructField(pv, key)
+		_, fv, ok := findStructField(v, key)
 		if !ok {
 			return pv, fmt.Errorf("Not found %s.%s", pv.Type(), key)
 		}
 		fv.Set(cv)
 	case reflect.Map:
-		kv := newValue(pv.Type().Key(), key)
-		pv.SetMapIndex(kv, cv)
+		kv := newValue(v.Type().Key(), key)
+		v.SetMapIndex(kv, cv)
 	case reflect.Slice:
 		// nv := copySliceValue(pv)
 		// nv = setSliceValue(nv, cv.Interface())
@@ -1402,8 +1418,8 @@ func SetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 	log.Debugf("Before pv: %s: %s", pv.Kind(), DebugValueStringInline(pv.Interface(), 1, nil))
 	log.Debugf("Before cv: %s: %s", cv.Kind(), DebugValueStringInline(cv.Interface(), 1, nil))
 
-	cv = getNonInterfaceValueDeep(cv)
-	if isYamlSeq(tag) {
+	cv = GetNonInterfaceValueDeep(cv)
+	if IsYamlSeq(tag) {
 		nv := reflect.ValueOf([]interface{}{})
 		cv, err = SetValueChild(cv, nv, key)
 		if err != nil {
@@ -1504,7 +1520,7 @@ func UnsetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key 
 	log.Debugf("Before cv: %s: %s", cv.Kind(), DebugValueStringInline(cv.Interface(), 1, nil))
 
 	var err error
-	cv = getNonInterfaceValueDeep(cv)
+	cv = GetNonInterfaceValueDeep(cv)
 	if key != "" {
 		err = UnsetValue(cv, key)
 	}

@@ -72,15 +72,15 @@ func main() {
 	example := Schema.Root
 	ylog.Debug(example)
 
-	db, close := ydb.Open("mydb")
-	defer close()
-	r, err := os.Open("model/data/example.yaml")
-	defer r.Close()
-	if err != nil {
-		ylog.Fatal(err)
-	}
-	dec := db.NewDecoder(r)
-	dec.Decode()
+	// db, close := ydb.Open("mydb")
+	// defer close()
+	// r, err := os.Open("model/data/example.yaml")
+	// defer r.Close()
+	// if err != nil {
+	// 	ylog.Fatal(err)
+	// }
+	// dec := db.NewDecoder(r)
+	// dec.Decode()
 
 	// var user interface{}
 	// user, err = db.Convert(ydb.RetrieveAll())
@@ -91,26 +91,29 @@ func main() {
 	// _, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(user))
 	// ylog.Debug(user)
 
-	gs := schema.GoStruct{}
-	_, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
-	ylog.Debug(gs)
-	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
-	fmt.Println(*&gs.Company.Address)
-
-	// gs := schema.Example{}
+	// gs := schema.Device{}
 	// _, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
 	// ylog.Debug(gs)
 	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
-	// fmt.Println(*&gs.Company.Address)
+	// fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
 
-	// gs := schema.Example{}
-	// db, close := ydb.OpenWithTargetStruct("running", &gs)
-	// defer close()
-	// r, err := os.Open("model/data/example.yaml")
-	// defer r.Close()
-	// if err != nil {
-	// 	ylog.Fatal(err)
-	// }
-	// dec := db.NewDecoder(r)
-	// dec.Decode()
+	// gs := schema.Device{}
+	// _, err = db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(&gs))
+	// ylog.Debug(gs)
+	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+	// fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
+
+	gs := schema.Device{}
+	db, close := ydb.OpenWithTargetStruct("running", &gs)
+	defer close()
+	r, err := os.Open("model/data/example.yaml")
+	defer r.Close()
+	if err != nil {
+		ylog.Fatal(err)
+	}
+	dec := db.NewDecoder(r)
+	dec.Decode()
+	ylog.Debug(gs)
+	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+	fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
 }
