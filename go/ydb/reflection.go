@@ -361,6 +361,9 @@ func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableInd
 	case reflect.Slice:
 		out = fmt.Sprintf("%s(", v.Type())
 		for i := 0; i < v.Len(); i++ {
+			if !noIndent {
+				out += "\n"
+			}
 			out += debugValueStr(v.Index(i), depth-1, 0, indent+"• ", false, noIndent)
 		}
 		out += ")"
@@ -1100,7 +1103,11 @@ func UnsetValue(v reflect.Value, key interface{}) error {
 	case reflect.Map:
 		return unsetMapValue(v, key)
 	case reflect.Slice:
-		return fmt.Errorf("TBI[To Be Implemented]")
+		if index, ok := ValSliceSearch(v, key); ok {
+			log.Debug(v, index, ok)
+			return ValSliceDelete(v, index)
+		}
+		return fmt.Errorf("Not found unset value")
 	case reflect.Interface:
 		return UnsetValue(v.Elem(), key)
 	default:

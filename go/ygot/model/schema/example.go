@@ -2,13 +2,19 @@ package schema
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 
 	"github.com/neoul/libydb/go/ydb"
+	"github.com/op/go-logging"
 	"github.com/openconfig/ygot/ytypes"
 )
 
 //go:generate go run ../../../../../../../github.com/openconfig/ygot/generator/generator.go -path=yang -output_file=generated.go -package_name=schema -generate_fakeroot -fakeroot_name=device ../yang/example.yang
+
+func init() {
+	ydb.SetLog("ydb", os.Stdout, logging.ERROR, "%{message}")
+}
 
 // Merge - constructs Device
 func Merge(device *Device, keys []string, key string, tag string, value string) error {
@@ -43,10 +49,10 @@ func Merge(device *Device, keys []string, key string, tag string, value string) 
 		if v.IsValid() && value != "" {
 			v, err = ytypes.StringToType(v.Type(), value)
 			if err == nil {
-				if cv.Kind() == reflect.Ptr {
-					cv = cv.Elem()
-				}
-				fmt.Printf("%T %s", v.Interface(), v)
+				// if cv.Kind() == reflect.Ptr {
+				// 	cv = cv.Elem()
+				// }
+				// fmt.Printf("%T %s", v.Interface(), v)
 				cv, err = ydb.SetValueChild(cv, v, key)
 				return err
 			}

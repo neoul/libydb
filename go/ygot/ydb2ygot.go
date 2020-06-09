@@ -24,8 +24,8 @@ var (
 )
 
 func init() {
-	// ylog = ydb.SetLog("ydb2ygot", os.Stderr, logging.DEBUG, "%{message}")
-	ylog = ydb.SetLog("ydb2ygot", os.Stderr, logging.DEBUG, "")
+	ylog = ydb.SetLog("ydb2ygot", os.Stderr, logging.DEBUG, "%{message}")
+	// ylog = ydb.SetLog("ydb2ygot", os.Stderr, logging.ERROR, "")
 
 	schema, err := schema.Schema()
 	if err != nil {
