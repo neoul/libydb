@@ -361,7 +361,7 @@ func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableInd
 	case reflect.Slice:
 		out = fmt.Sprintf("%s(", v.Type())
 		for i := 0; i < v.Len(); i++ {
-			if !noIndent {
+			if !noIndent && depth > 0 {
 				out += "\n"
 			}
 			out += debugValueStr(v.Index(i), depth-1, 0, indent+"• ", false, noIndent)
@@ -384,10 +384,13 @@ func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableInd
 					out += fmt.Sprintf("\n%s:%v", ft.Name, fv)
 				}
 			} else {
+				if depth > 0 {
+					out += "\n"
+				}
 				if fv.CanInterface() {
-					out += fmt.Sprintf("\n%s%s:%v", indent+"• ", ft.Name, debugValueStr(fv, depth-1, 0, indent+"• ", true, noIndent))
+					out += fmt.Sprintf("%s%s:%v", indent+"• ", ft.Name, debugValueStr(fv, depth-1, 0, indent+"• ", true, noIndent))
 				} else {
-					out += fmt.Sprintf("\n%s%s:%v", indent+"• ", ft.Name, fv)
+					out += fmt.Sprintf("%s%s:%v", indent+"• ", ft.Name, fv)
 				}
 			}
 		}
@@ -401,7 +404,10 @@ func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableInd
 			if noIndent {
 				out += fmt.Sprintf("\n%v:%s", k, debugValueStr(e, depth-1, 0, indent+"• ", true, noIndent))
 			} else {
-				out += fmt.Sprintf("\n%s%v:%s", indent+"• ", k, debugValueStr(e, depth-1, 0, indent+"• ", true, noIndent))
+				if depth > 0 {
+					out += "\n"
+				}
+				out += fmt.Sprintf("%s%v:%s", indent+"• ", k, debugValueStr(e, depth-1, 0, indent+"• ", true, noIndent))
 			}
 		}
 		out += ")"
@@ -1093,6 +1099,9 @@ func UnsetValue(v reflect.Value, key interface{}) error {
 	if !v.IsValid() {
 		return fmt.Errorf("Invalid value")
 	}
+	if !v.CanSet() {
+		return fmt.Errorf("Not settable value")
+	}
 	t := v.Type()
 	pt := getBaseType(t)
 	switch pt.Kind() {
@@ -1104,7 +1113,6 @@ func UnsetValue(v reflect.Value, key interface{}) error {
 		return unsetMapValue(v, key)
 	case reflect.Slice:
 		if index, ok := ValSliceSearch(v, key); ok {
-			log.Debug(v, index, ok)
 			return ValSliceDelete(v, index)
 		}
 		return fmt.Errorf("Not found unset value")
@@ -1351,19 +1359,19 @@ func SetValueChild(pv reflect.Value, cv reflect.Value, key interface{}) (reflect
 	return pv, nil
 }
 
-// SetInterfaceValue - finds and sets a value.
-func SetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key string, tag string, value string) error {
+// SetValueDeep - finds and sets a value.
+func SetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string, tag string, value string) error {
 	var i int
 	var k string
 	var pkey string
 	var err error
-	// log.Debug("SetInterfaceValue", keys, key)
+	// log.Debug("SetValueDeep", keys, key)
 	if !cv.IsValid() {
 		return fmt.Errorf("invalid parent value")
 	}
 	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
 		log.Debug(" * cv:", cv.Kind(), keys)
-		return SetInterfaceValue(cv, cv.Elem(), keys, key, tag, value)
+		return SetValueDeep(cv, cv.Elem(), keys, key, tag, value)
 	}
 	for i, k = range keys {
 		log.Debug(" * cv:", cv.Kind(), keys)
@@ -1371,7 +1379,7 @@ func SetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 		switch cv.Kind() {
 		case reflect.Ptr, reflect.Interface:
 			rkeys := keys[i:]
-			return SetInterfaceValue(cv, cv.Elem(), rkeys, key, tag, value)
+			return SetValueDeep(cv, cv.Elem(), rkeys, key, tag, value)
 		case reflect.Struct:
 			_, sfv, ok := findStructField(cv, k)
 			if !ok {
@@ -1466,24 +1474,24 @@ func SetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key st
 	return nil
 }
 
-// UnsetInterfaceValue - finds and unsets a value.
-func UnsetInterfaceValue(pv reflect.Value, cv reflect.Value, keys []string, key string) error {
+// UnsetValueDeep - finds and unsets a value in deep.
+func UnsetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string) error {
 	var i int
 	var k string
-	// log.Debug("UnsetInterfaceValue", keys, key)
+	// log.Debug("UnsetValueDeep", keys, key)
 	if !cv.IsValid() {
 		return fmt.Errorf("invalid parent value")
 	}
 	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
 		log.Debug(" * cv:", cv.Kind(), keys)
-		return UnsetInterfaceValue(cv, cv.Elem(), keys, key)
+		return UnsetValueDeep(cv, cv.Elem(), keys, key)
 	}
 	for i, k = range keys {
 		log.Debug(" * cv:", cv.Kind(), keys)
 		switch cv.Kind() {
 		case reflect.Ptr, reflect.Interface:
 			rkeys := keys[i:]
-			return UnsetInterfaceValue(cv, cv.Elem(), rkeys, key)
+			return UnsetValueDeep(cv, cv.Elem(), rkeys, key)
 		case reflect.Struct:
 			_, sfv, ok := findStructField(cv, k)
 			if !ok {

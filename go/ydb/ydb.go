@@ -314,14 +314,14 @@ func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
 
 func create(v reflect.Value, keys []string, key string, tag string, value string) error {
 	log.Debugf("Node.Create(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
-	err := SetInterfaceValue(v, v, keys, key, tag, value)
+	err := SetValueDeep(v, v, keys, key, tag, value)
 	log.Debug("}", err)
 	return err
 }
 
 func replace(v reflect.Value, keys []string, key string, tag string, value string) error {
 	log.Debugf("Node.Replace(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
-	err := SetInterfaceValue(v, v, keys, key, tag, value)
+	err := SetValueDeep(v, v, keys, key, tag, value)
 	log.Debug("}", err)
 	return err
 }
@@ -329,7 +329,7 @@ func replace(v reflect.Value, keys []string, key string, tag string, value strin
 // delete - constructs the non-updater struct
 func delete(v reflect.Value, keys []string, key string) error {
 	log.Debugf("Node.Delete(%v, %s, %s) {", v, keys, key)
-	err := UnsetInterfaceValue(v, v, keys, key)
+	err := UnsetValueDeep(v, v, keys, key)
 	log.Debug("}", err)
 	return err
 }

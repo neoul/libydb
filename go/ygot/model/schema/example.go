@@ -108,7 +108,7 @@ func (device *Device) Replace(keys []string, key string, tag string, value strin
 func (device *Device) Delete(keys []string, key string) error {
 	fmt.Printf("Device.Delete %v %v {\n", keys, key)
 	v := reflect.ValueOf(device)
-	err := ydb.UnsetInterfaceValue(v, v, keys, key)
+	err := ydb.UnsetValueDeep(v, v, keys, key)
 	fmt.Println("}", err)
 	return err
 }
