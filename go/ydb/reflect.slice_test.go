@@ -1,7 +1,6 @@
 package ydb
 
 import (
-	"reflect"
 	"testing"
 )
 
@@ -56,6 +55,7 @@ func TestSliceDelete(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
+		want error
 	}{
 		{
 			name: "delete an element value in the slice",
@@ -63,6 +63,7 @@ func TestSliceDelete(t *testing.T) {
 				slice: &([]int{10, 20, 50, 40, 30, 60}),
 				i:     3,
 			},
+			want: nil,
 		},
 		{
 			name: "delete an element value in the slice with different element type",
@@ -70,13 +71,17 @@ func TestSliceDelete(t *testing.T) {
 				slice: &([]int{10, 20, 50, 40, 30, 60}),
 				i:     0,
 			},
+			want: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Log("Before", tt.args.slice)
-			SliceDelete(tt.args.slice, tt.args.i)
+			got := SliceDelete(tt.args.slice, tt.args.i)
 			t.Log("After", tt.args.slice)
+			if got != tt.want {
+				t.Errorf("SliceDelete() got = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -90,6 +95,7 @@ func TestSliceInsert(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
+		want error
 	}{
 		{
 			name: "Insert an element value in the slice",
@@ -98,6 +104,7 @@ func TestSliceInsert(t *testing.T) {
 				i:     3,
 				val:   70,
 			},
+			want: nil,
 		},
 		{
 			name: "Insert an element value in the slice with different element type",
@@ -106,13 +113,17 @@ func TestSliceInsert(t *testing.T) {
 				i:     0,
 				val:   "70",
 			},
+			want: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Log("Before", tt.args.slice)
-			SliceInsert(tt.args.slice, tt.args.i, tt.args.val)
+			got := SliceInsert(tt.args.slice, tt.args.i, tt.args.val)
 			t.Log("After", tt.args.slice)
+			if got != tt.want {
+				t.Errorf("SliceInsert() got = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -125,6 +136,7 @@ func TestSliceDeleteCopy(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
+		want error
 	}{
 		{
 			name: "delete an element value in the slice",
@@ -132,6 +144,7 @@ func TestSliceDeleteCopy(t *testing.T) {
 				slice: []int{10, 20, 50, 40, 30, 60},
 				i:     3,
 			},
+			want: nil,
 		},
 		{
 			name: "delete an element value in the slice with different element type",
@@ -139,14 +152,18 @@ func TestSliceDeleteCopy(t *testing.T) {
 				slice: []int{10, 20, 50, 40, 30, 60},
 				i:     0,
 			},
+			want: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := tt.args.slice
-			SliceDeleteCopy(&tt.args.slice, tt.args.i)
+			got := SliceDeleteCopy(&tt.args.slice, tt.args.i)
 			t.Log("After", s)
 			t.Log("After", tt.args.slice)
+			if got != tt.want {
+				t.Errorf("SliceDeleteCopy() got = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -160,6 +177,7 @@ func TestSliceInsertCopy(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
+		want error
 	}{
 		{
 			name: "Insert an element value in the slice",
@@ -168,6 +186,7 @@ func TestSliceInsertCopy(t *testing.T) {
 				i:     3,
 				val:   70,
 			},
+			want: nil,
 		},
 		{
 			name: "Insert an element value in the slice with different element type",
@@ -176,125 +195,17 @@ func TestSliceInsertCopy(t *testing.T) {
 				i:     0,
 				val:   "70",
 			},
+			want: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := tt.args.slice
-			SliceInsertCopy(&tt.args.slice, tt.args.i, tt.args.val)
+			got := SliceInsertCopy(&tt.args.slice, tt.args.i, tt.args.val)
 			t.Log("After", s)
 			t.Log("After", tt.args.slice)
-		})
-	}
-}
-
-func TestValSliceSearch(t *testing.T) {
-	type args struct {
-		v   reflect.Value
-		key interface{}
-	}
-	tests := []struct {
-		name  string
-		args  args
-		want  int
-		want1 bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := ValSliceSearch(tt.args.v, tt.args.key)
 			if got != tt.want {
-				t.Errorf("ValSliceSearch() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("ValSliceSearch() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
-}
-
-func TestValSliceDelete(t *testing.T) {
-	type args struct {
-		v reflect.Value
-		i int
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := ValSliceDelete(tt.args.v, tt.args.i); (err != nil) != tt.wantErr {
-				t.Errorf("ValSliceDelete() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValSliceInsert(t *testing.T) {
-	type args struct {
-		v   reflect.Value
-		i   int
-		val interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := ValSliceInsert(tt.args.v, tt.args.i, tt.args.val); (err != nil) != tt.wantErr {
-				t.Errorf("ValSliceInsert() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValSliceDeleteCopy(t *testing.T) {
-	type args struct {
-		v reflect.Value
-		i int
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := ValSliceDeleteCopy(tt.args.v, tt.args.i); (err != nil) != tt.wantErr {
-				t.Errorf("ValSliceDeleteCopy() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValSliceInsertCopy(t *testing.T) {
-	type args struct {
-		v   reflect.Value
-		i   int
-		val interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := ValSliceInsertCopy(tt.args.v, tt.args.i, tt.args.val); (err != nil) != tt.wantErr {
-				t.Errorf("ValSliceInsertCopy() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SliceInsertCopy() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

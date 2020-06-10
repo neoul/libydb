@@ -11,52 +11,31 @@ import (
 // SliceSearch - Search an element by key.
 func SliceSearch(slice interface{}, key interface{}) (int, bool) {
 	v := reflect.ValueOf(slice)
-	et := v.Type().Elem()
-	kv := newValue(et, key)
-	length := v.Len()
-	for i := 0; i < length; i++ {
-		if reflect.DeepEqual(v.Index(i).Interface(), kv.Interface()) {
-			return i, true
-		}
-	}
-	return length, false
+	return ValSliceSearch(v, key)
 }
 
 // SliceDelete - Delete an element indexed by i.
-func SliceDelete(slice interface{}, i int) {
+func SliceDelete(slice interface{}, i int) error {
 	v := reflect.ValueOf(slice).Elem()
-	v.Set(reflect.AppendSlice(v.Slice(0, i), v.Slice(i+1, v.Len())))
+	return ValSliceDelete(v, i)
 }
 
 // SliceInsert - Insert an element to the index.
-func SliceInsert(slice interface{}, i int, val interface{}) {
+func SliceInsert(slice interface{}, i int, val interface{}) error {
 	v := reflect.ValueOf(slice).Elem()
-	v.Set(reflect.AppendSlice(v.Slice(0, i+1), v.Slice(i, v.Len())))
-	// v.Index(i).Set(reflect.ValueOf(val))
-	ev := newValue(v.Type().Elem(), val)
-	v.Index(i).Set(ev)
+	return ValSliceInsert(v, i, val)
 }
 
 // SliceDeleteCopy - Create a slice without an element indexed by i.
-func SliceDeleteCopy(slice interface{}, i int) {
+func SliceDeleteCopy(slice interface{}, i int) error {
 	v := reflect.ValueOf(slice).Elem()
-	tmp := reflect.MakeSlice(v.Type(), 0, v.Len()-1)
-	v.Set(
-		reflect.AppendSlice(
-			reflect.AppendSlice(tmp, v.Slice(0, i)),
-			v.Slice(i+1, v.Len())))
+	return ValSliceDeleteCopy(v, i)
 }
 
 // SliceInsertCopy - Create a slice with an element to the index i.
-func SliceInsertCopy(slice interface{}, i int, val interface{}) {
+func SliceInsertCopy(slice interface{}, i int, val interface{}) error {
 	v := reflect.ValueOf(slice).Elem()
-	tmp := reflect.MakeSlice(v.Type(), 0, v.Len()+1)
-	v.Set(reflect.AppendSlice(
-		reflect.AppendSlice(tmp, v.Slice(0, i+1)),
-		v.Slice(i, v.Len())))
-	// v.Index(i).Set(reflect.ValueOf(val))
-	ev := newValue(v.Type().Elem(), val)
-	v.Index(i).Set(ev)
+	return ValSliceInsertCopy(v, i, val)
 }
 
 // slice operations for reflect.Value
@@ -87,7 +66,9 @@ func ValSliceDelete(v reflect.Value, i int) error {
 func ValSliceInsert(v reflect.Value, i int, val interface{}) error {
 	if v.CanSet() {
 		v.Set(reflect.AppendSlice(v.Slice(0, i+1), v.Slice(i, v.Len())))
-		v.Index(i).Set(reflect.ValueOf(val))
+		// v.Index(i).Set(reflect.ValueOf(val))
+		ev := newValue(v.Type().Elem(), val)
+		v.Index(i).Set(ev)
 		return nil
 	}
 	return fmt.Errorf("Cannot set value")
@@ -113,7 +94,10 @@ func ValSliceInsertCopy(v reflect.Value, i int, val interface{}) error {
 		v.Set(reflect.AppendSlice(
 			reflect.AppendSlice(tmp, v.Slice(0, i+1)),
 			v.Slice(i, v.Len())))
-		v.Index(i).Set(reflect.ValueOf(val))
+		// v.Index(i).Set(reflect.ValueOf(val))
+		ev := newValue(v.Type().Elem(), val)
+		v.Index(i).Set(ev)
+		return nil
 	}
 	return fmt.Errorf("Cannot set value")
 }

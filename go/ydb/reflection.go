@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// EnableTagLookup - Enable the tag lookup of struct fields for searching value
+var EnableTagLookup bool = true
+
+// TagLookupKey - the key of the struct field tag to search a value.
+var TagLookupKey string = "path"
+
 func typeString(t reflect.Type) string {
 	return fmt.Sprintf("%s", t)
 }
@@ -104,8 +110,8 @@ func areSameType(t1 reflect.Type, t2 reflect.Type) bool {
 	return b1 == b2
 }
 
-// isNilOrInvalidValue reports whether v is nil or reflect.Zero.
-func isNilOrInvalidValue(v reflect.Value) bool {
+// IsNilOrInvalidValue reports whether v is nil or reflect.Zero.
+func IsNilOrInvalidValue(v reflect.Value) bool {
 	return !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) || isValueNil(v.Interface())
 }
 
@@ -167,7 +173,7 @@ func IsValueSlice(v reflect.Value) bool {
 
 // isValueScalar reports whether v is a scalar type.
 func isValueScalar(v reflect.Value) bool {
-	if isNilOrInvalidValue(v) {
+	if IsNilOrInvalidValue(v) {
 		return false
 	}
 	if isValuePtr(v) {
@@ -656,26 +662,6 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 	return fmt.Errorf("Not Convertible: %s", DebugValueStringInline(v.Interface(), 0, nil))
 }
 
-func getStructFieldName(ft reflect.StructField) (string, string) {
-	prefix := ""
-	name := ft.Name
-	tag := ft.Tag.Get("json")
-
-	if tag != "" {
-		name = tag
-	}
-	tag = ft.Tag.Get("yaml")
-	if tag != "" {
-		name = tag
-	}
-	tag = ft.Tag.Get("path")
-	if tag != "" {
-		name = tag
-	}
-	prefix = ft.Tag.Get("module")
-	return prefix, name
-}
-
 func checkStructFieldTagName(ft reflect.StructField, name string) bool {
 	tag := string(ft.Tag)
 	index := strings.Index(tag, name)
@@ -704,15 +690,16 @@ func findStructField(sv reflect.Value, name interface{}) (reflect.StructField, r
 		fv = sv.FieldByName(sname)
 		return ft, fv, true
 	}
-
-	for i := 0; i < sv.NumField(); i++ {
-		fv := sv.Field(i)
-		ft := st.Field(i)
-		if !fv.IsValid() || !fv.CanSet() {
-			continue
-		}
-		if checkStructFieldTagName(ft, sname) {
-			return ft, fv, true
+	if EnableTagLookup {
+		for i := 0; i < sv.NumField(); i++ {
+			fv := sv.Field(i)
+			ft := st.Field(i)
+			if !fv.IsValid() || !fv.CanSet() {
+				continue
+			}
+			if n, ok := ft.Tag.Lookup(TagLookupKey); ok && n == sname {
+				return ft, fv, true
+			}
 		}
 	}
 	return reflect.StructField{}, reflect.Value{}, false
@@ -764,14 +751,14 @@ func newValueStruct(t reflect.Type) reflect.Value {
 			fv.Set(reflect.MakeChan(ft.Type, 0))
 		case reflect.Struct:
 			srv := newValueStruct(ft.Type)
-			if !isNilOrInvalidValue(srv) {
+			if !IsNilOrInvalidValue(srv) {
 				fv.Set(srv)
 			}
 		case reflect.Ptr:
 			// log.Debug(ft.Name, ft.Type)
 			srv := newValue(ft.Type, nil)
 			// log.Debug(fv, srv)
-			if !isNilOrInvalidValue(srv) {
+			if !IsNilOrInvalidValue(srv) {
 				fv.Set(srv)
 			}
 		// case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -860,7 +847,7 @@ func newValue(t reflect.Type, value interface{}) reflect.Value {
 		return newValueMap(t)
 	} else if isTypeSlice(pt) {
 		nv := newValueSlice(t)
-		if value != nil || !isNilOrInvalidValue(reflect.ValueOf(value)) {
+		if value != nil || !IsNilOrInvalidValue(reflect.ValueOf(value)) {
 			nv = setSliceValue(nv, value)
 		}
 		return nv
