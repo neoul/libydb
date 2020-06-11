@@ -26,13 +26,13 @@ func SliceInsert(slice interface{}, i int, val interface{}) error {
 	return ValSliceInsert(v, i, val)
 }
 
-// SliceDeleteCopy - Create a slice without an element indexed by i.
+// SliceDeleteCopy - Delete an element indexed by i.
 func SliceDeleteCopy(slice interface{}, i int) error {
 	v := reflect.ValueOf(slice).Elem()
 	return ValSliceDeleteCopy(v, i)
 }
 
-// SliceInsertCopy - Create a slice with an element to the index i.
+// SliceInsertCopy - Insert an element to the index i.
 func SliceInsertCopy(slice interface{}, i int, val interface{}) error {
 	v := reflect.ValueOf(slice).Elem()
 	return ValSliceInsertCopy(v, i, val)
@@ -59,7 +59,7 @@ func ValSliceDelete(v reflect.Value, i int) error {
 		v.Set(reflect.AppendSlice(v.Slice(0, i), v.Slice(i+1, v.Len())))
 		return nil
 	}
-	return fmt.Errorf("Cannot set value")
+	return fmt.Errorf("not settable value")
 }
 
 // ValSliceInsert - Insert an element to the index.
@@ -71,10 +71,10 @@ func ValSliceInsert(v reflect.Value, i int, val interface{}) error {
 		v.Index(i).Set(ev)
 		return nil
 	}
-	return fmt.Errorf("Cannot set value")
+	return fmt.Errorf("not settable value")
 }
 
-// ValSliceDeleteCopy - Create a slice without an element indexed by i.
+// ValSliceDeleteCopy - Delete an element indexed by i.
 func ValSliceDeleteCopy(v reflect.Value, i int) error {
 	if v.CanSet() {
 		tmp := reflect.MakeSlice(v.Type(), 0, v.Len()-1)
@@ -84,10 +84,10 @@ func ValSliceDeleteCopy(v reflect.Value, i int) error {
 				v.Slice(i+1, v.Len())))
 		return nil
 	}
-	return fmt.Errorf("Cannot set value")
+	return fmt.Errorf("not settable value")
 }
 
-// ValSliceInsertCopy - Create a slice with an element to the index i.
+// ValSliceInsertCopy - Insert an element to the index i.
 func ValSliceInsertCopy(v reflect.Value, i int, val interface{}) error {
 	if v.CanSet() {
 		tmp := reflect.MakeSlice(v.Type(), 0, v.Len()+1)
@@ -99,5 +99,17 @@ func ValSliceInsertCopy(v reflect.Value, i int, val interface{}) error {
 		v.Index(i).Set(ev)
 		return nil
 	}
-	return fmt.Errorf("Cannot set value")
+	return fmt.Errorf("not settable value")
+}
+
+// ValSliceNew - Create a slice.
+func ValSliceNew(t reflect.Type) (reflect.Value, error) {
+	if t == reflect.TypeOf(nil) {
+		return reflect.Value{}, fmt.Errorf("nil type")
+	}
+	if t.Kind() != reflect.Slice {
+		return reflect.Value{}, fmt.Errorf("not slice")
+	}
+	v := reflect.MakeSlice(t, 0, 0)
+	return v, nil
 }

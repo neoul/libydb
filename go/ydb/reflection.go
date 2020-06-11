@@ -200,7 +200,7 @@ func isStructValueWithNFields(v reflect.Value, n int) bool {
 // isSimpleType - true if built-in simple variable type
 func isSimpleType(t reflect.Type) bool {
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Ptr, reflect.Interface:
 		return isSimpleType(t.Elem())
 	case reflect.Array, reflect.Slice, reflect.Map, reflect.Struct:
 		return false
@@ -865,6 +865,9 @@ func newValue(t reflect.Type, value interface{}) reflect.Value {
 
 // ptr wraps the given value with pointer: V => *V, *V => **V, etc.
 func newPtrOfValue(v reflect.Value) reflect.Value {
+	if !v.IsValid() {
+		return reflect.Value{}
+	}
 	pt := reflect.PtrTo(v.Type()) // create a *T type.
 	pv := reflect.New(pt.Elem())  // create a reflect.Value of type *T.
 	pv.Elem().Set(v)              // sets pv to point to underlying value of v.
