@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-// ValFind - finds a child value from the struct, map or slice value using the string key.
+// ValFind - finds a child value from the struct, map or slice value using the key.
 func ValFind(v reflect.Value, key interface{}) (reflect.Value, bool) {
 	if !v.IsValid() {
 		return reflect.Value{}, false
@@ -24,30 +24,17 @@ func ValFind(v reflect.Value, key interface{}) (reflect.Value, bool) {
 		}
 		cur = sfv
 	case reflect.Map:
-		mt := cur.Type()
-		kv, err := ValScalarNew(mt.Key(), key)
-		if !kv.IsValid() || err != nil {
+		ev, ok := ValMapFind(cur, key)
+		if !ok {
 			return reflect.Value{}, false
 		}
-		vv := cur.MapIndex(kv)
-		if !vv.IsValid() {
-			return reflect.Value{}, false
-		}
-		cur = vv
+		cur = ev
 	case reflect.Slice, reflect.Array:
-		idxv, err := ValScalarNew(reflect.TypeOf(0), key)
-		if !idxv.IsValid() || err != nil {
+		ev, ok := ValSliceIndex(cur, key)
+		if !ok {
 			return reflect.Value{}, false
 		}
-		index := idxv.Interface().(int)
-		if cur.Len() <= index {
-			return reflect.Value{}, false
-		}
-		vv := cur.Index(index)
-		if !vv.IsValid() {
-			return reflect.Value{}, false
-		}
-		cur = vv
+		cur = ev
 	default:
 		return reflect.Value{}, false
 	}
@@ -80,30 +67,24 @@ func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
 		}
 		cur = sfv
 	case reflect.Map:
-		mt := cur.Type()
-		kv, err := ValScalarNew(mt.Key(), key)
-		if !kv.IsValid() || err != nil {
-			return reflect.Value{}, false
+		ev, ok := ValMapFind(cur, key)
+		if !ok {
+			err := ValMapSet(cur, key, nil)
+			if err != nil {
+				return reflect.Value{}, false
+			}
+			ev, ok = ValMapFind(cur, key)
+			if !ok {
+				return reflect.Value{}, false
+			}
 		}
-		vv := cur.MapIndex(kv)
-		if !vv.IsValid() {
-			return reflect.Value{}, false
-		}
-		cur = vv
+		cur = ev
 	case reflect.Slice, reflect.Array:
-		idxv, err := ValScalarNew(reflect.TypeOf(0), key)
-		if !idxv.IsValid() || err != nil {
+		ev, ok := ValSliceIndex(cur, key)
+		if !ok {
 			return reflect.Value{}, false
 		}
-		index := idxv.Interface().(int)
-		if cur.Len() <= index {
-			return reflect.Value{}, false
-		}
-		vv := cur.Index(index)
-		if !vv.IsValid() {
-			return reflect.Value{}, false
-		}
-		cur = vv
+		cur = ev
 	default:
 		return reflect.Value{}, false
 	}
@@ -117,6 +98,14 @@ func IsValNilOrDefault(value interface{}) bool {
 		return true
 	}
 	return value == reflect.New(reflect.TypeOf(value)).Elem().Interface()
+}
+
+// IsTypeInterface reports whether v is an interface.
+func IsTypeInterface(t reflect.Type) bool {
+	if t == reflect.TypeOf(nil) {
+		return false
+	}
+	return t.Kind() == reflect.Interface
 }
 
 // IsValScalar - true if built-in simple variable type
@@ -141,7 +130,7 @@ func ValScalarNew(t reflect.Type, val interface{}) (reflect.Value, error) {
 		cv, err := ValScalarNew(t.Elem(), val)
 		return newPtrOfValue(cv), err
 	case reflect.Interface:
-		return ValScalarNew(t.Elem(), val)
+		return reflect.Value{}, fmt.Errorf("no specified type: %s", t.Kind())
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
 		return reflect.Value{}, fmt.Errorf("not supported type: %s", t.Kind())
 	case reflect.Struct, reflect.Map, reflect.Slice:

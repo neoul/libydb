@@ -40,17 +40,45 @@ func SliceInsertCopy(slice interface{}, i int, val interface{}) error {
 
 // slice operations for reflect.Value
 
-// ValSliceFind - Search an element by key.
-func ValSliceFind(v reflect.Value, key interface{}) (int, bool) {
+// ValSliceFind - Search an element by value.
+func ValSliceFind(v reflect.Value, val interface{}) (int, bool) {
 	et := v.Type().Elem()
-	kv := newValue(et, key)
+	if IsTypeInterface(et) { // That means it is not a specified type.
+		et = reflect.TypeOf(val)
+	}
+	ev, err := ValScalarNew(et, val)
+	if err != nil || !ev.IsValid() {
+		return -1, false
+	}
 	length := v.Len()
 	for i := 0; i < length; i++ {
-		if reflect.DeepEqual(v.Index(i).Interface(), kv.Interface()) {
+		if reflect.DeepEqual(v.Index(i).Interface(), ev.Interface()) {
 			return i, true
 		}
 	}
 	return length, false
+}
+
+// ValSliceIndex - Get an element by index.
+func ValSliceIndex(v reflect.Value, index interface{}) (reflect.Value, bool) {
+	var i int
+	if reflect.TypeOf(index).Kind() == reflect.Int {
+		i = index.(int)
+	} else {
+		idxv, err := ValScalarNew(reflect.TypeOf(0), index)
+		if !idxv.IsValid() || err != nil {
+			return reflect.Value{}, false
+		}
+		i = idxv.Interface().(int)
+	}
+	if v.Len() <= i {
+		return reflect.Value{}, false
+	}
+	ev := v.Index(i)
+	if !ev.IsValid() {
+		return reflect.Value{}, false
+	}
+	return ev, true
 }
 
 // ValSliceDelete - Delete an element indexed by i.

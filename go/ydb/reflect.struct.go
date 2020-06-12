@@ -38,15 +38,38 @@ func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField
 
 // ValStructFieldSet - Set the field of the struct.
 func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}) error {
-	if !sv.IsValid() || !sv.CanSet() {
-		return fmt.Errorf("invalid or not settable")
+	if !sv.IsValid() {
+		return fmt.Errorf("invalid struct")
+	}
+	ft, fv, ok := ValStructFieldFind(sv, name)
+	if !ok {
+		return fmt.Errorf("%s not found in %s", name, sv.Type())
+	}
+	if !fv.CanSet() {
+		return fmt.Errorf("not settable field %s", name)
+	}
+	if IsValScalar(ft.Type) {
+		return ValScalarSet(fv, val)
+	}
+	nv, err := ValNew(ft.Type)
+	if err != nil {
+		return err
+	}
+	fv.Set(nv)
+	return nil
+}
+
+// ValStructFieldUnset - Remove the field of the struct.
+func ValStructFieldUnset(sv reflect.Value, name interface{}) error {
+	if !sv.IsValid() {
+		return fmt.Errorf("invalid struct")
 	}
 	ft, fv, ok := ValStructFieldFind(sv, name)
 	if !ok {
 		return fmt.Errorf("%s not found in %s", name, sv.Type())
 	}
 	if IsValScalar(ft.Type) {
-		return ValScalarSet(fv, val)
+		return ValScalarSet(fv, "")
 	}
 	nv, err := ValNew(ft.Type)
 	if err != nil {
