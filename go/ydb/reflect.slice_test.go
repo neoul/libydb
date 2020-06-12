@@ -36,12 +36,12 @@ func TestSliceSearch(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := SliceSearch(tt.args.slice, tt.args.key)
+			got, got1 := SliceFind(tt.args.slice, tt.args.key)
 			if got != tt.want {
-				t.Errorf("SliceSearch() got = %v, want %v", got, tt.want)
+				t.Errorf("SliceFind() got = %v, want %v", got, tt.want)
 			}
 			if got1 != tt.want1 {
-				t.Errorf("SliceSearch() got1 = %v, want %v", got1, tt.want1)
+				t.Errorf("SliceFind() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

@@ -8,10 +8,10 @@ import (
 // slice operations
 // The settable slice is the pointed by ptr value or structField.
 
-// SliceSearch - Search an element by key.
-func SliceSearch(slice interface{}, key interface{}) (int, bool) {
+// SliceFind - Search an element by key.
+func SliceFind(slice interface{}, key interface{}) (int, bool) {
 	v := reflect.ValueOf(slice)
-	return ValSliceSearch(v, key)
+	return ValSliceFind(v, key)
 }
 
 // SliceDelete - Delete an element indexed by i.
@@ -40,8 +40,8 @@ func SliceInsertCopy(slice interface{}, i int, val interface{}) error {
 
 // slice operations for reflect.Value
 
-// ValSliceSearch - Search an element by key.
-func ValSliceSearch(v reflect.Value, key interface{}) (int, bool) {
+// ValSliceFind - Search an element by key.
+func ValSliceFind(v reflect.Value, key interface{}) (int, bool) {
 	et := v.Type().Elem()
 	kv := newValue(et, key)
 	length := v.Len()

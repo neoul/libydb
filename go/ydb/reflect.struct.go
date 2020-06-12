@@ -5,13 +5,13 @@ import (
 	"reflect"
 )
 
-// ValFindStructField - Find a struct field by the name (struct field name or Tag) from sv (struct)
-func ValFindStructField(sv reflect.Value, name interface{}) (reflect.StructField, reflect.Value, bool) {
+// ValStructFieldFind - Find a struct field by the name (struct field name or Tag) from sv (struct)
+func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField, reflect.Value, bool) {
 	if !sv.IsValid() {
 		return reflect.StructField{}, reflect.Value{}, false
 	}
 	st := sv.Type()
-	fnv, err := ValNewScalar(reflect.TypeOf(""), name)
+	fnv, err := ValScalarNew(reflect.TypeOf(""), name)
 	if !fnv.IsValid() || err != nil {
 		return reflect.StructField{}, reflect.Value{}, false
 	}
@@ -36,19 +36,17 @@ func ValFindStructField(sv reflect.Value, name interface{}) (reflect.StructField
 	return reflect.StructField{}, reflect.Value{}, false
 }
 
-// ValSetStructField - Set the field of the struct.
-func ValSetStructField(sv reflect.Value, name interface{}, val interface{}) error {
+// ValStructFieldSet - Set the field of the struct.
+func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}) error {
 	if !sv.IsValid() || !sv.CanSet() {
 		return fmt.Errorf("invalid or not settable")
 	}
-	ft, fv, ok := findStructField(sv, name)
+	ft, fv, ok := ValStructFieldFind(sv, name)
 	if !ok {
 		return fmt.Errorf("%s not found in %s", name, sv.Type())
 	}
 	if IsValScalar(ft.Type) {
-		// nv := NewValue(ft.Type, val)
-		// fv.Set(nv)
-		return ValSetScalar(fv, val)
+		return ValScalarSet(fv, val)
 	}
 	nv, err := ValNew(ft.Type)
 	if err != nil {
@@ -58,8 +56,8 @@ func ValSetStructField(sv reflect.Value, name interface{}, val interface{}) erro
 	return nil
 }
 
-// ValNewStruct - Create new struct value and fill out all struct field.
-func ValNewStruct(t reflect.Type) (reflect.Value, error) {
+// ValStructNew - Create new struct value and fill out all struct field.
+func ValStructNew(t reflect.Type) (reflect.Value, error) {
 	if t == reflect.TypeOf(nil) {
 		return reflect.Value{}, fmt.Errorf("nil type")
 	}
@@ -82,7 +80,7 @@ func ValNewStruct(t reflect.Type) (reflect.Value, error) {
 		case reflect.Slice:
 			fv.Set(reflect.MakeSlice(ft.Type, 0, 0))
 		case reflect.Struct:
-			srv, err := ValNewStruct(ft.Type)
+			srv, err := ValStructNew(ft.Type)
 			if err != nil {
 				return srv, fmt.Errorf("%s not created", ft.Name)
 			}

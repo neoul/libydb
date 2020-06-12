@@ -41,16 +41,16 @@ func TestValNewStruct(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ValNewStruct(tt.args.t)
+			got, err := ValStructNew(tt.args.t)
 			if got.IsValid() {
 				t.Log(got.Type(), got.Kind(), got)
 			}
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValNewStruct() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValStructNew() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) && tt.wantEqual {
-				t.Errorf("ValNewStruct() = %v, want %v", got, tt.want)
+				t.Errorf("ValStructNew() = %v, want %v", got, tt.want)
 			}
 		})
 	}

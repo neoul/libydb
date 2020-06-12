@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestValNewScalar(t *testing.T) {
+func TestValScalarNew(t *testing.T) {
 	var s0 string = "10"
 	var s1 *string = &s0
 
@@ -43,11 +43,11 @@ func TestValNewScalar(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ValNewScalar(tt.args.t, tt.args.val)
+			got, err := ValScalarNew(tt.args.t, tt.args.val)
 			t.Log(got, got.Type(), got.Kind())
 			t.Log(tt.want, tt.want.Type(), tt.want.Kind())
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValNewScalar() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValScalarNew() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			cgot := got
@@ -55,7 +55,7 @@ func TestValNewScalar(t *testing.T) {
 			for {
 				if ttw.Kind() != reflect.Ptr || cgot.Kind() != reflect.Ptr {
 					if ttw.Kind() != cgot.Kind() {
-						t.Errorf("ValNewScalar() has different type (%s, %s)", ttw.Kind(), cgot.Kind())
+						t.Errorf("ValScalarNew() has different type (%s, %s)", ttw.Kind(), cgot.Kind())
 						return
 					}
 					break
@@ -66,13 +66,13 @@ func TestValNewScalar(t *testing.T) {
 				t.Log(ttw, ttw.Type(), ttw.Kind())
 			}
 			if !reflect.DeepEqual(cgot.Interface(), ttw.Interface()) == tt.wantSame {
-				t.Errorf("ValNewScalar() = %v, want %v", got, tt.want)
+				t.Errorf("ValScalarNew() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestValSetScalar(t *testing.T) {
+func TestValScalarSet(t *testing.T) {
 	var v0 string = "0"
 	var v1 *string = &v0
 	var v2 **string = &v1
@@ -129,7 +129,7 @@ func TestValSetScalar(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValSetScalar(tt.args.v, tt.args.val)
+			err := ValScalarSet(tt.args.v, tt.args.val)
 			v := tt.args.v
 			for v.IsValid() {
 				t.Log(v.Type(), v.Kind(), v)
@@ -139,7 +139,7 @@ func TestValSetScalar(t *testing.T) {
 				v = v.Elem()
 			}
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValSetScalar() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValScalarSet() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -147,4 +147,94 @@ func TestValSetScalar(t *testing.T) {
 	t.Logf("v1 %s", *v1)
 	t.Logf("v2 %s", **v2)
 	t.Logf("v3 %s", *v3)
+}
+
+func TestValFind(t *testing.T) {
+
+	nv, _ := ValStructNew(reflect.TypeOf(samplestruct{}))
+	ss := nv.Interface().(samplestruct)
+	ss.Smap["10"] = 10
+	ss.Smap["20"] = 20
+	ss.Smap["30"] = 30
+	ss.I = 1
+	ss.Sfield.S = "ss.s"
+	ss.Sfield.I = 1000
+	ss.Sslice = append(ss.Sslice, 0.1)
+	ss.Sslice = append(ss.Sslice, 0.2)
+	ss.Sslice = append(ss.Sslice, 0.3)
+
+	type args struct {
+		v    reflect.Value
+		keys []string
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  reflect.Value
+		want1 bool
+	}{
+		{
+			name: "find I",
+			args: args{
+				v:    reflect.ValueOf(ss),
+				keys: []string{"I"},
+			},
+			want:  reflect.ValueOf(1),
+			want1: true,
+		},
+		{
+			name: "find Sfield",
+			args: args{
+				v:    reflect.ValueOf(ss),
+				keys: []string{"Sfield", "S"},
+			},
+			want:  reflect.ValueOf(ss.Sfield.S),
+			want1: true,
+		},
+		{
+			name: "find Smap",
+			args: args{
+				v:    reflect.ValueOf(ss),
+				keys: []string{"Smap", "10"},
+			},
+			want:  reflect.ValueOf(10),
+			want1: true,
+		},
+		{
+			name: "find Sslice",
+			args: args{
+				v:    reflect.ValueOf(ss),
+				keys: []string{"Sslice", "1"},
+			},
+			want:  reflect.ValueOf(ss.Sslice[1]),
+			want1: true,
+		},
+	}
+	t.Log(ss)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got1 := false
+			got := tt.args.v
+			for _, key := range tt.args.keys {
+				got, got1 = ValFind(got, key)
+				if got.IsValid() {
+					t.Log(got.Type(), got.Kind(), got)
+				}
+				if !got1 {
+					t.Errorf("ValFind() failed for '%s' searching", key)
+					break
+				}
+			}
+			if got.IsValid() {
+				t.Log(tt.want.Type(), tt.want.Kind(), tt.want)
+				t.Log(got.Type(), got.Kind(), got)
+				if !reflect.DeepEqual(got.Interface(), tt.want.Interface()) {
+					t.Errorf("ValFind() got = %v, want %v", got, tt.want)
+				}
+				if got1 != tt.want1 {
+					t.Errorf("ValFind() got1 = %v, want %v", got1, tt.want1)
+				}
+			}
+		})
+	}
 }
