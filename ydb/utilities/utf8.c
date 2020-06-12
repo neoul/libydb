@@ -143,6 +143,7 @@ char *yaml_multiline_str(const char *src, int srclen, int newline, int indent)
 char *to_yaml(const char *src, int indent, int *is_new, int extended)
 {
     uint32_t codepoint;
+    uint32_t codepoint_prev = 0;
     uint32_t state = 0;
     uint8_t *s = (uint8_t *)src;
     int non_printable8 = 0;
@@ -183,6 +184,12 @@ char *to_yaml(const char *src, int indent, int *is_new, int extended)
                     // '/' and '\'' are added for ydb path processing
                     if (codepoint == '"' || codepoint == '\\')
                         d_quotes++;
+                    else if (codepoint == ' ') // Fixed the quoting error
+                    {
+                        if (codepoint_prev == ':')
+                            quotes_required++;
+                    }
+
                     if (extended)
                     {
                         if (codepoint == '/' || codepoint == '\'')
@@ -226,6 +233,7 @@ char *to_yaml(const char *src, int indent, int *is_new, int extended)
                 if (!(codepoint >= 0x10000 && codepoint <= 0x10FFFF))
                     non_printable32++;
             }
+            codepoint_prev = codepoint;
         }
     }
 
