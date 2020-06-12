@@ -189,6 +189,46 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}) (reflect.Va
 	return cur, nil
 }
 
+// ValChildUnset - Unset a child value indicated by the key from parents
+func ValChildUnset(v reflect.Value, key interface{}) error {
+	if !v.IsValid() {
+		return fmt.Errorf("invalid value")
+	}
+
+	t := v.Type()
+	switch t.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		return ValChildUnset(v.Elem(), key)
+	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
+		return fmt.Errorf("not supported value type (%s)", t.Kind())
+	case reflect.Struct:
+		return ValStructFieldUnset(v, key)
+	case reflect.Map:
+		return ValMapUnset(v, key)
+	case reflect.Slice:
+		if ValFindByContent {
+			if index, ok := ValSliceFind(v, key); ok {
+				return ValSliceDelete(v, index)
+			}
+		} else {
+			var index int
+			if reflect.TypeOf(key).Kind() == reflect.Int {
+				index = key.(int)
+			} else {
+				idxv, err := ValScalarNew(reflect.TypeOf(0), key)
+				if !idxv.IsValid() || err != nil {
+					return err
+				}
+				index = idxv.Interface().(int)
+			}
+			return ValSliceDelete(v, index)
+		}
+		return fmt.Errorf("not found unset value")
+	default:
+		return fmt.Errorf("not supported scalar value unset")
+	}
+}
+
 // ValChildDirectSet - Set a child value to the parent value.
 func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (reflect.Value, error) {
 	log.Debug("SetValueChild", pv.Type(), cv.Type(), key)

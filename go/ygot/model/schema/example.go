@@ -82,7 +82,22 @@ func merge(device *Device, keys []string, key string, tag string, value string) 
 
 // Merge - constructs Device
 func delete(device *Device, keys []string, key string) error {
+	keys, key = keyListing(keys, key)
 	fmt.Printf("Device.delete %v %v\n", keys, key)
+	v := reflect.ValueOf(device)
+	for _, k := range keys {
+		cv, ok := ydb.ValFind(v, k)
+		if !ok || !cv.IsValid() {
+			return fmt.Errorf("key %s not found", k)
+		}
+		v = cv
+	}
+	err := ydb.ValChildUnset(v, key)
+	if err == nil {
+		ydb.DebugValueString(v.Interface(), 1, func(x ...interface{}) { fmt.Print(x...) })
+	} else {
+		fmt.Println(err)
+	}
 	return nil
 }
 
