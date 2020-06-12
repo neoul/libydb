@@ -184,9 +184,9 @@ char *to_yaml(const char *src, int indent, int *is_new, int extended)
                     // '/' and '\'' are added for ydb path processing
                     if (codepoint == '"' || codepoint == '\\')
                         d_quotes++;
-                    else if (codepoint == ':') // Fixed the quoting error
+                    else if (codepoint == ' ') // Fixed the quoting error
                     {
-                        if (codepoint_prev == ' ')
+                        if (codepoint_prev == ':')
                             quotes_required++;
                     }
 

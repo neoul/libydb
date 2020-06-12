@@ -6,7 +6,7 @@
 #_-_-_-_
 notification: 
  event-notification: 
-  event-text: 'Interface Fault - LOCAL'
+  event-text: 'Interface Fault : LOCAL'
   event-type: EVENT_INF_FAULT_LOCAL
   resource: 1/18
   resource-path: "/hardware/component[name='1/18']"
