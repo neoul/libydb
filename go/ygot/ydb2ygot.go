@@ -116,4 +116,6 @@ func main() {
 	ylog.Debug(gs)
 	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
 	fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
+	ydb.DebugValueString(gs, 2, func(x ...interface{}) { fmt.Print(x...) })
+	fmt.Println("")
 }

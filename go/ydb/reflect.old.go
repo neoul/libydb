@@ -112,12 +112,12 @@ func areSameType(t1 reflect.Type, t2 reflect.Type) bool {
 
 // IsNilOrInvalidValue reports whether v is nil or reflect.Zero.
 func IsNilOrInvalidValue(v reflect.Value) bool {
-	return !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) || isValueNil(v.Interface())
+	return !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) || IsValueNil(v.Interface())
 }
 
-// isValueNil returns true if either value is nil, or has dynamic type {ptr,
+// IsValueNil returns true if either value is nil, or has dynamic type {ptr,
 // map, slice} with value nil.
-func isValueNil(value interface{}) bool {
+func IsValueNil(value interface{}) bool {
 	if value == nil {
 		return true
 	}
@@ -128,10 +128,10 @@ func isValueNil(value interface{}) bool {
 	return false
 }
 
-// isValueNilOrDefault returns true if either isValueNil(value) or the default
+// IsValueNilOrDefault returns true if either IsValueNil(value) or the default
 // value for the type.
-func isValueNilOrDefault(value interface{}) bool {
-	if isValueNil(value) {
+func IsValueNilOrDefault(value interface{}) bool {
+	if IsValueNil(value) {
 		return true
 	}
 	if !isValueScalar(reflect.ValueOf(value)) {
@@ -330,7 +330,7 @@ func DebugValueStringInline(value interface{}, depth int, print func(a ...interf
 func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableIndent bool, noIndent bool) string {
 	var out string
 	if depth < 0 {
-		return "..."
+		return " ..."
 	}
 	if v.Type() == reflect.TypeOf(nil) {
 		if disableIndent || noIndent {
@@ -350,7 +350,7 @@ func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableInd
 		}
 		return indent + fmt.Sprintf("%s(invalid)", v.Type())
 	}
-	if v.Kind() == reflect.Ptr && v.IsNil() || isValueNil(v.Interface()) {
+	if v.Kind() == reflect.Ptr && v.IsNil() || IsValueNil(v.Interface()) {
 		if disableIndent || noIndent {
 			return fmt.Sprintf("%s(nil)", v.Type())
 		}
@@ -391,12 +391,14 @@ func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableInd
 				}
 			} else {
 				if depth > 0 {
-					out += "\n"
+					out += fmt.Sprintf("\n%s", indent+"• ")
+				} else {
+					out += " "
 				}
 				if fv.CanInterface() {
-					out += fmt.Sprintf("%s%s:%v", indent+"• ", ft.Name, debugValueStr(fv, depth-1, 0, indent+"• ", true, noIndent))
+					out += fmt.Sprintf("%s:%v", ft.Name, debugValueStr(fv, depth-1, 0, indent+"• ", true, noIndent))
 				} else {
-					out += fmt.Sprintf("%s%s:%v", indent+"• ", ft.Name, fv)
+					out += fmt.Sprintf("%s:%v", ft.Name, fv)
 				}
 			}
 		}
@@ -411,9 +413,11 @@ func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableInd
 				out += fmt.Sprintf("\n%v:%s", k, debugValueStr(e, depth-1, 0, indent+"• ", true, noIndent))
 			} else {
 				if depth > 0 {
-					out += "\n"
+					out += fmt.Sprintf("\n%s", indent+"• ")
+				} else {
+					out += " "
 				}
-				out += fmt.Sprintf("%s%v:%s", indent+"• ", k, debugValueStr(e, depth-1, 0, indent+"• ", true, noIndent))
+				out += fmt.Sprintf("%v:%s", k, debugValueStr(e, depth-1, 0, indent+"• ", true, noIndent))
 			}
 		}
 		out += ")"
@@ -855,7 +859,7 @@ func newValue(t reflect.Type, value interface{}) reflect.Value {
 		return newValueChan(t)
 	} else {
 		v := newValueScalar(t)
-		if isValueNil(value) {
+		if IsValueNil(value) {
 			return v
 		}
 		setValueScalar(v, value)
@@ -885,7 +889,7 @@ func NewSimpleValue(t reflect.Type, value interface{}) reflect.Value {
 		return reflect.Value{}
 	}
 	v := newValueScalar(t)
-	if isValueNil(value) {
+	if IsValueNil(value) {
 		log.Warning("simple type creation failed:", t)
 		return reflect.Value{}
 	}

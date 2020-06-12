@@ -5,6 +5,9 @@ import (
 	"reflect"
 )
 
+// ValFindByContent - enable content search for slice in ValFind and ValFindOrInit.
+var ValFindByContent bool = false
+
 // ValFind - finds a child value from the struct, map or slice value using the key.
 func ValFind(v reflect.Value, key interface{}) (reflect.Value, bool) {
 	if !v.IsValid() {
@@ -30,7 +33,18 @@ func ValFind(v reflect.Value, key interface{}) (reflect.Value, bool) {
 		}
 		cur = ev
 	case reflect.Slice, reflect.Array:
-		ev, ok := ValSliceIndex(cur, key)
+		var ev reflect.Value
+		var ok bool
+		var idx int
+		if ValFindByContent {
+			idx, ok = ValSliceFind(cur, key)
+			if !ok {
+				return reflect.Value{}, false
+			}
+			ev, ok = ValSliceIndex(cur, idx)
+		} else {
+			ev, ok = ValSliceIndex(cur, key)
+		}
 		if !ok {
 			return reflect.Value{}, false
 		}
@@ -56,7 +70,10 @@ func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
 	case reflect.Struct:
 		_, sfv, ok := ValStructFieldFind(cur, key)
 		if !ok {
-			err := ValStructFieldSet(v, key, nil)
+			return reflect.Value{}, false
+		}
+		if IsNilOrInvalidValue(sfv) {
+			err := ValStructFieldSet(cur, key, nil)
 			if err != nil {
 				return reflect.Value{}, false
 			}
@@ -80,7 +97,22 @@ func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
 		}
 		cur = ev
 	case reflect.Slice, reflect.Array:
-		ev, ok := ValSliceIndex(cur, key)
+		var ev reflect.Value
+		var ok bool
+		var idx int
+		if ValFindByContent {
+			idx, ok = ValSliceFind(cur, key)
+			if !ok {
+				err := ValSliceAppend(cur, key)
+				if err != nil {
+					return reflect.Value{}, false
+				}
+				idx = cur.Len() - 1
+			}
+			ev, ok = ValSliceIndex(cur, idx)
+		} else {
+			ev, ok = ValSliceIndex(cur, key)
+		}
 		if !ok {
 			return reflect.Value{}, false
 		}
@@ -91,13 +123,105 @@ func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
 	return cur, true
 }
 
-// IsValNilOrDefault returns true if either isValueNil(value) or the default
-// value for the type.
-func IsValNilOrDefault(value interface{}) bool {
-	if isValueNil(value) {
-		return true
+// ValChildSet - finds and sets a child value.
+func ValChildSet(pv reflect.Value, key interface{}, val interface{}) (reflect.Value, error) {
+	if !pv.IsValid() {
+		return reflect.Value{}, fmt.Errorf("invalid parent value")
 	}
-	return value == reflect.New(reflect.TypeOf(value)).Elem().Interface()
+	cur := pv
+	if key == "" {
+		return cur, nil
+	}
+	switch cur.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		return ValChildSet(cur.Elem(), key, val)
+	case reflect.Struct:
+		_, sfv, ok := ValStructFieldFind(cur, key)
+		if !ok {
+			return reflect.Value{}, fmt.Errorf("not found %s", key)
+		}
+		err := ValStructFieldSet(cur, key, val)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("set failed (%v)", err)
+		}
+		_, sfv, ok = ValStructFieldFind(cur, key)
+		if !ok {
+			return reflect.Value{}, fmt.Errorf("not found %s", key)
+		}
+		cur = sfv
+	case reflect.Map:
+		ev, ok := ValMapFind(cur, key)
+		if !ok {
+			err := ValMapSet(cur, key, val)
+			if err != nil {
+				return reflect.Value{}, fmt.Errorf("set failed (%v)", err)
+			}
+			ev, ok = ValMapFind(cur, key)
+			if !ok {
+				return reflect.Value{}, fmt.Errorf("not found %s", key)
+			}
+		}
+		cur = ev
+	case reflect.Slice, reflect.Array:
+		var ev reflect.Value
+		var ok bool
+		var idx int
+		if ValFindByContent {
+			idx, ok = ValSliceFind(cur, key)
+			if !ok {
+				err := ValSliceAppend(cur, key)
+				if err != nil {
+					return reflect.Value{}, fmt.Errorf("set failed (%v)", err)
+				}
+				idx = cur.Len() - 1
+			}
+			ev, ok = ValSliceIndex(cur, idx)
+		} else {
+			ev, ok = ValSliceIndex(cur, key)
+		}
+		if !ok {
+			return reflect.Value{}, fmt.Errorf("set failed")
+		}
+		cur = ev
+	default:
+		return reflect.Value{}, fmt.Errorf("not container type %s", cur.Kind())
+	}
+	return cur, nil
+}
+
+// ValChildDirectSet - Set a child value to the parent value.
+func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (reflect.Value, error) {
+	log.Debug("SetValueChild", pv.Type(), cv.Type(), key)
+	v := GetNonIfOrPtrValueDeep(pv)
+	switch v.Type().Kind() {
+	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Interface:
+		return pv, fmt.Errorf("Not supported parent type (%s)", v.Type().Kind())
+	case reflect.Struct:
+		_, fv, ok := ValStructFieldFind(v, key)
+		if !ok {
+			return pv, fmt.Errorf("not found %s", key)
+		}
+		fv.Set(cv)
+	case reflect.Map:
+		t := v.Type()
+		kt := t.Key()
+		if IsTypeInterface(kt) { // That means it is not a specified type.
+			kt = reflect.TypeOf(key)
+		}
+		kv, err := ValScalarNew(kt, key)
+		if err != nil || !kv.IsValid() {
+			return reflect.Value{}, fmt.Errorf("invalid key: %s", key)
+		}
+		v.SetMapIndex(kv, cv)
+	case reflect.Slice:
+		v.Set(reflect.Append(v, cv))
+	default:
+		if !pv.CanSet() {
+			return pv, fmt.Errorf("Not settable type(%s)", pv.Type())
+		}
+		pv.Set(cv)
+	}
+	return pv, nil
 }
 
 // IsTypeInterface reports whether v is an interface.

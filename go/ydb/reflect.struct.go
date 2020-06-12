@@ -48,10 +48,23 @@ func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}) erro
 	if !fv.CanSet() {
 		return fmt.Errorf("not settable field %s", name)
 	}
-	if IsValScalar(ft.Type) {
+	ftt := ft.Type
+	if IsTypeInterface(ftt) { // That means it is not a specified type.
+		if val == nil {
+			return fmt.Errorf("not specified field or val type for %s", name)
+		}
+		ftt = reflect.TypeOf(val)
+		if IsValScalar(ftt) {
+			return ValScalarSet(fv, val)
+		}
+		nv := reflect.ValueOf(val)
+		fv.Set(nv)
+		return nil
+	}
+	if IsValScalar(ftt) {
 		return ValScalarSet(fv, val)
 	}
-	nv, err := ValNew(ft.Type)
+	nv, err := ValNew(ftt)
 	if err != nil {
 		return err
 	}

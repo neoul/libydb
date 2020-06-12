@@ -115,6 +115,33 @@ func TestSliceInsert(t *testing.T) {
 			},
 			want: nil,
 		},
+		{
+			name: "Insert an element with -1 index",
+			args: args{
+				slice: &([]int{10, 20, 50, 40, 30, 60}),
+				i:     -1,
+				val:   "100",
+			},
+			want: nil,
+		},
+		{
+			name: "Insert an element with 0 index",
+			args: args{
+				slice: &([]int{10, 20, 50, 40, 30, 60}),
+				i:     0,
+				val:   "100",
+			},
+			want: nil,
+		},
+		{
+			name: "Insert an element with Len index",
+			args: args{
+				slice: &([]int{10, 20, 50, 40, 30, 60}),
+				i:     6,
+				val:   "100",
+			},
+			want: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -194,6 +221,33 @@ func TestSliceInsertCopy(t *testing.T) {
 				slice: []int{10, 20, 50, 40, 30, 60},
 				i:     0,
 				val:   "70",
+			},
+			want: nil,
+		},
+		{
+			name: "Insert an element with -1 index",
+			args: args{
+				slice: []int{10, 20, 50, 40, 30, 60},
+				i:     -1,
+				val:   "100",
+			},
+			want: nil,
+		},
+		{
+			name: "Insert an element with 0 index",
+			args: args{
+				slice: []int{10, 20, 50, 40, 30, 60},
+				i:     0,
+				val:   "100",
+			},
+			want: nil,
+		},
+		{
+			name: "Insert an element with Len index",
+			args: args{
+				slice: []int{10, 20, 50, 40, 30, 60},
+				i:     6,
+				val:   "100",
 			},
 			want: nil,
 		},

@@ -92,14 +92,57 @@ func ValSliceDelete(v reflect.Value, i int) error {
 
 // ValSliceInsert - Insert an element to the index.
 func ValSliceInsert(v reflect.Value, i int, val interface{}) error {
-	if v.CanSet() {
-		v.Set(reflect.AppendSlice(v.Slice(0, i+1), v.Slice(i, v.Len())))
-		// v.Index(i).Set(reflect.ValueOf(val))
-		ev := newValue(v.Type().Elem(), val)
-		v.Index(i).Set(ev)
-		return nil
+	if !v.CanSet() {
+		return fmt.Errorf("not settable value")
 	}
-	return fmt.Errorf("not settable value")
+	et := v.Type().Elem()
+	if IsTypeInterface(et) { // That means it is not a specified type.
+		et = reflect.TypeOf(val)
+	}
+	var err error
+	var ev reflect.Value
+	if IsValScalar(et) {
+		ev, err = ValScalarNew(et, val)
+	} else {
+		ev, err = ValNew(et)
+	}
+	if err != nil || !ev.IsValid() {
+		return fmt.Errorf("invalid element (%v)", err)
+	}
+
+	if i >= v.Len() {
+		v.Set(reflect.Append(v, ev))
+	} else {
+		if i < 0 {
+			i = 0
+		}
+		v.Set(reflect.AppendSlice(v.Slice(0, i+1), v.Slice(i, v.Len())))
+		v.Index(i).Set(ev)
+	}
+	return nil
+}
+
+// ValSliceAppend - Insert an element to the index.
+func ValSliceAppend(v reflect.Value, val interface{}) error {
+	if !v.CanSet() {
+		return fmt.Errorf("not settable value")
+	}
+	et := v.Type().Elem()
+	if IsTypeInterface(et) { // That means it is not a specified type.
+		et = reflect.TypeOf(val)
+	}
+	var err error
+	var ev reflect.Value
+	if IsValScalar(et) {
+		ev, err = ValScalarNew(et, val)
+	} else {
+		ev, err = ValNew(et)
+	}
+	if err != nil || !ev.IsValid() {
+		return fmt.Errorf("invalid element (%v)", err)
+	}
+	v.Set(reflect.Append(v, ev))
+	return nil
 }
 
 // ValSliceDeleteCopy - Delete an element indexed by i.
@@ -117,17 +160,39 @@ func ValSliceDeleteCopy(v reflect.Value, i int) error {
 
 // ValSliceInsertCopy - Insert an element to the index i.
 func ValSliceInsertCopy(v reflect.Value, i int, val interface{}) error {
-	if v.CanSet() {
+	if !v.CanSet() {
+		return fmt.Errorf("not settable value")
+	}
+	et := v.Type().Elem()
+	if IsTypeInterface(et) { // That means it is not a specified type.
+		et = reflect.TypeOf(val)
+	}
+	var err error
+	var ev reflect.Value
+	if IsValScalar(et) {
+		ev, err = ValScalarNew(et, val)
+	} else {
+		ev, err = ValNew(et)
+	}
+	if err != nil || !ev.IsValid() {
+		return fmt.Errorf("invalid element (%v)", err)
+	}
+	if i >= v.Len() {
+		tmp := reflect.MakeSlice(v.Type(), v.Len(), v.Len())
+		reflect.Copy(tmp, v)
+		v.Set(reflect.Append(tmp, ev))
+	} else {
+		if i < 0 {
+			i = 0
+		}
 		tmp := reflect.MakeSlice(v.Type(), 0, v.Len()+1)
 		v.Set(reflect.AppendSlice(
 			reflect.AppendSlice(tmp, v.Slice(0, i+1)),
 			v.Slice(i, v.Len())))
-		// v.Index(i).Set(reflect.ValueOf(val))
-		ev := newValue(v.Type().Elem(), val)
+
 		v.Index(i).Set(ev)
-		return nil
 	}
-	return fmt.Errorf("not settable value")
+	return nil
 }
 
 // ValSliceNew - Create a slice.
