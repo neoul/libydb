@@ -106,16 +106,16 @@ func main() {
 	gs := schema.Device{}
 	db, close := ydb.OpenWithTargetStruct("running", &gs)
 	defer close()
-	r, err := os.Open("model/data/example.yaml")
+	r, err := os.Open("model/data/example-ydb.yaml")
 	defer r.Close()
 	if err != nil {
 		ylog.Fatal(err)
 	}
 	dec := db.NewDecoder(r)
 	dec.Decode()
-	ylog.Debug(gs)
+	ydb.DebugValueString(gs, 5, func(x ...interface{}) { fmt.Print(x...) })
+	fmt.Println("")
 	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
 	fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
-	ydb.DebugValueString(gs, 2, func(x ...interface{}) { fmt.Print(x...) })
 	fmt.Println("")
 }

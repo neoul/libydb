@@ -6,3 +6,9 @@ operator[asm=29636]:
   "asn": 29636
   "name": "Catalyst2"
 "person": "robjs"
+"married": true
+"company":
+  "address": !!set
+    ? "seoul"
+    ? "LA"
+  "enumval": enum3
