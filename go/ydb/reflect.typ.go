@@ -2,6 +2,28 @@ package ydb
 
 import "reflect"
 
+// IsTypeInterface reports whether v is an interface.
+func IsTypeInterface(t reflect.Type) bool {
+	if t == reflect.TypeOf(nil) {
+		return false
+	}
+	return t.Kind() == reflect.Interface
+}
+
+// IsTypeScalar - true if built-in simple variable type
+func IsTypeScalar(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Ptr:
+		return IsTypeScalar(t.Elem())
+	case reflect.Interface:
+		return false
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.Struct:
+		return false
+	default:
+		return true
+	}
+}
+
 // TypeFind - finds a child type from the struct, map or slice value using the key.
 func TypeFind(pt reflect.Type, key string) (reflect.Type, bool) {
 	if pt == reflect.TypeOf(nil) {
@@ -12,7 +34,9 @@ func TypeFind(pt reflect.Type, key string) (reflect.Type, bool) {
 	}
 
 	switch pt.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Interface:
+		return pt, false
+	case reflect.Ptr:
 		return TypeFind(pt.Elem(), key)
 	case reflect.Struct:
 		ft, ok := pt.FieldByName(key)

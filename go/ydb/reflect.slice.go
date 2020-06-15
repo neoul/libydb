@@ -101,7 +101,7 @@ func ValSliceInsert(v reflect.Value, i int, val interface{}) error {
 	}
 	var err error
 	var ev reflect.Value
-	if IsValScalar(et) {
+	if IsTypeScalar(et) {
 		ev, err = ValScalarNew(et, val)
 	} else {
 		ev, err = ValNew(et)
@@ -133,7 +133,7 @@ func ValSliceAppend(v reflect.Value, val interface{}) error {
 	}
 	var err error
 	var ev reflect.Value
-	if IsValScalar(et) {
+	if IsTypeScalar(et) {
 		ev, err = ValScalarNew(et, val)
 	} else {
 		ev, err = ValNew(et)
@@ -169,7 +169,7 @@ func ValSliceInsertCopy(v reflect.Value, i int, val interface{}) error {
 	}
 	var err error
 	var ev reflect.Value
-	if IsValScalar(et) {
+	if IsTypeScalar(et) {
 		ev, err = ValScalarNew(et, val)
 	} else {
 		ev, err = ValNew(et)

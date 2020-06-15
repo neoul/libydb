@@ -5,6 +5,18 @@ import (
 	"reflect"
 )
 
+// IsValScalar - true if built-in simple variable type
+func IsValScalar(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		return IsValScalar(v.Elem())
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.Struct:
+		return false
+	default:
+		return true
+	}
+}
+
 // ValFindByContent - enable content search for slice in ValFind and ValFindOrInit.
 var ValFindByContent bool = false
 
@@ -262,26 +274,6 @@ func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (ref
 		pv.Set(cv)
 	}
 	return pv, nil
-}
-
-// IsTypeInterface reports whether v is an interface.
-func IsTypeInterface(t reflect.Type) bool {
-	if t == reflect.TypeOf(nil) {
-		return false
-	}
-	return t.Kind() == reflect.Interface
-}
-
-// IsValScalar - true if built-in simple variable type
-func IsValScalar(t reflect.Type) bool {
-	switch t.Kind() {
-	case reflect.Ptr, reflect.Interface:
-		return IsValScalar(t.Elem())
-	case reflect.Array, reflect.Slice, reflect.Map, reflect.Struct:
-		return false
-	default:
-		return true
-	}
 }
 
 // ValScalarNew - Create a new value of the t type.

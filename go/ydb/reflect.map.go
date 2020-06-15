@@ -61,7 +61,7 @@ func ValMapSet(v reflect.Value, key interface{}, element interface{}) error {
 	} else {
 		et = t.Elem()
 	}
-	if IsValScalar(et) {
+	if IsTypeScalar(et) {
 		ev, err = ValScalarNew(et, element)
 	} else {
 		ev, err = ValNew(et)

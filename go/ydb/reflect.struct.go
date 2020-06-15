@@ -54,14 +54,14 @@ func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}) erro
 			return fmt.Errorf("not specified field or val type for %s", name)
 		}
 		ftt = reflect.TypeOf(val)
-		if IsValScalar(ftt) {
+		if IsTypeScalar(ftt) {
 			return ValScalarSet(fv, val)
 		}
 		nv := reflect.ValueOf(val)
 		fv.Set(nv)
 		return nil
 	}
-	if IsValScalar(ftt) {
+	if IsTypeScalar(ftt) {
 		return ValScalarSet(fv, val)
 	}
 	nv, err := ValNew(ftt)
@@ -81,7 +81,7 @@ func ValStructFieldUnset(sv reflect.Value, name interface{}) error {
 	if !ok {
 		return fmt.Errorf("%s not found in %s", name, sv.Type())
 	}
-	if IsValScalar(ft.Type) {
+	if IsTypeScalar(ft.Type) {
 		return ValScalarSet(fv, "")
 	}
 	nv, err := ValNew(ft.Type)
