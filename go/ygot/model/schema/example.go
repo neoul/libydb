@@ -15,7 +15,6 @@ import (
 
 func init() {
 	ydb.SetLog("ydb", os.Stdout, logging.ERROR, "%{message}")
-	ydb.ValFindByContent = true
 }
 
 func keyListing(keys []string, key string) ([]string, string) {
@@ -71,7 +70,7 @@ func merge(device *Device, keys []string, key string, tag string, value string) 
 			return err
 		}
 	}
-	cv, err := ydb.ValChildSet(v, key, value)
+	cv, err := ydb.ValChildSet(v, key, value, ydb.SearchByContent)
 	if err == nil {
 		ydb.DebugValueString(cv.Interface(), 1, func(x ...interface{}) { fmt.Print(x...) })
 	} else {
@@ -92,7 +91,7 @@ func delete(device *Device, keys []string, key string) error {
 		}
 		v = cv
 	}
-	err := ydb.ValChildUnset(v, key)
+	_, err := ydb.ValChildUnset(v, key, ydb.NoSearch)
 	if err == nil {
 		ydb.DebugValueString(v.Interface(), 1, func(x ...interface{}) { fmt.Print(x...) })
 	} else {

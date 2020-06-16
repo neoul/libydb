@@ -17,7 +17,11 @@ func SliceFind(slice interface{}, key interface{}) (int, bool) {
 // SliceDelete - Delete an element indexed by i.
 func SliceDelete(slice interface{}, i int) error {
 	v := reflect.ValueOf(slice).Elem()
-	return ValSliceDelete(v, i)
+	if v.CanSet() {
+		_, err := ValSliceDelete(v, i)
+		return err
+	}
+	return fmt.Errorf("not settable value")
 }
 
 // SliceInsert - Insert an element to the index.
@@ -83,12 +87,16 @@ func ValSliceIndex(v reflect.Value, index interface{}) (reflect.Value, bool) {
 }
 
 // ValSliceDelete - Delete an element indexed by i.
-func ValSliceDelete(v reflect.Value, i int) error {
+func ValSliceDelete(v reflect.Value, i int) (reflect.Value, error) {
 	if v.CanSet() {
 		v.Set(reflect.AppendSlice(v.Slice(0, i), v.Slice(i+1, v.Len())))
-		return nil
+		return v, nil
 	}
-	return fmt.Errorf("not settable value")
+	tmp := reflect.MakeSlice(v.Type(), 0, v.Len()-1)
+	tmp = reflect.AppendSlice(
+		reflect.AppendSlice(tmp, v.Slice(0, i)),
+		v.Slice(i+1, v.Len()))
+	return tmp, nil
 }
 
 // ValSliceInsert - Insert an element to the index.

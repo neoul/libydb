@@ -5,13 +5,19 @@ import (
 	"reflect"
 )
 
-// SearchType - Search option
+// SearchType - Search option for slice (list) value
 type SearchType int
 
 const (
-	GetLastEntry = iota
+	// NoSearch - Do not search of the content of the slice value.
+	NoSearch = iota
+	// GetLastEntry - return the last entry of the slice value.
+	GetLastEntry
+	// GetFirstEntry - return the first entry of the slice value.
 	GetFirstEntry
+	// SearchByIndex - return an entry of n th index from the slice value.
 	SearchByIndex
+	// SearchByContent - search an entry by this content.
 	SearchByContent
 )
 
@@ -36,9 +42,6 @@ func emptykey(key interface{}) bool {
 	}
 	return false
 }
-
-// ValFindByContent - enable content search for slice in ValFind and ValFindOrInit.
-var ValFindByContent bool = false
 
 // ValFind - finds a child value from the struct, map or slice value using the key.
 func ValFind(v reflect.Value, key interface{}, searchtype SearchType) (reflect.Value, bool) {
@@ -147,18 +150,20 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 		}
 		cur = ev
 	case reflect.Slice:
-		if searchtype == GetLastEntry {
+		if searchtype == GetLastEntry || searchtype == GetFirstEntry {
 			len := cur.Len()
 			if len <= 0 {
-				return reflect.Value{}, false
+				err := ValSliceAppend(cur, key)
+				if err != nil {
+					return reflect.Value{}, false
+				}
+				len = cur.Len()
 			}
-			key = len - 1
-		} else if searchtype == GetFirstEntry {
-			len := cur.Len()
-			if len <= 0 {
-				return reflect.Value{}, false
+			if searchtype == GetFirstEntry {
+				key = 0
+			} else {
+				key = len - 1
 			}
-			key = 0
 		} else if searchtype == SearchByContent {
 			idx, ok := ValSliceFind(cur, key)
 			if !ok {
@@ -186,14 +191,14 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 }
 
 // ValChildSet - finds and sets a child value.
-func ValChildSet(pv reflect.Value, key interface{}, val interface{}) (reflect.Value, error) {
+func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType SearchType) (reflect.Value, error) {
 	if !pv.IsValid() {
 		return reflect.Value{}, fmt.Errorf("invalid parent value")
 	}
 	cur := pv
 	switch cur.Kind() {
 	case reflect.Ptr, reflect.Interface:
-		return ValChildSet(cur.Elem(), key, val)
+		return ValChildSet(cur.Elem(), key, val, insertType)
 	case reflect.Struct:
 		if emptykey(key) {
 			return cur, nil
@@ -228,24 +233,27 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}) (reflect.Va
 		}
 		cur = ev
 	case reflect.Slice, reflect.Array:
-		var ev reflect.Value
-		var ok bool
-		var idx int
-		if ValFindByContent {
-			idx, ok = ValSliceFind(cur, key)
+		if insertType == NoSearch {
+			err := ValSliceAppend(cur, val)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			key = cur.Len() - 1
+		} else if insertType == SearchByContent {
+			_, ok := ValSliceFind(cur, key)
 			if !ok {
 				err := ValSliceAppend(cur, key)
 				if err != nil {
-					return reflect.Value{}, fmt.Errorf("set failed (%v)", err)
+					return reflect.Value{}, err
 				}
-				idx = cur.Len() - 1
+				key = cur.Len() - 1
 			}
-			ev, ok = ValSliceIndex(cur, idx)
 		} else {
-			ev, ok = ValSliceIndex(cur, key)
+			return reflect.Value{}, fmt.Errorf("not supported insert option")
 		}
+		ev, ok := ValSliceIndex(cur, key)
 		if !ok {
-			return reflect.Value{}, fmt.Errorf("set failed")
+			return reflect.Value{}, fmt.Errorf("no element")
 		}
 		cur = ev
 	default:
@@ -255,53 +263,15 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}) (reflect.Va
 }
 
 // ValChildUnset - Unset a child value indicated by the key from parents
-func ValChildUnset(v reflect.Value, key interface{}) error {
+func ValChildUnset(v reflect.Value, key interface{}, deleteType SearchType) (reflect.Value, error) {
 	if !v.IsValid() {
-		return fmt.Errorf("invalid value")
+		return v, fmt.Errorf("invalid value")
 	}
-
-	t := v.Type()
-	switch t.Kind() {
-	case reflect.Ptr, reflect.Interface:
-		return ValChildUnset(v.Elem(), key)
-	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
-		return fmt.Errorf("not supported value type (%s)", t.Kind())
-	case reflect.Struct:
-		return ValStructFieldUnset(v, key)
-	case reflect.Map:
-		return ValMapUnset(v, key)
-	case reflect.Slice:
-		if ValFindByContent {
-			if index, ok := ValSliceFind(v, key); ok {
-				return ValSliceDelete(v, index)
-			}
-		} else {
-			var index int
-			if reflect.TypeOf(key).Kind() == reflect.Int {
-				index = key.(int)
-			} else {
-				idxv, err := ValScalarNew(reflect.TypeOf(0), key)
-				if !idxv.IsValid() || err != nil {
-					return err
-				}
-				index = idxv.Interface().(int)
-			}
-			return ValSliceDelete(v, index)
-		}
-		return fmt.Errorf("not found unset value")
-	default:
-		return fmt.Errorf("not supported scalar value unset")
-	}
-}
-
-// ValChildDirectSet - Set a child value to the parent value.
-func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (reflect.Value, error) {
-	v := pv
-	switch v.Type().Kind() {
+	switch v.Kind() {
 	case reflect.Interface:
-		return ValChildDirectSet(v.Elem(), key, cv)
+		return ValChildUnset(v.Elem(), key, deleteType)
 	case reflect.Ptr:
-		rv, err := ValChildDirectSet(v.Elem(), key, cv)
+		rv, err := ValChildUnset(v.Elem(), key, deleteType)
 		if err != nil {
 			return v, err
 		}
@@ -315,15 +285,55 @@ func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (ref
 		}
 		return v, err
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
-		return pv, fmt.Errorf("not supported parent type (%s)", v.Type().Kind())
+		return v, fmt.Errorf("not supported value type (%s)", v.Kind())
 	case reflect.Struct:
-		_, fv, ok := ValStructFieldFind(v, key)
+		return v, ValStructFieldUnset(v, key)
+	case reflect.Map:
+		return v, ValMapUnset(v, key)
+	case reflect.Slice:
+		if deleteType == SearchByContent {
+			if index, ok := ValSliceFind(v, key); ok {
+				return ValSliceDelete(v, index)
+			}
+			return v, fmt.Errorf("not found unset value")
+		} else if deleteType == NoSearch {
+			return ValSliceDelete(v, 0)
+		}
+		return v, fmt.Errorf("invalid delete option")
+	default:
+		return v, fmt.Errorf("not supported scalar value unset")
+	}
+}
+
+// ValChildDirectSet - Set a child value to the parent value.
+func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (reflect.Value, error) {
+	switch pv.Kind() {
+	case reflect.Interface:
+		return ValChildDirectSet(pv.Elem(), key, cv)
+	case reflect.Ptr:
+		rv, err := ValChildDirectSet(pv.Elem(), key, cv)
+		if err != nil {
+			return pv, err
+		}
+		if rv != pv.Elem() {
+			if pv.CanSet() {
+				nrv := newPtrOfValue(rv)
+				pv.Set(nrv)
+				return pv, err
+			}
+			return newPtrOfValue(rv), err
+		}
+		return pv, err
+	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
+		return pv, fmt.Errorf("not supported parent type (%s)", pv.Type().Kind())
+	case reflect.Struct:
+		_, fv, ok := ValStructFieldFind(pv, key)
 		if !ok {
 			return pv, fmt.Errorf("not found %s", key)
 		}
 		fv.Set(cv)
 	case reflect.Map:
-		t := v.Type()
+		t := pv.Type()
 		kt := t.Key()
 		if IsTypeInterface(kt) { // That means it is not a specified type.
 			kt = reflect.TypeOf(key)
@@ -332,22 +342,22 @@ func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (ref
 		if err != nil || !kv.IsValid() {
 			return pv, fmt.Errorf("invalid key: %s", key)
 		}
-		v.SetMapIndex(kv, cv)
+		pv.SetMapIndex(kv, cv)
 	case reflect.Slice:
-		if !v.CanSet() {
-			tempv := reflect.MakeSlice(v.Type(), v.Len(), v.Len())
-			reflect.Copy(tempv, v)
+		if !pv.CanSet() {
+			tempv := reflect.MakeSlice(pv.Type(), pv.Len(), pv.Len())
+			reflect.Copy(tempv, pv)
 			tempv = reflect.Append(tempv, cv)
 			return tempv, nil
 		}
-		v.Set(reflect.Append(v, cv))
+		pv.Set(reflect.Append(pv, cv))
 	default:
-		if !v.CanSet() {
-			tempv := reflect.New(v.Type()).Elem()
+		if !pv.CanSet() {
+			tempv := reflect.New(pv.Type()).Elem()
 			tempv.Set(cv)
 			return tempv, nil
 		}
-		v.Set(cv)
+		pv.Set(cv)
 	}
 	return pv, nil
 }

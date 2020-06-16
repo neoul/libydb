@@ -28,14 +28,12 @@ func ValYdbSet(v reflect.Value, keys []string, key string, tag string, value str
 		pv = v
 		v = cv
 		pkey = k
-		// fmt.Println("found pv:", pv.Kind(), pv)
-		// fmt.Println("found v:", v.Kind(), v)
 	}
 
 	ct, ok := TypeFind(v.Type(), key)
 	if ok && isTypeInterface(ct) {
 		switch tag {
-		case "!!map", "!!imap", "!!omap":
+		case "!!map", "!!imap", "!!omap", "!!set":
 			nv := reflect.ValueOf(map[string]interface{}{})
 			vv, err := ValChildDirectSet(v, key, nv)
 			if vv != v {
@@ -43,7 +41,7 @@ func ValYdbSet(v reflect.Value, keys []string, key string, tag string, value str
 				return err
 			}
 			return err
-		case "!!set", "!!seq":
+		case "!!seq":
 			nv := reflect.ValueOf([]interface{}{})
 			vv, err := ValChildDirectSet(v, key, nv)
 			if vv != v {
@@ -54,23 +52,30 @@ func ValYdbSet(v reflect.Value, keys []string, key string, tag string, value str
 		default:
 		}
 	}
-	_, err := ValChildSet(v, key, value)
+	_, err := ValChildSet(v, key, value, NoSearch)
 	return err
 }
 
 // ValYdbUnset - constructs the non-updater struct
 func ValYdbUnset(v reflect.Value, keys []string, key string) error {
 	// keys, key = keyListing(keys, key)
+	var pkey string
+	var pv reflect.Value
 	for _, k := range keys {
 		cv, ok := ValFind(v, k, GetFirstEntry)
 		if !ok || !cv.IsValid() {
 			return fmt.Errorf("key %s not found", k)
 		}
+		pv = v
 		v = cv
+		pkey = k
 	}
-	err := ValChildUnset(v, key)
-	// if err == nil {
-	// 	DebugValueString(v.Interface(), 1, func(x ...interface{}) { fmt.Print(x...) })
-	// }
+	rv, err := ValChildUnset(v, key, NoSearch)
+	if err != nil {
+		return err
+	}
+	if rv != v {
+		_, err = ValChildDirectSet(pv, pkey, rv)
+	}
 	return err
 }

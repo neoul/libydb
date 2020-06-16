@@ -1107,7 +1107,8 @@ func UnsetValue(v reflect.Value, key interface{}) error {
 		return unsetMapValue(v, key)
 	case reflect.Slice:
 		if index, ok := ValSliceFind(v, key); ok {
-			return ValSliceDelete(v, index)
+			_, err := ValSliceDelete(v, index)
+			return err
 		}
 		return fmt.Errorf("Not found unset value")
 	case reflect.Interface:
