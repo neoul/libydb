@@ -91,7 +91,7 @@ func delete(device *Device, keys []string, key string) error {
 		}
 		v = cv
 	}
-	_, err := ydb.ValChildUnset(v, key, ydb.NoSearch)
+	_, err := ydb.ValChildUnset(v, key, ydb.SearchByContent)
 	if err == nil {
 		ydb.DebugValueString(v.Interface(), 1, func(x ...interface{}) { fmt.Print(x...) })
 	} else {

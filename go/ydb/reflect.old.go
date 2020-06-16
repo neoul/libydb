@@ -340,9 +340,9 @@ func debugValueStr(v reflect.Value, depth, ptrcnt int, indent string, disableInd
 	}
 	if v.IsZero() {
 		if disableIndent || noIndent {
-			return fmt.Sprintf("%s(zero)", v.Type())
+			return fmt.Sprintf("%s(%v)", v.Type(), v)
 		}
-		return indent + fmt.Sprintf("%s(zero)", v.Type())
+		return indent + fmt.Sprintf("%s(%v)", v.Type(), v)
 	}
 	if !v.IsValid() {
 		if disableIndent || noIndent {
@@ -587,7 +587,7 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 			}
 			return nil
 		case reflect.Bool:
-			if srcstring == "true" || srcstring == "True" || srcstring == "TRUE" {
+			if strings.ToLower(srcstring) == "true" {
 				dv.SetBool(true)
 			} else {
 				dv.SetBool(false)
@@ -598,7 +598,7 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 	if dt.Kind() == reflect.Bool {
 		switch st.Kind() {
 		case reflect.String:
-			if len(sv.String()) > 0 && sv.String() == "true" || sv.String() == "True" || sv.String() == "TRUE" {
+			if strings.ToLower(sv.String()) == "true" {
 				dv.SetBool(true)
 			} else {
 				dv.SetBool(false)
