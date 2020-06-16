@@ -57,7 +57,7 @@ func merge(device *Device, keys []string, key string, tag string, value string) 
 	fmt.Printf("Device.merge %v %v %v %v\n", keys, key, tag, value)
 	v := reflect.ValueOf(device)
 	for _, k := range keys {
-		cv, ok := ydb.ValFindOrInit(v, k)
+		cv, ok := ydb.ValFindOrInit(v, k, ydb.SearchByContent)
 		if !ok || !cv.IsValid() {
 			return fmt.Errorf("key %s not found", k)
 		}
@@ -67,7 +67,8 @@ func merge(device *Device, keys []string, key string, tag string, value string) 
 	if ok && value != "" {
 		cv, err := ytypes.StringToType(ct, value)
 		if err == nil {
-			return ydb.ValChildDirectSet(v, key, cv)
+			_, err = ydb.ValChildDirectSet(v, key, cv)
+			return err
 		}
 	}
 	cv, err := ydb.ValChildSet(v, key, value)
@@ -85,7 +86,7 @@ func delete(device *Device, keys []string, key string) error {
 	fmt.Printf("Device.delete %v %v\n", keys, key)
 	v := reflect.ValueOf(device)
 	for _, k := range keys {
-		cv, ok := ydb.ValFind(v, k)
+		cv, ok := ydb.ValFind(v, k, ydb.SearchByContent)
 		if !ok || !cv.IsValid() {
 			return fmt.Errorf("key %s not found", k)
 		}

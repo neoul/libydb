@@ -216,7 +216,7 @@ func TestValFind(t *testing.T) {
 			got1 := false
 			got := tt.args.v
 			for _, key := range tt.args.keys {
-				got, got1 = ValFind(got, key)
+				got, got1 = ValFind(got, key, SearchByIndex)
 				if got.IsValid() {
 					t.Log(got.Type(), got.Kind(), got)
 				}

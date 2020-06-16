@@ -5,6 +5,16 @@ import (
 	"reflect"
 )
 
+// SearchType - Search option
+type SearchType int
+
+const (
+	GetLastEntry = iota
+	GetFirstEntry
+	SearchByIndex
+	SearchByContent
+)
+
 // IsValScalar - true if built-in simple variable type
 func IsValScalar(v reflect.Value) bool {
 	switch v.Kind() {
@@ -31,42 +41,57 @@ func emptykey(key interface{}) bool {
 var ValFindByContent bool = false
 
 // ValFind - finds a child value from the struct, map or slice value using the key.
-func ValFind(v reflect.Value, key interface{}) (reflect.Value, bool) {
+func ValFind(v reflect.Value, key interface{}, searchtype SearchType) (reflect.Value, bool) {
 	if !v.IsValid() {
 		return reflect.Value{}, false
 	}
 	cur := v
-	if emptykey(key) {
-		return v, true
-	}
 	switch cur.Kind() {
 	case reflect.Ptr, reflect.Interface:
-		return ValFind(cur.Elem(), key)
+		return ValFind(cur.Elem(), key, searchtype)
 	case reflect.Struct:
+		if emptykey(key) {
+			return v, true
+		}
 		_, sfv, ok := ValStructFieldFind(cur, key)
 		if !ok {
 			return reflect.Value{}, false
 		}
 		cur = sfv
 	case reflect.Map:
+		if emptykey(key) {
+			return reflect.Value{}, false
+		}
 		ev, ok := ValMapFind(cur, key)
 		if !ok {
 			return reflect.Value{}, false
 		}
 		cur = ev
-	case reflect.Slice, reflect.Array:
-		var ev reflect.Value
-		var ok bool
-		var idx int
-		if ValFindByContent {
-			idx, ok = ValSliceFind(cur, key)
+	case reflect.Slice:
+		if searchtype == GetLastEntry {
+			len := cur.Len()
+			if len <= 0 {
+				return reflect.Value{}, false
+			}
+			key = len - 1
+		} else if searchtype == GetFirstEntry {
+			len := cur.Len()
+			if len <= 0 {
+				return reflect.Value{}, false
+			}
+			key = 0
+		} else if searchtype == SearchByContent {
+			idx, ok := ValSliceFind(cur, key)
 			if !ok {
 				return reflect.Value{}, false
 			}
-			ev, ok = ValSliceIndex(cur, idx)
+			key = idx
+		} else if searchtype == SearchByIndex {
+
 		} else {
-			ev, ok = ValSliceIndex(cur, key)
+			return reflect.Value{}, false
 		}
+		ev, ok := ValSliceIndex(cur, key)
 		if !ok {
 			return reflect.Value{}, false
 		}
@@ -78,18 +103,18 @@ func ValFind(v reflect.Value, key interface{}) (reflect.Value, bool) {
 }
 
 // ValFindOrInit - finds or initializes a child value if it is not exists.
-func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
+func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (reflect.Value, bool) {
 	if !v.IsValid() {
 		return reflect.Value{}, false
 	}
 	cur := v
-	if emptykey(key) {
-		return cur, true
-	}
 	switch cur.Kind() {
 	case reflect.Ptr, reflect.Interface:
-		return ValFindOrInit(cur.Elem(), key)
+		return ValFindOrInit(cur.Elem(), key, searchtype)
 	case reflect.Struct:
+		if emptykey(key) {
+			return reflect.Value{}, false
+		}
 		_, sfv, ok := ValStructFieldFind(cur, key)
 		if !ok {
 			return reflect.Value{}, false
@@ -106,6 +131,9 @@ func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
 		}
 		cur = sfv
 	case reflect.Map:
+		if emptykey(key) {
+			return reflect.Value{}, false
+		}
 		ev, ok := ValMapFind(cur, key)
 		if !ok {
 			err := ValMapSet(cur, key, nil)
@@ -118,12 +146,21 @@ func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
 			}
 		}
 		cur = ev
-	case reflect.Slice, reflect.Array:
-		var ev reflect.Value
-		var ok bool
-		var idx int
-		if ValFindByContent {
-			idx, ok = ValSliceFind(cur, key)
+	case reflect.Slice:
+		if searchtype == GetLastEntry {
+			len := cur.Len()
+			if len <= 0 {
+				return reflect.Value{}, false
+			}
+			key = len - 1
+		} else if searchtype == GetFirstEntry {
+			len := cur.Len()
+			if len <= 0 {
+				return reflect.Value{}, false
+			}
+			key = 0
+		} else if searchtype == SearchByContent {
+			idx, ok := ValSliceFind(cur, key)
 			if !ok {
 				err := ValSliceAppend(cur, key)
 				if err != nil {
@@ -131,10 +168,13 @@ func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
 				}
 				idx = cur.Len() - 1
 			}
-			ev, ok = ValSliceIndex(cur, idx)
+			key = idx
+		} else if searchtype == SearchByIndex {
+
 		} else {
-			ev, ok = ValSliceIndex(cur, key)
+			return reflect.Value{}, false
 		}
+		ev, ok := ValSliceIndex(cur, key)
 		if !ok {
 			return reflect.Value{}, false
 		}
@@ -255,18 +295,31 @@ func ValChildUnset(v reflect.Value, key interface{}) error {
 }
 
 // ValChildDirectSet - Set a child value to the parent value.
-func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) error {
-	// v := GetNonIfOrPtrValueDeep(pv)
+func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (reflect.Value, error) {
 	v := pv
 	switch v.Type().Kind() {
-	case reflect.Ptr, reflect.Interface:
-		return ValChildDirectSet(pv.Elem(), key, cv)
+	case reflect.Interface:
+		return ValChildDirectSet(v.Elem(), key, cv)
+	case reflect.Ptr:
+		rv, err := ValChildDirectSet(v.Elem(), key, cv)
+		if err != nil {
+			return v, err
+		}
+		if rv != v.Elem() {
+			if v.CanSet() {
+				nrv := newPtrOfValue(rv)
+				v.Set(nrv)
+				return v, err
+			}
+			return newPtrOfValue(rv), err
+		}
+		return v, err
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
-		return fmt.Errorf("Not supported parent type (%s)", v.Type().Kind())
+		return pv, fmt.Errorf("not supported parent type (%s)", v.Type().Kind())
 	case reflect.Struct:
 		_, fv, ok := ValStructFieldFind(v, key)
 		if !ok {
-			return fmt.Errorf("not found %s", key)
+			return pv, fmt.Errorf("not found %s", key)
 		}
 		fv.Set(cv)
 	case reflect.Map:
@@ -277,18 +330,26 @@ func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) erro
 		}
 		kv, err := ValScalarNew(kt, key)
 		if err != nil || !kv.IsValid() {
-			return fmt.Errorf("invalid key: %s", key)
+			return pv, fmt.Errorf("invalid key: %s", key)
 		}
 		v.SetMapIndex(kv, cv)
 	case reflect.Slice:
+		if !v.CanSet() {
+			tempv := reflect.MakeSlice(v.Type(), v.Len(), v.Len())
+			reflect.Copy(tempv, v)
+			tempv = reflect.Append(tempv, cv)
+			return tempv, nil
+		}
 		v.Set(reflect.Append(v, cv))
 	default:
-		if !pv.CanSet() {
-			return fmt.Errorf("Not settable type(%s)", pv.Type())
+		if !v.CanSet() {
+			tempv := reflect.New(v.Type()).Elem()
+			tempv.Set(cv)
+			return tempv, nil
 		}
-		pv.Set(cv)
+		v.Set(cv)
 	}
-	return nil
+	return pv, nil
 }
 
 // ValScalarNew - Create a new value of the t type.
