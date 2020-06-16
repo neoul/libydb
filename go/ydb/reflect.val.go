@@ -17,6 +17,16 @@ func IsValScalar(v reflect.Value) bool {
 	}
 }
 
+func emptykey(key interface{}) bool {
+	kk, ok := key.(string)
+	if ok {
+		if kk == "" {
+			return true
+		}
+	}
+	return false
+}
+
 // ValFindByContent - enable content search for slice in ValFind and ValFindOrInit.
 var ValFindByContent bool = false
 
@@ -26,8 +36,8 @@ func ValFind(v reflect.Value, key interface{}) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 	cur := v
-	if key == "" {
-		return cur, true
+	if emptykey(key) {
+		return v, true
 	}
 	switch cur.Kind() {
 	case reflect.Ptr, reflect.Interface:
@@ -73,7 +83,7 @@ func ValFindOrInit(v reflect.Value, key interface{}) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 	cur := v
-	if key == "" {
+	if emptykey(key) {
 		return cur, true
 	}
 	switch cur.Kind() {
@@ -141,13 +151,13 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}) (reflect.Va
 		return reflect.Value{}, fmt.Errorf("invalid parent value")
 	}
 	cur := pv
-	if key == "" {
-		return cur, nil
-	}
 	switch cur.Kind() {
 	case reflect.Ptr, reflect.Interface:
 		return ValChildSet(cur.Elem(), key, val)
 	case reflect.Struct:
+		if emptykey(key) {
+			return cur, nil
+		}
 		_, sfv, ok := ValStructFieldFind(cur, key)
 		if !ok {
 			return reflect.Value{}, fmt.Errorf("not found %s", key)
@@ -162,6 +172,9 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}) (reflect.Va
 		}
 		cur = sfv
 	case reflect.Map:
+		if emptykey(key) {
+			return cur, nil
+		}
 		ev, ok := ValMapFind(cur, key)
 		if !ok {
 			err := ValMapSet(cur, key, val)
@@ -242,16 +255,18 @@ func ValChildUnset(v reflect.Value, key interface{}) error {
 }
 
 // ValChildDirectSet - Set a child value to the parent value.
-func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (reflect.Value, error) {
-	log.Debug("SetValueChild", pv.Type(), cv.Type(), key)
-	v := GetNonIfOrPtrValueDeep(pv)
+func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) error {
+	// v := GetNonIfOrPtrValueDeep(pv)
+	v := pv
 	switch v.Type().Kind() {
-	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Interface:
-		return pv, fmt.Errorf("Not supported parent type (%s)", v.Type().Kind())
+	case reflect.Ptr, reflect.Interface:
+		return ValChildDirectSet(pv.Elem(), key, cv)
+	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
+		return fmt.Errorf("Not supported parent type (%s)", v.Type().Kind())
 	case reflect.Struct:
 		_, fv, ok := ValStructFieldFind(v, key)
 		if !ok {
-			return pv, fmt.Errorf("not found %s", key)
+			return fmt.Errorf("not found %s", key)
 		}
 		fv.Set(cv)
 	case reflect.Map:
@@ -262,18 +277,18 @@ func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (ref
 		}
 		kv, err := ValScalarNew(kt, key)
 		if err != nil || !kv.IsValid() {
-			return reflect.Value{}, fmt.Errorf("invalid key: %s", key)
+			return fmt.Errorf("invalid key: %s", key)
 		}
 		v.SetMapIndex(kv, cv)
 	case reflect.Slice:
 		v.Set(reflect.Append(v, cv))
 	default:
 		if !pv.CanSet() {
-			return pv, fmt.Errorf("Not settable type(%s)", pv.Type())
+			return fmt.Errorf("Not settable type(%s)", pv.Type())
 		}
 		pv.Set(cv)
 	}
-	return pv, nil
+	return nil
 }
 
 // ValScalarNew - Create a new value of the t type.

@@ -67,8 +67,7 @@ func merge(device *Device, keys []string, key string, tag string, value string) 
 	if ok && value != "" {
 		cv, err := ytypes.StringToType(ct, value)
 		if err == nil {
-			cv, err = ydb.ValChildDirectSet(v, key, cv)
-			return err
+			return ydb.ValChildDirectSet(v, key, cv)
 		}
 	}
 	cv, err := ydb.ValChildSet(v, key, value)

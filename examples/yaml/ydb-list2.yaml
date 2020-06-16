@@ -1,0 +1,3 @@
+list:
+  - { name: neoul, e-mail: neoul@ymail.com }
+  - { name: example, e-mail: example@google.com }

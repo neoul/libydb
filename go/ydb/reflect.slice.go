@@ -40,16 +40,19 @@ func SliceInsertCopy(slice interface{}, i int, val interface{}) error {
 
 // slice operations for reflect.Value
 
-// ValSliceFind - Search an element by value.
-func ValSliceFind(v reflect.Value, val interface{}) (int, bool) {
+// ValSliceVal2Element - Search an element by value.
+func ValSliceVal2Element(v reflect.Value, val interface{}) reflect.Value {
 	et := v.Type().Elem()
 	if IsTypeInterface(et) { // That means it is not a specified type.
 		et = reflect.TypeOf(val)
 	}
-	ev, err := ValScalarNew(et, val)
-	if err != nil || !ev.IsValid() {
-		return -1, false
-	}
+	ev, _ := ValScalarNew(et, val)
+	return ev
+}
+
+// ValSliceFind - Search an element by value.
+func ValSliceFind(v reflect.Value, val interface{}) (int, bool) {
+	ev := ValSliceVal2Element(v, val)
 	length := v.Len()
 	for i := 0; i < length; i++ {
 		if reflect.DeepEqual(v.Index(i).Interface(), ev.Interface()) {
@@ -61,10 +64,8 @@ func ValSliceFind(v reflect.Value, val interface{}) (int, bool) {
 
 // ValSliceIndex - Get an element by index.
 func ValSliceIndex(v reflect.Value, index interface{}) (reflect.Value, bool) {
-	var i int
-	if reflect.TypeOf(index).Kind() == reflect.Int {
-		i = index.(int)
-	} else {
+	i, ok := index.(int)
+	if !ok {
 		idxv, err := ValScalarNew(reflect.TypeOf(0), index)
 		if !idxv.IsValid() || err != nil {
 			return reflect.Value{}, false
