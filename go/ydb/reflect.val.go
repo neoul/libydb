@@ -153,7 +153,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 		if searchtype == GetLastEntry || searchtype == GetFirstEntry {
 			len := cur.Len()
 			if len <= 0 {
-				err := ValSliceAppend(cur, key)
+				_, err := ValSliceAppend(cur, key)
 				if err != nil {
 					return reflect.Value{}, false
 				}
@@ -167,7 +167,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 		} else if searchtype == SearchByContent {
 			idx, ok := ValSliceFind(cur, key)
 			if !ok {
-				err := ValSliceAppend(cur, key)
+				_, err := ValSliceAppend(cur, key)
 				if err != nil {
 					return reflect.Value{}, false
 				}
@@ -193,73 +193,64 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 // ValChildSet - finds and sets a child value.
 func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType SearchType) (reflect.Value, error) {
 	if !pv.IsValid() {
-		return reflect.Value{}, fmt.Errorf("invalid parent value")
+		return pv, fmt.Errorf("invalid parent value")
 	}
-	cur := pv
-	switch cur.Kind() {
-	case reflect.Ptr, reflect.Interface:
-		return ValChildSet(cur.Elem(), key, val, insertType)
+	switch pv.Kind() {
+	case reflect.Interface:
+		return ValChildSet(pv.Elem(), key, val, insertType)
+	case reflect.Ptr:
+		rv, err := ValChildSet(pv.Elem(), key, val, insertType)
+		if err != nil {
+			return pv, err
+		}
+		if rv != pv.Elem() {
+			if pv.CanSet() {
+				nrv := newPtrOfValue(rv)
+				pv.Set(nrv)
+				return pv, err
+			}
+			return newPtrOfValue(rv), err
+		}
+		return pv, err
 	case reflect.Struct:
 		if emptykey(key) {
-			return cur, nil
+			return pv, nil
 		}
-		_, sfv, ok := ValStructFieldFind(cur, key)
-		if !ok {
-			return reflect.Value{}, fmt.Errorf("not found %s", key)
-		}
-		err := ValStructFieldSet(cur, key, val)
+		err := ValStructFieldSet(pv, key, val)
 		if err != nil {
-			return reflect.Value{}, fmt.Errorf("set failed (%v)", err)
+			return pv, fmt.Errorf("set failed (%v)", err)
 		}
-		_, sfv, ok = ValStructFieldFind(cur, key)
-		if !ok {
-			return reflect.Value{}, fmt.Errorf("not found %s", key)
-		}
-		cur = sfv
 	case reflect.Map:
 		if emptykey(key) {
-			return cur, nil
+			return pv, nil
 		}
-		ev, ok := ValMapFind(cur, key)
-		if !ok {
-			err := ValMapSet(cur, key, val)
-			if err != nil {
-				return reflect.Value{}, fmt.Errorf("set failed (%v)", err)
-			}
-			ev, ok = ValMapFind(cur, key)
-			if !ok {
-				return reflect.Value{}, fmt.Errorf("not found %s", key)
-			}
+		err := ValMapSet(pv, key, val)
+		if err != nil {
+			return pv, fmt.Errorf("set failed (%v)", err)
 		}
-		cur = ev
 	case reflect.Slice, reflect.Array:
 		if insertType == NoSearch {
-			err := ValSliceAppend(cur, val)
+			vv, err := ValSliceAppend(pv, val)
 			if err != nil {
-				return reflect.Value{}, err
+				return pv, err
 			}
-			key = cur.Len() - 1
+			return vv, nil
 		} else if insertType == SearchByContent {
-			_, ok := ValSliceFind(cur, key)
+			_, ok := ValSliceFind(pv, key)
 			if !ok {
-				err := ValSliceAppend(cur, key)
+				vv, err := ValSliceAppend(pv, key)
 				if err != nil {
-					return reflect.Value{}, err
+					return pv, err
 				}
-				key = cur.Len() - 1
+				return vv, nil
 			}
 		} else {
-			return reflect.Value{}, fmt.Errorf("not supported insert option")
+			return pv, fmt.Errorf("not supported insert option")
 		}
-		ev, ok := ValSliceIndex(cur, key)
-		if !ok {
-			return reflect.Value{}, fmt.Errorf("no element")
-		}
-		cur = ev
 	default:
-		return reflect.Value{}, fmt.Errorf("not container type %s", cur.Kind())
+		return pv, fmt.Errorf("not container type %s", pv.Kind())
 	}
-	return cur, nil
+	return pv, nil
 }
 
 // ValChildUnset - Unset a child value indicated by the key from parents

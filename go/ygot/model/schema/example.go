@@ -70,9 +70,9 @@ func merge(device *Device, keys []string, key string, tag string, value string) 
 			return err
 		}
 	}
-	cv, err := ydb.ValChildSet(v, key, value, ydb.SearchByContent)
+	nv, err := ydb.ValChildSet(v, key, value, ydb.SearchByContent)
 	if err == nil {
-		ydb.DebugValueString(cv.Interface(), 1, func(x ...interface{}) { fmt.Print(x...) })
+		ydb.DebugValueString(nv.Interface(), 1, func(x ...interface{}) { fmt.Print(x...) })
 	} else {
 		fmt.Println(err)
 	}

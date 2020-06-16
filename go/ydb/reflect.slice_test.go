@@ -1,6 +1,7 @@
 package ydb
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -122,7 +123,7 @@ func TestSliceInsert(t *testing.T) {
 				i:     -1,
 				val:   "100",
 			},
-			want: nil,
+			want: fmt.Errorf("invalid index"),
 		},
 		{
 			name: "Insert an element with 0 index",
@@ -149,117 +150,9 @@ func TestSliceInsert(t *testing.T) {
 			got := SliceInsert(tt.args.slice, tt.args.i, tt.args.val)
 			t.Log("After", tt.args.slice)
 			if got != tt.want {
-				t.Errorf("SliceInsert() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSliceDeleteCopy(t *testing.T) {
-	type args struct {
-		slice []int
-		i     int
-	}
-	tests := []struct {
-		name string
-		args args
-		want error
-	}{
-		{
-			name: "delete an element value in the slice",
-			args: args{
-				slice: []int{10, 20, 50, 40, 30, 60},
-				i:     3,
-			},
-			want: nil,
-		},
-		{
-			name: "delete an element value in the slice with different element type",
-			args: args{
-				slice: []int{10, 20, 50, 40, 30, 60},
-				i:     0,
-			},
-			want: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := tt.args.slice
-			got := SliceDeleteCopy(&tt.args.slice, tt.args.i)
-			t.Log("After", s)
-			t.Log("After", tt.args.slice)
-			if got != tt.want {
-				t.Errorf("SliceDeleteCopy() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSliceInsertCopy(t *testing.T) {
-	type args struct {
-		slice []int
-		i     int
-		val   interface{}
-	}
-	tests := []struct {
-		name string
-		args args
-		want error
-	}{
-		{
-			name: "Insert an element value in the slice",
-			args: args{
-				slice: []int{10, 20, 50, 40, 30, 60},
-				i:     3,
-				val:   70,
-			},
-			want: nil,
-		},
-		{
-			name: "Insert an element value in the slice with different element type",
-			args: args{
-				slice: []int{10, 20, 50, 40, 30, 60},
-				i:     0,
-				val:   "70",
-			},
-			want: nil,
-		},
-		{
-			name: "Insert an element with -1 index",
-			args: args{
-				slice: []int{10, 20, 50, 40, 30, 60},
-				i:     -1,
-				val:   "100",
-			},
-			want: nil,
-		},
-		{
-			name: "Insert an element with 0 index",
-			args: args{
-				slice: []int{10, 20, 50, 40, 30, 60},
-				i:     0,
-				val:   "100",
-			},
-			want: nil,
-		},
-		{
-			name: "Insert an element with Len index",
-			args: args{
-				slice: []int{10, 20, 50, 40, 30, 60},
-				i:     6,
-				val:   "100",
-			},
-			want: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := tt.args.slice
-			got := SliceInsertCopy(&tt.args.slice, tt.args.i, tt.args.val)
-			t.Log("After", s)
-			t.Log("After", tt.args.slice)
-			if got != tt.want {
-				t.Errorf("SliceInsertCopy() got = %v, want %v", got, tt.want)
+				if got == nil || tt.want == nil || got.Error() != tt.want.Error() {
+					t.Errorf("SliceInsert() got = %v, want %v", got, tt.want)
+				}
 			}
 		})
 	}
