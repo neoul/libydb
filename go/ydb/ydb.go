@@ -678,6 +678,8 @@ func (dec *Decoder) Decode() error {
 	}
 	byt, err := ioutil.ReadAll(dec.r)
 	if err == nil {
+		dec.db.mutex.Lock()
+		defer dec.db.mutex.Unlock()
 		res := C.ydb_parses_wrapper(dec.db.block, unsafe.Pointer(&byt[0]), C.ulong(len(byt)))
 		if res >= C.YDB_ERROR {
 			dec.err = err
@@ -707,7 +709,9 @@ func (enc *Encoder) Encode() error {
 		return enc.err
 	}
 	path := byte(0)
+	enc.db.mutex.Lock()
 	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, unsafe.Pointer(&path))
+	enc.db.mutex.Unlock()
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
 		byt := C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen)

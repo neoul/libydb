@@ -3,6 +3,7 @@ package ydb
 import (
 	"io/ioutil"
 	"os"
+	"time"
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/sirupsen/logrus"
@@ -48,8 +49,9 @@ func init() {
 	logger.SetOutput(os.Stdout)
 	logger.SetLevel(logrus.DebugLevel)
 	logger.SetFormatter(&nested.Formatter{
-		HideKeys:    true,
-		FieldsOrder: []string{"component", "category"},
+		HideKeys:        true,
+		FieldsOrder:     []string{"component", "category"},
+		TimestampFormat: time.RFC3339,
 		// ShowFullLevel: true,
 	})
 

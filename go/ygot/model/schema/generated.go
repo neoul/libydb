@@ -20,6 +20,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/ytypes"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // Binary is a type that is used for fields that have a YANG type of
@@ -86,6 +87,14 @@ func Unmarshal(data []byte, destStruct ygot.GoStruct, opts ...ytypes.UnmarshalOp
 		return err
 	}
 	return ytypes.Unmarshal(schema, destStruct, jsonTree, opts...)
+}
+// ΓModelData contains the catalogue information corresponding to the modules for
+// which Go code was generated.
+var ΓModelData = []*gpb.ModelData{
+    {
+		Name: "network",
+		Organization: "Actus Networks",
+	},
 }
 
 // Device represents the /device YANG schema element.
