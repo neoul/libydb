@@ -5,6 +5,7 @@ package ydb
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <ylog.h>
 #include <ydb.h>
 
@@ -52,6 +53,39 @@ static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, void *path)
 	bi.buflen = buflen;
 	bi.buf = (void *) buf;
 	return bi;
+}
+
+extern void ylogGo(int level, char *f, int line, char *buf, int buflen);
+static int ylog_go(
+    int level, const char *f, int line, const char *format, ...)
+{
+	FILE *fp;
+    char *buf = NULL;
+	size_t buflen = 0;
+	fp = open_memstream(&buf, &buflen);
+	if (fp)
+	{
+		va_list args;
+		va_start(args, format);
+		vfprintf(fp, format, args);
+		va_end(args);
+		fclose(fp);
+		if (buflen > 0) {
+			// remove tail \n
+			if (buf[buflen - 1] == '\n')
+				buflen--;
+			ylogGo(level, (char *)f, line, buf, buflen);
+		}
+		if (!buf)
+			free(buf);
+		return buflen;
+	}
+	return 0;
+}
+
+static void ylog_init()
+{
+	ylog_register(ylog_go);
 }
 
 */
@@ -832,4 +866,30 @@ func (n *C.ynode) key() string {
 
 func (n *C.ynode) value() string {
 	return C.GoString(C.ydb_value(n))
+}
+
+//export ylogGo
+// ylogGo - Logging function for YDB native logging facility.
+func ylogGo(level C.int, f *C.char, line C.int, buf *C.char, buflen C.int) {
+	if log == nil {
+		return
+	}
+	switch level {
+	case LogDebug:
+		log.Debugf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+	case LogInout:
+		log.Debugf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+	case LogInfo:
+		log.Infof("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+	case LogWarn:
+		log.Warnf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+	case LogError:
+		log.Errorf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+	case LogCritical:
+		log.Fatalf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+	}
+}
+
+func init() {
+	C.ylog_init()
 }
