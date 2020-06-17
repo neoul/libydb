@@ -1,38 +1,66 @@
 package ydb
 
 import (
-	"io"
 	"io/ioutil"
 	"os"
 
-	"github.com/op/go-logging"
+	nested "github.com/antonfisher/nested-logrus-formatter"
+	"github.com/sirupsen/logrus"
 )
 
-var log *logging.Logger
+var logger *logrus.Logger
+var log *logrus.Entry
 
-// SetLog - Set the log facilities.
-func SetLog(module string, out io.Writer, level logging.Level, formatstr string) *logging.Logger {
-	if formatstr == "" {
-		formatstr = `%{color}%{time} %{program}.%{module}.%{shortfunc:.12s} %{level:.5s} ▶%{color:reset} %{message}`
-	}
-	ilog := logging.MustGetLogger(module)
-	// Example format string. Everything except the message has a custom color
-	// which is dependent on the log level. Many fields have a custom output
-	// formatting too, eg. the time returns the hour down to the milli second.
-	var format = logging.MustStringFormatter(formatstr)
-	logBackend := logging.NewLogBackend(out, "", 0)
-	newLogBackend := logging.NewBackendFormatter(logBackend, format)
-	leveledBackend := logging.AddModuleLevel(newLogBackend)
-	leveledBackend.SetLevel(level, module)
-	logging.SetBackend(leveledBackend)
-	return ilog
+// DisableLog - disable the log facilities.
+func DisableLog(component string) {
+	logrus.SetOutput(ioutil.Discard)
+	logrus.SetLevel(logrus.ErrorLevel)
 }
 
-// DisableLog - Disable the log facilities.
-func DisableLog(module string) {
-	SetLog(module, ioutil.Discard, logging.CRITICAL, "")
+// GetLogger - get new logger for logging.
+func GetLogger(component string) *logrus.Entry {
+	// A common pattern is to re-use fields between logging statements by re-using
+	// the logrus.Entry returned from WithFields()
+	return logger.WithFields(logrus.Fields{
+		"component": component,
+	})
 }
 
 func init() {
-	log = SetLog("ydb", os.Stdout, logging.DEBUG, "%{message}")
+	// Log as JSON instead of the default ASCII formatter.
+	// log.SetFormatter(&log.JSONFormatter{})
+
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	// logrus.SetOutput(os.Stdout)
+
+	// Only log the warning severity or above.
+	// logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetOutput(ioutil.Discard)
+	logrus.SetLevel(logrus.ErrorLevel)
+
+	// logrus.WithFields(logrus.Fields{
+	// 	"omg":    true,
+	// 	"number": 122,
+	// }).Warn("The group's number increased tremendously!")
+
+	logger = logrus.New()
+	logger.SetOutput(os.Stdout)
+	logger.SetLevel(logrus.DebugLevel)
+	logger.SetFormatter(&nested.Formatter{
+		HideKeys:    true,
+		FieldsOrder: []string{"component", "category"},
+		// ShowFullLevel: true,
+	})
+
+	// A common pattern is to re-use fields between logging statements by re-using
+	// the logrus.Entry returned from WithFields()
+	log = logger.WithFields(logrus.Fields{
+		"component": "ydb.go",
+	})
+	// log.Info("just info message")
+	// Output: Jan _2 15:04:05.000 [INFO] just info message
+
+	// log.WithField("component", "rest").Warn("warn message")
+	// Output: Jan _2 15:04:05.000 [WARN] [rest] warn message
 }

@@ -13,7 +13,6 @@ func main() {
 	db, close := ydb.OpenWithTargetStruct("hello", &datastore)
 	// db, close := ydb.OpenWithTargetStruct("hello", &ydb.EmptyGoStruct{})
 	defer close()
-	// ydb.SetLog(ydb.LogDebug)
 	err := db.Connect("uss://test", "sub")
 	if err != nil {
 		log.Println(err)

@@ -2,20 +2,14 @@ package schema
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
 	"github.com/neoul/libydb/go/ydb"
-	"github.com/op/go-logging"
 	"github.com/openconfig/ygot/ytypes"
 )
 
 //go:generate go run ../../../../../../../github.com/openconfig/ygot/generator/generator.go -path=yang -output_file=generated.go -package_name=schema -generate_fakeroot -fakeroot_name=device ../yang/example.yang
-
-func init() {
-	ydb.SetLog("ydb", os.Stdout, logging.ERROR, "%{message}")
-}
 
 func keyListing(keys []string, key string) ([]string, string) {
 	var keylist []string

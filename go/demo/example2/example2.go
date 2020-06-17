@@ -8,8 +8,6 @@ import (
 )
 
 func main() {
-	ydb.DisableLog("ydb")
-	// ydb.SetLog("ydb", os.Stdout, logging.DEBUG, "")
 
 	datastore := map[string]interface{}{}
 	db, close := ydb.OpenWithTargetStruct("hello", &datastore)

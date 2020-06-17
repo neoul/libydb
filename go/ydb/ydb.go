@@ -625,13 +625,16 @@ func (db *YDB) Receive() error {
 		db.fd = int(C.ydb_fd(db.block))
 		if db.fd <= 0 {
 			err := errors.New(C.GoString(C.ydb_res_str(C.YDB_E_CONN_FAILED)))
-			log.Errorf("Receive: %v", err)
+			log.Errorf("ydb.fd: %v", err)
 			return err
 		}
 		rfds.Set(db.fd)
 		n, err := unix.Select(db.fd+1, &rfds, nil, nil, nil)
 		if err != nil {
-			log.Errorf("Receive: %v", err)
+			if err == syscall.EINTR {
+				continue
+			}
+			log.Errorf("unix.Select: received %v", err)
 			db.fd = 0
 			return err
 		}
@@ -642,7 +645,7 @@ func (db *YDB) Receive() error {
 			db.mutex.Unlock()
 			if res >= C.YDB_ERROR {
 				err = fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-				log.Errorf("Receive: %v", err)
+				log.Errorf("ydb.serve: %v", err)
 				db.fd = 0
 				return err
 			}

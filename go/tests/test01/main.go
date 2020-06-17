@@ -11,7 +11,6 @@ func main() {
 	s := ""
 	db, close := ydb.OpenWithTargetStruct("mydb", &s)
 	defer close()
-	// ydb.SetLog(ydb.LogDebug)
 
 	r, err := os.Open("../../../examples/yaml/yaml-value.yaml")
 	defer r.Close()
