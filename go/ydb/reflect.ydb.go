@@ -5,6 +5,12 @@ import (
 	"reflect"
 )
 
+// EnableTagLookup - Enable the tag lookup of struct fields for searching value
+var EnableTagLookup bool = true
+
+// TagLookupKey - the key of the struct field tag to search a value.
+var TagLookupKey string = "path"
+
 // ValYdbSet - constructs the non-updater struct
 func ValYdbSet(v reflect.Value, keys []string, key string, tag string, value string) error {
 	// keys, key = keyListing(keys, key)
