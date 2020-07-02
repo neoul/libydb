@@ -11,7 +11,7 @@ var (
 	// TagLookupKey - the key of the struct field tag to search a value.
 	TagLookupKey string = "path"
 	// InitChildenOnSet - initalizes all child values on set.
-	InitChildenOnSet bool = true
+	InitChildenOnSet bool = false
 )
 
 // SearchType - Search option for slice (list) value
