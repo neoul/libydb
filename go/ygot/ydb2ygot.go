@@ -101,6 +101,7 @@ func main() {
 	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
 	// fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
 
+	ydb.InitChildenOnSet = false
 	gs := schema.Device{}
 	db, close := ydb.OpenWithTargetStruct("running", &gs)
 	defer close()

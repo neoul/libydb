@@ -93,7 +93,7 @@ func ValStructFieldUnset(sv reflect.Value, name interface{}) error {
 }
 
 // ValStructNew - Create new struct value and fill out all struct field.
-func ValStructNew(t reflect.Type) (reflect.Value, error) {
+func ValStructNew(t reflect.Type, initAllfields bool) (reflect.Value, error) {
 	if t == reflect.TypeOf(nil) {
 		return reflect.Value{}, fmt.Errorf("nil type")
 	}
@@ -102,6 +102,9 @@ func ValStructNew(t reflect.Type) (reflect.Value, error) {
 	}
 	pv := reflect.New(t)
 	pve := pv.Elem()
+	if !initAllfields {
+		return pve, nil
+	}
 	for i := 0; i < pve.NumField(); i++ {
 		fv := pve.Field(i)
 		ft := pve.Type().Field(i)
@@ -116,7 +119,7 @@ func ValStructNew(t reflect.Type) (reflect.Value, error) {
 		case reflect.Slice:
 			fv.Set(reflect.MakeSlice(ft.Type, 0, 0))
 		case reflect.Struct:
-			srv, err := ValStructNew(ft.Type)
+			srv, err := ValStructNew(ft.Type, initAllfields)
 			if err != nil {
 				return srv, fmt.Errorf("%s not created", ft.Name)
 			}

@@ -150,8 +150,7 @@ func TestValScalarSet(t *testing.T) {
 }
 
 func TestValFind(t *testing.T) {
-
-	nv, _ := ValStructNew(reflect.TypeOf(samplestruct{}))
+	nv, _ := ValStructNew(reflect.TypeOf(samplestruct{}), true)
 	ss := nv.Interface().(samplestruct)
 	ss.Smap["10"] = 10
 	ss.Smap["20"] = 20

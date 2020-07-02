@@ -5,6 +5,15 @@ import (
 	"reflect"
 )
 
+var (
+	// EnableTagLookup - Enables the tag lookup of struct fields for searching value
+	EnableTagLookup bool = true
+	// TagLookupKey - the key of the struct field tag to search a value.
+	TagLookupKey string = "path"
+	// InitChildenOnSet - initalizes all child values on set.
+	InitChildenOnSet bool = true
+)
+
 // SearchType - Search option for slice (list) value
 type SearchType int
 
@@ -435,7 +444,7 @@ func ValNew(t reflect.Type) (reflect.Value, error) {
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
 		return reflect.Value{}, fmt.Errorf("not supported type: %s", t.Kind())
 	case reflect.Struct:
-		return ValStructNew(t)
+		return ValStructNew(t, InitChildenOnSet)
 	case reflect.Map:
 		return reflect.MakeMap(t), nil
 	case reflect.Slice:
