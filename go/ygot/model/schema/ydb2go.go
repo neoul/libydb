@@ -5,48 +5,13 @@ package schema
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/neoul/libydb/go/ydb"
 	"github.com/openconfig/ygot/ytypes"
 )
 
-func keyListing(keys []string, key string) ([]string, string) {
-	var keylist []string
-	if len(key) > 0 {
-		for _, k := range keys {
-			i := strings.Index(k, "[")
-			if i > 0 {
-				ename := k[:i]
-				kname := strings.Trim(k[i:], "[]")
-				i = strings.Index(kname, "=")
-				if i > 0 {
-					kname = kname[i+1:]
-					keylist = append(keylist, ename)
-					keylist = append(keylist, kname)
-					continue
-				}
-			}
-			keylist = append(keylist, k)
-		}
-	}
-	i := strings.Index(key, "[")
-	if i > 0 {
-		ename := key[:i]
-		kname := strings.Trim(key[i:], "[]")
-		i = strings.Index(kname, "=")
-		if i > 0 {
-			kname = kname[i+1:]
-			keylist = append(keylist, ename)
-			key = kname
-		}
-	}
-	return keylist, key
-}
-
 // Merge - constructs Device
 func merge(device *Device, keys []string, key string, tag string, value string) error {
-	keys, key = keyListing(keys, key)
 	fmt.Printf("Device.merge %v %v %v %v\n", keys, key, tag, value)
 	v := reflect.ValueOf(device)
 	for _, k := range keys {
@@ -75,7 +40,6 @@ func merge(device *Device, keys []string, key string, tag string, value string) 
 
 // Merge - constructs Device
 func delete(device *Device, keys []string, key string) error {
-	keys, key = keyListing(keys, key)
 	fmt.Printf("Device.delete %v %v\n", keys, key)
 	v := reflect.ValueOf(device)
 	for _, k := range keys {

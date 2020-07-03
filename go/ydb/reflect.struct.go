@@ -3,22 +3,86 @@ package ydb
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
-// ValStructFieldFind - Find a struct field by the name (struct field name or Tag) from sv (struct)
-func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField, reflect.Value, bool) {
-	if !sv.IsValid() {
-		return reflect.StructField{}, reflect.Value{}, false
+// DisassembleStructString - Disassemble the Structure name
+// from from key or name value to a Struct and its StructField names if capable.
+// Format: StructName[StructField=Value][StructField=Value]
+func DisassembleStructString(StructName interface{}) (interface{}, map[string]string, bool) {
+	if StructName == nil {
+		return StructName, nil, false
 	}
-	st := sv.Type()
-	fnv, err := ValScalarNew(reflect.TypeOf(""), name)
-	if !fnv.IsValid() || err != nil {
-		return reflect.StructField{}, reflect.Value{}, false
-	}
-	sname := fnv.Interface().(string)
-	ft, ok := st.FieldByName(sname)
+	name, ok := StructName.(string)
 	if ok {
-		fv := sv.FieldByName(sname)
+		delimStart := strings.Index(name, "[")
+		if delimStart >= 0 {
+			keyElem := name[:delimStart]
+			// if len(keyElem) <= 0 {
+			// 	return StructName, nil, false
+			// }
+			m := map[string]string{}
+			name = name[delimStart:]
+			delimStart = 0
+			for delimStart >= 0 {
+				delimEnd := strings.Index(name, "]")
+				if delimEnd < 0 {
+					break
+				}
+				kvpair := strings.Trim(name[delimStart:delimEnd], "[]")
+				kvdelim := strings.Index(kvpair, "=") // key=val delimiter
+				if kvdelim >= 0 {
+					n := kvpair[:kvdelim]
+					v := kvpair[kvdelim+1:]
+					m[n] = v
+				} else {
+					break
+				}
+				name = name[delimEnd+1:]
+				delimStart = strings.Index(name, "[")
+			}
+			// fmt.Println(keyElem, m)
+			return keyElem, m, true
+		}
+		if len(name) > 0 {
+			return StructName, nil, false
+		}
+		return StructName, nil, false
+	}
+	// A StructName without StructFields
+	return StructName, nil, false
+}
+
+// CheckAndExtractStructName - Checks and extracts the Structure name
+// from key or name value (StructName[StructField=Value][StructField=Value])
+func CheckAndExtractStructName(key interface{}) (interface{}, bool) {
+	if key == nil {
+		return key, false
+	}
+	name, ok := key.(string)
+	if ok {
+		delimStart := strings.Index(name, "[")
+		if delimStart >= 0 {
+			keyElem := name[:delimStart]
+			if len(keyElem) <= 0 {
+				return "", false
+			}
+			return keyElem, true
+		}
+		if len(name) > 0 {
+			return name, false
+		}
+		return key, false
+	}
+	return key, false
+}
+
+// valStructFieldFind - Find a struct field by the name (struct field name or Tag) from sv (struct)
+func valStructFieldFind(sv reflect.Value, name string) (reflect.StructField, reflect.Value, bool) {
+	st := sv.Type()
+	ft, ok := st.FieldByName(name)
+	if ok {
+		fv := sv.FieldByName(name)
 		return ft, fv, true
 	}
 	if EnableTagLookup {
@@ -28,12 +92,21 @@ func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField
 			if !fv.IsValid() || !fv.CanSet() {
 				continue
 			}
-			if n, ok := ft.Tag.Lookup(TagLookupKey); ok && n == sname {
+			if n, ok := ft.Tag.Lookup(TagLookupKey); ok && n == name {
 				return ft, fv, true
 			}
 		}
 	}
 	return reflect.StructField{}, reflect.Value{}, false
+}
+
+// ValStructFieldFind - Find a struct field by the name (struct field name or Tag) from sv (struct)
+func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField, reflect.Value, bool) {
+	if !sv.IsValid() {
+		return reflect.StructField{}, reflect.Value{}, false
+	}
+	fieldname, _ := CheckAndExtractStructName(name)
+	return valStructFieldFind(sv, fieldname.(string))
 }
 
 // ValStructFieldSet - Set the field of the struct.
@@ -93,56 +166,66 @@ func ValStructFieldUnset(sv reflect.Value, name interface{}) error {
 }
 
 // ValStructNew - Create new struct value and fill out all struct field.
-func ValStructNew(t reflect.Type, initAllfields bool) (reflect.Value, error) {
+// val - must be a string formed as "StructName[StructField1:VAL1][StructField2:VAL2]"
+func ValStructNew(t reflect.Type, val interface{}, initAllfields bool) (reflect.Value, error) {
 	if t == reflect.TypeOf(nil) {
 		return reflect.Value{}, fmt.Errorf("nil type")
 	}
 	if t.Kind() != reflect.Struct {
-		return reflect.Value{}, fmt.Errorf("not slice")
+		return reflect.Value{}, fmt.Errorf("not struct")
 	}
+	_, fields, _ := DisassembleStructString(val)
+
 	pv := reflect.New(t)
 	pve := pv.Elem()
-	if !initAllfields {
-		return pve, nil
-	}
-	for i := 0; i < pve.NumField(); i++ {
-		fv := pve.Field(i)
-		ft := pve.Type().Field(i)
-		if !fv.IsValid() || !fv.CanSet() {
-			continue
+	if initAllfields {
+		for i := 0; i < pve.NumField(); i++ {
+			fv := pve.Field(i)
+			ft := pve.Type().Field(i)
+			if !fv.IsValid() || !fv.CanSet() {
+				continue
+			}
+			switch ft.Type.Kind() {
+			case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
+				return reflect.Value{}, fmt.Errorf("not supported type: %s", t.Kind())
+			case reflect.Map:
+				fv.Set(reflect.MakeMap(ft.Type))
+			case reflect.Slice:
+				fv.Set(reflect.MakeSlice(ft.Type, 0, 0))
+			case reflect.Struct:
+				srv, err := ValStructNew(ft.Type, nil, initAllfields)
+				if err != nil {
+					return srv, fmt.Errorf("%s not created", ft.Name)
+				}
+				fv.Set(srv)
+			case reflect.Ptr:
+				srv, err := ValNew(ft.Type)
+				if err != nil {
+					return srv, fmt.Errorf("%s not created (%v)", ft.Name, err)
+				}
+				fv.Set(srv)
+			// case reflect.Chan:
+			// 	fv.Set(reflect.MakeChan(ft.Type, 0))
+			// case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			// 	fv.SetInt(0)
+			// case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			// 	fv.SetUint(0)
+			// case reflect.Float32, reflect.Float64:
+			// 	fv.SetFloat(0)
+			// case reflect.Bool:
+			// 	fv.SetBool(false)
+			// case reflect.String:
+			// 	fv.SetString("")
+			default:
+			}
 		}
-		switch ft.Type.Kind() {
-		case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
-			return reflect.Value{}, fmt.Errorf("not supported type: %s", t.Kind())
-		case reflect.Map:
-			fv.Set(reflect.MakeMap(ft.Type))
-		case reflect.Slice:
-			fv.Set(reflect.MakeSlice(ft.Type, 0, 0))
-		case reflect.Struct:
-			srv, err := ValStructNew(ft.Type, initAllfields)
+	}
+	if fields != nil {
+		for fieldname, fieldval := range fields {
+			err := ValStructFieldSet(pve, fieldname, fieldval)
 			if err != nil {
-				return srv, fmt.Errorf("%s not created", ft.Name)
+				return reflect.Value{}, err
 			}
-			fv.Set(srv)
-		case reflect.Ptr:
-			srv, err := ValNew(ft.Type)
-			if err != nil {
-				return srv, fmt.Errorf("%s not created (%v)", ft.Name, err)
-			}
-			fv.Set(srv)
-		// case reflect.Chan:
-		// 	fv.Set(reflect.MakeChan(ft.Type, 0))
-		// case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		// 	fv.SetInt(0)
-		// case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		// 	fv.SetUint(0)
-		// case reflect.Float32, reflect.Float64:
-		// 	fv.SetFloat(0)
-		// case reflect.Bool:
-		// 	fv.SetBool(false)
-		// case reflect.String:
-		// 	fv.SetString("")
-		default:
 		}
 	}
 	return pve, nil

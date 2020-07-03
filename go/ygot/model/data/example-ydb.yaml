@@ -1,14 +1,17 @@
-country[name=United Kingdom]:
-  country-code: GB
-  dial-code: 44
-  name: United Kingdom
-operator[asm=29636]:
-  "asn": 29636
-  "name": "Catalyst2"
-# "person": "robjs"
-# "married": true
-"company":
-  "address": !!set
-    ? "seoul"
-    ? "LA"
-  "enumval": enum3
+# country[name=United Kingdom]:
+#   country-code: GB
+#   dial-code: 44
+#   name: United Kingdom
+# operator[asm=29636]:
+#   "asn": 29636
+#   "name": "Catalyst2"
+# # "person": "robjs"
+# # "married": true
+# "company":
+#   "address": !!set
+#     ? "seoul"
+#     ? "LA"
+#   "enumval": enum3
+multikeylist[str=STR][integer=10]:
+  str: "STR"
+  integer: 10

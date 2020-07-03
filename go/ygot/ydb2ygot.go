@@ -41,12 +41,12 @@ func init() {
 		// 	SchemaRoot = branch
 		// }
 	}
-	for _, i := range Entries {
-		for _, j := range i {
-			ylog.Debug(j)
-		}
-	}
-	ylog.Debug(model.ΓModelData)
+	// for _, i := range Entries {
+	// 	for _, j := range i {
+	// 		ylog.Debug(j)
+	// 	}
+	// }
+	// ylog.Debug(model.ΓModelData)
 }
 
 func find(entry *yang.Entry, keys ...string) *yang.Entry {
@@ -105,7 +105,7 @@ func main() {
 	gs := schema.Device{}
 	db, close := ydb.OpenWithTargetStruct("running", &gs)
 	defer close()
-	r, err := os.Open("model/data/example-ydb.yaml")
+	r, err := os.Open("model/data/example.yaml")
 	defer r.Close()
 	if err != nil {
 		ylog.Fatal(err)
@@ -114,7 +114,7 @@ func main() {
 	dec.Decode()
 	ydb.DebugValueString(gs, 5, func(x ...interface{}) { fmt.Print(x...) })
 	fmt.Println("")
-	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
-	fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
+	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+	// fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
 	fmt.Println("")
 }

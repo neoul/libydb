@@ -39,6 +39,12 @@ module network {
     leaf name { type string; }
   }
 
+  list multikeylist {
+    key "str integer";
+    leaf integer { type uint32; }
+    leaf str { type string; }
+  }
+
   container company {
     leaf-list address {
       type string;

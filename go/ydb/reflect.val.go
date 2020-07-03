@@ -262,7 +262,7 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType 
 		}
 		err := ValStructFieldSet(pv, key, val)
 		if err != nil {
-			return pv, fmt.Errorf("set failed (%v)", err)
+			return pv, fmt.Errorf("set failed in structure set (%v)", err)
 		}
 	case reflect.Map:
 		if emptykey(key) {
@@ -270,7 +270,7 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType 
 		}
 		err := ValMapSet(pv, key, val)
 		if err != nil {
-			return pv, fmt.Errorf("set failed (%v)", err)
+			return pv, fmt.Errorf("set failed in map set (%v)", err)
 		}
 	case reflect.Slice, reflect.Array:
 		if insertType == NoSearch {
@@ -479,7 +479,7 @@ func ValNew(t reflect.Type) (reflect.Value, error) {
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
 		return reflect.Value{}, fmt.Errorf("not supported type: %s", t.Kind())
 	case reflect.Struct:
-		return ValStructNew(t, InitChildenOnSet)
+		return ValStructNew(t, nil, InitChildenOnSet)
 	case reflect.Map:
 		return reflect.MakeMap(t), nil
 	case reflect.Slice:
