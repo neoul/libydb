@@ -65,11 +65,11 @@ func ValFind(v reflect.Value, key interface{}, searchtype SearchType) (reflect.V
 		if emptykey(key) {
 			return reflect.Value{}, false
 		}
-		_, sfv, ok := ValStructFieldFind(cur, key)
+		rv, ok := ValStructFieldFindInDepth(cur, key, searchtype)
 		if !ok {
 			return reflect.Value{}, false
 		}
-		cur = sfv
+		cur = rv
 	case reflect.Map:
 		if emptykey(key) {
 			return reflect.Value{}, false
@@ -162,21 +162,21 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 		if emptykey(key) {
 			return reflect.Value{}, false
 		}
-		_, sfv, ok := ValStructFieldFind(cur, key)
+		rv, ok := ValStructFieldFindInDepth(cur, key, searchtype)
 		if !ok {
 			return reflect.Value{}, false
 		}
-		if IsNilOrInvalidValue(sfv) {
+		if IsNilOrInvalidValue(rv) {
 			err := ValStructFieldSet(cur, key, nil)
 			if err != nil {
 				return reflect.Value{}, false
 			}
-			_, sfv, ok = ValStructFieldFind(cur, key)
+			rv, ok = ValStructFieldFindInDepth(cur, key, searchtype)
 			if !ok {
 				return reflect.Value{}, false
 			}
 		}
-		cur = sfv
+		cur = rv
 	case reflect.Map:
 		if emptykey(key) {
 			return reflect.Value{}, false
@@ -466,25 +466,25 @@ func ValScalarSet(v reflect.Value, val interface{}) error {
 }
 
 // ValNew - Create a new value (struct, map, slice) of the t type.
-func ValNew(t reflect.Type) (reflect.Value, error) {
+func ValNew(t reflect.Type, val interface{}) (reflect.Value, error) {
 	if t == reflect.TypeOf(nil) {
 		return reflect.Value{}, fmt.Errorf("nil type")
 	}
 	switch t.Kind() {
 	case reflect.Ptr:
-		cv, err := ValNew(t.Elem())
+		cv, err := ValNew(t.Elem(), val)
 		return newPtrOfValue(cv), err
 	case reflect.Interface:
-		return ValNew(t.Elem())
+		return ValNew(t.Elem(), val)
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
 		return reflect.Value{}, fmt.Errorf("not supported type: %s", t.Kind())
 	case reflect.Struct:
-		return ValStructNew(t, nil, InitChildenOnSet)
-	case reflect.Map:
+		return ValStructNew(t, val, InitChildenOnSet)
+	case reflect.Map: // [FIXME]
 		return reflect.MakeMap(t), nil
-	case reflect.Slice:
+	case reflect.Slice: // [FIXME]
 		return reflect.MakeSlice(t, 0, 0), nil
 	default:
-		return ValScalarNew(t, nil)
+		return ValScalarNew(t, val)
 	}
 }

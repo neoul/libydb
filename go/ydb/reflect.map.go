@@ -36,7 +36,6 @@ func ValMapFind(v reflect.Value, key interface{}) (reflect.Value, bool) {
 
 // ValMapSet - Set an element to the map.
 func ValMapSet(v reflect.Value, key interface{}, element interface{}) error {
-	fmt.Println("#############", key)
 	if v.Kind() != reflect.Map {
 		return fmt.Errorf("not a map")
 	}
@@ -56,11 +55,7 @@ func ValMapSet(v reflect.Value, key interface{}, element interface{}) error {
 	} else {
 		et = t.Elem()
 	}
-	if IsTypeScalar(et) {
-		ev, err = ValScalarNew(et, element)
-	} else {
-		ev, err = ValNew(et)
-	}
+	ev, err = ValNew(et, element)
 	if err != nil || !ev.IsValid() {
 		return fmt.Errorf("invalid element: %s", element)
 	}
@@ -83,42 +78,42 @@ func ValMapUnset(v reflect.Value, key interface{}) error {
 	return nil
 }
 
+// ValMapNew - Create an element to the map.
+func ValMapNew(t reflect.Type, key interface{}, element interface{}) error {
+	if t.Kind() != reflect.Map {
+		return fmt.Errorf("not a map type")
+	}
+	v := reflect.MakeMap(t)
+	kt := t.Key()
+	kv, err := mapKeyNew(kt, key)
+	if err != nil || !kv.IsValid() {
+		return fmt.Errorf("invalid key: %s", key)
+	}
+	var ev reflect.Value
+	var et reflect.Type
+	if IsTypeInterface(t.Elem()) { // That means it is not a specified type.
+		if element == nil {
+			return fmt.Errorf("not specified key or element type for %s", key)
+		}
+		et = reflect.TypeOf(element)
+	} else {
+		et = t.Elem()
+	}
+	ev, err = ValNew(et, element)
+	if err != nil || !ev.IsValid() {
+		return fmt.Errorf("invalid element: %s", element)
+	}
+	v.SetMapIndex(kv, ev)
+	return nil
+}
+
 // mapKeyNew - used to support structure key.
 // The key value must be a string with the following format.
 // StructName[StructField1:Value1][StructField2:Value2]
 func mapKeyNew(kt reflect.Type, key interface{}) (reflect.Value, error) {
-	// // for map's structure key, key must be a string
-	// kstr, ok := key.(string)
-	// // structure key (skey)
-	// if ok {
-	// 	skeystart := strings.Index(kstr, "[")
-	// 	if skeystart >= 0 && kt.Kind() == reflect.Struct {
-	// 		m := map[string]string{}
-	// 		for skeystart >= 0 {
-	// 			skeyend := strings.Index(kstr, "]")
-	// 			skey := kstr[skeystart+1 : skeyend]
-	// 			skeyValueStart := strings.Index(skey, "=")
-	// 			if skeyValueStart >= 0 {
-	// 				skeyname := skey[:skeyValueStart]
-	// 				skeyValue := skey[skeyValueStart+1:]
-	// 				m[skeyname] = skeyValue
-	// 			}
-	// 			skeystart = strings.Index(kstr[skeyend:], "[")
-	// 		}
-	// 		sv, err := ValStructNew(kt, nil, false)
-	// 		if err != nil {
-	// 			return reflect.Value{}, err
-	// 		}
-	// 		for k, v := range m {
-	// 			err := ValStructFieldSet(sv, k, v)
-	// 			if err != nil {
-	// 				return reflect.Value{}, err
-	// 			}
-	// 		}
-	// 		return sv, nil
-	// 	}
-	// }
-
+	if IsTypeStruct(kt) {
+		return ValStructNew(kt, key, true)
+	}
 	// scalar key
 	if IsTypeInterface(kt) { // That means it is not a specified type.
 		kt = reflect.TypeOf(key)

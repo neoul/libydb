@@ -43,6 +43,7 @@ module network {
     key "str integer";
     leaf integer { type uint32; }
     leaf str { type string; }
+    leaf ok {type boolean;}
   }
 
   container company {

@@ -17,3 +17,7 @@
 multikeylist[str=STR][integer=10]:
   str: "STR"
   integer: 10
+multikeylist[str=STX][integer=10]:
+  str: "STX"
+  integer: 10
+  ok: true

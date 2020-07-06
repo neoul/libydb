@@ -48,17 +48,17 @@ func IsTypeScalar(t reflect.Type) bool {
 // 	}
 // }
 
-// // IsTypeStruct - true if the type is struct
-// func IsTypeStruct(t reflect.Type) bool {
-// 	switch t.Kind() {
-// 	case reflect.Ptr:
-// 		return IsTypeStruct(t.Elem())
-// 	case reflect.Map:
-// 		return true
-// 	default:
-// 		return false
-// 	}
-// }
+// IsTypeStruct - true if the type is struct
+func IsTypeStruct(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Ptr:
+		return IsTypeStruct(t.Elem())
+	case reflect.Map:
+		return true
+	default:
+		return false
+	}
+}
 
 // TypeFind - finds a child type from the struct, map or slice value using the key.
 func TypeFind(pt reflect.Type, key string) (reflect.Type, bool) {

@@ -3,156 +3,7 @@ package ydb
 import (
 	"fmt"
 	"reflect"
-	"strings"
 )
-
-// DisassembleStructString - Disassemble the Structure name
-// from from key or name value to a Struct and its StructField names if capable.
-// Format: StructName[StructField=Value][StructField=Value]
-func DisassembleStructString(StructName interface{}) (interface{}, map[string]string, bool) {
-	if StructName == nil {
-		return StructName, nil, false
-	}
-	name, ok := StructName.(string)
-	if ok {
-		delimStart := strings.Index(name, "[")
-		if delimStart >= 0 {
-			keyElem := name[:delimStart]
-			// if len(keyElem) <= 0 {
-			// 	return StructName, nil, false
-			// }
-			m := map[string]string{}
-			name = name[delimStart:]
-			delimStart = 0
-			for delimStart >= 0 {
-				delimEnd := strings.Index(name, "]")
-				if delimEnd < 0 {
-					break
-				}
-				kvpair := strings.Trim(name[delimStart:delimEnd], "[]")
-				kvdelim := strings.Index(kvpair, "=") // key=val delimiter
-				if kvdelim >= 0 {
-					n := kvpair[:kvdelim]
-					v := kvpair[kvdelim+1:]
-					m[n] = v
-				} else {
-					break
-				}
-				name = name[delimEnd+1:]
-				delimStart = strings.Index(name, "[")
-			}
-			// fmt.Println(keyElem, m)
-			return keyElem, m, true
-		}
-		if len(name) > 0 {
-			return StructName, nil, false
-		}
-		return StructName, nil, false
-	}
-	// A StructName without StructFields
-	return StructName, nil, false
-}
-
-var delimiters string = "[]'\""
-
-type delimOffset struct {
-	delimiter rune
-	offset    int
-}
-
-func delimBracket(s string) ([]int, error) {
-	lvl := 0
-	slen := len(s)
-	stack := append([]delimOffset{}, delimOffset{delimiter: 0, offset: 0})
-	base := strings.IndexAny(s, delimiters)
-	if base < 0 {
-		return []int{0, slen}, nil
-	}
-	result := []int{0, base}
-	for offset, r := range s[base:] {
-		if strings.IndexAny(delimiters, string(r)) >= 0 {
-			// fmt.Println("lvl ", lvl, string(r))
-			if r == ']' {
-				if stack[lvl].delimiter == '[' {
-					if lvl == 1 { // Square brackets are valid on 1 level.
-						result = append(result,
-							stack[lvl].offset+base, offset+base)
-					}
-					stack = stack[:lvl]
-					lvl--
-				} else if stack[lvl].delimiter == 0 {
-					return []int{}, fmt.Errorf("invalid value format")
-				}
-			} else if stack[lvl].delimiter == r && (r == '"' || r == '\'') {
-				stack = stack[:lvl]
-				lvl--
-			} else {
-				stack = append(stack, delimOffset{delimiter: r, offset: offset + 1})
-				lvl++
-			}
-		}
-	}
-	if len(stack) > 1 {
-		return []int{}, fmt.Errorf("invalid value format")
-	}
-	return result, nil
-}
-
-// ExtractStructName - Extract the struct name, field values
-func ExtractStructName(s interface{}) (string, map[string]string, error) {
-	if s == nil {
-		return "", nil, fmt.Errorf("nil value")
-	}
-	name, ok := s.(string)
-	if ok {
-		offsets, err := delimBracket(name)
-		if err != nil {
-			return name, nil, err
-		}
-		offsetnum := len(offsets)
-		if offsetnum == 2 {
-			return name[offsets[0]:offsets[1]], nil, nil
-		}
-		m := map[string]string{}
-		for i := 2; i < offsetnum; i = i + 2 {
-			fieldNameVal := name[offsets[i]:offsets[i+1]]
-			kvdelim := strings.Index(fieldNameVal, "=") // key=val delimiter
-			if kvdelim >= 0 {
-				n := fieldNameVal[:kvdelim]
-				v := strings.Trim(fieldNameVal[kvdelim+1:], "'\"")
-				m[n] = v
-			} else {
-				return "", nil, fmt.Errorf("invalid field name & value")
-			}
-		}
-		return name[offsets[0]:offsets[1]], m, nil
-	}
-	return "", nil, fmt.Errorf("no string value")
-}
-
-// CheckAndExtractStructName - Checks and extracts the Structure name
-// from key or name value (StructName[StructField=Value][StructField=Value])
-func CheckAndExtractStructName(key interface{}) (interface{}, bool) {
-	if key == nil {
-		return key, false
-	}
-	name, ok := key.(string)
-	if ok {
-		delimStart := strings.Index(name, "[")
-		if delimStart >= 0 {
-			keyElem := name[:delimStart]
-			if len(keyElem) <= 0 {
-				return "", false
-			}
-			return keyElem, true
-		}
-		if len(name) > 0 {
-			return name, false
-		}
-		return key, false
-	}
-	return key, false
-}
 
 // valStructFieldFind - Find a struct field by the name (struct field name or Tag) from sv (struct)
 func valStructFieldFind(sv reflect.Value, name string) (reflect.StructField, reflect.Value, bool) {
@@ -182,8 +33,30 @@ func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField
 	if !sv.IsValid() {
 		return reflect.StructField{}, reflect.Value{}, false
 	}
-	fieldname, _ := CheckAndExtractStructName(name)
-	return valStructFieldFind(sv, fieldname.(string))
+	fieldname, _, err := ExtractStrValNameAndSubstring(name)
+	if err != nil {
+		return reflect.StructField{}, reflect.Value{}, false
+	}
+	return valStructFieldFind(sv, fieldname)
+}
+
+// ValStructFieldFindInDepth - Find the target name value from the struct value in depth.
+func ValStructFieldFindInDepth(sv reflect.Value, name interface{}, searchtype SearchType) (reflect.Value, bool) {
+	if !sv.IsValid() {
+		return reflect.Value{}, false
+	}
+	fieldname, remains, err := ExtractStrValNameAndSubstring(name)
+	if err != nil {
+		return reflect.Value{}, false
+	}
+	_, cv, ok := valStructFieldFind(sv, fieldname)
+	if !ok {
+		return reflect.Value{}, ok
+	}
+	if remains != "" {
+		return ValFind(cv, remains, searchtype)
+	}
+	return cv, ok
 }
 
 // ValStructFieldSet - Set the field of the struct.
@@ -191,7 +64,11 @@ func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}) erro
 	if !sv.IsValid() {
 		return fmt.Errorf("invalid struct")
 	}
-	ft, fv, ok := ValStructFieldFind(sv, name)
+	fieldname, remains, err := ExtractStrValNameAndSubstring(name)
+	if err != nil {
+		return err
+	}
+	ft, fv, ok := valStructFieldFind(sv, fieldname)
 	if !ok {
 		return fmt.Errorf("%s not found in %s", name, sv.Type())
 	}
@@ -211,10 +88,24 @@ func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}) erro
 		fv.Set(nv)
 		return nil
 	}
-	if IsTypeScalar(ftt) {
-		return ValScalarSet(fv, val)
+	if IsNilOrInvalidValue(fv) {
+		nv, err := ValNew(ftt, nil)
+		if err != nil {
+			return err
+		}
+		fv.Set(nv)
 	}
-	nv, err := ValNew(ftt)
+	if remains != "" {
+		_, ok := ValFindOrInit(fv, remains, searchtype)
+		if ok {
+			return nil
+		}
+		return fmt.Errorf("structfield set failed for remains (%s)", remains)
+	}
+	// if IsTypeScalar(ftt) {
+	// 	return ValScalarSet(fv, val)
+	// }
+	nv, err := ValNew(ftt, val)
 	if err != nil {
 		return err
 	}
@@ -234,7 +125,7 @@ func ValStructFieldUnset(sv reflect.Value, name interface{}) error {
 	if IsTypeScalar(ft.Type) {
 		return ValScalarSet(fv, "")
 	}
-	nv, err := ValNew(ft.Type)
+	nv, err := ValNew(ft.Type, nil)
 	if err != nil {
 		return err
 	}
@@ -251,7 +142,7 @@ func ValStructNew(t reflect.Type, val interface{}, initAllfields bool) (reflect.
 	if t.Kind() != reflect.Struct {
 		return reflect.Value{}, fmt.Errorf("not struct")
 	}
-	_, fields, _ := DisassembleStructString(val)
+	_, fields, _ := ExtractStrValNameAndValue(val)
 
 	pv := reflect.New(t)
 	pve := pv.Elem()
@@ -276,7 +167,7 @@ func ValStructNew(t reflect.Type, val interface{}, initAllfields bool) (reflect.
 				}
 				fv.Set(srv)
 			case reflect.Ptr:
-				srv, err := ValNew(ft.Type)
+				srv, err := ValNew(ft.Type, nil)
 				if err != nil {
 					return srv, fmt.Errorf("%s not created (%v)", ft.Name, err)
 				}

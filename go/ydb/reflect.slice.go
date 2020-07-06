@@ -42,7 +42,7 @@ func ValSliceVal2Element(v reflect.Value, val interface{}) reflect.Value {
 	if IsTypeInterface(et) { // That means it is not a specified type.
 		et = reflect.TypeOf(val)
 	}
-	ev, _ := ValScalarNew(et, val)
+	ev, _ := ValNew(et, val)
 	return ev
 }
 
@@ -111,11 +111,7 @@ func ValSliceInsert(v reflect.Value, i int, val interface{}) (reflect.Value, err
 	}
 	var err error
 	var ev reflect.Value
-	if IsTypeScalar(et) {
-		ev, err = ValScalarNew(et, val)
-	} else {
-		ev, err = ValNew(et)
-	}
+	ev, err = ValNew(et, val)
 	if err != nil || !ev.IsValid() {
 		return v, fmt.Errorf("invalid element (%v)", err)
 	}
@@ -159,11 +155,7 @@ func ValSliceAppend(v reflect.Value, val interface{}) (reflect.Value, error) {
 	}
 	var err error
 	var ev reflect.Value
-	if IsTypeScalar(et) {
-		ev, err = ValScalarNew(et, val)
-	} else {
-		ev, err = ValNew(et)
-	}
+	ev, err = ValNew(et, val)
 	if err != nil || !ev.IsValid() {
 		return v, fmt.Errorf("invalid element (%v)", err)
 	}
