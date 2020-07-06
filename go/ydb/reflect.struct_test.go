@@ -50,6 +50,16 @@ func TestValNewStruct(t *testing.T) {
 			wantErr:   false,
 			wantEqual: false,
 		},
+		{
+			name: "init",
+			args: args{
+				t: reflect.TypeOf(samplestruct{}),
+				v: "[I=10][P=STR][Sfield=[I=20][S=hello]]",
+			},
+			want:      reflect.ValueOf(samplestruct{}),
+			wantErr:   false,
+			wantEqual: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -134,6 +144,92 @@ func TestDisassembleStructName(t *testing.T) {
 			}
 			if got2 != tt.want2 {
 				t.Errorf("DisassembleStructString() got2 = %v, want %v", got2, tt.want2)
+			}
+		})
+	}
+}
+
+func TestExtractStructName(t *testing.T) {
+	type args struct {
+		s interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		want1   map[string]string
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name:    "case",
+			args:    args{s: "multikeylist[str=STR][integer=10]"},
+			want:    "multikeylist",
+			want1:   map[string]string{"str": "STR", "integer": "10"},
+			wantErr: false,
+		},
+		{
+			name:    "case",
+			args:    args{s: "[str=STR][integer=10]"},
+			want:    "",
+			want1:   map[string]string{"str": "STR", "integer": "10"},
+			wantErr: false,
+		},
+		{
+			name:    "case",
+			args:    args{s: "abc"},
+			want:    "abc",
+			want1:   nil,
+			wantErr: false,
+		},
+		{
+			name:    "case",
+			args:    args{s: "abc[a="},
+			want:    "abc[a=",
+			want1:   nil,
+			wantErr: true,
+		},
+		{
+			name:    "case",
+			args:    args{s: "abc[a=' ']"},
+			want:    "abc",
+			want1:   map[string]string{"a": " "},
+			wantErr: false,
+		},
+		{
+			name:    "case",
+			args:    args{s: "abc]["},
+			want:    "abc][",
+			want1:   nil,
+			wantErr: true,
+		},
+		{
+			name:    "case",
+			args:    args{s: "abc[a=']']"},
+			want:    "abc",
+			want1:   map[string]string{"a": "]"},
+			wantErr: false,
+		},
+		{
+			name:    "case",
+			args:    args{s: "AAA[I=10][P=STR][Sfield=[I=20][S=hello]]"},
+			want:    "AAA",
+			want1:   map[string]string{"I": "10", "P": "STR", "Sfield": "[I=20][S=hello]"},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := ExtractStructName(tt.args.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExtractStructName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ExtractStructName() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("ExtractStructName() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}
