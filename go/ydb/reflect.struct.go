@@ -40,25 +40,6 @@ func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField
 	return valStructFieldFind(sv, fieldname)
 }
 
-// ValStructFieldFindInDepth - Find the target name value from the struct value in depth.
-func ValStructFieldFindInDepth(sv reflect.Value, name interface{}, searchtype SearchType) (reflect.Value, bool) {
-	if !sv.IsValid() {
-		return reflect.Value{}, false
-	}
-	fieldname, remains, err := ExtractStrValNameAndSubstring(name)
-	if err != nil {
-		return reflect.Value{}, false
-	}
-	_, cv, ok := valStructFieldFind(sv, fieldname)
-	if !ok {
-		return reflect.Value{}, ok
-	}
-	if remains != "" {
-		return ValFind(cv, remains, searchtype)
-	}
-	return cv, ok
-}
-
 // ValStructFieldSet - Set the field of the struct.
 func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}, insertType SearchType) error {
 	if !sv.IsValid() {
@@ -89,16 +70,16 @@ func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}, inse
 		return nil
 	}
 	if IsNilOrInvalidValue(fv) {
-		nv, err := ValNew(ftt, val)
+		nv, err := ValNew(ftt, nil)
 		if err != nil {
 			return err
 		}
 		fv.Set(nv)
 	}
 	if remainedkey != "" {
-		_, ok := ValFindOrInit(fv, remainedkey, insertType)
-		if !ok {
-			return fmt.Errorf("%s not found in %s", remainedkey, fv.Type())
+		_, err := ValChildSet(fv, remainedkey, val, insertType)
+		if err != nil {
+			return err
 		}
 		return nil
 	}

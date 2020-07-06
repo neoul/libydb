@@ -52,6 +52,25 @@ func emptykey(key interface{}) bool {
 	return false
 }
 
+// ValStructFieldFindInDepth - Find the target name value from the struct value in depth.
+func ValStructFieldFindInDepth(sv reflect.Value, name interface{}, searchtype SearchType) (reflect.Value, bool) {
+	if !sv.IsValid() {
+		return reflect.Value{}, false
+	}
+	fieldname, remains, err := ExtractStrValNameAndSubstring(name)
+	if err != nil {
+		return reflect.Value{}, false
+	}
+	_, cv, ok := valStructFieldFind(sv, fieldname)
+	if !ok {
+		return reflect.Value{}, ok
+	}
+	if remains != "" {
+		return ValFind(cv, remains, searchtype)
+	}
+	return cv, ok
+}
+
 // ValFind - finds a child value from the struct, map or slice value using the key.
 func ValFind(v reflect.Value, key interface{}, searchtype SearchType) (reflect.Value, bool) {
 	if !v.IsValid() {
@@ -268,19 +287,12 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType 
 		if emptykey(key) {
 			return pv, nil
 		}
-		// fmt.Println(pv, key, val)
 		err := ValMapSet(pv, key, val)
 		if err != nil {
 			return pv, fmt.Errorf("set failed in map set (%v)", err)
 		}
 	case reflect.Slice, reflect.Array:
-		if insertType == NoSearch {
-			vv, err := ValSliceAppend(pv, val)
-			if err != nil {
-				return pv, err
-			}
-			return vv, nil
-		} else if insertType == SearchByContent {
+		if insertType == SearchByContent {
 			_, ok := ValSliceFind(pv, key)
 			if !ok {
 				vv, err := ValSliceAppend(pv, key)
@@ -290,7 +302,11 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType 
 				return vv, nil
 			}
 		} else {
-			return pv, fmt.Errorf("not supported insert option")
+			vv, err := ValSliceAppend(pv, val)
+			if err != nil {
+				return pv, err
+			}
+			return vv, nil
 		}
 	default:
 		return pv, fmt.Errorf("not container type %s", pv.Kind())
