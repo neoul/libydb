@@ -60,11 +60,11 @@ func ValStructFieldFindInDepth(sv reflect.Value, name interface{}, searchtype Se
 }
 
 // ValStructFieldSet - Set the field of the struct.
-func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}) error {
+func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}, insertType SearchType) error {
 	if !sv.IsValid() {
 		return fmt.Errorf("invalid struct")
 	}
-	fieldname, remains, err := ExtractStrValNameAndSubstring(name)
+	fieldname, remainedkey, err := ExtractStrValNameAndSubstring(name)
 	if err != nil {
 		return err
 	}
@@ -89,18 +89,18 @@ func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}) erro
 		return nil
 	}
 	if IsNilOrInvalidValue(fv) {
-		nv, err := ValNew(ftt, nil)
+		nv, err := ValNew(ftt, val)
 		if err != nil {
 			return err
 		}
 		fv.Set(nv)
 	}
-	if remains != "" {
-		_, ok := ValFindOrInit(fv, remains, searchtype)
-		if ok {
-			return nil
+	if remainedkey != "" {
+		_, ok := ValFindOrInit(fv, remainedkey, insertType)
+		if !ok {
+			return fmt.Errorf("%s not found in %s", remainedkey, fv.Type())
 		}
-		return fmt.Errorf("structfield set failed for remains (%s)", remains)
+		return nil
 	}
 	// if IsTypeScalar(ftt) {
 	// 	return ValScalarSet(fv, val)
@@ -188,9 +188,10 @@ func ValStructNew(t reflect.Type, val interface{}, initAllfields bool) (reflect.
 			}
 		}
 	}
+	fmt.Println("ValStructNew", fields)
 	if fields != nil {
 		for fieldname, fieldval := range fields {
-			err := ValStructFieldSet(pve, fieldname, fieldval)
+			err := ValStructFieldSet(pve, fieldname, fieldval, GetLastEntry)
 			if err != nil {
 				return reflect.Value{}, err
 			}

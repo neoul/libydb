@@ -150,28 +150,28 @@ func ValGetAll(v reflect.Value) ([]reflect.Value, bool) {
 }
 
 // ValFindOrInit - finds or initializes a child value if it is not exists.
-func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (reflect.Value, bool) {
+func ValFindOrInit(v reflect.Value, key interface{}, searchType SearchType) (reflect.Value, bool) {
 	if !v.IsValid() {
 		return reflect.Value{}, false
 	}
 	cur := v
 	switch cur.Kind() {
 	case reflect.Ptr, reflect.Interface:
-		return ValFindOrInit(cur.Elem(), key, searchtype)
+		return ValFindOrInit(cur.Elem(), key, searchType)
 	case reflect.Struct:
 		if emptykey(key) {
 			return reflect.Value{}, false
 		}
-		rv, ok := ValStructFieldFindInDepth(cur, key, searchtype)
+		rv, ok := ValStructFieldFindInDepth(cur, key, searchType)
 		if !ok {
 			return reflect.Value{}, false
 		}
 		if IsNilOrInvalidValue(rv) {
-			err := ValStructFieldSet(cur, key, nil)
+			err := ValStructFieldSet(cur, key, nil, searchType)
 			if err != nil {
 				return reflect.Value{}, false
 			}
-			rv, ok = ValStructFieldFindInDepth(cur, key, searchtype)
+			rv, ok = ValStructFieldFindInDepth(cur, key, searchType)
 			if !ok {
 				return reflect.Value{}, false
 			}
@@ -194,7 +194,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 		}
 		cur = ev
 	case reflect.Slice:
-		if searchtype == GetLastEntry || searchtype == GetFirstEntry {
+		if searchType == GetLastEntry || searchType == GetFirstEntry {
 			len := cur.Len()
 			if len <= 0 {
 				_, err := ValSliceAppend(cur, key)
@@ -203,12 +203,12 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 				}
 				len = cur.Len()
 			}
-			if searchtype == GetFirstEntry {
+			if searchType == GetFirstEntry {
 				key = 0
 			} else {
 				key = len - 1
 			}
-		} else if searchtype == SearchByContent {
+		} else if searchType == SearchByContent {
 			idx, ok := ValSliceFind(cur, key)
 			if !ok {
 				_, err := ValSliceAppend(cur, key)
@@ -218,7 +218,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchtype SearchType) (ref
 				idx = cur.Len() - 1
 			}
 			key = idx
-		} else if searchtype == SearchByIndex {
+		} else if searchType == SearchByIndex {
 
 		} else {
 			return reflect.Value{}, false
@@ -260,7 +260,7 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType 
 		if emptykey(key) {
 			return pv, nil
 		}
-		err := ValStructFieldSet(pv, key, val)
+		err := ValStructFieldSet(pv, key, val, insertType)
 		if err != nil {
 			return pv, fmt.Errorf("set failed in structure set (%v)", err)
 		}
@@ -268,6 +268,7 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType 
 		if emptykey(key) {
 			return pv, nil
 		}
+		// fmt.Println(pv, key, val)
 		err := ValMapSet(pv, key, val)
 		if err != nil {
 			return pv, fmt.Errorf("set failed in map set (%v)", err)

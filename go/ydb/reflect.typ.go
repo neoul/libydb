@@ -53,7 +53,7 @@ func IsTypeStruct(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Ptr:
 		return IsTypeStruct(t.Elem())
-	case reflect.Map:
+	case reflect.Struct:
 		return true
 	default:
 		return false
