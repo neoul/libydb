@@ -19,7 +19,7 @@ type SearchType int
 
 const (
 	// NoSearch - Do not search of the content of the slice value.
-	NoSearch = iota
+	NoSearch SearchType = iota
 	// GetLastEntry - return the last entry of the slice value.
 	GetLastEntry
 	// GetFirstEntry - return the first entry of the slice value.
@@ -28,6 +28,8 @@ const (
 	SearchByIndex
 	// SearchByContent - search an entry by this content.
 	SearchByContent
+	// DefaultSearchInsertType - default insert or search
+	DefaultSearchInsertType SearchType = NoSearch
 )
 
 // IsValScalar - true if built-in simple variable type
@@ -52,25 +54,6 @@ func emptykey(key interface{}) bool {
 	return false
 }
 
-// ValStructFieldFindInDepth - Find the target name value from the struct value in depth.
-func ValStructFieldFindInDepth(sv reflect.Value, name interface{}, searchtype SearchType) (reflect.Value, bool) {
-	if !sv.IsValid() {
-		return reflect.Value{}, false
-	}
-	fieldname, remains, err := ExtractStrValNameAndSubstring(name)
-	if err != nil {
-		return reflect.Value{}, false
-	}
-	_, cv, ok := valStructFieldFind(sv, fieldname)
-	if !ok {
-		return reflect.Value{}, ok
-	}
-	if remains != "" {
-		return ValFind(cv, remains, searchtype)
-	}
-	return cv, ok
-}
-
 // ValFind - finds a child value from the struct, map or slice value using the key.
 func ValFind(v reflect.Value, key interface{}, searchtype SearchType) (reflect.Value, bool) {
 	if !v.IsValid() {
@@ -84,7 +67,7 @@ func ValFind(v reflect.Value, key interface{}, searchtype SearchType) (reflect.V
 		if emptykey(key) {
 			return reflect.Value{}, false
 		}
-		rv, ok := ValStructFieldFindInDepth(cur, key, searchtype)
+		rv, ok := StrKeyStructFieldFind(cur, key, searchtype)
 		if !ok {
 			return reflect.Value{}, false
 		}
@@ -181,7 +164,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchType SearchType) (ref
 		if emptykey(key) {
 			return reflect.Value{}, false
 		}
-		rv, ok := ValStructFieldFindInDepth(cur, key, searchType)
+		rv, ok := StrKeyStructFieldFind(cur, key, searchType)
 		if !ok {
 			return reflect.Value{}, false
 		}
@@ -190,7 +173,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchType SearchType) (ref
 			if err != nil {
 				return reflect.Value{}, false
 			}
-			rv, ok = ValStructFieldFindInDepth(cur, key, searchType)
+			rv, ok = StrKeyStructFieldFind(cur, key, searchType)
 			if !ok {
 				return reflect.Value{}, false
 			}
@@ -279,7 +262,7 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType 
 		if emptykey(key) {
 			return pv, nil
 		}
-		err := ValStructFieldSet(pv, key, val, insertType)
+		err := StrKeyStructFieldSet(pv, key, val, insertType)
 		if err != nil {
 			return pv, fmt.Errorf("set failed in structure set (%v)", err)
 		}
@@ -496,10 +479,10 @@ func ValNew(t reflect.Type, val interface{}) (reflect.Value, error) {
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
 		return reflect.Value{}, fmt.Errorf("not supported type: %s", t.Kind())
 	case reflect.Struct:
-		return ValStructNew(t, val, InitChildenOnSet)
-	case reflect.Map: // [FIXME]
+		return ValStructNew(t, InitChildenOnSet)
+	case reflect.Map:
 		return reflect.MakeMap(t), nil
-	case reflect.Slice: // [FIXME]
+	case reflect.Slice:
 		return reflect.MakeSlice(t, 0, 0), nil
 	default:
 		return ValScalarNew(t, val)

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestValNewStruct(t *testing.T) {
+func TestStrKeyNewStruct(t *testing.T) {
 	p := "STR"
 	type args struct {
 		t reflect.Type
@@ -50,16 +50,16 @@ func TestValNewStruct(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ValStructNew(tt.args.t, tt.args.v, false)
+			got, err := StrKeyStructNew(tt.args.t, tt.args.v)
 			// if got.IsValid() {
 			// 	t.Log(got.Type(), got.Kind(), got)
 			// }
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValStructNew() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("StrKeyStructNew() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got.Interface(), tt.want.Interface()) && tt.wantEqual {
-				t.Errorf("ValStructNew() = %v, want %v", got, tt.want)
+				t.Errorf("StrKeyStructNew() = %v, want %v", got, tt.want)
 			}
 			t.Log(DebugValueString(got.Interface(), 2, nil))
 		})

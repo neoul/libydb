@@ -33,7 +33,7 @@ func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField
 	if !sv.IsValid() {
 		return reflect.StructField{}, reflect.Value{}, false
 	}
-	fieldname, _, err := ExtractStrValNameAndSubstring(name)
+	fieldname, _, err := ExtractStrKeyNameAndSubstring(name)
 	if err != nil {
 		return reflect.StructField{}, reflect.Value{}, false
 	}
@@ -45,7 +45,7 @@ func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}, inse
 	if !sv.IsValid() {
 		return fmt.Errorf("invalid struct")
 	}
-	fieldname, remainedkey, err := ExtractStrValNameAndSubstring(name)
+	fieldname, remainedkey, err := ExtractStrKeyNameAndSubstring(name)
 	if err != nil {
 		return err
 	}
@@ -114,16 +114,14 @@ func ValStructFieldUnset(sv reflect.Value, name interface{}) error {
 	return nil
 }
 
-// ValStructNew - Create new struct value and fill out all struct field.
-// val - must be a string formed as "StructName[StructField1:VAL1][StructField2:VAL2]"
-func ValStructNew(t reflect.Type, val interface{}, initAllfields bool) (reflect.Value, error) {
+// ValStructNew - Create new struct value and fill out all struct field to zero.
+func ValStructNew(t reflect.Type, initAllfields bool) (reflect.Value, error) {
 	if t == reflect.TypeOf(nil) {
 		return reflect.Value{}, fmt.Errorf("nil type")
 	}
 	if t.Kind() != reflect.Struct {
 		return reflect.Value{}, fmt.Errorf("not struct")
 	}
-	_, fields, _ := ExtractStrValNameAndValue(val)
 
 	pv := reflect.New(t)
 	pve := pv.Elem()
@@ -142,7 +140,7 @@ func ValStructNew(t reflect.Type, val interface{}, initAllfields bool) (reflect.
 			case reflect.Slice:
 				fv.Set(reflect.MakeSlice(ft.Type, 0, 0))
 			case reflect.Struct:
-				srv, err := ValStructNew(ft.Type, nil, initAllfields)
+				srv, err := ValStructNew(ft.Type, initAllfields)
 				if err != nil {
 					return srv, fmt.Errorf("%s not created", ft.Name)
 				}
@@ -166,15 +164,6 @@ func ValStructNew(t reflect.Type, val interface{}, initAllfields bool) (reflect.
 			// case reflect.String:
 			// 	fv.SetString("")
 			default:
-			}
-		}
-	}
-	fmt.Println("ValStructNew", fields)
-	if fields != nil {
-		for fieldname, fieldval := range fields {
-			err := ValStructFieldSet(pve, fieldname, fieldval, GetLastEntry)
-			if err != nil {
-				return reflect.Value{}, err
 			}
 		}
 	}
