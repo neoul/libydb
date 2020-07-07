@@ -112,14 +112,13 @@ func ValStructFieldUnset(sv reflect.Value, structuredkey interface{}, deleteType
 	// 	return fmt.Errorf("%s not found in %s", structuredkey, sv.Type())
 	// }
 	// fmt.Println("fv", structuredkey, fv.Kind(), fv.Type(), fv.CanSet())
-	// if DeleteOnUnset {
-	// 	if fv.CanSet() {
-	// 		if fv.Kind() == reflect.Ptr {
-	// 			nv := reflect.New(fv.Elem().Type())
-	// 			fv.Set(nv)
-	// 		}
-	// 	}
-	// }
+	if fv.CanSet() {
+		if fv.Kind() == reflect.Ptr {
+			nv := reflect.New(fv.Type())
+			fv.Set(nv.Elem())
+			return nil
+		}
+	}
 
 	if IsTypeScalar(fv.Type()) {
 		return ValScalarSet(fv, "")

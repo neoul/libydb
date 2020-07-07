@@ -1,12 +1,15 @@
 #!/bin/bash
 
-#ydb -r pub -a uss://test -d -f demo.yaml &
-go run demo.go &
-PUBPID=$!
-echo $PUBPID
-# ./demo
-# go run demo.go
-sleep 1
-ydb -r pub -a uss://test --file ../../examples/yaml/yaml-sequence.yaml
-kill -SIGINT $PUBPID
-cd -
+ydb -r sub -w -a uss://test --file demo.yaml
+ydb -r sub -w -a uss://test --write /ydb/hello/world
+sleep 2
+ydb -r sub -w -a uss://test --write /ydb/hello/demon
+sleep 2
+ydb -r sub -w -a uss://test --write /ydb/hello/demon=ok
+sleep 2
+ydb -r sub -w -a uss://test --write /ydb/hello/world=hi
+sleep 2
+ydb -r sub -w -a uss://test --delete /ydb/hello/world
+sleep 2
+ydb -r sub -w -a uss://test --delete /ydb/hello
+sleep 2

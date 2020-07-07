@@ -31,7 +31,7 @@ func ValYdbSet(v reflect.Value, keys []string, key string, tag string, value str
 	}
 
 	ct, ok := TypeFind(v.Type(), key)
-	if ok && isTypeInterface(ct) {
+	if ok && IsTypeInterface(ct) {
 		switch tag {
 		case "!!map", "!!imap", "!!omap", "!!set":
 			nv := reflect.ValueOf(map[string]interface{}{})
@@ -52,7 +52,13 @@ func ValYdbSet(v reflect.Value, keys []string, key string, tag string, value str
 		default:
 		}
 	}
-	_, err := ValChildSet(v, key, value, NoSearch)
+	rv, err := ValChildSet(v, key, value, NoSearch)
+	if err != nil {
+		return err
+	}
+	if rv.Kind() == reflect.Slice {
+		_, err = ValChildDirectSet(pv, pkey, rv)
+	}
 	return err
 }
 
