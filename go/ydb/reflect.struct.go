@@ -28,39 +28,43 @@ func valStructFieldFind(sv reflect.Value, name string) (reflect.StructField, ref
 	return reflect.StructField{}, reflect.Value{}, false
 }
 
-// ValStructFieldFind - Find a struct field by the name (struct field name or Tag) from sv (struct)
-func ValStructFieldFind(sv reflect.Value, name interface{}) (reflect.StructField, reflect.Value, bool) {
+// ValStructFieldFind - Find the target structuredkey value from the struct value in depth.
+func ValStructFieldFind(sv reflect.Value, structuredkey interface{}, searchtype SearchType) (reflect.Value, bool) {
 	if !sv.IsValid() {
-		return reflect.StructField{}, reflect.Value{}, false
+		return reflect.Value{}, false
 	}
-	fieldname, _, err := ExtractStrKeyNameAndSubstring(name)
+	fieldname, remains, err := ExtractStrKeyNameAndSubstring(structuredkey)
 	if err != nil {
-		return reflect.StructField{}, reflect.Value{}, false
+		return reflect.Value{}, false
 	}
-	return valStructFieldFind(sv, fieldname)
+	_, cv, ok := valStructFieldFind(sv, fieldname)
+	if !ok {
+		return reflect.Value{}, ok
+	}
+	if remains != "" {
+		return ValFind(cv, remains, searchtype)
+	}
+	return cv, ok
 }
 
 // ValStructFieldSet - Set the field of the struct.
-func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}, insertType SearchType) error {
+func ValStructFieldSet(sv reflect.Value, structuredkey interface{}, val interface{}, insertType SearchType) error {
 	if !sv.IsValid() {
 		return fmt.Errorf("invalid struct")
 	}
-	fieldname, remainedkey, err := ExtractStrKeyNameAndSubstring(name)
+	fieldname, remainedkey, err := ExtractStrKeyNameAndSubstring(structuredkey)
 	if err != nil {
 		return err
 	}
 	ft, fv, ok := valStructFieldFind(sv, fieldname)
 	if !ok {
-		return fmt.Errorf("%s not found in %s", name, sv.Type())
+		return fmt.Errorf("%s not found in %s", structuredkey, sv.Type())
 	}
 	if !fv.CanSet() {
-		return fmt.Errorf("not settable field %s", name)
+		return fmt.Errorf("not settable field %s", structuredkey)
 	}
 	ftt := ft.Type
 	if IsTypeInterface(ftt) { // That means it is not a specified type.
-		if val == nil {
-			return fmt.Errorf("not specified field or val type for %s", name)
-		}
 		ftt = reflect.TypeOf(val)
 		if IsTypeScalar(ftt) {
 			return ValScalarSet(fv, val)
@@ -83,30 +87,44 @@ func ValStructFieldSet(sv reflect.Value, name interface{}, val interface{}, inse
 		}
 		return nil
 	}
-	// if IsTypeScalar(ftt) {
-	// 	return ValScalarSet(fv, val)
-	// }
-	nv, err := ValNew(ftt, val)
-	if err != nil {
-		return err
+	if IsTypeScalar(ftt) {
+		return ValScalarSet(fv, val)
 	}
-	fv.Set(nv)
 	return nil
 }
 
 // ValStructFieldUnset - Remove the field of the struct.
-func ValStructFieldUnset(sv reflect.Value, name interface{}) error {
+func ValStructFieldUnset(sv reflect.Value, structuredkey interface{}, deleteType SearchType) error {
 	if !sv.IsValid() {
 		return fmt.Errorf("invalid struct")
 	}
-	ft, fv, ok := ValStructFieldFind(sv, name)
-	if !ok {
-		return fmt.Errorf("%s not found in %s", name, sv.Type())
+	fieldname, _, err := ExtractStrKeyNameAndSubstring(structuredkey)
+	if err != nil {
+		return err
 	}
-	if IsTypeScalar(ft.Type) {
+	_, fv, ok := valStructFieldFind(sv, fieldname)
+	if !ok {
+		return fmt.Errorf("%s not found in %s", structuredkey, sv.Type())
+	}
+
+	// fv, ok := ValStructFieldFind(sv, structuredkey, deleteType)
+	// if !ok {
+	// 	return fmt.Errorf("%s not found in %s", structuredkey, sv.Type())
+	// }
+	// fmt.Println("fv", structuredkey, fv.Kind(), fv.Type(), fv.CanSet())
+	// if DeleteOnUnset {
+	// 	if fv.CanSet() {
+	// 		if fv.Kind() == reflect.Ptr {
+	// 			nv := reflect.New(fv.Elem().Type())
+	// 			fv.Set(nv)
+	// 		}
+	// 	}
+	// }
+
+	if IsTypeScalar(fv.Type()) {
 		return ValScalarSet(fv, "")
 	}
-	nv, err := ValNew(ft.Type, nil)
+	nv, err := ValNew(fv.Type(), nil)
 	if err != nil {
 		return err
 	}

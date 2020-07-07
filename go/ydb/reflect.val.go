@@ -67,7 +67,7 @@ func ValFind(v reflect.Value, key interface{}, searchtype SearchType) (reflect.V
 		if emptykey(key) {
 			return reflect.Value{}, false
 		}
-		rv, ok := StrKeyStructFieldFind(cur, key, searchtype)
+		rv, ok := ValStructFieldFind(cur, key, searchtype)
 		if !ok {
 			return reflect.Value{}, false
 		}
@@ -164,7 +164,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchType SearchType) (ref
 		if emptykey(key) {
 			return reflect.Value{}, false
 		}
-		rv, ok := StrKeyStructFieldFind(cur, key, searchType)
+		rv, ok := ValStructFieldFind(cur, key, searchType)
 		if !ok {
 			return reflect.Value{}, false
 		}
@@ -173,7 +173,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchType SearchType) (ref
 			if err != nil {
 				return reflect.Value{}, false
 			}
-			rv, ok = StrKeyStructFieldFind(cur, key, searchType)
+			rv, ok = ValStructFieldFind(cur, key, searchType)
 			if !ok {
 				return reflect.Value{}, false
 			}
@@ -262,7 +262,7 @@ func ValChildSet(pv reflect.Value, key interface{}, val interface{}, insertType 
 		if emptykey(key) {
 			return pv, nil
 		}
-		err := StrKeyStructFieldSet(pv, key, val, insertType)
+		err := ValStructFieldSet(pv, key, val, insertType)
 		if err != nil {
 			return pv, fmt.Errorf("set failed in structure set (%v)", err)
 		}
@@ -322,7 +322,7 @@ func ValChildUnset(v reflect.Value, key interface{}, deleteType SearchType) (ref
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
 		return v, fmt.Errorf("not supported value type (%s)", v.Kind())
 	case reflect.Struct:
-		return v, ValStructFieldUnset(v, key)
+		return v, ValStructFieldUnset(v, key, deleteType)
 	case reflect.Map:
 		return v, ValMapUnset(v, key)
 	case reflect.Slice:
@@ -362,7 +362,7 @@ func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (ref
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
 		return pv, fmt.Errorf("not supported parent type (%s)", pv.Type().Kind())
 	case reflect.Struct:
-		_, fv, ok := ValStructFieldFind(pv, key)
+		fv, ok := ValStructFieldFind(pv, key, DefaultSearchInsertType)
 		if !ok {
 			return pv, fmt.Errorf("not found %s", key)
 		}
