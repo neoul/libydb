@@ -82,14 +82,10 @@ func ValMapUnset(v reflect.Value, key interface{}) error {
 // The key value must be a string with the following format.
 // StructName[StructField1:Value1][StructField2:Value2]
 func mapKeyNew(kt reflect.Type, key interface{}) (reflect.Value, error) {
-	if IsTypeStruct(kt) {
-		return StrKeyStructNew(kt, key)
-	}
-	// scalar key
 	if IsTypeInterface(kt) { // That means it is not a specified type.
 		kt = reflect.TypeOf(key)
 	}
-	kv, err := ValScalarNew(kt, key)
+	kv, err := StrKeyValNew(kt, key)
 	if err != nil || !kv.IsValid() {
 		return reflect.Value{}, fmt.Errorf("invalid key: %s", key)
 	}

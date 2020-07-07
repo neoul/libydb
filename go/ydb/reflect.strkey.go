@@ -136,7 +136,6 @@ func StrKeyStructFieldSet(sv reflect.Value, structuredkey interface{}, val inter
 	if err != nil {
 		return err
 	}
-	fmt.Println("StrKeyStructFieldSet", sv.Type(), structuredkey, val)
 	ft, fv, ok := valStructFieldFind(sv, fieldname)
 	if !ok {
 		return fmt.Errorf("%s not found in %s", structuredkey, sv.Type())
@@ -237,61 +236,31 @@ func StrKeyStructNew(t reflect.Type, val interface{}) (reflect.Value, error) {
 	return pve, nil
 }
 
-// func StrKeyMapNew(t reflect.Type, strkey interface{}) (reflect.Value, error) {
-// 	if t.Kind() != reflect.Map {
-// 		return reflect.Value{}, fmt.Errorf("not a map type")
-// 	}
-// 	fmt.Println("StrKeyMapNew strkey", t, strkey)
-// 	_, fields, err := ExtractStrKeyNameAndValue(strkey)
-// 	if err != nil {
-// 		return reflect.Value{}, err
-// 	}
-
-// 	v := reflect.MakeMap(t)
-// 	kt := t.Key()
-// 	kv, err := mapKeyNew(kt, key)
-// 	if err != nil || !kv.IsValid() {
-// 		return fmt.Errorf("invalid key: %s", key)
-// 	}
-// 	var ev reflect.Value
-// 	var et reflect.Type
-// 	if IsTypeInterface(t.Elem()) { // That means it is not a specified type.
-// 		if element == nil {
-// 			return fmt.Errorf("not specified key or element type for %s", key)
-// 		}
-// 		et = reflect.TypeOf(element)
-// 	} else {
-// 		et = t.Elem()
-// 	}
-// 	ev, err = ValNew(et, element)
-// 	if err != nil || !ev.IsValid() {
-// 		return fmt.Errorf("invalid element: %s", element)
-// 	}
-// 	v.SetMapIndex(kv, ev)
-// 	return nil
-// }
-
-// StrKeyValNew - Create a new key value (struct, map, slice) of the t type.
-func StrKeyValNew(t reflect.Type, val interface{}) (reflect.Value, error) {
+// StrKeyValNew - Create a new structured key of the t type.
+func StrKeyValNew(t reflect.Type, key interface{}) (reflect.Value, error) {
 	if t == reflect.TypeOf(nil) {
 		return reflect.Value{}, fmt.Errorf("nil type")
 	}
 	switch t.Kind() {
 	case reflect.Ptr:
-		cv, err := StrKeyValNew(t.Elem(), val)
+		cv, err := StrKeyValNew(t.Elem(), key)
 		return newPtrOfValue(cv), err
 	case reflect.Interface:
-		return StrKeyValNew(t.Elem(), val)
+		return StrKeyValNew(t.Elem(), key)
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
 		return reflect.Value{}, fmt.Errorf("not supported type: %s", t.Kind())
-	case reflect.Struct:
-		return StrKeyStructNew(t, val)
-	case reflect.Map:
-		return reflect.MakeMap(t), nil
-	case reflect.Slice:
+	case reflect.Slice, reflect.Map:
 		return reflect.Value{}, fmt.Errorf("not supported StrKey type: %s", t.Kind())
-		// return reflect.MakeSlice(t, 0, 0), nil
+	case reflect.Struct:
+		return StrKeyStructNew(t, key)
 	default:
-		return ValScalarNew(t, val)
+		k, kfields, err := ExtractStrKeyNameAndValue(key)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("StrKey extraction failed from %s", key)
+		}
+		for _, v := range kfields {
+			return ValScalarNew(t, v)
+		}
+		return ValScalarNew(t, k)
 	}
 }

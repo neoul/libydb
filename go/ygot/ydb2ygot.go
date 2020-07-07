@@ -114,7 +114,7 @@ func main() {
 	dec.Decode()
 	ydb.DebugValueString(gs, 5, func(x ...interface{}) { fmt.Print(x...) })
 	fmt.Println("")
-	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
-	// fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
+	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
+	fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
 	fmt.Println("")
 }
