@@ -42,9 +42,9 @@ func DebugValueString(value interface{}, depth int, print func(a ...interface{})
 // - value: The value to print.
 // - depth: The depth of the printed values and types.
 // - print: The print function
-func DebugValueStringInline(value interface{}, depth int, print func(a ...interface{})) string {
+func DebugValueStringInline(value interface{}, depth int, print func(a ...interface{}), excludedField ...string) string {
 	v := reflect.ValueOf(value)
-	s := debugValueStr(v, depth, 0, "", false, true)
+	s := debugValueStr(v, depth, 0, "", false, true, excludedField...)
 	s = strings.ReplaceAll(s, "\n", " ")
 	if print != nil {
 		print(s)
