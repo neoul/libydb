@@ -118,37 +118,42 @@ func ValFind(v reflect.Value, key interface{}, searchtype SearchType) (reflect.V
 
 // ValGetAll - Get All child values from the struct, map or slice value
 func ValGetAll(v reflect.Value) ([]reflect.Value, bool) {
-	rval := []reflect.Value{}
 	if !v.IsValid() {
-		return rval, false
+		return []reflect.Value{}, false
 	}
 	switch v.Kind() {
 	case reflect.Ptr, reflect.Interface:
 		return ValGetAll(v.Elem())
 	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
+		length := v.NumField()
+		rval := make([]reflect.Value, length)
+		for i := 0; i < length; i++ {
 			fv := v.Field(i)
 			if !fv.IsValid() || !fv.CanSet() {
 				continue
 			}
-			rval = append(rval, fv)
+			rval[i] = fv
 		}
+		return rval, true
 	case reflect.Map:
+		rval := make([]reflect.Value, v.Len())
 		iter := v.MapRange()
+		i := 0
 		for iter.Next() {
-			cv := iter.Value()
-			rval = append(rval, cv)
+			rval[i] = iter.Value()
+			i++
 		}
+		return rval, true
 	case reflect.Slice:
 		length := v.Len()
+		rval := make([]reflect.Value, length)
 		for i := 0; i < length; i++ {
-			cv := v.Index(i)
-			rval = append(rval, cv)
+			rval[i] = v.Index(i)
 		}
+		return rval, true
 	default:
-		return rval, false
+		return []reflect.Value{}, false
 	}
-	return rval, true
 }
 
 // ValFindOrInit - finds or initializes a child value if it is not exists.
