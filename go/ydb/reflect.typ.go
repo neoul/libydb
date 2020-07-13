@@ -96,14 +96,15 @@ func TypeFind(pt reflect.Type, key string) (reflect.Type, bool) {
 	return pt, false
 }
 
-// IsUpper - check the case of a string
-func IsUpper(s string) bool {
+// IsStartedWithUpper - check the case of a string
+func IsStartedWithUpper(s string) bool {
 	for _, r := range s {
-		if !unicode.IsUpper(r) && unicode.IsLetter(r) {
-			return false
+		if unicode.IsUpper(r) && unicode.IsLetter(r) {
+			return true
 		}
+		return false
 	}
-	return true
+	return false
 }
 
 // TypeGetAll - Get All child values from the struct, map or slice value
@@ -125,7 +126,7 @@ func TypeGetAll(t reflect.Type) ([]reflect.Type, bool) {
 		for i := 0; i < length; i++ {
 			sft := t.Field(i)
 			st := sft.Type
-			if st != nt && IsUpper(sft.Name) {
+			if st != nt && IsStartedWithUpper(sft.Name) {
 				rtype = append(rtype, st)
 			}
 		}
