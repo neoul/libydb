@@ -127,14 +127,16 @@ func ValGetAll(v reflect.Value) ([]reflect.Value, bool) {
 	case reflect.Struct:
 		length := v.NumField()
 		rval := make([]reflect.Value, length)
+		rlen := 0
 		for i := 0; i < length; i++ {
 			fv := v.Field(i)
-			if !fv.IsValid() || !fv.CanSet() {
+			if !fv.IsValid() {
 				continue
 			}
 			rval[i] = fv
+			rlen++
 		}
-		return rval, true
+		return rval[:rlen], true
 	case reflect.Map:
 		rval := make([]reflect.Value, v.Len())
 		iter := v.MapRange()

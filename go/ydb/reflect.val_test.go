@@ -237,3 +237,93 @@ func TestValFind(t *testing.T) {
 		})
 	}
 }
+
+func _equal(d1, d2 []interface{}) bool {
+	for len(d1) != len(d2) {
+		return false
+	}
+	for _, x := range d1 {
+		eq := false
+		for _, y := range d2 {
+			if reflect.DeepEqual(x, y) {
+				eq = true
+				break
+			}
+		}
+		if !eq {
+			return false
+		}
+	}
+	return true
+}
+
+func TestValGetAll(t *testing.T) {
+	type testX struct {
+		a int
+		B string
+		C *int
+	}
+	type testY struct {
+		A map[string]testX
+		B map[string]testX
+		C []testX
+		D []interface{}
+	}
+	c := 20
+	tX := testX{
+		a: 10,
+		B: "B",
+		C: &c,
+	}
+	tY := &testY{
+		A: map[string]testX{"tX1": tX, "tX2": tX},
+		B: map[string]testX{"tX1": tX, "tX2": tX},
+		C: []testX{tX, tX},
+		D: []interface{}{tX},
+	}
+	type args struct {
+		v reflect.Value
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  []reflect.Value
+		want1 bool
+	}{
+		{
+			name: "ValGetAll",
+			args: args{
+				v: reflect.ValueOf(tY),
+			},
+			want: []reflect.Value{
+				reflect.ValueOf(tY.A),
+				reflect.ValueOf(tY.B),
+				reflect.ValueOf(tY.C),
+				reflect.ValueOf(tY.D)},
+			want1: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := ValGetAll(tt.args.v)
+			w1 := []interface{}{}
+			for _, v := range tt.want {
+				w1 = append(w1, v.Interface())
+			}
+			g1 := []interface{}{}
+			for _, v := range got {
+				if v.CanInterface() {
+					g1 = append(g1, v.Interface())
+				}
+			}
+			if !_equal(g1, w1) {
+				t.Errorf("ValGetAll()")
+				t.Errorf(" got = %v", g1)
+				t.Errorf(" want %v", w1)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("ValGetAll() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}

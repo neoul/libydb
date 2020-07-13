@@ -43,7 +43,7 @@ func ValMapSet(v reflect.Value, key interface{}, element interface{}) error {
 	kt := t.Key()
 	kv, err := mapKeyNew(kt, key)
 	if err != nil || !kv.IsValid() {
-		return fmt.Errorf("invalid key: %s", key)
+		return err
 	}
 	var ev reflect.Value
 	var et reflect.Type
@@ -87,7 +87,7 @@ func mapKeyNew(kt reflect.Type, key interface{}) (reflect.Value, error) {
 	}
 	kv, err := StrKeyValNew(kt, key)
 	if err != nil || !kv.IsValid() {
-		return reflect.Value{}, fmt.Errorf("invalid key: %s", key)
+		return reflect.Value{}, fmt.Errorf("invalid key: %v", key)
 	}
 	return kv, nil
 }
