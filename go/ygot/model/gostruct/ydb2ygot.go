@@ -1,6 +1,6 @@
 // YDB Go Interface for ygot
 
-package schema
+package gostruct
 
 import (
 	"fmt"
