@@ -44,6 +44,18 @@ func IsValScalar(v reflect.Value) bool {
 	}
 }
 
+// IsValMap - true if built-in map variable type
+func IsValMap(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		return IsValMap(v.Elem())
+	case reflect.Map:
+		return true
+	default:
+		return false
+	}
+}
+
 func emptykey(key interface{}) bool {
 	kk, ok := key.(string)
 	if ok {

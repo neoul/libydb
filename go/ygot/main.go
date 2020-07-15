@@ -15,12 +15,12 @@ var (
 
 func init() {
 	ylog = ydb.GetLogger("ydb2ygot")
-	fmt.Println(gostruct.SchemaTree)
-	for key, entry := range gostruct.SchemaTree {
-		fmt.Println("key:", key)
-		ydb.DebugValueString(entry, 1, func(x ...interface{}) { fmt.Print(x...) })
-		fmt.Println("")
-	}
+	// fmt.Println(gostruct.SchemaTree)
+	// for key, entry := range gostruct.SchemaTree {
+	// 	fmt.Println("key:", key)
+	// 	ydb.DebugValueString(entry, 2, func(x ...interface{}) { fmt.Print(x...) })
+	// 	fmt.Println("")
+	// }
 }
 
 func main() {

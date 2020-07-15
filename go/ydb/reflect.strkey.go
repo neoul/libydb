@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// structuredkey (structured key)
+// structuredkey (structured key) for value data expression
 // Format: StructName[FieldName=Value][FieldName=Value]... for a structure and structure field.
 
 var delimiters string = "[]'\""
@@ -25,11 +25,12 @@ func delimBracket(s string) ([]int, error) {
 		return []int{0, slen}, nil
 	}
 	result := []int{0, base}
+	var rPrev rune
 	for offset, r := range s[base:] {
 		if strings.IndexAny(delimiters, string(r)) >= 0 {
 			// fmt.Println("lvl ", lvl, string(r))
 			if r == ']' {
-				if stack[lvl].delimiter == '[' {
+				if stack[lvl].delimiter == '[' && rPrev != '\\' {
 					if lvl == 1 { // Square brackets are valid on 1 level.
 						result = append(result,
 							stack[lvl].offset+base, offset+base)
@@ -47,6 +48,7 @@ func delimBracket(s string) ([]int, error) {
 				lvl++
 			}
 		}
+		rPrev = r
 	}
 	if len(stack) > 1 {
 		return []int{}, fmt.Errorf("invalid value format")
@@ -76,7 +78,7 @@ func ExtractStrKeyNameAndValue(s interface{}) (string, map[string]string, error)
 			if kvdelim >= 0 {
 				n := fieldNameVal[:kvdelim]
 				v := strings.Trim(fieldNameVal[kvdelim+1:], "'\"")
-				m[n] = v
+				m[n] = strings.ReplaceAll(v, "\\]", "]")
 			} else {
 				return "", nil, fmt.Errorf("invalid field name & value")
 			}
@@ -103,6 +105,8 @@ func ExtractStrKeyNameAndSubstring(s interface{}) (string, string, error) {
 		}
 
 		ss := name[offsets[2]-1 : offsets[offsetnum-1]+1]
+		// remove \]
+		ss = strings.ReplaceAll(ss, "\\]", "]")
 		return name[offsets[0]:offsets[1]], ss, nil
 	}
 	return "", "", fmt.Errorf("no string value")
@@ -200,4 +204,41 @@ func StrKeyValNew(t reflect.Type, key interface{}) (reflect.Value, error) {
 		return ValScalarNew(t, key)
 	}
 
+}
+
+// StrKeyGen - Generate the Structured key
+// Multiple keyName must be separated by space.
+func StrKeyGen(kv reflect.Value, structName, keyName string) (string, error) {
+	if !kv.IsValid() {
+		return "", fmt.Errorf("invalid Key value inserted for StrKey")
+	}
+	if structName == "" {
+		return "", fmt.Errorf("no node name inserted for StrKey")
+	}
+	knamelist := strings.Split(keyName, " ")
+	switch kv.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		return StrKeyGen(kv.Elem(), structName, keyName)
+	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
+		return "", fmt.Errorf("not supported type: %s", kv.Kind())
+	case reflect.Slice, reflect.Map:
+		return "", fmt.Errorf("not supported StrKey type: %s", kv.Kind())
+	case reflect.Struct:
+		strkey := structName
+		for _, kname := range knamelist {
+			_, cv, ok := valStructFieldFind(kv, kname)
+			if !ok {
+				return "", fmt.Errorf("not found key from key value")
+			}
+			strkey = strkey + fmt.Sprintf("[%s=%v]", keyName, cv.Interface())
+		}
+		return strkey, nil
+	default:
+		strkey := structName
+		if len(knamelist) != 1 {
+			return "", fmt.Errorf("not multiple key value")
+		}
+		strkey = strkey + fmt.Sprintf("[%s=%v]", keyName, kv.Interface())
+		return strkey, nil
+	}
 }
