@@ -254,10 +254,11 @@ type YNode struct {
 }
 
 type retrieveOption struct {
-	keys  []string
-	all   bool
-	depth int
-	user  interface{}
+	keys   []string
+	all    bool
+	depth  int
+	user   interface{}
+	nolock bool
 }
 
 // RetrieveOption - The option to retrieve YNodes from an YDB instance.
@@ -285,6 +286,11 @@ func RetrieveAll() RetrieveOption {
 // RetrieveKeys - The option to set the start point of the retrieval
 func RetrieveKeys(k ...string) RetrieveOption {
 	return func(s *retrieveOption) { s.keys = k }
+}
+
+// retrieveWithoutLock - The option to retrieve data without lock
+func retrieveWithoutLock() RetrieveOption {
+	return func(s *retrieveOption) { s.nolock = true }
 }
 
 // Create interface to fill a user structure by a YDB data instance
@@ -540,8 +546,10 @@ func (db *YDB) Convert(options ...RetrieveOption) (interface{}, error) {
 	} else {
 		user = opt.user
 	}
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
+	if !opt.nolock {
+		db.mutex.RLock()
+		defer db.mutex.RUnlock()
+	}
 	n := db.top()
 	if len(opt.keys) > 0 {
 		for _, key := range opt.keys {
@@ -594,6 +602,22 @@ func OpenWithTargetStruct(name string, targetStruct interface{}) (*YDB, func()) 
 	return &db, func() {
 		db.Close()
 	}
+}
+
+// RelaceTargetStruct - replace the Target structure
+// Warning - If RelaceTargetStruct() is called without sync, the data inconsistency happens!!!
+func (db *YDB) RelaceTargetStruct(targetStruct interface{}, sync bool) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	if sync {
+		_, err := db.Convert(RetrieveAll(), RetrieveStruct(targetStruct),
+			retrieveWithoutLock())
+		if err != nil {
+			return err
+		}
+	}
+	db.Target = targetStruct
+	return nil
 }
 
 // Connect to YDB IPC (Inter Process Communication) channel
