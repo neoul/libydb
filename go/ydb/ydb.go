@@ -457,7 +457,7 @@ func SetInternalLog(loglevel uint) {
 // YDB (YAML YNode type) to indicate an YDB instance
 type YDB struct {
 	block  *C.ydb
-	mutex  sync.Mutex
+	mutex  sync.RWMutex
 	fd     int
 	Name   string
 	Target interface{}
@@ -474,6 +474,16 @@ func (db *YDB) Unlock() {
 	db.mutex.Unlock()
 }
 
+// RLock - Lock the YDB instance for read.
+func (db *YDB) RLock() {
+	db.mutex.RLock()
+}
+
+// RUnlock - Unlock of the YDB instance for read.
+func (db *YDB) RUnlock() {
+	db.mutex.RUnlock()
+}
+
 // Retrieve - Retrieve the data that consists of YNodes.
 func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 	var node, parent *YNode
@@ -481,8 +491,8 @@ func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 	for _, o := range options {
 		o(&opt)
 	}
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
 	n := db.top()
 	node = n.createYNode(nil)
 	if len(opt.keys) > 0 {
@@ -530,8 +540,8 @@ func (db *YDB) Convert(options ...RetrieveOption) (interface{}, error) {
 	} else {
 		user = opt.user
 	}
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
 	n := db.top()
 	if len(opt.keys) > 0 {
 		for _, key := range opt.keys {
@@ -743,9 +753,9 @@ func (enc *Encoder) Encode() error {
 		return enc.err
 	}
 	path := byte(0)
-	enc.db.mutex.Lock()
+	enc.db.mutex.RLock()
 	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, unsafe.Pointer(&path))
-	enc.db.mutex.Unlock()
+	enc.db.mutex.RUnlock()
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
 		byt := C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen)
