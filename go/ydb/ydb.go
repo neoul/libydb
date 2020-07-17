@@ -723,6 +723,17 @@ func (db *YDB) Receive() error {
 	return nil
 }
 
+// Parse - parse YAML bytes to update YDB
+func (db *YDB) Parse(yaml []byte) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	res := C.ydb_parses_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(len(yaml)))
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
 // A Decoder reads and decodes YAML values from an input stream to an YDB instance.
 type Decoder struct {
 	db  *YDB
