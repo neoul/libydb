@@ -1,9 +1,14 @@
 package main // import "github.com/neoul/libydb/go/demo/example"
 
 import (
+	"flag"
 	"log"
 
 	"github.com/neoul/libydb/go/ydb"
+)
+
+var (
+	address = flag.String("address", "uss://test", "Address to connect")
 )
 
 func main() {
@@ -13,13 +18,13 @@ func main() {
 	db, close := ydb.OpenWithTargetStruct("hello", &datastore)
 	// db, close := ydb.OpenWithTargetStruct("hello", &ydb.EmptyGoStruct{})
 	defer close()
-	err := db.Connect("uss://test", "pub")
+	err := db.Connect(*address, "pub")
 	if err != nil {
 		log.Println(err)
 	}
 	db.Serve()
 	<-done
-	err = db.Disconnect("uss://test")
+	err = db.Disconnect(*address)
 	if err != nil {
 		log.Println(err)
 	}
