@@ -337,6 +337,11 @@ typedef ydb_write_hook1 ydb_write_hook;
 ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write_hook func, int num, ...);
 void ydb_write_hook_delete(ydb *datablock, char *path);
 
+// ydb_onchange_hook: executed before, after ydb data changes
+typedef void (*ydb_onchange_hook)(ydb *datablock, int started, void *user);
+ydb_res ydb_onchange_hook_add(ydb *datablock, ydb_onchange_hook hook, void *user);
+void ydb_onchange_hook_delete(ydb *datablock);
+
 // update and delete the remote ydb targeted by origin.
 ydb_res ydb_whisper_merge(ydb *datablock, char *path, const char *format, ...);
 ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...);

@@ -338,6 +338,8 @@ struct _ydb
     ylist *disconn;   // disconnected remote list
     ytree *event;     // Event for response wait
     ytimer *timer;    // Timer for event
+    ydb_onchange_hook onchange;
+    void *onchange_user;
     int epollfd;      // EPOLL for YDB IPC
     int synccount;    // The number of connections (needs sync)
     int timeout;      // timeout for ydb_sync, ydb_path_sync
@@ -1004,6 +1006,48 @@ int ydb_is_publisher(ydb *datablock, char *addr)
     return ret;
 }
 
+ydb_res ydb_onchange_hook_add(ydb *datablock, ydb_onchange_hook hook, void *user)
+{
+    if (datablock)
+    {
+        lock(datablock);
+        datablock->onchange = hook;
+        datablock->onchange_user = user;
+        unlock(datablock);
+    }
+    return YDB_OK;
+}
+
+void ydb_onchange_hook_delete(ydb *datablock)
+{
+    if (datablock)
+    {
+        lock(datablock);
+        datablock->onchange = NULL;
+        datablock->onchange_user = NULL;
+        unlock(datablock);
+    }
+}
+
+void _ydb_onchange_run(ydb *datablock, bool started)
+{
+    if (datablock->onchange) {
+        datablock->onchange(datablock, started, datablock->onchange_user);
+    }
+}
+
+ynode_log *ydb_log_open(ydb *datablock, FILE *dumpfp)
+{
+    _ydb_onchange_run(datablock, true);
+    return ynode_log_open(datablock->top, dumpfp);
+}
+
+void ydb_log_close(ydb *datablock, ynode_log *log, char **buf, size_t *buflen)
+{
+    ynode_log_close(log, buf, buflen);
+    _ydb_onchange_run(datablock, false);
+}
+
 // Clear all data in YAML DataBlock
 ydb_res ydb_clear(ydb *datablock)
 {
@@ -1015,14 +1059,14 @@ ydb_res ydb_clear(ydb *datablock)
     ylog_in();
     YDB_FAIL(!datablock, YDB_E_INVALID_ARGS);
     lock(datablock);
-    log = ynode_log_open(datablock->top, NULL);
+    log = ydb_log_open(datablock, NULL);
     n = ynode_down(datablock->top);
     while (n)
     {
         ynode_delete(n, log);
         n = ynode_down(datablock->top);
     }
-    ynode_log_close(log, &buf, &buflen);
+    ydb_log_close(datablock, log, &buf, &buflen);
     yconn_publish(NULL, NULL, datablock, YOP_DELETE, buf, buflen);
 failed:
     CLEAR_BUF(buf, buflen);
@@ -1296,14 +1340,14 @@ ydb_res ydb_clean(ydb *datablock, ynode *n)
     ylog_in();
     YDB_FAIL(!datablock || !n, YDB_E_INVALID_ARGS);
     lock(datablock);
-    log = ynode_log_open(datablock->top, NULL);
+    log = ydb_log_open(datablock, NULL);
     c = ynode_down(n);
     while (c)
     {
         ynode_delete(c, log);
         c = ynode_down(n);
     }
-    ynode_log_close(log, &buf, &buflen);
+    ydb_log_close(datablock, log, &buf, &buflen);
     yconn_publish(NULL, NULL, datablock, YOP_DELETE, buf, buflen);
 failed:
     unlock(datablock);
@@ -1326,9 +1370,9 @@ ydb_res ydb_parse(ydb *datablock, FILE *stream)
         ynode *top;
         ynode_log *log = NULL;
         lock(datablock);
-        log = ynode_log_open(datablock->top, NULL);
+        log = ydb_log_open(datablock, NULL);
         top = ynode_merge(datablock->top, src, log);
-        ynode_log_close(log, &buf, &buflen);
+        ydb_log_close(datablock, log, &buf, &buflen);
         if (top)
         {
             datablock->top = top;
@@ -1361,9 +1405,9 @@ ydb_res ydb_parses(ydb *datablock, char *buf, size_t buflen)
         ynode *top;
         ynode_log *log = NULL;
         lock(datablock);
-        log = ynode_log_open(datablock->top, NULL);
+        log = ydb_log_open(datablock, NULL);
         top = ynode_merge(datablock->top, src, log);
-        ynode_log_close(log, &ibuf, &ibuflen);
+        ydb_log_close(datablock, log, &ibuf, &ibuflen);
         if (top)
         {
             datablock->top = top;
@@ -1455,10 +1499,10 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
         YDB_FAIL(res || !src, res);
         CLEAR_BUF(buf, buflen);
         lock(datablock);
-        log = ynode_log_open(datablock->top, NULL);
+        log = ydb_log_open(datablock, NULL);
         // ynode_dump(src, 0, 24);
         top = ynode_merge(datablock->top, src, log);
-        ynode_log_close(log, &buf, &buflen);
+        ydb_log_close(datablock, log, &buf, &buflen);
         YDB_FAIL(!top, YDB_E_MERGE_FAILED);
         datablock->top = top;
         yconn_publish(NULL, NULL, datablock, YOP_MERGE, buf, buflen);
@@ -1589,11 +1633,11 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
         YDB_FAIL(res || !src, res);
         CLEAR_BUF(buf, buflen);
         lock(datablock);
-        ddata.log = ynode_log_open(datablock->top, NULL);
+        ddata.log = ydb_log_open(datablock, NULL);
         ddata.node = datablock->top;
         flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
-        ynode_log_close(ddata.log, &rbuf, &rbuflen);
+        ydb_log_close(datablock, ddata.log, &rbuf, &rbuflen);
         if (rbuf)
         {
             if (rbuflen > 0)
@@ -1635,11 +1679,11 @@ ydb_res ydb_rm(ydb *datablock, char *s)
         res = ynode_scanf_from_buf(s, slen, 0, &src);
         YDB_FAIL(res || !src, res);
         lock(datablock);
-        ddata.log = ynode_log_open(datablock->top, NULL);
+        ddata.log = ydb_log_open(datablock, NULL);
         ddata.node = datablock->top;
         flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
-        ynode_log_close(ddata.log, &rbuf, &rbuflen);
+        ydb_log_close(datablock, ddata.log, &rbuf, &rbuflen);
         if (rbuf)
         {
             if (rbuflen > 0)
@@ -1727,9 +1771,9 @@ static ydb_res ydb_update_rhook_exec(struct ydb_update_params *params, struct re
     if (!src)
         return YDB_OK;
 
-    log = ynode_log_open(datablock->top, NULL);
+    log = ydb_log_open(datablock, NULL);
     top = ynode_merge(datablock->top, src, log);
-    ynode_log_close(log, &buf, &buflen);
+    ydb_log_close(datablock, log, &buf, &buflen);
     ynode_remove(src);
     if (top)
     {
@@ -2126,13 +2170,13 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
         CLEAR_BUF(buf, buflen);
         if (ytrie_size(datablock->updater) > 0)
             ydb_update(NULL, datablock, src);
-        log = ynode_log_open(datablock->top, NULL);
+        log = ydb_log_open(datablock, NULL);
         data.log = log;
         data.datablock = datablock;
         data.num_of_nodes = 0;
         data.origin = -1;
         ynode_traverse(src, ydb_fprintf_sub, &data, YNODE_LEAF_ONLY);
-        ynode_log_close(log, &buf, &buflen);
+        ydb_log_close(datablock, log, &buf, &buflen);
         if (buf)
             fwrite(buf, buflen, 1, stream);
         // fprintf(stream, "%s", buf);
@@ -2172,9 +2216,9 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
         char *rbuf = NULL;
         size_t rbuflen = 0;
         ynode_log *log = NULL;
-        log = ynode_log_open(datablock->top, NULL);
+        log = ydb_log_open(datablock, NULL);
         src = ynode_create_path(pathbuf, datablock->top, log);
-        ynode_log_close(log, &rbuf, &rbuflen);
+        ydb_log_close(datablock, log, &rbuf, &rbuflen);
         if (rbuf)
         {
             if (src)
@@ -2216,7 +2260,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
         char *rbuf = NULL;
         size_t rbuflen = 0;
         ynode_log *log = NULL;
-        log = ynode_log_open(datablock->top, NULL);
+        log = ydb_log_open(datablock, NULL);
         target = ynode_search(datablock->top, buf);
         if (target)
         {
@@ -2226,7 +2270,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
             else
                 res = YDB_E_DENIED_DELETE;
         }
-        ynode_log_close(log, &rbuf, &rbuflen);
+        ydb_log_close(datablock, log, &rbuf, &rbuflen);
         if (rbuf)
         {
             if (rbuflen > 0)
@@ -3955,9 +3999,9 @@ ydb_res yconn_merge(yconn *recv_conn, yconn *req_conn, bool not_publish, char *b
         char *logbuf = NULL;
         size_t logbuflen = 0;
         YCONN_SIMPLE_INFO(recv_conn);
-        log = ynode_log_open(recv_conn->datablock->top, NULL);
+        log = ydb_log_open(recv_conn->datablock, NULL);
         top = ynode_merge(recv_conn->datablock->top, src, log);
-        ynode_log_close(log, &logbuf, &logbuflen);
+        ydb_log_close(recv_conn->datablock, log, &logbuf, &logbuflen);
         ynode_remove(src);
         if (top)
         {
@@ -3992,12 +4036,12 @@ ydb_res yconn_delete(yconn *recv_conn, yconn *req_conn, bool not_publish, char *
     {
         char *logbuf = NULL;
         size_t logbuflen = 0;
-        ddata.log = ynode_log_open(recv_conn->datablock->top, NULL);
+        ddata.log = ydb_log_open(recv_conn->datablock, NULL);
         ddata.node = recv_conn->datablock->top;
         YCONN_SIMPLE_INFO(recv_conn);
         flags = YNODE_LEAF_FIRST | YNODE_LEAF_ONLY; // YNODE_VAL_ONLY;
         res = ynode_traverse(src, ydb_delete_sub, &ddata, flags);
-        ynode_log_close(ddata.log, &logbuf, &logbuflen);
+        ydb_log_close(recv_conn->datablock, ddata.log, &logbuf, &logbuflen);
         ynode_remove(src);
         if (!res)
         {
@@ -4035,13 +4079,13 @@ ydb_res yconn_sync_local(yconn *req_conn, char *inbuf, size_t inbuflen, char **o
         // ynode_dump(src, 0, 24);
         if (ytrie_size(datablock->updater) > 0)
             ydb_update(req_conn, datablock, src);
-        log = ynode_log_open(datablock->top, NULL);
+        log = ydb_log_open(datablock, NULL);
         data.log = log;
         data.datablock = datablock;
         data.num_of_nodes = 0;
         data.origin = 0; // getting mine
         ynode_traverse(src, ydb_fprintf_sub, &data, YNODE_LEAF_ONLY);
-        ynode_log_close(log, &buf, &buflen);
+        ydb_log_close(datablock, log, &buf, &buflen);
         if (data.num_of_nodes <= 0 || !buf || buflen <= 0)
         {
             CLEAR_BUF(buf, buflen);
@@ -4457,9 +4501,9 @@ ydb_res ydb_write_hook_add(ydb *datablock, char *path, int suppressed, ydb_write
             size_t rbuflen = 0;
             ynode_log *log = NULL;
             ynode *src = NULL;
-            log = ynode_log_open(datablock->top, NULL);
+            log = ydb_log_open(datablock, NULL);
             src = ynode_create_path(path, datablock->top, log);
-            ynode_log_close(log, &rbuf, &rbuflen);
+            ydb_log_close(datablock, log, &rbuf, &rbuflen);
             if (rbuf)
             {
                 if (src)
