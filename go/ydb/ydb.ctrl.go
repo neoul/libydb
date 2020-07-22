@@ -20,15 +20,22 @@ static void ydb_hook(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *
 	manipulate(U1, op, _cur, _new);
 }
 
+extern void updateStartEnd(void *p, int started);
+static void ydb_onchange(ydb *datablock, int started, void *user)
+{
+	updateStartEnd(user, started);
+}
+
 static void ydb_register(ydb *datablock, void *U1)
 {
-	ydb_res res;
-	res = ydb_write_hook_add(datablock, "/", 0, ydb_hook, 1, U1);
+	ydb_onchange_hook_add(datablock, ydb_onchange, U1);
+	ydb_write_hook_add(datablock, "/", 0, ydb_hook, 1, U1);
 }
 
 static void ydb_unregister(ydb *datablock)
 {
 	ydb_write_hook_delete(datablock, "/");
+	ydb_onchange_hook_delete(datablock);
 }
 
 static ydb_res ydb_parses_wrapper(ydb *datablock, void *d, size_t dlen)
@@ -293,40 +300,6 @@ func retrieveWithoutLock() RetrieveOption {
 	return func(s *retrieveOption) { s.nolock = true }
 }
 
-// Create interface to fill a user structure by a YDB data instance
-type Create interface {
-	Create(keys []string, key string, tag string, value string) error
-}
-
-// Updater interface to manipulate user structure
-type Updater interface {
-	// Create(keys []string, key string, tag string, value string) error
-	Create
-	Replace(keys []string, key string, tag string, value string) error
-	Delete(keys []string, key string) error
-}
-
-// EmptyGoStruct - Empty Go Struct for empty Updater interface
-type EmptyGoStruct struct{}
-
-// Create - Interface to create an entity on !!map object
-func (emptyStruct *EmptyGoStruct) Create(keys []string, key string, tag string, value string) error {
-	log.Debugf("emptyStruct.Create(%s, %s, %s, %s)", keys, key, tag, value)
-	return nil
-}
-
-// Replace - Interface to replace the entity on !!map object
-func (emptyStruct *EmptyGoStruct) Replace(keys []string, key string, tag string, value string) error {
-	log.Debugf("emptyStruct.Replace(%s, %s, %s, %s)", keys, key, tag, value)
-	return nil
-}
-
-// Delete - Interface to delete the entity from !!map object
-func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
-	log.Debugf("emptyStruct.Delete(%s, %s)", keys, key)
-	return nil
-}
-
 // getUpdater from v to call the custom Updater interface.
 func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
 	var updater Updater = nil
@@ -451,6 +424,22 @@ func manipulate(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 		err := construct(db.Target, int(op), cur, new)
 		if err != nil {
 			db.Errors = append(db.Errors, err)
+		}
+	}
+}
+
+//export updateStartEnd
+// updateStartEnd -- indicates the YDB update start and end.
+func updateStartEnd(ygo unsafe.Pointer, started C.int) {
+	var db *YDB = (*YDB)(ygo)
+	if db.Target != nil {
+		startEnd, ok := db.Target.(UpdaterStartEnd)
+		if ok {
+			if started != 0 {
+				startEnd.UpdateStart()
+			} else {
+				startEnd.UpdateEnd()
+			}
 		}
 	}
 }
