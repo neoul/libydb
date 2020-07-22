@@ -12,6 +12,7 @@ var (
 )
 
 func main() {
+	flag.Parse()
 	done := ydb.SetSignalFilter()
 	// db, close := ydb.Open("hello")
 	datastore := map[string]interface{}{}
