@@ -15,6 +15,9 @@ func IsTypeInterface(t reflect.Type) bool {
 
 // IsTypeScalar - true if built-in simple variable type
 func IsTypeScalar(t reflect.Type) bool {
+	// if t == reflect.TypeOf(nil) {
+	// 	return false
+	// }
 	switch t.Kind() {
 	case reflect.Ptr:
 		return IsTypeScalar(t.Elem())
@@ -27,17 +30,20 @@ func IsTypeScalar(t reflect.Type) bool {
 	}
 }
 
-// // IsTypeMap - true if the type is map
-// func IsTypeMap(t reflect.Type) bool {
-// 	switch t.Kind() {
-// 	case reflect.Ptr:
-// 		return IsTypeMap(t.Elem())
-// 	case reflect.Map:
-// 		return true
-// 	default:
-// 		return false
-// 	}
-// }
+// IsTypeMap - true if the type is map
+func IsTypeMap(t reflect.Type) bool {
+	if t == reflect.TypeOf(nil) {
+		return false
+	}
+	switch t.Kind() {
+	case reflect.Ptr:
+		return IsTypeMap(t.Elem())
+	case reflect.Map:
+		return true
+	default:
+		return false
+	}
+}
 
 // // IsTypeSlice - true if the type is slice
 // func IsTypeSlice(t reflect.Type) bool {
