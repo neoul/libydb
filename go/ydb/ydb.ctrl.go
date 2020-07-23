@@ -706,7 +706,6 @@ func (db *YDB) Receive() error {
 				db.fd = 0
 				return err
 			}
-			log.Debug(db.Target)
 		}
 	}
 	return nil
