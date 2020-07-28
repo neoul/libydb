@@ -1,14 +1,8 @@
 package ydb
 
-// Create interface to fill a user structure by a YDB data instance
-type Create interface {
-	Create(keys []string, key string, tag string, value string) error
-}
-
 // Updater interface to manipulate user structure
 type Updater interface {
-	// Create(keys []string, key string, tag string, value string) error
-	Create
+	Create(keys []string, key string, tag string, value string) error
 	Replace(keys []string, key string, tag string, value string) error
 	Delete(keys []string, key string) error
 }
@@ -41,12 +35,12 @@ type UpdaterStartEnd interface {
 	UpdateEnd()
 }
 
-// UpdateStart - indicates the start of the YDB update.
+// UpdateStart - indicates the start of the YDB update. It will be called ahead of Updater interface
 func (emptyStruct *EmptyGoStruct) UpdateStart() {
 	log.Debugf("emptyStruct.UpdateStart")
 }
 
-// UpdateEnd - indicates the end of the YDB update.
+// UpdateEnd - indicates the end of the YDB update. It will be called after Updater interface
 func (emptyStruct *EmptyGoStruct) UpdateEnd() {
 	log.Debugf("emptyStruct.UpdateEnd")
 }

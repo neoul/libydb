@@ -62,6 +62,55 @@ static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, void *path)
 	return bi;
 }
 
+// The return must be free.
+static bufinfo ydb_fprintf_wrapper(ydb *datablock, void *input_yaml)
+{
+    FILE *fp;
+    char *buf = NULL;
+	size_t buflen = 0;
+	fp = open_memstream(&buf, &buflen);
+	if (fp)
+	{
+		int n;
+		n = ydb_fprintf(fp, datablock, "%s", input_yaml);
+		fclose(fp);
+	}
+	bufinfo bi;
+	bi.buflen = buflen;
+	bi.buf = (void *) buf;
+	return bi;
+}
+
+static ydb_res ydb_delete_wrapper(ydb *datablock, void *input_yaml)
+{
+	return ydb_delete(datablock, "%s", input_yaml);
+}
+
+static ydb_res ydb_sync_wrapper(ydb *datablock, void *input_yaml)
+{
+	return ydb_sync(datablock, "%s", input_yaml);
+}
+
+static ydb_res ydb_path_write_wrapper(ydb *datablock, void *path, void *data)
+{
+	return ydb_path_write(datablock, "%s=%s", path, data);
+}
+
+static ydb_res ydb_path_delete_wrapper(ydb *datablock, void *path)
+{
+	return ydb_path_delete(datablock, "%s", path);
+}
+
+static char *ydb_path_read_wrapper(ydb *datablock, void *path)
+{
+	return (char *) ydb_path_read(datablock, "%s", path);
+}
+
+static ydb_res ydb_path_sync_wrapper(ydb *datablock, void *path)
+{
+	return ydb_path_sync(datablock, "%s", path);
+}
+
 extern void ylogGo(int level, char *f, int line, char *buf, int buflen);
 static int ylog_go(
     int level, const char *f, int line, const char *format, ...)
@@ -716,6 +765,110 @@ func (db *YDB) Parse(yaml []byte) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	res := C.ydb_parses_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(len(yaml)))
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
+// Write - writes YAML bytes to the YDB instance
+func (db *YDB) Write(yaml []byte) error {
+	return db.Parse(yaml)
+}
+
+// Delete - delete the target data from the YDB instance.
+// e.g. the following /foo/bar's data is deleted from the YDB instance.
+//  foo:
+//   bar:
+func (db *YDB) Delete(yaml []byte) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	res := C.ydb_delete_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
+// Read - reads YAML bytes from the YDB instance
+// e.g. returns the YAML with /foo/bar's data
+//  foo:          >>   foo:
+//   bar:               bar: "hello yaml"
+func (db *YDB) Read(yaml []byte) []byte {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+	cptr := C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	if cptr.buf != nil {
+		defer C.free(unsafe.Pointer(cptr.buf))
+		byt := C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen)
+		return byt
+	}
+	return nil
+}
+
+// Sync - synchronizes the target data from the remote YDB instance.
+func (db *YDB) Sync(yaml []byte) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	res := C.ydb_sync_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
+// WriteTo - writes the value string to the target path in the YDB instance
+func (db *YDB) WriteTo(path string, value string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	pbyte := []byte(path)
+	vbyte := []byte(value)
+	res := C.ydb_path_write_wrapper(db.block, unsafe.Pointer(&pbyte[0]), unsafe.Pointer(&vbyte[0]))
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
+// DeleteFrom - deletes the value at the target path from the YDB instance
+func (db *YDB) DeleteFrom(path string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	pbyte := []byte(path)
+	res := C.ydb_path_delete_wrapper(db.block, unsafe.Pointer(&pbyte[0]))
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
+// ReadFrom - reads the value(string) from the target path in the YDB instance
+func (db *YDB) ReadFrom(path string) string {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+	pbyte := []byte(path)
+	value := C.ydb_path_read_wrapper(db.block, unsafe.Pointer(&pbyte[0]))
+	vstr := C.GoString(value)
+	return vstr
+}
+
+// SyncTo - refresh the YDB instance YAML bytes to update YDB
+func (db *YDB) SyncTo(path string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	pbyte := []byte(path)
+	res := C.ydb_path_sync_wrapper(db.block, unsafe.Pointer(&pbyte[0]))
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
+// Timeout - Set the timeout of the YDB instance for sync.
+func (db *YDB) Timeout(msec int) error {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+	res := C.ydb_timeout(db.block, C.int(msec))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
