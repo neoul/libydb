@@ -15,7 +15,7 @@ typedef struct {
 } bufinfo;
 
 extern void manipulate(void *p, char op, ynode *old, ynode *cur);
-static void ydb_hook(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1)
+static void ydb_write_hooker(ydb *datablock, char op, ynode *_base, ynode *_cur, ynode *_new, void *U1)
 {
 	manipulate(U1, op, _cur, _new);
 }
@@ -29,7 +29,7 @@ static void ydb_onchange(ydb *datablock, int started, void *user)
 static void ydb_register(ydb *datablock, void *U1)
 {
 	ydb_onchange_hook_add(datablock, ydb_onchange, U1);
-	ydb_write_hook_add(datablock, "/", 0, ydb_hook, 1, U1);
+	ydb_write_hook_add(datablock, "/", 0, ydb_write_hooker	, 1, U1);
 }
 
 static void ydb_unregister(ydb *datablock)
@@ -75,6 +75,16 @@ static bufinfo ydb_fprintf_wrapper(ydb *datablock, void *input_yaml)
 		n = ydb_fprintf(fp, datablock, "%s", input_yaml);
 		fclose(fp);
 	}
+	bufinfo bi;
+	bi.buflen = buflen;
+	bi.buf = (void *) buf;
+	return bi;
+}
+
+static bufinfo ydb_ynode2yaml_wrapper(ydb *datablock, ynode *node)
+{
+	int buflen = 0;
+	char *buf = ydb_ynode2yaml(datablock, node, &buflen);
 	bufinfo bi;
 	bi.buflen = buflen;
 	bi.buf = (void *) buf;
@@ -147,6 +157,7 @@ static void ylog_init()
 */
 import "C"
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -154,8 +165,10 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -374,22 +387,22 @@ func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
 	return updater, newkey
 }
 
-func create(v reflect.Value, keys []string, key string, tag string, value string) error {
+func yCreate(v reflect.Value, keys []string, key string, tag string, value string) error {
 	log.Debugf("Node.Create(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
 	err := ValYdbSet(v, keys, key, tag, value)
 	log.Debug("}", err)
 	return err
 }
 
-func replace(v reflect.Value, keys []string, key string, tag string, value string) error {
+func yReplace(v reflect.Value, keys []string, key string, tag string, value string) error {
 	log.Debugf("Node.Replace(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
 	err := ValYdbSet(v, keys, key, tag, value)
 	log.Debug("}", err)
 	return err
 }
 
-// delete - constructs the non-updater struct
-func delete(v reflect.Value, keys []string, key string) error {
+// yDelete - constructs the non-updater struct
+func yDelete(v reflect.Value, keys []string, key string) error {
 	log.Debugf("Node.Delete(%v, %s, %s) {", v, keys, key)
 	err := ValYdbUnset(v, keys, key)
 	log.Debug("}", err)
@@ -450,11 +463,11 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 		var err error = nil
 		switch op {
 		case 'c':
-			err = create(v, keys, n.key(), n.tag(), n.value())
+			err = yCreate(v, keys, n.key(), n.tag(), n.value())
 		case 'r':
-			err = replace(v, keys, n.key(), n.tag(), n.value())
+			err = yReplace(v, keys, n.key(), n.tag(), n.value())
 		case 'd':
-			err = delete(v, keys, n.key())
+			err = yDelete(v, keys, n.key())
 		default:
 			err = fmt.Errorf("unknown op")
 		}
@@ -506,6 +519,7 @@ type YDB struct {
 	Name   string
 	Target interface{}
 	Errors []error
+	syncCtrl
 }
 
 // Lock - Lock the YDB instance for use.
@@ -635,7 +649,14 @@ func OpenWithTargetStruct(name string, targetStruct interface{}) (*YDB, func()) 
 	if targetStruct == nil {
 		targetStruct = &EmptyGoStruct{}
 	}
-	db := YDB{Name: name, block: C.ydb_open(cname), Target: targetStruct}
+	db := YDB{
+		Name:   name,
+		block:  C.ydb_open(cname),
+		Target: targetStruct,
+		syncCtrl: syncCtrl{
+			ToBeIgnored: make(map[string]syncInfo),
+		},
+	}
 	C.ydb_register(db.block, unsafe.Pointer(&db.block))
 	return &db, func() {
 		db.Close()
@@ -852,18 +873,6 @@ func (db *YDB) ReadFrom(path string) string {
 	return vstr
 }
 
-// SyncTo - refresh the YDB instance YAML bytes to update YDB
-func (db *YDB) SyncTo(path string) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-	pbyte := []byte(path)
-	res := C.ydb_path_sync_wrapper(db.block, unsafe.Pointer(&pbyte[0]))
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
-}
-
 // Timeout - Set the timeout of the YDB instance for sync.
 func (db *YDB) Timeout(msec int) error {
 	db.mutex.RLock()
@@ -1018,6 +1027,13 @@ func (n *C.ynode) find(key string) *C.ynode {
 	return C.ydb_find_child(n, k)
 }
 
+func (n *C.ynode) findByPrefix(prefix string) *C.ynode {
+	k := C.CString(prefix)
+	defer C.free(unsafe.Pointer(k))
+	return C.ydb_find_child_by_prefix(n, k)
+	return nil
+}
+
 func (n *C.ynode) up() *C.ynode {
 	return C.ydb_up(n)
 }
@@ -1052,6 +1068,139 @@ func (n *C.ynode) key() string {
 
 func (n *C.ynode) value() string {
 	return C.GoString(C.ydb_value(n))
+}
+
+func join(strs ...string) string {
+	var sb strings.Builder
+	for _, str := range strs {
+		sb.WriteString(str)
+	}
+	return sb.String()
+}
+
+func (n *C.ynode) getpath(db *YDB) string {
+	s := ""
+	top := db.top()
+	for ; n != nil && n != top; n = n.up() {
+		s = join(n.key(), "/", s)
+	}
+	return s
+}
+
+func findSyncNode(n *C.ynode, key []string) *C.ynode {
+	if n == nil {
+		return nil
+	}
+	if len(key) == 0 {
+		return n
+	}
+	n = n.find(key[0])
+	if n == nil {
+		return nil
+	}
+	return findSyncNode(n, key[1:])
+}
+
+func findSyncNodeByPrefix(n *C.ynode, prefixkey []string) []*C.ynode {
+	if n == nil {
+		return nil
+	}
+	if len(prefixkey) == 0 {
+		return []*C.ynode{n}
+	}
+	nodes := []*C.ynode{}
+
+	for cn := n.findByPrefix(prefixkey[0]); cn != nil; cn = cn.next() {
+		if !strings.HasPrefix(cn.key(), prefixkey[0]) {
+			break
+		}
+		children := findSyncNodeByPrefix(cn, prefixkey[1:])
+		nodes = append(nodes, children...)
+	}
+	return nodes
+}
+
+// syncInfo - information for sync
+type syncInfo struct {
+	syncSequence uint
+}
+
+type syncCtrl struct {
+	ToBeIgnored  map[string]syncInfo
+	syncSequence uint
+}
+
+// SyncTo - refresh the YDB instance YAML bytes to update YDB
+func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths ...string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	db.syncCtrl.syncSequence++
+	sequence := db.syncCtrl.syncSequence
+	n := db.top()
+	if n == nil {
+		return fmt.Errorf("no top data node")
+	}
+	nodelist := []*C.ynode{}
+	for _, path := range paths {
+		keylist := strings.Split(path, "/")
+		if prefixSearching {
+			nodelist = append(nodelist, findSyncNodeByPrefix(n, keylist)...)
+		} else {
+			nodelist = append(nodelist, findSyncNode(n, keylist))
+		}
+	}
+	var syncTriggered bool
+	var bb bytes.Buffer
+	for _, node := range nodelist {
+		path := node.getpath(db)
+		if _, ok := db.syncCtrl.ToBeIgnored[path]; ok {
+			fmt.Println("Ignore Sync for", path)
+			continue
+		}
+		fmt.Println(path)
+		db.syncCtrl.ToBeIgnored[path] = syncInfo{syncSequence: sequence}
+		cptr := C.ydb_ynode2yaml_wrapper(db.block, node)
+		if cptr.buf != nil {
+			bb.Write(C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen))
+			C.free(unsafe.Pointer(cptr.buf))
+		}
+		syncTriggered = true
+	}
+	fmt.Println("Send Sync")
+	if bb.Len() > 0 {
+		fmt.Println(bb.String())
+		db.Sync(bb.Bytes())
+	}
+	if syncTriggered {
+		timer := time.NewTimer(syncIgnoredTime)
+		go func(db *YDB, sequence uint, timer *time.Timer) {
+			select {
+			case <-timer.C:
+				db.mutex.Lock()
+				defer db.mutex.Unlock()
+				for k, v := range db.syncCtrl.ToBeIgnored {
+					if v.syncSequence == sequence {
+						fmt.Println("Ignore Sync deleted for", k)
+						delete(db.syncCtrl.ToBeIgnored, k)
+					}
+				}
+			}
+		}(db, sequence, timer)
+	}
+
+	// retrieve the path ==> YNode list matched to the path
+	// Check syncIgnoreTimer is running
+	// Check the list of the previous sync requests.
+	// send sync and update data from the remote YDB.
+	// Store the path of the Ynode list.
+	// Running syncIgnoreTimer
+
+	// pbyte := []byte(path)
+	// res := C.ydb_path_sync_wrapper(db.block, unsafe.Pointer(&pbyte[0]))
+	// if res >= C.YDB_ERROR {
+	// 	return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	// }
+	return nil
 }
 
 //export ylogGo
