@@ -1236,6 +1236,11 @@ ynode *ydb_find_child(ynode *base, char *key)
     return ynode_find_child(base, key);
 }
 
+ynode *ydb_find_child_by_prefix(ynode *base, char *prefix)
+{
+    return ynode_find_nearby(base, prefix, 0);
+}
+
 ynode *ydb_find(ynode *base, const char *format, ...)
 {
     FILE *fp;

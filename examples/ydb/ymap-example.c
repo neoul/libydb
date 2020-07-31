@@ -82,7 +82,7 @@ int main()
     char *data;
     key = "ietf-ip/ipv6/";
     nearkey = NULL;
-    data = ymap_search_nearby(map, key, (void **)nearkey, 0);
+    data = ymap_search_nearby(map, key, (void **)&nearkey, 0);
     printf("key=%s, data=%s\n", key, data);
 
     callbackn =0;

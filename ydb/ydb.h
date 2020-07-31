@@ -198,6 +198,9 @@ int ydb_size(ynode *node);
 ynode *ydb_find_child(ynode *base, char *key);
 // Return the found node by the path
 ynode *ydb_find(ynode *base, const char *format, ...);
+// Return the found child by prefix match.
+ynode *ydb_find_child_by_prefix(ynode *base, char *prefix);
+
 // return the parent node of the node.
 ynode *ydb_up(ynode *node);
 // return the first child node of the node.

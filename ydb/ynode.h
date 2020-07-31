@@ -124,6 +124,8 @@ int ynode_origin(ynode *node);
 
 // return the found child by the key.
 ynode *ynode_find_child(ynode *node, const char *key);
+// find a nearby child by the key.
+ynode *ynode_find_nearby(ynode *node, const char *key, int lower);
 
 // return ylist from the path tokenized.
 ylist *ynode_path_tokenize(char *path, char **val);

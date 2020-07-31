@@ -2140,6 +2140,56 @@ ynode *ynode_find_child(ynode *node, const char *key)
     return NULL;
 }
 
+
+ynode *ynode_find_nearby(ynode *node, const char *key, int lower)
+{
+    if (!node)
+        return NULL;
+    switch (node->type)
+    {
+    case YNODE_TYPE_MAP:
+    case YNODE_TYPE_SET:
+    case YNODE_TYPE_IMAP:
+    {
+        ytree_iter *nearby;
+        nearby = ytree_find_nearby(node->map, (char *)key, lower);
+        if (nearby != NULL) {
+            return ytree_data(nearby);
+        }
+        return NULL;
+    }
+    case YNODE_TYPE_OMAP:
+    {
+        return ymap_search_nearby(node->omap, (char *)key, NULL, lower);
+    }
+    case YNODE_TYPE_LIST:
+    {
+        int count = 0;
+        ylist_iter *iter;
+        int index = -1;
+        // if (strspn(key, "0123456789") != strlen(key))
+        //     return NULL;
+        index = atoi(key);
+        if (index < 0)
+            return NULL;
+        for (iter = ylist_first(node->list);
+             !ylist_done(node->list, iter);
+             iter = ylist_next(node->list, iter))
+        {
+            if (index == count)
+                return ylist_data(iter);
+            count++;
+        }
+        return NULL;
+    }
+    case YNODE_TYPE_VAL:
+        return NULL;
+    default:
+        assert(YDB_E_TYPE_ERR);
+    }
+    return NULL;
+}
+
 #define PATH_DELIMITER "/="
 #define PATH_IGNORE_START "'{[(\""
 #define PATH_IGNORE_END "\"}])'"
