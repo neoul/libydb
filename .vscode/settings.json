@@ -27,6 +27,7 @@
         "ylist.h": "c",
         "cstring": "c",
         "typeinfo": "c",
-        "ratio": "c"
+        "ratio": "c",
+        "functional": "c"
     }
 }

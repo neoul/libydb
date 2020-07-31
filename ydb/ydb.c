@@ -1333,6 +1333,31 @@ int ydb_level(ynode *top, ynode *node)
     return ynode_level(top, node);
 }
 
+// return YAML string for node.
+char *ydb_ynode2yaml(ydb *datablock, ynode *node, int *slen)
+{
+    char *buf = NULL;
+    size_t buflen = 0;
+    FILE *fp;
+    if (!datablock || !node)
+        return NULL;
+    fp = open_memstream(&buf, &buflen);
+    if (fp == NULL) {
+        return NULL;
+    }
+    int level = ynode_level(datablock->top, node);
+    if (level == 0 && ynode_type(datablock->top) == YNODE_TYPE_VAL)
+        fprintf(fp, "%s", ynode_value(node));
+    else
+        ynode_printf_to_fp(fp, node, 1 - level, 0);
+    if (fp)
+        fclose(fp);
+    if (slen) {
+        *slen = buflen;
+    }
+    return buf;
+}
+
 // ydb_clean --
 // Remove all child nodes
 ydb_res ydb_clean(ydb *datablock, ynode *n)

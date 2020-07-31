@@ -224,6 +224,9 @@ int ydb_index(ynode *node);
 // Return the level of two nodes.
 int ydb_level(ynode *top, ynode *node);
 
+// return YAML string for node.
+char *ydb_ynode2yaml(ydb *datablock, ynode *node, int *slen);
+
 // ydb_retrieve --
 // read the data from the current node (n)
 int ydb_retrieve(ynode *n, const char *format, ...);

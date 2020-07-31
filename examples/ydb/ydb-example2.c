@@ -44,6 +44,11 @@ char *ydb_path_list(ydb *datablock, int depth, char *path)
     src = ydb_search(datablock, "%s", path);
     if (!src)
         goto failed;
+    
+    char *rbuf = ydb_ynode2yaml(datablock, src, NULL);
+    printf("rbuf=\n%s\n==\n", rbuf);
+    if (rbuf)
+        free(rbuf);
     res = ydb_traverse(datablock, src,
                        (ydb_traverse_callback)ydb_trv,
                        NULL, 3, src, fp, depth);
