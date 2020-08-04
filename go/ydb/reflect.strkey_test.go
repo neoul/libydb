@@ -103,3 +103,44 @@ func TestExtractStructNameAndValue(t *testing.T) {
 		})
 	}
 }
+
+func TestToSliceKeys(t *testing.T) {
+	type args struct {
+		path string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "ToSliceKeys",
+			args: args{
+				path: "/path/to/value",
+			},
+			want:    []string{"path", "to", "value"},
+			wantErr: false,
+		},
+		{
+			name: "ToSliceKeys",
+			args: args{
+				path: "/path/to/value[NAME=OK]/",
+			},
+			want:    []string{"path", "to", "value[NAME=OK]"},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ToSliceKeys(tt.args.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ToSliceKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ToSliceKeys() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

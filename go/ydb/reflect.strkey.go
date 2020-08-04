@@ -242,3 +242,50 @@ func StrKeyGen(kv reflect.Value, structName, keyName string) (string, error) {
 		return strkey, nil
 	}
 }
+
+var pathDelimiters string = "/[]'\""
+
+// ToSliceKeys - Get the sliced key list from the path
+func ToSliceKeys(path string) ([]string, error) {
+	lvl := 0
+	keylist := make([]string, 0, 8)
+	stack := make([]delimOffset, 0, 8)
+	stack = append(stack, delimOffset{delimiter: '/', offset: -1})
+	var rPrev rune
+	for offset, r := range path {
+		if strings.IndexAny(pathDelimiters, string(r)) >= 0 {
+			if r == '/' {
+				if stack[lvl].delimiter == '/' {
+					if offset > 0 {
+						keylist = append(keylist, path[stack[lvl].offset+1:offset])
+					}
+					stack = append(stack, delimOffset{delimiter: '/', offset: offset})
+					lvl++
+				}
+			} else if r == '[' {
+				stack = append(stack, delimOffset{delimiter: r, offset: offset})
+				lvl++
+			} else if r == ']' {
+				if stack[lvl].delimiter == '[' && rPrev != '\\' {
+					stack = stack[:lvl]
+					lvl--
+				}
+			} else if r == stack[lvl].delimiter { // ' or "
+				stack = stack[:lvl]
+				lvl--
+			} else { // ' or "
+				stack = append(stack, delimOffset{delimiter: r, offset: offset})
+				lvl++
+			}
+		}
+		rPrev = r
+	}
+	if stack[lvl].delimiter != '/' {
+		fmt.Println(stack)
+		return nil, fmt.Errorf("invalid path input")
+	}
+	if rPrev != '/' {
+		keylist = append(keylist, path[stack[lvl].offset+1:])
+	}
+	return keylist, nil
+}

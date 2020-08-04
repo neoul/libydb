@@ -44,3 +44,14 @@ func (emptyStruct *EmptyGoStruct) UpdateStart() {
 func (emptyStruct *EmptyGoStruct) UpdateEnd() {
 	log.Debugf("emptyStruct.UpdateEnd")
 }
+
+// SyncUpdater - Interface to update the target (pointed by the keys and key) data node upon sync request.
+type SyncUpdater interface {
+	SyncUpdate(keys []string, key string) []byte
+}
+
+// SyncUpdate - Interface to update the target (pointed by the keys and key) data node upon sync request.
+func (emptyStruct *EmptyGoStruct) SyncUpdate(keys []string, key string) []byte {
+	log.Debugf("emptyStruct.SyncUpdate(%s, %s)", keys, key)
+	return nil
+}

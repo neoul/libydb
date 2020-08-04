@@ -3,6 +3,7 @@ package ydb
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -229,4 +230,53 @@ list:
 			}
 		})
 	}
+}
+
+func TestYDB_SyncTo(t *testing.T) {
+	db, dbclose := Open("TestYDB_SyncTo")
+	defer dbclose()
+	// SetInternalLog(LogDebug)
+	b := `
+hello:
+  ydb: yaml data block
+good:
+  ydb: morning
+list:
+  - entry 1
+  - entry 2
+  - entry 한글
+`
+	db.Write([]byte(b))
+	db.AddSyncUpdatePath("/hello/ydb")
+	db.AddSyncUpdatePath("/good/ydb")
+	type args struct {
+		syncIgnoredTime time.Duration
+		prefixSearching bool
+		paths           []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "SyncUpdate",
+			args: args{
+				syncIgnoredTime: time.Second * 1,
+				prefixSearching: false,
+				paths:           []string{"/hello/ydb", "/good/ydb"},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := db.SyncTo(tt.args.syncIgnoredTime, tt.args.prefixSearching, tt.args.paths...); (err != nil) != tt.wantErr {
+				t.Errorf("YDB.SyncTo() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+	time.Sleep(time.Second * 2)
+	db.DeleteSyncUpdatePath("/hello/ydb")
+	db.DeleteSyncUpdatePath("/good/ydb")
 }

@@ -26,16 +26,37 @@ static void ydb_onchange(ydb *datablock, int started, void *user)
 	updateStartEnd(user, started);
 }
 
-static void ydb_register(ydb *datablock, void *U1)
+static void ydb_write_hook_register(ydb *datablock, void *U1)
 {
 	ydb_onchange_hook_add(datablock, ydb_onchange, U1);
 	ydb_write_hook_add(datablock, "/", 0, ydb_write_hooker	, 1, U1);
 }
 
-static void ydb_unregister(ydb *datablock)
+static void ydb_write_hook_unregister(ydb *datablock)
 {
 	ydb_write_hook_delete(datablock, "/");
 	ydb_onchange_hook_delete(datablock);
+}
+
+extern void *syncUpdate(void *p, char *path, int *size);
+static ydb_res ydb_read_hooker(ydb *datablock, char *path, FILE *stream, void *U1)
+{
+	int size = 0;
+	void *rstr = syncUpdate(U1, path, &size);
+	if (rstr) {
+		fwrite(rstr, size, 1, stream);
+	}
+	return YDB_OK;
+}
+
+static ydb_res ydb_read_hook_register(ydb *datablock, void *path, void *U1)
+{
+	return ydb_read_hook_add(datablock, (char *) path, (ydb_read_hook)ydb_read_hooker, 1, U1);
+}
+
+static void ydb_read_hook_unregister(ydb *datablock, void *path)
+{
+	ydb_read_hook_delete(datablock, (char *) path);
 }
 
 static ydb_res ydb_parses_wrapper(ydb *datablock, void *d, size_t dlen)
@@ -506,6 +527,34 @@ func updateStartEnd(ygo unsafe.Pointer, started C.int) {
 	}
 }
 
+//export syncUpdate
+// syncUpdate -- Update YAML Data Block instance upon ydb_sync request.
+func syncUpdate(ygo unsafe.Pointer, path *C.char, rsize *C.int) unsafe.Pointer {
+	var db *YDB = (*YDB)(ygo)
+	if db.Target != nil {
+		SyncUpdate, ok := db.Target.(SyncUpdater)
+		if ok {
+			var b []byte
+			keylist, err := ToSliceKeys(C.GoString(path))
+			if err != nil {
+				return unsafe.Pointer(nil)
+			}
+			if klen := len(keylist); klen > 0 {
+				b = SyncUpdate.SyncUpdate(keylist[:klen-1], keylist[klen-1])
+			} else {
+				b = SyncUpdate.SyncUpdate(nil, "")
+			}
+			if rsize != nil {
+				*rsize = C.int(len(b))
+			}
+			if len(b) > 0 {
+				return unsafe.Pointer(&b[0])
+			}
+		}
+	}
+	return unsafe.Pointer(nil)
+}
+
 // SetInternalLog configures the log level of YDB
 func SetInternalLog(loglevel uint) {
 	C.ylog_level = C.uint(loglevel)
@@ -627,7 +676,7 @@ func (db *YDB) Close() {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	if db.block != nil {
-		// C.ydb_unregister(db.block)
+		// C.ydb_write_hook_unregister(db.block)
 		C.ydb_close(db.block)
 		db.block = nil
 	}
@@ -657,7 +706,7 @@ func OpenWithTargetStruct(name string, targetStruct interface{}) (*YDB, func()) 
 			ToBeIgnored: make(map[string]syncInfo),
 		},
 	}
-	C.ydb_register(db.block, unsafe.Pointer(&db.block))
+	C.ydb_write_hook_register(db.block, unsafe.Pointer(&db.block))
 	return &db, func() {
 		db.Close()
 	}
@@ -827,10 +876,10 @@ func (db *YDB) Read(yaml []byte) []byte {
 	return nil
 }
 
-// Sync - synchronizes the target data from the remote YDB instance.
-func (db *YDB) Sync(yaml []byte) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
+// sync - synchronizes the target data from the remote YDB instance.
+func (db *YDB) sync(yaml []byte) error {
+	// db.mutex.Lock()
+	// defer db.mutex.Unlock()
 	res := C.ydb_sync_wrapper(db.block, unsafe.Pointer(&yaml[0]))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
@@ -882,6 +931,26 @@ func (db *YDB) Timeout(msec int) error {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
 	return nil
+}
+
+// AddSyncUpdatePath - registers SyncUpdater
+func (db *YDB) AddSyncUpdatePath(path string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	pbyte := []byte(path)
+	res := C.ydb_read_hook_register(db.block, unsafe.Pointer(&pbyte[0]), unsafe.Pointer(&db.block))
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
+// DeleteSyncUpdatePath - registers SyncUpdater
+func (db *YDB) DeleteSyncUpdatePath(path string) {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	pbyte := []byte(path)
+	C.ydb_read_hook_unregister(db.block, unsafe.Pointer(&pbyte[0]))
 }
 
 // A Decoder reads and decodes YAML values from an input stream to an YDB instance.
@@ -1031,7 +1100,6 @@ func (n *C.ynode) findByPrefix(prefix string) *C.ynode {
 	k := C.CString(prefix)
 	defer C.free(unsafe.Pointer(k))
 	return C.ydb_find_child_by_prefix(n, k)
-	return nil
 }
 
 func (n *C.ynode) up() *C.ynode {
@@ -1094,9 +1162,11 @@ func findSyncNode(n *C.ynode, key []string) *C.ynode {
 	if len(key) == 0 {
 		return n
 	}
-	n = n.find(key[0])
-	if n == nil {
-		return nil
+	if key[0] != "" {
+		n = n.find(key[0])
+		if n == nil {
+			return nil
+		}
 	}
 	return findSyncNode(n, key[1:])
 }
@@ -1109,7 +1179,9 @@ func findSyncNodeByPrefix(n *C.ynode, prefixkey []string) []*C.ynode {
 		return []*C.ynode{n}
 	}
 	nodes := []*C.ynode{}
-
+	if prefixkey[0] == "" {
+		prefixkey = prefixkey[1:]
+	}
 	for cn := n.findByPrefix(prefixkey[0]); cn != nil; cn = cn.next() {
 		if !strings.HasPrefix(cn.key(), prefixkey[0]) {
 			break
@@ -1130,7 +1202,7 @@ type syncCtrl struct {
 	syncSequence uint
 }
 
-// SyncTo - refresh the YDB instance YAML bytes to update YDB
+// SyncTo - request the update to remote YDB instances to refresh the data nodes.
 func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths ...string) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
@@ -1142,7 +1214,11 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 	}
 	nodelist := []*C.ynode{}
 	for _, path := range paths {
-		keylist := strings.Split(path, "/")
+		keylist, err := ToSliceKeys(path)
+		if err != nil {
+			continue
+		}
+		fmt.Println("keylist", keylist)
 		if prefixSearching {
 			nodelist = append(nodelist, findSyncNodeByPrefix(n, keylist)...)
 		} else {
@@ -1154,10 +1230,8 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 	for _, node := range nodelist {
 		path := node.getpath(db)
 		if _, ok := db.syncCtrl.ToBeIgnored[path]; ok {
-			fmt.Println("Ignore Sync for", path)
 			continue
 		}
-		fmt.Println(path)
 		db.syncCtrl.ToBeIgnored[path] = syncInfo{syncSequence: sequence}
 		cptr := C.ydb_ynode2yaml_wrapper(db.block, node)
 		if cptr.buf != nil {
@@ -1166,10 +1240,9 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 		}
 		syncTriggered = true
 	}
-	fmt.Println("Send Sync")
 	if bb.Len() > 0 {
 		fmt.Println(bb.String())
-		db.Sync(bb.Bytes())
+		db.sync(bb.Bytes())
 	}
 	if syncTriggered {
 		timer := time.NewTimer(syncIgnoredTime)
@@ -1180,7 +1253,6 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 				defer db.mutex.Unlock()
 				for k, v := range db.syncCtrl.ToBeIgnored {
 					if v.syncSequence == sequence {
-						fmt.Println("Ignore Sync deleted for", k)
 						delete(db.syncCtrl.ToBeIgnored, k)
 					}
 				}
