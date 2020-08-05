@@ -3924,7 +3924,9 @@ eventid yconn_sync(yconn *req_conn, ydb *datablock, bool forced, char *buf, size
 
     ylog_in();
     YDB_FAIL(datablock == NULL, YDB_E_CTRL);
-    YDB_FAIL(datablock->epollfd < 0, YDB_E_CTRL);
+    // ydb channel is not opened.
+    if (datablock->epollfd < 0)
+        goto failed;
     synclist = ylist_create();
 
     conni = ytree_first(datablock->conn);
