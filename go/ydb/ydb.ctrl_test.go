@@ -1,6 +1,7 @@
 package ydb
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -232,8 +233,23 @@ list:
 	}
 }
 
+type syncToTestStruct map[string]interface{}
+
+func (s *syncToTestStruct) SyncUpdate(keys []string, key string) []byte {
+	fmt.Println(keys, key)
+	b := `
+hello:
+ ydb: world
+good:
+ ydb: bye
+list:
+ - entry new
+`
+	return []byte(b)
+}
+
 func TestYDB_SyncTo(t *testing.T) {
-	db, dbclose := Open("TestYDB_SyncTo")
+	db, dbclose := OpenWithTargetStruct("TestYDB_SyncTo", &syncToTestStruct{})
 	defer dbclose()
 	// SetInternalLog(LogDebug)
 	b := `
@@ -276,6 +292,7 @@ list:
 			}
 		})
 	}
+	fmt.Println(string(db.Read([]byte(""))))
 	time.Sleep(time.Second * 2)
 	db.DeleteSyncUpdatePath("/hello/ydb")
 	db.DeleteSyncUpdatePath("/good/ydb")

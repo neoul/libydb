@@ -38,14 +38,10 @@ static void ydb_write_hook_unregister(ydb *datablock)
 	ydb_onchange_hook_delete(datablock);
 }
 
-extern void *syncUpdate(void *p, char *path, int *size);
+extern void syncUpdate(void *p, char *path, FILE *stream);
 static ydb_res ydb_read_hooker(ydb *datablock, char *path, FILE *stream, void *U1)
 {
-	int size = 0;
-	void *rstr = syncUpdate(U1, path, &size);
-	if (rstr) {
-		fwrite(rstr, size, 1, stream);
-	}
+	syncUpdate(U1, path, stream);
 	return YDB_OK;
 }
 
@@ -74,7 +70,10 @@ static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, void *path)
 	if (fp)
 	{
 		int n;
-		n = ydb_path_fprintf(fp, datablock, "%s", path);
+		if (path)
+			n = ydb_path_fprintf(fp, datablock, "%s", path);
+		else
+			n = ydb_path_fprintf(fp, datablock, "/");
 		fclose(fp);
 	}
 	bufinfo bi;
@@ -93,7 +92,10 @@ static bufinfo ydb_fprintf_wrapper(ydb *datablock, void *input_yaml)
 	if (fp)
 	{
 		int n;
-		n = ydb_fprintf(fp, datablock, "%s", input_yaml);
+		if (input_yaml)
+			n = ydb_fprintf(fp, datablock, "%s", input_yaml);
+		else
+			n = ydb_path_fprintf(fp, datablock, "/");
 		fclose(fp);
 	}
 	bufinfo bi;
@@ -114,32 +116,50 @@ static bufinfo ydb_ynode2yaml_wrapper(ydb *datablock, ynode *node)
 
 static ydb_res ydb_delete_wrapper(ydb *datablock, void *input_yaml)
 {
-	return ydb_delete(datablock, "%s", input_yaml);
+	ydb_res res = YDB_OK;
+	if (input_yaml)
+		res = ydb_delete(datablock, "%s", input_yaml);
+	return res;
 }
 
 static ydb_res ydb_sync_wrapper(ydb *datablock, void *input_yaml)
 {
-	return ydb_sync(datablock, "%s", input_yaml);
+	ydb_res res = YDB_OK;
+	if (input_yaml)
+		res = ydb_sync(datablock, "%s", input_yaml);
+	return res;
 }
 
 static ydb_res ydb_path_write_wrapper(ydb *datablock, void *path, void *data)
 {
-	return ydb_path_write(datablock, "%s=%s", path, data);
+	if (path) {
+		if (data)
+			return ydb_path_write(datablock, "%s=%s", path, data);
+		else
+			return ydb_path_write(datablock, "%s=%s", path, "");
+	}
+	return YDB_OK;
 }
 
 static ydb_res ydb_path_delete_wrapper(ydb *datablock, void *path)
 {
-	return ydb_path_delete(datablock, "%s", path);
+	if (path)
+		return ydb_path_delete(datablock, "%s", path);
+	return YDB_OK;
 }
 
 static char *ydb_path_read_wrapper(ydb *datablock, void *path)
 {
-	return (char *) ydb_path_read(datablock, "%s", path);
+	if (path)
+		return (char *) ydb_path_read(datablock, "%s", path);
+	return NULL;
 }
 
 static ydb_res ydb_path_sync_wrapper(ydb *datablock, void *path)
 {
-	return ydb_path_sync(datablock, "%s", path);
+	if (path)
+		return ydb_path_sync(datablock, "%s", path);
+	return YDB_OK;
 }
 
 extern void ylogGo(int level, char *f, int line, char *buf, int buflen);
@@ -529,7 +549,7 @@ func updateStartEnd(ygo unsafe.Pointer, started C.int) {
 
 //export syncUpdate
 // syncUpdate -- Update YAML Data Block instance upon ydb_sync request.
-func syncUpdate(ygo unsafe.Pointer, path *C.char, rsize *C.int) unsafe.Pointer {
+func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 	var db *YDB = (*YDB)(ygo)
 	if db.Target != nil {
 		SyncUpdate, ok := db.Target.(SyncUpdater)
@@ -537,22 +557,19 @@ func syncUpdate(ygo unsafe.Pointer, path *C.char, rsize *C.int) unsafe.Pointer {
 			var b []byte
 			keylist, err := ToSliceKeys(C.GoString(path))
 			if err != nil {
-				return unsafe.Pointer(nil)
+				return
 			}
 			if klen := len(keylist); klen > 0 {
 				b = SyncUpdate.SyncUpdate(keylist[:klen-1], keylist[klen-1])
 			} else {
 				b = SyncUpdate.SyncUpdate(nil, "")
 			}
-			if rsize != nil {
-				*rsize = C.int(len(b))
-			}
-			if len(b) > 0 {
-				return unsafe.Pointer(&b[0])
+			blen := len(b)
+			if blen > 0 {
+				C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
 			}
 		}
 	}
-	return unsafe.Pointer(nil)
 }
 
 // SetInternalLog configures the log level of YDB
@@ -832,9 +849,13 @@ func (db *YDB) Receive() error {
 
 // Parse - parse YAML bytes to update YDB
 func (db *YDB) Parse(yaml []byte) error {
+	ylen := len(yaml)
+	if ylen == 0 {
+		return nil
+	}
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	res := C.ydb_parses_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(len(yaml)))
+	res := C.ydb_parses_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -851,6 +872,10 @@ func (db *YDB) Write(yaml []byte) error {
 //  foo:
 //   bar:
 func (db *YDB) Delete(yaml []byte) error {
+	ylen := len(yaml)
+	if ylen == 0 {
+		return nil
+	}
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	res := C.ydb_delete_wrapper(db.block, unsafe.Pointer(&yaml[0]))
@@ -867,7 +892,12 @@ func (db *YDB) Delete(yaml []byte) error {
 func (db *YDB) Read(yaml []byte) []byte {
 	db.mutex.RLock()
 	defer db.mutex.RUnlock()
-	cptr := C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	var cptr C.bufinfo
+	if len(yaml) == 0 {
+		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(nil))
+	} else {
+		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	}
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
 		byt := C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen)
@@ -880,7 +910,12 @@ func (db *YDB) Read(yaml []byte) []byte {
 func (db *YDB) sync(yaml []byte) error {
 	// db.mutex.Lock()
 	// defer db.mutex.Unlock()
-	res := C.ydb_sync_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	var res C.ydb_res
+	if len(yaml) == 0 {
+		res = C.ydb_sync_wrapper(db.block, unsafe.Pointer(nil))
+	} else {
+		res = C.ydb_sync_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	}
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -891,9 +926,16 @@ func (db *YDB) sync(yaml []byte) error {
 func (db *YDB) WriteTo(path string, value string) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	pbyte := []byte(path)
-	vbyte := []byte(value)
-	res := C.ydb_path_write_wrapper(db.block, unsafe.Pointer(&pbyte[0]), unsafe.Pointer(&vbyte[0]))
+	var pp, pv unsafe.Pointer
+	if path != "" {
+		pbyte := []byte(path)
+		pp = unsafe.Pointer(&pbyte[0])
+	}
+	if value != "" {
+		vbyte := []byte(value)
+		pv = unsafe.Pointer(&vbyte[0])
+	}
+	res := C.ydb_path_write_wrapper(db.block, pp, pv)
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -904,8 +946,12 @@ func (db *YDB) WriteTo(path string, value string) error {
 func (db *YDB) DeleteFrom(path string) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	pbyte := []byte(path)
-	res := C.ydb_path_delete_wrapper(db.block, unsafe.Pointer(&pbyte[0]))
+	var pp unsafe.Pointer
+	if path != "" {
+		pbyte := []byte(path)
+		pp = unsafe.Pointer(&pbyte[0])
+	}
+	res := C.ydb_path_delete_wrapper(db.block, pp)
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -916,8 +962,15 @@ func (db *YDB) DeleteFrom(path string) error {
 func (db *YDB) ReadFrom(path string) string {
 	db.mutex.RLock()
 	defer db.mutex.RUnlock()
-	pbyte := []byte(path)
-	value := C.ydb_path_read_wrapper(db.block, unsafe.Pointer(&pbyte[0]))
+	var pp unsafe.Pointer
+	if path != "" {
+		pbyte := []byte(path)
+		pp = unsafe.Pointer(&pbyte[0])
+	}
+	value := C.ydb_path_read_wrapper(db.block, pp)
+	if value == nil {
+		return ""
+	}
 	vstr := C.GoString(value)
 	return vstr
 }
@@ -937,8 +990,12 @@ func (db *YDB) Timeout(msec int) error {
 func (db *YDB) AddSyncUpdatePath(path string) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	pbyte := []byte(path)
-	res := C.ydb_read_hook_register(db.block, unsafe.Pointer(&pbyte[0]), unsafe.Pointer(&db.block))
+	var pp unsafe.Pointer
+	if path != "" {
+		pbyte := []byte(path)
+		pp = unsafe.Pointer(&pbyte[0])
+	}
+	res := C.ydb_read_hook_register(db.block, pp, unsafe.Pointer(&db.block))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -949,8 +1006,12 @@ func (db *YDB) AddSyncUpdatePath(path string) error {
 func (db *YDB) DeleteSyncUpdatePath(path string) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	pbyte := []byte(path)
-	C.ydb_read_hook_unregister(db.block, unsafe.Pointer(&pbyte[0]))
+	var pp unsafe.Pointer
+	if path != "" {
+		pbyte := []byte(path)
+		pp = unsafe.Pointer(&pbyte[0])
+	}
+	C.ydb_read_hook_unregister(db.block, pp)
 }
 
 // A Decoder reads and decodes YAML values from an input stream to an YDB instance.
@@ -978,7 +1039,11 @@ func (dec *Decoder) Decode() error {
 	if err == nil {
 		dec.db.mutex.Lock()
 		defer dec.db.mutex.Unlock()
-		res := C.ydb_parses_wrapper(dec.db.block, unsafe.Pointer(&byt[0]), C.ulong(len(byt)))
+		var res C.ydb_res
+		blen := len(byt)
+		if blen > 0 {
+			res = C.ydb_parses_wrapper(dec.db.block, unsafe.Pointer(&byt[0]), C.ulong(blen))
+		}
 		if res >= C.YDB_ERROR {
 			dec.err = err
 			return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
@@ -1006,9 +1071,8 @@ func (enc *Encoder) Encode() error {
 	if enc.err != nil {
 		return enc.err
 	}
-	path := byte(0)
 	enc.db.mutex.RLock()
-	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, unsafe.Pointer(&path))
+	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, unsafe.Pointer(nil))
 	enc.db.mutex.RUnlock()
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
@@ -1204,6 +1268,13 @@ type syncCtrl struct {
 
 // SyncTo - request the update to remote YDB instances to refresh the data nodes.
 func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths ...string) error {
+	// retrieve the path ==> YNode list matched to the path
+	// Check syncIgnoreTimer is running
+	// Check the list of the previous sync requests.
+	// send sync and update data from the remote YDB.
+	// Store the path of the Ynode list.
+	// Running syncIgnoreTimer
+
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	db.syncCtrl.syncSequence++
@@ -1218,7 +1289,6 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 		if err != nil {
 			continue
 		}
-		fmt.Println("keylist", keylist)
 		if prefixSearching {
 			nodelist = append(nodelist, findSyncNodeByPrefix(n, keylist)...)
 		} else {
@@ -1241,7 +1311,6 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 		syncTriggered = true
 	}
 	if bb.Len() > 0 {
-		fmt.Println(bb.String())
 		db.sync(bb.Bytes())
 	}
 	if syncTriggered {
@@ -1259,19 +1328,6 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 			}
 		}(db, sequence, timer)
 	}
-
-	// retrieve the path ==> YNode list matched to the path
-	// Check syncIgnoreTimer is running
-	// Check the list of the previous sync requests.
-	// send sync and update data from the remote YDB.
-	// Store the path of the Ynode list.
-	// Running syncIgnoreTimer
-
-	// pbyte := []byte(path)
-	// res := C.ydb_path_sync_wrapper(db.block, unsafe.Pointer(&pbyte[0]))
-	// if res >= C.YDB_ERROR {
-	// 	return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	// }
 	return nil
 }
 
