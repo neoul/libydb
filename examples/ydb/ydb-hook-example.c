@@ -37,6 +37,7 @@ ydb_res update_hook(ydb *datablock, char *path, FILE *fp)
 #pragma GCC diagnostic ignored "-Wpointer-to-int-cast" // disable casting warning.
 ydb_res update_hook1(ydb *datablock, char *path, FILE *fp, void *U1)
 {
+    static int mtu = 1500;
     static int enabled;
     int n = (int) U1;
     printf("HOOK %s path=%s\n", __func__, path);
@@ -44,9 +45,11 @@ ydb_res update_hook1(ydb *datablock, char *path, FILE *fp, void *U1)
     fprintf(fp,
             "interfaces:\n"
             " interface[name=ge%d]:\n"
-            "  enabled: %s\n",
+            "  enabled: %s\n"
+            "  mtu: %d\n",
             n,
-            enabled ? "true" : "false");
+            enabled ? "true" : "false",
+            (mtu++));
     return YDB_OK;
 }
 #pragma GCC diagnostic pop
