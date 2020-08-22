@@ -184,10 +184,7 @@ func ValFindOrInit(v reflect.Value, key interface{}, searchType SearchType) (ref
 			return reflect.Value{}, false
 		}
 		rv, ok := ValStructFieldFind(cur, key, searchType)
-		if !ok {
-			return reflect.Value{}, false
-		}
-		if IsNilOrInvalidValue(rv) {
+		if !ok || IsNilOrInvalidValue(rv) {
 			err := ValStructFieldSet(cur, key, nil, searchType)
 			if err != nil {
 				return reflect.Value{}, false

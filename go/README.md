@@ -8,7 +8,9 @@ go test
 # go test -run=TestValNewStruct
 ```
 
-## To-Do List
+## Cross-compile
 
-- [ ] Add an option to remove the child value if unset.
-- [ ] ValNew with subsequent value string.
+```bash
+cd demo/example
+CC=aarch64-hfr-linux-gnu-gcc GOOS=linux GOARCH=arm64 CGO_ENABLED=1 go build demo.go
+```

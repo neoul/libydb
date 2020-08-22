@@ -47,7 +47,7 @@ func init() {
 
 	logger = logrus.New()
 	logger.SetOutput(os.Stdout)
-	logger.SetLevel(logrus.DebugLevel)
+	logger.SetLevel(logrus.ErrorLevel)
 	logger.SetFormatter(&nested.Formatter{
 		HideKeys:        true,
 		FieldsOrder:     []string{"component", "category"},
