@@ -382,7 +382,17 @@ func ValChildDirectSet(pv reflect.Value, key interface{}, cv reflect.Value) (ref
 		if !ok {
 			return pv, fmt.Errorf("not found %s", key)
 		}
-		fv.Set(cv)
+		ff := fv.Type()
+		cf := cv.Type()
+		if ff != cf {
+			if cf.ConvertibleTo(ff) {
+				fv.Set(cv.Convert(ff))
+			} else {
+				return pv, fmt.Errorf("invalid type set: %s", cf.Kind())
+			}
+		} else {
+			fv.Set(cv)
+		}
 	case reflect.Map:
 		t := pv.Type()
 		kt := t.Key()
