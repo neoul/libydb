@@ -191,7 +191,7 @@ func StrKeyValNew(t reflect.Type, key interface{}) (reflect.Value, error) {
 		return reflect.Value{}, fmt.Errorf("not supported StrKey type: %s", t.Kind())
 	case reflect.Struct:
 		return StrKeyStructNew(t, key)
-	case reflect.String:
+	default:
 		k, kfields, err := ExtractStrKeyNameAndValue(key)
 		if err != nil {
 			return reflect.Value{}, fmt.Errorf("StrKey extraction failed from %s", key)
@@ -200,8 +200,6 @@ func StrKeyValNew(t reflect.Type, key interface{}) (reflect.Value, error) {
 			return ValScalarNew(t, v)
 		}
 		return ValScalarNew(t, k)
-	default:
-		return ValScalarNew(t, key)
 	}
 
 }
