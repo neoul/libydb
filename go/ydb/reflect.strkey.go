@@ -194,7 +194,8 @@ func StrKeyValNew(t reflect.Type, key interface{}) (reflect.Value, error) {
 	default:
 		k, kfields, err := ExtractStrKeyNameAndValue(key)
 		if err != nil {
-			return reflect.Value{}, fmt.Errorf("StrKey extraction failed from %s", key)
+			return ValScalarNew(t, key)
+			// return reflect.Value{}, fmt.Errorf("StrKey extraction failed from %s", key)
 		}
 		for _, v := range kfields {
 			return ValScalarNew(t, v)

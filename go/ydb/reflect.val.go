@@ -442,8 +442,7 @@ func ValScalarNew(t reflect.Type, val interface{}) (reflect.Value, error) {
 		nv := newValueScalar(t)
 		if nv.IsValid() {
 			if val != nil {
-				err := setValueScalar(nv, val)
-				return nv, err
+				return setValueScalar(nv, val)
 			}
 			return nv, nil
 		}
@@ -487,7 +486,8 @@ func ValScalarSet(v reflect.Value, val interface{}) error {
 				v.Set(nv)
 			}
 		}
-		return setValueScalar(v, val)
+		_, err := setValueScalar(v, val)
+		return err
 	}
 }
 

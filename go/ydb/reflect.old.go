@@ -350,7 +350,7 @@ func copySliceValue(v reflect.Value) reflect.Value {
 	return nslice
 }
 
-func setValueScalar(v reflect.Value, value interface{}) error {
+func setValueScalar(v reflect.Value, value interface{}) (reflect.Value, error) {
 	dv := v
 	if dv.Kind() == reflect.Ptr {
 		dv = v.Elem()
@@ -369,16 +369,16 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 		switch st.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			dv.SetString(fmt.Sprintf("%d", sv.Int()))
-			return nil
+			return dv, nil
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 			dv.SetString(fmt.Sprintf("%d", sv.Uint()))
-			return nil
+			return dv, nil
 		case reflect.Float32, reflect.Float64:
 			dv.SetString(fmt.Sprintf("%f", sv.Float()))
-			return nil
+			return dv, nil
 		case reflect.Bool:
 			dv.SetString(fmt.Sprint(sv.Bool()))
-			return nil
+			return dv, nil
 		}
 	}
 	if st.Kind() == reflect.String {
@@ -390,49 +390,49 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 			} else {
 				val, err := strconv.ParseInt(srcstring, 10, 64)
 				if err != nil {
-					return err
+					return dv, err
 				}
 				if dv.OverflowInt(val) {
-					return fmt.Errorf("overflowInt: %s", DebugValueStringInline(val, 0, nil))
+					return dv, fmt.Errorf("overflowInt: %s", DebugValueStringInline(val, 0, nil))
 				}
 				dv.SetInt(val)
 			}
-			return nil
+			return dv, nil
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 			if len(srcstring) == 0 {
 				dv.SetUint(0)
 			} else {
 				val, err := strconv.ParseUint(srcstring, 10, 64)
 				if err != nil {
-					return err
+					return dv, err
 				}
 				if dv.OverflowUint(val) {
-					return fmt.Errorf("OverflowUint: %s", DebugValueStringInline(val, 0, nil))
+					return dv, fmt.Errorf("OverflowUint: %s", DebugValueStringInline(val, 0, nil))
 				}
 				dv.SetUint(val)
 			}
-			return nil
+			return dv, nil
 		case reflect.Float32, reflect.Float64:
 			if len(srcstring) == 0 {
 				dv.SetFloat(0)
 			} else {
 				val, err := strconv.ParseFloat(srcstring, 64)
 				if err != nil {
-					return err
+					return dv, err
 				}
 				if dv.OverflowFloat(val) {
-					return fmt.Errorf("OverflowFloat: %s", DebugValueStringInline(val, 0, nil))
+					return dv, fmt.Errorf("OverflowFloat: %s", DebugValueStringInline(val, 0, nil))
 				}
 				dv.SetFloat(val)
 			}
-			return nil
+			return dv, nil
 		case reflect.Bool:
 			if strings.ToLower(srcstring) == "true" {
 				dv.SetBool(true)
 			} else {
 				dv.SetBool(false)
 			}
-			return nil
+			return dv, nil
 		}
 	}
 	if dt.Kind() == reflect.Bool {
@@ -443,28 +443,28 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 			} else {
 				dv.SetBool(false)
 			}
-			return nil
+			return dv, nil
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			if sv.Int() != 0 {
 				dv.SetBool(true)
 			} else {
 				dv.SetBool(false)
 			}
-			return nil
+			return dv, nil
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 			if sv.Uint() != 0 {
 				dv.SetBool(true)
 			} else {
 				dv.SetBool(false)
 			}
-			return nil
+			return dv, nil
 		case reflect.Float32, reflect.Float64:
 			if sv.Float() != 0 {
 				dv.SetBool(true)
 			} else {
 				dv.SetBool(false)
 			}
-			return nil
+			return dv, nil
 		}
 	}
 	if st.Kind() == reflect.Bool {
@@ -475,35 +475,35 @@ func setValueScalar(v reflect.Value, value interface{}) error {
 			} else {
 				dv.SetString("false")
 			}
-			return nil
+			return dv, nil
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			if sv.Bool() {
 				dv.SetInt(1)
 			} else {
 				dv.SetInt(0)
 			}
-			return nil
+			return dv, nil
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 			if sv.Bool() {
 				dv.SetUint(1)
 			} else {
 				dv.SetUint(0)
 			}
-			return nil
+			return dv, nil
 		case reflect.Float32, reflect.Float64:
 			if sv.Bool() {
 				dv.SetFloat(1)
 			} else {
 				dv.SetFloat(0)
 			}
-			return nil
+			return dv, nil
 		}
 	}
 	if st.ConvertibleTo(dt) {
 		dv.Set(sv.Convert(dt))
-		return nil
+		return dv, nil
 	}
-	return fmt.Errorf("Not Convertible: %s", DebugValueStringInline(v.Interface(), 0, nil))
+	return dv, fmt.Errorf("Not Convertible: %s", DebugValueStringInline(v.Interface(), 0, nil))
 }
 
 func checkStructFieldTagName(ft reflect.StructField, name string) bool {
@@ -733,7 +733,7 @@ func NewSimpleValue(t reflect.Type, value interface{}) reflect.Value {
 		log.Warning("simple type creation failed:", t)
 		return reflect.Value{}
 	}
-	err := setValueScalar(v, value)
+	v, err := setValueScalar(v, value)
 	if err != nil {
 		log.Warning("simple type set failed:", err)
 		return reflect.Value{}
@@ -782,9 +782,10 @@ func NewValue(t reflect.Type, values ...interface{}) reflect.Value {
 		}
 		return nv
 	default:
+		var err error
 		nv := newValueScalar(t)
 		for _, val := range values {
-			err := setValueScalar(nv, val)
+			nv, err = setValueScalar(nv, val)
 			if err != nil {
 				log.Warningf("Not settable value inserted '%s'", DebugValueStringInline(val, 0, nil))
 			}
@@ -857,12 +858,13 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 		// log.Debug("reflect.Interface", v.Kind(), v.Elem().Kind())
 		return SetValue(v.Elem(), values...)
 	default:
+		var err error
 		nv := v
 		if t.Kind() != reflect.Ptr {
 			nv = newValueScalar(t)
 		}
 		for _, val := range values {
-			err := setValueScalar(nv, val)
+			nv, err = setValueScalar(nv, val)
 			if err != nil {
 				log.Warning("Not settable value:", DebugValueStringInline(v.Interface(), 0, nil))
 			}

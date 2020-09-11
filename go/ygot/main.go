@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	ylog = ydb.GetLogger("ydb2ygot")
+	ylog = ydb.NewLogEntry("ydb2ygot")
 	// fmt.Println(gostruct.SchemaTree)
 	// for key, entry := range gostruct.SchemaTree {
 	// 	fmt.Println("key:", key)
