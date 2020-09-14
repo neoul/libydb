@@ -88,7 +88,7 @@ make install
 #### YAML library installation using apt-get
 
 ```shell
-sudo apt-get install autoconf libtool
+sudo apt-get install autoconf libtool build-essential
 sudo apt-get install -y libyaml-dev
 ```
 
