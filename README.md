@@ -1,8 +1,8 @@
 # YDB (YAML DataBlock)
 
-**YAML DataBlock (YDB)** is a library to manage the hierarchical configuration and statistical data simply and clearly using YAML input/output. YDB internally builds the hierarchical data block from the serialized input stream formed as YAML. And it supports the facilities to search, inquiry and iterate each internal data in YDB using the API. The input YAML stream is applied to the data block by the the following three types of operations properly. So, you don't need to allocate, free and manipulate each data block manually.
+**YAML DataBlock (YDB)** is a library to construct tree-structured data using YAML document. YDB creates and manipulates a data tree instance according to YAML input stream. And it supports the facilities to search, inquiry and iterate each data in the data tree instance.
 
-[Three types of operations in order to manage YDB]
+## YDB data operation
 
 - Create (`ydb_write`)
 - Replace (`ydb_write`)
@@ -14,13 +14,10 @@ In order to use **YAML DataBlock (YDB)** in your project, you need to have the k
 - [https://en.wikipedia.org/wiki/YAML](https://en.wikipedia.org/wiki/YAML)
 - [https://learn.getgrav.org/advanced/yaml](https://learn.getgrav.org/advanced/yaml)
 
-## other documents
-
-- [https://docs.google.com/presentation/d/1oe3d0tzsOmsCKxgIlv_95MUBvxtF7xGGrqOLcLLH0vc/edit?usp=sharing](https://docs.google.com/presentation/d/1oe3d0tzsOmsCKxgIlv_95MUBvxtF7xGGrqOLcLLH0vc/edit?usp=sharing)
-
 ## First example of YDB usage
 
-The following example shows you how to use YDB briefly.
+The following example shows you how to use the YDB. `ydb_write()` is used to write the structured YAML data as if we are using `fprintf()`. `ydb_read()` is also used to read the data as if we are using `fscanf()`.
+
 
 ``` c
 // ydb-example1.c
@@ -61,16 +58,19 @@ int main(int argc, char *argv[])
 }
 ```
 
-In this example, fan data exists in a system category. If you want to get the fan information, you just need to read the data from the data block using `ydb_read` after `ydb_write`. `ydb_read` is working such as `scanf` that we often use.
+```bash
+neoul@neoul-note:~/projects/libydb$ ydb-example1 
+fan_speed 100, fan_enabled false
+```
 
 ## YDB Library Installation
 
-To compile the above example, these following libraries should be installed into your system.
+To compile the above example, following libraries should be installed into your system.
 
 - YAML library: [http://pyyaml.org/wiki/LibYAML](http://pyyaml.org/wiki/LibYAML)
 - YDB (YAML DataBlock) library
 
-> YDB library uses [libyaml](http://pyyaml.org/wiki/LibYAML) to parse YAML format data stream into the datablock. So, the libyaml should be installed before YDB library installation.
+> YDB library uses [libyaml](http://pyyaml.org/wiki/LibYAML) to parse YAML data stream. So, the **libyaml** should be installed before YDB library installation.
 
 ### 1. YAML library installation
 
@@ -88,8 +88,7 @@ make install
 #### YAML library installation using apt-get
 
 ```shell
-sudo apt-get install autoconf libtool build-essential
-sudo apt-get install -y libyaml-dev
+sudo apt-get install autoconf libtool build-essential libyaml-dev
 ```
 
 ### 2. YDB library installation
@@ -103,7 +102,7 @@ make
 make install
 ```
 
-### 3. The above example compilation
+### 3. Example compilation
 
 ```shell
 $ gcc ydb-example1.c -lydb -lyaml
@@ -149,7 +148,7 @@ system:
   # ...
 ```
 
-Just write the fan data into your data block like as you use `printf`. You don't need to allocate memories and handle them.
+Just write the fan data into your data block like as you use `printf()`. You don't need to allocate memories and handle them.
 
 ```c
 ydb_write(datablock,
@@ -165,7 +164,7 @@ ydb_write(datablock,
     fan_cur_speed);
 ```
 
-Just read the fan data like as you use `scanf`. If there is no data in your data block, `ydb_read` doesn't update any variables.
+Just read the fan data like as you use `scanf()`. If there is no data in your data block, `ydb_read` doesn't update any variables.
 
 ```c
 char fan_admin[32] = {0};
@@ -415,11 +414,23 @@ ydb_write(datablock,
 
 **YAML DataBlock (YDB)** has the facilities to deliver the internal data block to other processes via unix socket, named FIFO, TCP and etc in the manner of Publish and Subscribe fashion.
 
+### Basic example for YDB IPC
+
+Publisher publishs all changed data received and written. Subscriber only subscribe (just read) the data except writable subscriber. In this example, an writable subscriber writes '/PATH/TO/DATA' and send it to a publisher. The publisher sends the changed data to another subscriber.
+
+![YDB IPC(Inter-Process Communication)](resources/ydb-ipc.jpg)
+
+- `--addr uss://test`: Create `test` IPC channel using unix socket secure (no unixsock file created).
+- `--role`:
+  - `publisher`: publish (broadcast) data to all others.
+  - `subscriber`: not publsih data basically except `-w`(`writable`) subscriber.
+- `--write`: Write data using YDB path.
+
 ### YDB IPC (Inter-Process Communication) feature specification
 
 - Publish & Subscribe fashion
 - Data block change monitoring
-- Dynamic data block update
+- Dynamic data block update (`ydb_sync()`)
 
 ## YDB operation test tool
 
