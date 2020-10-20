@@ -13,3 +13,4 @@ ydb -r sub -w -a uss://test --delete /ydb/hello/world
 sleep 2
 ydb -r sub -w -a uss://test --delete /ydb/hello
 sleep 2
+ydb -r sub -a uss://test --print /
