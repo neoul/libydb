@@ -579,33 +579,13 @@ func SetInternalLog(loglevel uint) {
 
 // YDB (YAML YNode type) to indicate an YDB instance
 type YDB struct {
-	block  *C.ydb
-	Mutex  *sync.RWMutex
+	block *C.ydb
+	sync.RWMutex
 	fd     int
 	Name   string
 	Target interface{}
 	Errors []error
 	syncCtrl
-}
-
-// Lock - Lock the YDB instance for use.
-func (db *YDB) Lock() {
-	db.Mutex.Lock()
-}
-
-// Unlock - Unlock of the YDB instance.
-func (db *YDB) Unlock() {
-	db.Mutex.Unlock()
-}
-
-// RLock - Lock the YDB instance for read.
-func (db *YDB) RLock() {
-	db.Mutex.RLock()
-}
-
-// RUnlock - Unlock of the YDB instance for read.
-func (db *YDB) RUnlock() {
-	db.Mutex.RUnlock()
 }
 
 // Retrieve - Retrieve the data that consists of YNodes.
@@ -615,8 +595,8 @@ func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 	for _, o := range options {
 		o(&opt)
 	}
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
+	db.RLock()
+	defer db.RUnlock()
 	n := db.top()
 	node = n.createYNode(nil)
 	if len(opt.keys) > 0 {
@@ -665,8 +645,8 @@ func (db *YDB) Convert(options ...RetrieveOption) (interface{}, error) {
 		user = opt.user
 	}
 	if !opt.nolock {
-		db.Mutex.RLock()
-		defer db.Mutex.RUnlock()
+		db.RLock()
+		defer db.RUnlock()
 	}
 	n := db.top()
 	if len(opt.keys) > 0 {
@@ -690,8 +670,8 @@ func (db *YDB) Convert(options ...RetrieveOption) (interface{}, error) {
 
 // Close the YDB instance
 func (db *YDB) Close() {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	if db.block != nil {
 		// C.ydb_write_hook_unregister(db.block)
 		C.ydb_close(db.block)
@@ -718,7 +698,6 @@ func OpenWithTargetStruct(name string, targetStruct interface{}) (*YDB, func()) 
 	db := YDB{
 		Name:   name,
 		block:  C.ydb_open(cname),
-		Mutex:  &sync.RWMutex{},
 		Target: targetStruct,
 		syncCtrl: syncCtrl{
 			ToBeIgnored: make(map[string]syncInfo),
@@ -733,8 +712,8 @@ func OpenWithTargetStruct(name string, targetStruct interface{}) (*YDB, func()) 
 // RelaceTargetStruct - replace the Target structure
 // Warning - If RelaceTargetStruct() is called without sync, the data inconsistency happens!!!
 func (db *YDB) RelaceTargetStruct(targetStruct interface{}, sync bool) error {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	if sync {
 		_, err := db.Convert(RetrieveAll(), RetrieveStruct(targetStruct),
 			retrieveWithoutLock())
@@ -760,8 +739,8 @@ func (db *YDB) Connect(addr string, flags ...string) error {
 	cflags := C.CString(gflags)
 	defer C.free(unsafe.Pointer(caddr))
 	defer C.free(unsafe.Pointer(cflags))
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	res := C.ydb_connect(db.block, caddr, cflags)
 	if res == C.YDB_OK {
 		return nil
@@ -773,8 +752,8 @@ func (db *YDB) Connect(addr string, flags ...string) error {
 func (db *YDB) Disconnect(addr string) error {
 	caddr := C.CString(addr)
 	defer C.free(unsafe.Pointer(caddr))
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	res := C.ydb_disconnect(db.block, caddr)
 	if res == C.YDB_OK {
 		return nil
@@ -834,9 +813,9 @@ func (db *YDB) Receive() error {
 		}
 		if n == 1 && rfds.IsSet(db.fd) {
 			rfds.Clear(db.fd)
-			db.Mutex.Lock()
+			db.Lock()
 			res := C.ydb_serve(db.block, C.int(0))
-			db.Mutex.Unlock()
+			db.Unlock()
 			if res >= C.YDB_ERROR {
 				err = fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 				log.Errorf("ydb.serve: %v", err)
@@ -854,8 +833,8 @@ func (db *YDB) Parse(yaml []byte) error {
 	if ylen == 0 {
 		return nil
 	}
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	res := C.ydb_parses_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
@@ -877,8 +856,8 @@ func (db *YDB) Delete(yaml []byte) error {
 	if ylen == 0 {
 		return nil
 	}
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	res := C.ydb_delete_wrapper(db.block, unsafe.Pointer(&yaml[0]))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
@@ -891,8 +870,8 @@ func (db *YDB) Delete(yaml []byte) error {
 //  foo:          >>   foo:
 //   bar:               bar: "hello yaml"
 func (db *YDB) Read(yaml []byte) []byte {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
+	db.RLock()
+	defer db.RUnlock()
 	var cptr C.bufinfo
 	if len(yaml) == 0 {
 		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(nil))
@@ -909,8 +888,8 @@ func (db *YDB) Read(yaml []byte) []byte {
 
 // sync - synchronizes the target data from the remote YDB instance.
 func (db *YDB) sync(yaml []byte) error {
-	// db.Mutex.Lock()
-	// defer db.Mutex.Unlock()
+	// db.Lock()
+	// defer db.Unlock()
 	var res C.ydb_res
 	if len(yaml) == 0 {
 		res = C.ydb_sync_wrapper(db.block, unsafe.Pointer(nil))
@@ -925,8 +904,8 @@ func (db *YDB) sync(yaml []byte) error {
 
 // WriteTo - writes the value string to the target path in the YDB instance
 func (db *YDB) WriteTo(path string, value string) error {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	var pp, pv unsafe.Pointer
 	if path != "" {
 		pbyte := []byte(path)
@@ -945,8 +924,8 @@ func (db *YDB) WriteTo(path string, value string) error {
 
 // DeleteFrom - deletes the value at the target path from the YDB instance
 func (db *YDB) DeleteFrom(path string) error {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	var pp unsafe.Pointer
 	if path != "" {
 		pbyte := []byte(path)
@@ -961,8 +940,8 @@ func (db *YDB) DeleteFrom(path string) error {
 
 // ReadFrom - reads the value(string) from the target path in the YDB instance
 func (db *YDB) ReadFrom(path string) string {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
+	db.RLock()
+	defer db.RUnlock()
 	var pp unsafe.Pointer
 	if path != "" {
 		pbyte := []byte(path)
@@ -978,8 +957,8 @@ func (db *YDB) ReadFrom(path string) string {
 
 // Timeout - Set the timeout of the YDB instance for sync.
 func (db *YDB) Timeout(msec int) error {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
+	db.RLock()
+	defer db.RUnlock()
 	res := C.ydb_timeout(db.block, C.int(msec))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
@@ -989,8 +968,8 @@ func (db *YDB) Timeout(msec int) error {
 
 // AddSyncUpdatePath - registers SyncUpdater
 func (db *YDB) AddSyncUpdatePath(path string) error {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	var pp unsafe.Pointer
 	if path != "" {
 		pbyte := []byte(path)
@@ -1005,8 +984,8 @@ func (db *YDB) AddSyncUpdatePath(path string) error {
 
 // DeleteSyncUpdatePath - registers SyncUpdater
 func (db *YDB) DeleteSyncUpdatePath(path string) {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	var pp unsafe.Pointer
 	if path != "" {
 		pbyte := []byte(path)
@@ -1038,8 +1017,8 @@ func (dec *Decoder) Decode() error {
 	}
 	byt, err := ioutil.ReadAll(dec.r)
 	if err == nil {
-		dec.db.Mutex.Lock()
-		defer dec.db.Mutex.Unlock()
+		dec.db.Lock()
+		defer dec.db.Unlock()
 		var res C.ydb_res
 		blen := len(byt)
 		if blen > 0 {
@@ -1072,9 +1051,9 @@ func (enc *Encoder) Encode() error {
 	if enc.err != nil {
 		return enc.err
 	}
-	enc.db.Mutex.RLock()
+	enc.db.RLock()
 	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, unsafe.Pointer(nil))
-	enc.db.Mutex.RUnlock()
+	enc.db.RUnlock()
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
 		byt := C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen)
@@ -1276,8 +1255,8 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 	// Store the path of the Ynode list.
 	// Running syncIgnoreTimer
 
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	db.syncCtrl.syncSequence++
 	sequence := db.syncCtrl.syncSequence
 	n := db.top()
@@ -1319,8 +1298,8 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 		go func(db *YDB, sequence uint, timer *time.Timer) {
 			select {
 			case <-timer.C:
-				db.Mutex.Lock()
-				defer db.Mutex.Unlock()
+				db.Lock()
+				defer db.Unlock()
 				for k, v := range db.syncCtrl.ToBeIgnored {
 					if v.syncSequence == sequence {
 						delete(db.syncCtrl.ToBeIgnored, k)

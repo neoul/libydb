@@ -6,6 +6,7 @@ import (
 
 	"github.com/neoul/libydb/go/ydb"
 	"github.com/neoul/libydb/go/ygot/model/gostruct"
+	"github.com/openconfig/ygot/ytypes"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,7 +25,6 @@ func init() {
 }
 
 func main() {
-
 	// db, close := ydb.Open("mydb")
 	// defer close()
 	// r, err := os.Open("model/data/example.yaml")
@@ -56,6 +56,7 @@ func main() {
 	// fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
 	// fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
 
+	// ydb.SetInternalLog(ydb.LogDebug)
 	ydb.InitChildenOnSet = false
 	gs := gostruct.Device{}
 	db, close := ydb.OpenWithTargetStruct("running", &gs)
@@ -72,4 +73,5 @@ func main() {
 	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
 	fmt.Println(*&gs.Company.Address, gs.Company.Enumval)
 	fmt.Println("")
+	fmt.Println("Validation check:", ytypes.Validate(gostruct.SchemaTree["Device"], &gs))
 }
