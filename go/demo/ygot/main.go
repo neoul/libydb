@@ -1,11 +1,11 @@
-package main // import "github.com/neoul/libydb/go/ygot"
+package main
 
 import (
 	"fmt"
 	"os"
 
+	"github.com/neoul/libydb/go/demo/ygot/model/gostruct"
 	"github.com/neoul/libydb/go/ydb"
-	"github.com/neoul/libydb/go/ygot/model/gostruct"
 	"github.com/openconfig/ygot/ytypes"
 	"github.com/sirupsen/logrus"
 )

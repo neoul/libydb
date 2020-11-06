@@ -7,6 +7,18 @@ type Updater interface {
 	Delete(keys []string, key string) error
 }
 
+// UpdaterStartEnd - indicates the start and end of the YDB Update.
+// They will be called before or after the Updater (Create, Replace and Delete) execution.
+type UpdaterStartEnd interface {
+	UpdateStart()
+	UpdateEnd()
+}
+
+// SyncUpdater - Interface to update the target (pointed by the keys and key) data node upon sync request.
+type SyncUpdater interface {
+	SyncUpdate(keys []string, key string) []byte
+}
+
 // EmptyGoStruct - Empty Go Struct for empty Updater interface
 type EmptyGoStruct struct{}
 
@@ -28,13 +40,6 @@ func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
 	return nil
 }
 
-// UpdaterStartEnd - indicates the start and end of the YDB Update.
-// They will be called before or after the Updater (Create, Replace and Delete) execution.
-type UpdaterStartEnd interface {
-	UpdateStart()
-	UpdateEnd()
-}
-
 // UpdateStart - indicates the start of the YDB update. It will be called ahead of Updater interface
 func (emptyStruct *EmptyGoStruct) UpdateStart() {
 	log.Debugf("emptyStruct.UpdateStart")
@@ -45,13 +50,26 @@ func (emptyStruct *EmptyGoStruct) UpdateEnd() {
 	log.Debugf("emptyStruct.UpdateEnd")
 }
 
-// SyncUpdater - Interface to update the target (pointed by the keys and key) data node upon sync request.
-type SyncUpdater interface {
-	SyncUpdate(keys []string, key string) []byte
-}
-
 // SyncUpdate - Interface to update the target (pointed by the keys and key) data node upon sync request.
 func (emptyStruct *EmptyGoStruct) SyncUpdate(keys []string, key string) []byte {
 	log.Debugf("emptyStruct.SyncUpdate(%s, %s)", keys, key)
 	return nil
+}
+
+// UpdateStartEnd - indicates the start and end of the YDB Update.
+// They will be called before or after the DataUpdate (Create, Replace and Delete) execution.
+type UpdateStartEnd interface {
+	UpdaterStartEnd
+}
+
+// DataUpdate (= Updater with different arguments) for Modeled Data Update
+type DataUpdate interface {
+	UpdateCreate(path string, value string) error
+	UpdateReplace(path string, value string) error
+	UpdateDelete(path string) error
+}
+
+// DataSync (= SyncUpdater) for Modeled Data Sync
+type DataSync interface {
+	UpdateSync(path string) error
 }

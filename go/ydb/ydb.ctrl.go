@@ -404,28 +404,55 @@ func retrieveWithoutLock() RetrieveOption {
 }
 
 // getUpdater from v to call the custom Updater interface.
-func getUpdater(v reflect.Value, keys []string) (Updater, []string) {
+func getUpdater(v reflect.Value, keys []string) (Updater, DataUpdate, []string) {
 	var updater Updater = nil
+	var dataUpdate DataUpdate = nil
 	var newkey []string = keys
 	if v.Type().NumMethod() > 0 && v.CanInterface() {
 		if u, ok := v.Interface().(Updater); ok {
 			updater = u
+		} else if u, ok := v.Interface().(DataUpdate); ok {
+			dataUpdate = u
 		}
 	}
-	if len(keys) > 0 {
-		fv := FindValue(v, keys...)
-		if !fv.IsValid() {
-			return updater, newkey
+	for i, key := range keys {
+		var ok bool
+		v, ok = ValFind(v, key, NoSearch)
+		if !ok {
+			return updater, dataUpdate, newkey
 		}
-		v = fv
 		if v.Type().NumMethod() > 0 && v.CanInterface() {
-			if u, ok := v.Interface().(Updater); ok {
+			switch u := v.Interface().(type) {
+			case Updater:
 				updater = u
-				newkey = []string{}
+				dataUpdate = nil
+			case DataUpdate:
+				updater = nil
+				dataUpdate = u
 			}
 		}
+		newkey = keys[i+1:]
 	}
-	return updater, newkey
+
+	// if len(keys) > 0 {
+	// 	fv := FindValue(v, keys...)
+	// 	if !fv.IsValid() {
+	// 		return updater, dataUpdate, newkey
+	// 	}
+	// 	v = fv
+	// 	if v.Type().NumMethod() > 0 && v.CanInterface() {
+	// 		if u, ok := v.Interface().(Updater); ok {
+	// 			updater = u
+	// 			dataUpdate = nil
+	// 			newkey = []string{}
+	// 		} else if u, ok := v.Interface().(DataUpdate); ok {
+	// 			updater = nil
+	// 			dataUpdate = u
+	// 			newkey = []string{}
+	// 		}
+	// 	}
+	// }
+	return updater, dataUpdate, newkey
 }
 
 func yCreate(v reflect.Value, keys []string, key string, tag string, value string) error {
@@ -484,7 +511,7 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 		return nil
 	}
 	v := reflect.ValueOf(target)
-	updater, newkeys := getUpdater(v, keys)
+	updater, dataUpdate, newkeys := getUpdater(v, keys)
 	if updater != nil {
 		var err error = nil
 		switch op {
@@ -499,6 +526,25 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 		}
 		if err != nil {
 			return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), err)
+		}
+	} else if dataUpdate != nil {
+		var err error = nil
+		path := fmt.Sprintf("%s/%s", strings.Join(newkeys, "/"), n.key())
+		if !strings.HasPrefix(path, "/") {
+			path = "/" + path
+		}
+		switch op {
+		case 'c':
+			err = dataUpdate.UpdateCreate(path, n.value())
+		case 'r':
+			err = dataUpdate.UpdateReplace(path, n.value())
+		case 'd':
+			err = dataUpdate.UpdateDelete(path)
+		default:
+			err = fmt.Errorf("unknown op")
+		}
+		if err != nil {
+			return fmt.Errorf("%c %s, %s: %s", op, path, n.value(), err)
 		}
 	} else {
 		var err error = nil
