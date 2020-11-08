@@ -27,6 +27,9 @@ func main() {
 system:
   motherboard: Asus XXX
   memory: 16GB
+  input:
+    keyboard: Logitech
+    mouse: ab
   power: 750W
 `))
 	// Read all data to the user-defined data structure.
