@@ -7,6 +7,8 @@ import (
 	"github.com/neoul/libydb/go/ydb"
 )
 
+// An example for dynamic update that updates the user-defined structure upon change.
+
 func main() {
 
 	datastore := map[string]interface{}{}

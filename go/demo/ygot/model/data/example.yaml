@@ -10,10 +10,8 @@ operator:
 "person": "robjs"
 "married": true
 "company":
-  "address": !!set
-    ? "seoul"
-    ? "LA"
-  "enumval": enum3
+  address: ["seoul", "LA"]
+  enumval: 1
 multikeylist[str=STR][integer=10]:
   str: "STR"
   integer: 10

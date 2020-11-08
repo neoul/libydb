@@ -1,6 +1,11 @@
 # YDB (YAML DataBlock) Go Interface
 
-**YDB Go Interface** is designed to support YDB in Go. The **YDB Go Interface** can automatically create and manipulate a tree-structured data instance such as Go structure. To use this **YDB Go Interface**, you need to install `libydb` and `Go` compiler before starting.
+**YDB Go Interface** is designed to support YDB facilities in Go. The **YDB Go Interface** is able to be used for creating and manipulating tree-structured data instance such as Go `struct`, `slice` or `map` automatically. To use this **YDB Go Interface**, you need to install `libydb` and `Go` compiler before starting.
+
+- Supports to convert YAML list to Go slice.
+- Supports to convert YAML map (key, value pair) to Go map.
+- Supports to convert YAML map to Go struct and its fields and data.
+  - Find and update and anonymous fields of the Go struct.
 
 ## Example 1 - Updating Go map with hierarchy
 

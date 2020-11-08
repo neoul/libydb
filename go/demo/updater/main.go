@@ -1,28 +1,28 @@
 package main
 
 import (
-	"github.com/neoul/gostruct-dump/dump"
+	"github.com/kr/pretty"
 	"github.com/neoul/libydb/go/ydb"
-	"github.com/sirupsen/logrus"
 )
+
+// Updater interface example
 
 type userData struct {
 	System struct {
 		Cpu         string `path:"cpu"`
 		Motherboard string
-		Memory      int
+		Memory      int `unit:"GB"`
 		Power       string
+		Input       map[string]interface{}
 	} `path:"system"`
 }
 
 func main() {
 	// Create a user-defined data structure
 	userdb := &userData{}
-	// json.Marshal(jsonTree)
-	// json.Unmarshal
 
 	// Enable log
-	ydb.SetLogLevel(logrus.DebugLevel)
+	// ydb.SetLogLevel(logrus.DebugLevel)
 	// ydb.SetInternalLog(ydb.LogDebug)
 
 	// Open an YDB instance
@@ -32,13 +32,14 @@ func main() {
 	// Write YAML data to the YDB instance
 	db.Write([]byte(`
 system:
-  cpu: pentium
-  Motherboard: Asus XXX
+  motherboard: Asus XXX
   memory: 16
-  Power: 750W
+  input:
+    keyboard: Logitech
+    mouse: ab
+  power: 750W
 `))
 	// Read all data to the user-defined data structure.
 	db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(userdb))
-	// db.Unmarshal(userdb, Option)
-	dump.Print(userdb)
+	pretty.Println(userdb)
 }

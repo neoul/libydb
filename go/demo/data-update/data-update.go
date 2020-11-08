@@ -10,6 +10,8 @@ import (
 	"github.com/neoul/trie"
 )
 
+// DataUpdate interface example
+
 type userdata struct {
 	*trie.Trie
 }
@@ -39,7 +41,7 @@ func (u *userdata) UpdateDelete(path string) error {
 func main() {
 	// ydb.SetInternalLog(ydb.LogDebug)
 	ud := newTrie()
-	db, close := ydb.OpenWithTargetStruct("hello", ud)
+	db, close := ydb.OpenWithTargetStruct("test", ud)
 	defer close()
 	r, err := os.Open("../../../examples/yaml/ydb-input.yaml")
 	defer r.Close()

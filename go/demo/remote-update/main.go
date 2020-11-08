@@ -5,7 +5,10 @@ import (
 	"log"
 
 	"github.com/neoul/libydb/go/ydb"
+	"github.com/sirupsen/logrus"
 )
+
+// An example receiving updates from remote process.
 
 var (
 	address = flag.String("address", "uss://test", "Address to connect")
@@ -14,10 +17,9 @@ var (
 func main() {
 	flag.Parse()
 	done := ydb.SetSignalFilter()
-	// db, close := ydb.Open("hello")
+	ydb.SetLogLevel(logrus.DebugLevel)
 	datastore := map[string]interface{}{}
-	db, close := ydb.OpenWithTargetStruct("hello", &datastore)
-	// db, close := ydb.OpenWithTargetStruct("hello", &ydb.EmptyGoStruct{})
+	db, close := ydb.OpenWithTargetStruct("host", &datastore)
 	defer close()
 	err := db.Connect(*address, "pub")
 	if err != nil {
