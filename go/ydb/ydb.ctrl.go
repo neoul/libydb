@@ -513,7 +513,6 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 	}
 	v := reflect.ValueOf(target)
 	updater, dataUpdate, newkeys := getUpdater(v, keys)
-	fmt.Println(":::::::", keys, newkeys)
 	if updater != nil {
 		var err error = nil
 		switch op {
