@@ -426,12 +426,13 @@ func getUpdater(v reflect.Value, keys []string) (Updater, DataUpdate, []string) 
 			case Updater:
 				updater = u
 				dataUpdate = nil
+				newkey = keys[i+1:]
 			case DataUpdate:
 				updater = nil
 				dataUpdate = u
+				newkey = keys[i+1:]
 			}
 		}
-		newkey = keys[i+1:]
 	}
 
 	// if len(keys) > 0 {
@@ -512,6 +513,7 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 	}
 	v := reflect.ValueOf(target)
 	updater, dataUpdate, newkeys := getUpdater(v, keys)
+	fmt.Println(":::::::", keys, newkeys)
 	if updater != nil {
 		var err error = nil
 		switch op {
