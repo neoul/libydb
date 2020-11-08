@@ -635,11 +635,14 @@ type YDB struct {
 }
 
 // Retrieve - Retrieve the data that consists of YNodes.
-func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
+func (db *YDB) Retrieve(options ...RetrieveOption) (*YNode, error) {
 	var node, parent *YNode
 	var opt retrieveOption
 	for _, o := range options {
 		o(&opt)
+	}
+	if opt.user != nil {
+		return nil, fmt.Errorf("ydb.RetrieveStruct is used only for Convert()")
 	}
 	db.RLock()
 	defer db.RUnlock()
@@ -650,7 +653,7 @@ func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 			parent = node
 			n = n.find(key)
 			if n == nil {
-				return nil
+				return nil, fmt.Errorf("not found (%s)", key)
 			}
 			node = n.createYNode(parent)
 		}
@@ -661,7 +664,7 @@ func (db *YDB) Retrieve(options ...RetrieveOption) *YNode {
 			n.addYnode(parent, opt.depth-1, opt.all)
 		}
 	}
-	return node
+	return node, nil
 }
 
 func convert(db *YDB, userStruct interface{}, op int, n *C.ynode) {

@@ -2,6 +2,7 @@ package ydb
 
 import (
 	"reflect"
+	"strings"
 	"unicode"
 )
 
@@ -69,6 +70,32 @@ func IsTypeStruct(t reflect.Type) bool {
 	}
 }
 
+// FindFieldByName finds struct field by the name.
+func FindFieldByName(structType reflect.Type, name string) (reflect.StructField, bool) {
+	if CaseInsensitiveFieldLookup {
+		for i := 0; i < structType.NumField(); i++ {
+			ft := structType.Field(i)
+			if strings.EqualFold(ft.Name, name) {
+				return ft, true
+			}
+		}
+	} else {
+		ft, ok := structType.FieldByName(name)
+		if ok {
+			return ft, ok
+		}
+	}
+	if EnableTagLookup {
+		for i := 0; i < structType.NumField(); i++ {
+			ft := structType.Field(i)
+			if n, ok := ft.Tag.Lookup(TagLookupKey); ok && n == name {
+				return ft, true
+			}
+		}
+	}
+	return reflect.StructField{}, false
+}
+
 // TypeFind - finds a child type from the struct, map or slice value using the key.
 func TypeFind(pt reflect.Type, key string) (reflect.Type, bool) {
 	if pt == reflect.TypeOf(nil) {
@@ -84,17 +111,9 @@ func TypeFind(pt reflect.Type, key string) (reflect.Type, bool) {
 	case reflect.Ptr:
 		return TypeFind(pt.Elem(), key)
 	case reflect.Struct:
-		ft, ok := pt.FieldByName(key)
+		ft, ok := FindFieldByName(pt, key)
 		if ok {
 			return ft.Type, true
-		}
-		if EnableTagLookup {
-			for i := 0; i < pt.NumField(); i++ {
-				ft := pt.Field(i)
-				if n, ok := ft.Tag.Lookup(TagLookupKey); ok && n == key {
-					return ft.Type, true
-				}
-			}
 		}
 	case reflect.Map, reflect.Slice, reflect.Array:
 		return pt.Elem(), true

@@ -1,4 +1,4 @@
-package main // import "github.com/neoul/libydb/go/demo/example2"
+package main
 
 import (
 	"fmt"

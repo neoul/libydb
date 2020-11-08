@@ -521,30 +521,16 @@ func checkStructFieldTagName(ft reflect.StructField, name string) bool {
 }
 
 func findStructField(sv reflect.Value, name interface{}) (reflect.StructField, reflect.Value, bool) {
-	var st reflect.Type
-	var fv reflect.Value
-	st = sv.Type()
+	st := sv.Type()
 	fnv := newValue(reflect.TypeOf(""), name)
 	if !fnv.IsValid() {
 		return reflect.StructField{}, reflect.Value{}, false
 	}
 	sname := fnv.Interface().(string)
-	ft, ok := st.FieldByName(sname)
+	ft, ok := FindFieldByName(st, sname)
 	if ok {
-		fv = sv.FieldByName(sname)
+		fv := sv.FieldByName(ft.Name)
 		return ft, fv, true
-	}
-	if EnableTagLookup {
-		for i := 0; i < sv.NumField(); i++ {
-			fv := sv.Field(i)
-			ft := st.Field(i)
-			if !fv.IsValid() || !fv.CanSet() {
-				continue
-			}
-			if n, ok := ft.Tag.Lookup(TagLookupKey); ok && n == sname {
-				return ft, fv, true
-			}
-		}
 	}
 	return reflect.StructField{}, reflect.Value{}, false
 }

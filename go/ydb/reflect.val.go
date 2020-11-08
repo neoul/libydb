@@ -6,11 +6,13 @@ import (
 )
 
 var (
-	// EnableTagLookup - Enables the tag lookup of struct fields for searching value
+	// EnableTagLookup enables the tag lookup of struct fields for searching value
 	EnableTagLookup bool = true
+	// CaseInsensitiveFieldLookup enables the case-insensitive lookup for struct fields.
+	CaseInsensitiveFieldLookup bool = true
 	// TagLookupKey - the key of the struct field tag to search a value.
 	TagLookupKey string = "path"
-	// InitChildenOnSet - initalizes all child values on set.
+	// InitChildenOnSet initalizes all child values on set.
 	InitChildenOnSet bool = false
 )
 

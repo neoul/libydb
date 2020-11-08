@@ -23,8 +23,8 @@ func NewLogEntry(component string) *logrus.Entry {
 func init() {
 	logger = logrus.New()
 	logger.SetOutput(os.Stderr)
-	// logger.SetLevel(logrus.ErrorLevel)
-	logger.SetLevel(logrus.DebugLevel)
+	logger.SetLevel(logrus.ErrorLevel)
+	// logger.SetLevel(logrus.DebugLevel)
 	logger.SetFormatter(&nested.Formatter{
 		HideKeys: true,
 		// FieldsOrder:     []string{"component", "category"},

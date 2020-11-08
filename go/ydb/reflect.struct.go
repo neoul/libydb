@@ -8,22 +8,11 @@ import (
 // valStructFieldFind - Find a struct field by the name (struct field name or Tag) from sv (struct)
 func valStructFieldFind(sv reflect.Value, name string) (reflect.StructField, reflect.Value, bool) {
 	st := sv.Type()
-	ft, ok := st.FieldByName(name)
+	ft, ok := FindFieldByName(st, name)
+	// ft, ok := st.FieldByName(name)
 	if ok {
-		fv := sv.FieldByName(name)
+		fv := sv.FieldByName(ft.Name)
 		return ft, fv, true
-	}
-	if EnableTagLookup {
-		for i := 0; i < sv.NumField(); i++ {
-			fv := sv.Field(i)
-			ft := st.Field(i)
-			if !fv.IsValid() || !fv.CanSet() {
-				continue
-			}
-			if n, ok := ft.Tag.Lookup(TagLookupKey); ok && n == name {
-				return ft, fv, true
-			}
-		}
 	}
 	return reflect.StructField{}, reflect.Value{}, false
 }
