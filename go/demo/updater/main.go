@@ -5,7 +5,7 @@ import (
 	"github.com/neoul/libydb/go/ydb"
 )
 
-// Updater interface example
+// Default Updater interface example
 
 type userData struct {
 	System struct {
@@ -13,7 +13,7 @@ type userData struct {
 		Motherboard string
 		Memory      int `unit:"GB"`
 		Power       string
-		Input       map[string]interface{}
+		InputDevice map[string]interface{} `path:"input"`
 	} `path:"system"`
 }
 
@@ -32,6 +32,7 @@ func main() {
 	// Write YAML data to the YDB instance
 	db.Write([]byte(`
 system:
+  cpu: Pantium
   motherboard: Asus XXX
   memory: 16
   input:

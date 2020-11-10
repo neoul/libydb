@@ -7,7 +7,7 @@ import (
 	"github.com/neoul/libydb/go/ydb"
 )
 
-// An example for dynamic update that updates the user-defined structure upon change.
+// An example for synchronized data update
 
 func main() {
 

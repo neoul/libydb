@@ -63,3 +63,4 @@ depcomp
 install-sh
 ltmain.sh
 missing
+go/README.html

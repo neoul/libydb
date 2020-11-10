@@ -11,6 +11,7 @@ import (
 )
 
 // DataUpdate interface example
+// Implement DataUpdate interface for the user Go struct.
 
 type userdata struct {
 	*trie.Trie
@@ -39,7 +40,7 @@ func (u *userdata) UpdateDelete(path string) error {
 }
 
 func main() {
-	// ydb.SetInternalLog(ydb.LogDebug)
+	// The DataUpdate interface is implemented to ud (user data).
 	ud := newTrie()
 	db, close := ydb.OpenWithSync("test", ud)
 	defer close()
@@ -74,6 +75,10 @@ func main() {
 
 	// Remove fan[1]
 	db.DeleteFrom("/system/fan/fan[1]")
+
+	// The update lock is not required because there is no multiple thread.
+	// db.Lock()
+	// defer db.Unlock()
 	for i, k := range ud.Keys() {
 		n, ok := ud.Find(k)
 		if ok {

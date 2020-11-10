@@ -1,22 +1,23 @@
 package ydb
 
-// Updater interface to manipulate user structure
+// Updater interface to handle a Go struct defined by user
 type Updater interface {
 	Create(keys []string, key string, tag string, value string) error
 	Replace(keys []string, key string, tag string, value string) error
 	Delete(keys []string, key string) error
 }
 
-// UpdaterStartEnd - indicates the start and end of the YDB Update.
+// UpdaterStartEnd indicates the start and end of the data update.
 // They will be called before or after the Updater (Create, Replace and Delete) execution.
 type UpdaterStartEnd interface {
 	UpdateStart()
 	UpdateEnd()
 }
 
-// SyncUpdater - Interface to update the target (pointed by the keys and key) data node upon sync request.
+// SyncUpdater - Interface to update the target (pointed by the keys and key) data node on which a request signaled.
 type SyncUpdater interface {
-	// SyncUpdate is a callback for target data node synchronization. It must return YAML bytes to be updated.
+	// SyncUpdate is a callback for target data node synchronization.
+	// It must return YAML bytes to be updated.
 	SyncUpdate(keys []string, key string) []byte
 }
 
@@ -57,20 +58,20 @@ func (emptyStruct *EmptyGoStruct) SyncUpdate(keys []string, key string) []byte {
 	return nil
 }
 
-// UpdateStartEnd - indicates the start and end of the YDB Update.
-// They will be called before or after the DataUpdate (Create, Replace and Delete) execution.
-type UpdateStartEnd interface {
-	UpdaterStartEnd
-}
-
-// DataUpdate (= Updater with different arguments) for Modeled Data Update
+// DataUpdate interface (= Updater with different arguments) to handle a Go struct
 type DataUpdate interface {
 	UpdateCreate(path string, value string) error
 	UpdateReplace(path string, value string) error
 	UpdateDelete(path string) error
 }
 
-// DataSync (= SyncUpdater) for Modeled Data Sync
+// UpdateStartEnd indicates the start and end of the data update.
+// They will be called before or after the DataUpdate (Create, Replace and Delete) execution.
+type UpdateStartEnd interface {
+	UpdaterStartEnd
+}
+
+// DataSync (= SyncUpdater)
 type DataSync interface {
 	UpdateSync(path string) error
 }
