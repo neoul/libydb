@@ -3,6 +3,8 @@ package ydb
 import (
 	"reflect"
 	"testing"
+
+	"github.com/neoul/gostruct-dump/dump"
 )
 
 func TestStrKeyNewStruct(t *testing.T) {
@@ -61,7 +63,7 @@ func TestStrKeyNewStruct(t *testing.T) {
 			if !reflect.DeepEqual(got.Interface(), tt.want.Interface()) && tt.wantEqual {
 				t.Errorf("StrKeyStructNew() = %v, want %v", got, tt.want)
 			}
-			t.Log(DebugValueString(got.Interface(), 2, nil))
+			t.Log(dump.ValueDump(got.Interface(), 2, nil))
 		})
 	}
 }

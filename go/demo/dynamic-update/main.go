@@ -23,5 +23,4 @@ func main() {
 	dec.Decode()
 
 	fmt.Println(datastore)
-	// ydb.DebugValueString(datastore, 4, func(n ...interface{}) { fmt.Print(n) })
 }
