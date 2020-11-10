@@ -12,7 +12,7 @@ import (
 func main() {
 
 	datastore := map[string]interface{}{}
-	db, close := ydb.OpenWithTargetStruct("hello", &datastore)
+	db, close := ydb.OpenWithSync("hello", &datastore)
 	defer close()
 	r, err := os.Open("../../../examples/yaml/ydb-input.yaml")
 	defer r.Close()

@@ -19,7 +19,7 @@ func main() {
 	done := ydb.SetSignalFilter()
 	ydb.SetLogLevel(logrus.DebugLevel)
 	datastore := map[string]interface{}{}
-	db, close := ydb.OpenWithTargetStruct("host", &datastore)
+	db, close := ydb.OpenWithSync("host", &datastore)
 	defer close()
 	err := db.Connect(*address, "pub")
 	if err != nil {
@@ -36,7 +36,7 @@ func main() {
 	}
 	// for i := 0; i < 100; i++ {
 	// 	<-time.After(time.Second * 5)
-	// 	// node := db.Retrieve(ydb.RetrieveDepth(2))
+	// 	// node := db.ConvertToYNode(ydb.ConvertedDepth(2))
 	// 	// log.Println(node)
 	// 	// log.Println(node.GetChildren())
 	// 	// for _, node := range node.GetChildren() {

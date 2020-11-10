@@ -16,6 +16,7 @@ type UpdaterStartEnd interface {
 
 // SyncUpdater - Interface to update the target (pointed by the keys and key) data node upon sync request.
 type SyncUpdater interface {
+	// SyncUpdate is a callback for target data node synchronization. It must return YAML bytes to be updated.
 	SyncUpdate(keys []string, key string) []byte
 }
 

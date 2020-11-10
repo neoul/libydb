@@ -14,7 +14,7 @@ import (
 
 func main() {
 	gs := gostruct.Device{}
-	db, close := ydb.OpenWithTargetStruct("running", &gs)
+	db, close := ydb.OpenWithSync("running", &gs)
 	defer close()
 	r, err := os.Open("../model/data/example.yaml")
 	defer r.Close()

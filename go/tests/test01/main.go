@@ -9,7 +9,7 @@ import (
 
 func main() {
 	s := ""
-	db, close := ydb.OpenWithTargetStruct("mydb", &s)
+	db, close := ydb.OpenWithSync("mydb", &s)
 	defer close()
 
 	r, err := os.Open("../../../examples/yaml/yaml-value.yaml")

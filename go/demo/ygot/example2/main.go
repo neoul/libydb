@@ -68,7 +68,7 @@ func delete(device *MyDevice, keys []string, key string) error {
 
 func main() {
 	gs := MyDevice{}
-	db, close := ydb.OpenWithTargetStruct("running", &gs)
+	db, close := ydb.OpenWithSync("running", &gs)
 	defer close()
 	r, err := os.Open("../model/data/example-ygot.yaml")
 	defer r.Close()

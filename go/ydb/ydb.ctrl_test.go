@@ -249,7 +249,7 @@ list:
 }
 
 func TestYDB_SyncTo(t *testing.T) {
-	db, dbclose := OpenWithTargetStruct("TestYDB_SyncTo", &syncToTestStruct{})
+	db, dbclose := OpenWithSync("TestYDB_SyncTo", &syncToTestStruct{})
 	defer dbclose()
 	// SetInternalLog(LogDebug)
 	b := `

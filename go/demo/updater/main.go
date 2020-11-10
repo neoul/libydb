@@ -40,6 +40,6 @@ system:
   power: 750W
 `))
 	// Read all data to the user-defined data structure.
-	db.Convert(ydb.RetrieveAll(), ydb.RetrieveStruct(userdb))
+	db.Convert(userdb)
 	pretty.Println(userdb)
 }

@@ -371,35 +371,25 @@ type retrieveOption struct {
 	nolock bool
 }
 
-// RetrieveOption - The option to retrieve YNodes from an YDB instance.
-type RetrieveOption func(*retrieveOption)
+// ConvertOption - The option to convert the YDB data to YNodes or user-defined go struct.
+type ConvertOption func(*retrieveOption)
 
-// func ordering(o func(cell, cell) bool) RetrieveOption {
+// func ordering(o func(cell, cell) bool) ConvertOption {
 //     return func(s *retrieveOption) { s.ordering = o }
 // }
 
-// RetrieveStruct - The option to set the depth of the YDB retrieval
-func RetrieveStruct(user interface{}) RetrieveOption {
-	return func(s *retrieveOption) { s.user = user }
-}
-
-// RetrieveDepth - The option to set the depth of the YDB retrieval
-func RetrieveDepth(d int) RetrieveOption {
+// ConvertedDepth - The option to set the depth of the converted data
+func ConvertedDepth(d int) ConvertOption {
 	return func(s *retrieveOption) { s.depth = d }
 }
 
-// RetrieveAll - The option to retrieve all descendants
-func RetrieveAll() RetrieveOption {
-	return func(s *retrieveOption) { s.all = true }
-}
-
-// RetrieveKeys - The option to set the start point of the retrieval
-func RetrieveKeys(k ...string) RetrieveOption {
+// ConvertedTarget - The option to set the start point of the converting
+func ConvertedTarget(k ...string) ConvertOption {
 	return func(s *retrieveOption) { s.keys = k }
 }
 
-// retrieveWithoutLock - The option to retrieve data without lock
-func retrieveWithoutLock() RetrieveOption {
+// convertingWithoutLock - The option to convert data without lock/unlock
+func convertingWithoutLock() ConvertOption {
 	return func(s *retrieveOption) { s.nolock = true }
 }
 
@@ -635,15 +625,23 @@ type YDB struct {
 	syncCtrl
 }
 
-// Retrieve - Retrieve the data that consists of YNodes.
-func (db *YDB) Retrieve(options ...RetrieveOption) (*YNode, error) {
+func convert(db *YDB, userStruct interface{}, op int, n *C.ynode) {
+	err := construct(userStruct, op, n, nil)
+	if err != nil {
+		db.Errors = append(db.Errors, err)
+	} else {
+		for cn := n.down(); cn != nil; cn = cn.next() {
+			convert(db, userStruct, op, cn)
+		}
+	}
+}
+
+// ConvertToYNode - returns data that consists of YNodes.
+func (db *YDB) ConvertToYNode(options ...ConvertOption) (*YNode, error) {
 	var node, parent *YNode
 	var opt retrieveOption
 	for _, o := range options {
 		o(&opt)
-	}
-	if opt.user != nil {
-		return nil, fmt.Errorf("ydb.RetrieveStruct is used only for Convert()")
 	}
 	db.RLock()
 	defer db.RUnlock()
@@ -668,31 +666,14 @@ func (db *YDB) Retrieve(options ...RetrieveOption) (*YNode, error) {
 	return node, nil
 }
 
-func convert(db *YDB, userStruct interface{}, op int, n *C.ynode) {
-	err := construct(userStruct, op, n, nil)
-	if err != nil {
-		db.Errors = append(db.Errors, err)
-	} else {
-		for cn := n.down(); cn != nil; cn = cn.next() {
-			convert(db, userStruct, op, cn)
-		}
-	}
-}
-
-// Convert - Convert the YDB data to the target struct.
-func (db *YDB) Convert(options ...RetrieveOption) (interface{}, error) {
-	var user interface{}
+// Convert - Convert the YDB data to the target struct or map[string]interface{}.
+func (db *YDB) Convert(target interface{}, options ...ConvertOption) error {
 	var opt retrieveOption
 	for _, o := range options {
 		o(&opt)
 	}
 	if opt.depth > 0 {
-		return nil, fmt.Errorf("RetrieveDepth not supported")
-	}
-	if opt.user == nil {
-		user = map[string]interface{}{}
-	} else {
-		user = opt.user
+		return fmt.Errorf("ConvertedDepth not supported")
 	}
 	if !opt.nolock {
 		db.RLock()
@@ -703,19 +684,18 @@ func (db *YDB) Convert(options ...RetrieveOption) (interface{}, error) {
 		for _, key := range opt.keys {
 			n = n.find(key)
 			if n == nil {
-				return nil, fmt.Errorf("Not found data (%s)", key)
+				return fmt.Errorf("Not found data (%s)", key)
 			}
 		}
 	}
-	// top := n
 	errCount := len(db.Errors)
 	for n := n.down(); n != nil; n = n.next() {
-		convert(db, user, 'c', n)
+		convert(db, target, 'c', n)
 	}
 	if len(db.Errors) > errCount {
-		return user, fmt.Errorf("Coversion failed in some struct")
+		return fmt.Errorf("Converting failed")
 	}
-	return user, nil
+	return nil
 }
 
 // Close the YDB instance
@@ -733,22 +713,24 @@ func (db *YDB) Close() {
 // name: The name of the creating YDB instance
 // top: The go structure instance synced with the YDB instance
 func Open(name string) (*YDB, func()) {
-	return OpenWithTargetStruct(name, nil)
+	return OpenWithSync(name, nil)
 }
 
-// OpenWithTargetStruct - Open an YDB instance with a target Go struct
-// name: The name of the creating YDB instance
-// top: The go structure instance synced with the YDB instance
-func OpenWithTargetStruct(name string, targetStruct interface{}) (*YDB, func()) {
+// OpenWithSync - Open an YDB instance within sync mode.
+//  - name: The name of the creating YDB instance
+//  - target: a go struct or map[string]interface{} synced with the YDB instance.
+// target must be used with (*YDB).Lock() and Unlock() operations to avoid
+// the critical section entrance.
+func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-	if targetStruct == nil {
-		targetStruct = &EmptyGoStruct{}
+	if target == nil {
+		target = &EmptyGoStruct{}
 	}
 	db := YDB{
 		Name:   name,
 		block:  C.ydb_open(cname),
-		Target: targetStruct,
+		Target: target,
 		syncCtrl: syncCtrl{
 			ToBeIgnored: make(map[string]syncInfo),
 		},
@@ -759,19 +741,17 @@ func OpenWithTargetStruct(name string, targetStruct interface{}) (*YDB, func()) 
 	}
 }
 
-// RelaceTargetStruct - replace the Target structure
-// Warning - If RelaceTargetStruct() is called without sync, the data inconsistency happens!!!
-func (db *YDB) RelaceTargetStruct(targetStruct interface{}, sync bool) error {
+// ReplaceTarget - replace the Target structure
+// Warning - If ReplaceTarget() is called without sync, the data inconsistency happens!
+func (db *YDB) ReplaceTarget(target interface{}, sync bool) error {
 	db.Lock()
 	defer db.Unlock()
 	if sync {
-		_, err := db.Convert(RetrieveAll(), RetrieveStruct(targetStruct),
-			retrieveWithoutLock())
-		if err != nil {
+		if err := db.Convert(target, convertingWithoutLock()); err != nil {
 			return err
 		}
 	}
-	db.Target = targetStruct
+	db.Target = target
 	return nil
 }
 
@@ -1005,7 +985,7 @@ func (db *YDB) ReadFrom(path string) string {
 	return vstr
 }
 
-// Timeout - Set the timeout of the YDB instance for sync.
+// Timeout - Sets the timeout of the YDB instance for sync.
 func (db *YDB) Timeout(msec int) error {
 	db.RLock()
 	defer db.RUnlock()

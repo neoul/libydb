@@ -41,8 +41,20 @@ func (u *userdata) UpdateDelete(path string) error {
 func main() {
 	// ydb.SetInternalLog(ydb.LogDebug)
 	ud := newTrie()
-	db, close := ydb.OpenWithTargetStruct("test", ud)
+	db, close := ydb.OpenWithSync("test", ud)
 	defer close()
+	// # YAML data
+	// system:
+	// 	fan:
+	// 	fan[1]:
+	// 		config_speed: 100
+	// 		current_speed: 100
+	// 	fan[2]:
+	// 		config_speed: 200
+	// 		current_speed: 200
+	// 	ram: 4G
+	// 	cpu: pentium
+	// 	mainboard: gigabyte
 	r, err := os.Open("../../../examples/yaml/ydb-input.yaml")
 	defer r.Close()
 	if err != nil {
@@ -51,6 +63,17 @@ func main() {
 	dec := db.NewDecoder(r)
 	dec.Decode()
 	// pretty.Println(ud)
+	for i, k := range ud.Keys() {
+		n, ok := ud.Find(k)
+		if ok {
+			pretty.Println(i, k, n.Meta())
+		} else {
+			pretty.Println(i, k)
+		}
+	}
+
+	// Remove fan[1]
+	db.DeleteFrom("/system/fan/fan[1]")
 	for i, k := range ud.Keys() {
 		n, ok := ud.Find(k)
 		if ok {
