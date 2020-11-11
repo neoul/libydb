@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/neoul/gostruct-dump/dump"
+	"github.com/neoul/gdump"
 	"github.com/neoul/libydb/go/demo/ygot/model/gostruct"
 	"github.com/neoul/libydb/go/ydb"
 )
@@ -23,7 +23,7 @@ func main() {
 	}
 	dec := db.NewDecoder(r)
 	dec.Decode()
-	dump.Print(gs)
+	gdump.Print(gs)
 	fmt.Println("")
 	fmt.Println(*gs.Country["United Kingdom"].Name, *gs.Country["United Kingdom"].CountryCode, *gs.Country["United Kingdom"].DialCode)
 	fmt.Println(*&gs.Company.Address, gs.Company.Enumval)

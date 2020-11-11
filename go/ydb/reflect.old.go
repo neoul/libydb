@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neoul/gostruct-dump/dump"
+	"github.com/neoul/gdump"
 )
 
 func typeString(t reflect.Type) string {
@@ -395,7 +395,7 @@ func setValueScalar(v reflect.Value, value interface{}) (reflect.Value, error) {
 					return dv, err
 				}
 				if dv.OverflowInt(val) {
-					return dv, fmt.Errorf("overflowInt: %s", dump.ValueDumpInline(val, 0, nil))
+					return dv, fmt.Errorf("overflowInt: %s", gdump.ValueDumpInline(val, 0, nil))
 				}
 				dv.SetInt(val)
 			}
@@ -409,7 +409,7 @@ func setValueScalar(v reflect.Value, value interface{}) (reflect.Value, error) {
 					return dv, err
 				}
 				if dv.OverflowUint(val) {
-					return dv, fmt.Errorf("OverflowUint: %s", dump.ValueDumpInline(val, 0, nil))
+					return dv, fmt.Errorf("OverflowUint: %s", gdump.ValueDumpInline(val, 0, nil))
 				}
 				dv.SetUint(val)
 			}
@@ -423,7 +423,7 @@ func setValueScalar(v reflect.Value, value interface{}) (reflect.Value, error) {
 					return dv, err
 				}
 				if dv.OverflowFloat(val) {
-					return dv, fmt.Errorf("OverflowFloat: %s", dump.ValueDumpInline(val, 0, nil))
+					return dv, fmt.Errorf("OverflowFloat: %s", gdump.ValueDumpInline(val, 0, nil))
 				}
 				dv.SetFloat(val)
 			}
@@ -505,7 +505,7 @@ func setValueScalar(v reflect.Value, value interface{}) (reflect.Value, error) {
 		dv.Set(sv.Convert(dt))
 		return dv, nil
 	}
-	return dv, fmt.Errorf("Not Convertible: %s", dump.ValueDumpInline(v.Interface(), 0, nil))
+	return dv, fmt.Errorf("Not Convertible: %s", gdump.ValueDumpInline(v.Interface(), 0, nil))
 }
 
 func checkStructFieldTagName(ft reflect.StructField, name string) bool {
@@ -775,7 +775,7 @@ func NewValue(t reflect.Type, values ...interface{}) reflect.Value {
 		for _, val := range values {
 			nv, err = setValueScalar(nv, val)
 			if err != nil {
-				log.Warningf("Not settable value inserted '%s'", dump.ValueDumpInline(val, 0, nil))
+				log.Warningf("Not settable value inserted '%s'", gdump.ValueDumpInline(val, 0, nil))
 			}
 		}
 		return nv
@@ -837,7 +837,7 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 			if v.Elem().CanSet() {
 				v.Elem().Set(nv.Elem())
 			} else {
-				log.Warning("Not settable value", dump.ValueDumpInline(v.Interface(), 1, nil))
+				log.Warning("Not settable value", gdump.ValueDumpInline(v.Interface(), 1, nil))
 			}
 		}
 		return nv
@@ -854,7 +854,7 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 		for _, val := range values {
 			nv, err = setValueScalar(nv, val)
 			if err != nil {
-				log.Warning("Not settable value:", dump.ValueDumpInline(v.Interface(), 0, nil))
+				log.Warning("Not settable value:", gdump.ValueDumpInline(v.Interface(), 0, nil))
 			}
 		}
 		return nv
@@ -1255,8 +1255,8 @@ func SetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string,
 			}
 		}
 	}
-	log.Debugf("Before pv: %s: %s", pv.Kind(), dump.ValueDumpInline(pv.Interface(), 1, nil))
-	log.Debugf("Before cv: %s: %s", cv.Kind(), dump.ValueDumpInline(cv.Interface(), 1, nil))
+	log.Debugf("Before pv: %s: %s", pv.Kind(), gdump.ValueDumpInline(pv.Interface(), 1, nil))
+	log.Debugf("Before cv: %s: %s", cv.Kind(), gdump.ValueDumpInline(cv.Interface(), 1, nil))
 
 	cv = GetNonInterfaceValueDeep(cv)
 	if IsYamlSeq(tag) {
@@ -1295,7 +1295,7 @@ func SetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string,
 	}
 
 	log.Debugf("After cv: %s", cv.Kind())
-	dump.ValueDump(cv.Interface(), 1, log.Debug)
+	gdump.ValueDump(cv.Interface(), 1, log.Debug)
 	return nil
 }
 
@@ -1356,8 +1356,8 @@ func UnsetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key strin
 		default: // scalar
 		}
 	}
-	log.Debugf("Before pv: %s: %s", pv.Kind(), dump.ValueDumpInline(pv.Interface(), 1, nil))
-	log.Debugf("Before cv: %s: %s", cv.Kind(), dump.ValueDumpInline(cv.Interface(), 1, nil))
+	log.Debugf("Before pv: %s: %s", pv.Kind(), gdump.ValueDumpInline(pv.Interface(), 1, nil))
+	log.Debugf("Before cv: %s: %s", cv.Kind(), gdump.ValueDumpInline(cv.Interface(), 1, nil))
 
 	var err error
 	cv = GetNonInterfaceValueDeep(cv)
@@ -1366,6 +1366,6 @@ func UnsetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key strin
 	}
 
 	log.Debugf("After cv: %s", cv.Kind())
-	dump.ValueDump(cv.Interface(), 1, log.Debug)
+	gdump.ValueDump(cv.Interface(), 1, log.Debug)
 	return err
 }
