@@ -140,9 +140,9 @@ type Updater interface {
     Delete(keys []string, key string) error
 }
 
-// UpdaterStartEnd indicates the start and end of the data update.
+// UpdateStartEnd indicates the start and end of the data update.
 // They will be called before or after the Updater (Create, Replace and Delete) execution.
-type UpdaterStartEnd interface {
+type UpdateStartEnd interface {
     UpdateStart()
     UpdateEnd()
 }

@@ -719,8 +719,7 @@ func Open(name string) (*YDB, func()) {
 // OpenWithSync - Open an YDB instance within sync mode.
 //  - name: The name of the creating YDB instance
 //  - target: a go struct or map[string]interface{} synced with the YDB instance.
-// target must be used with (*YDB).Lock() and Unlock() operations to avoid
-// the critical section entrance.
+// The user must lock and hold to handle the data block using (*YDB).Lock(), Unlock()
 func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
@@ -741,12 +740,12 @@ func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 	}
 }
 
-// ReplaceTarget - replace the Target structure
-// Warning - If ReplaceTarget() is called without sync, the data inconsistency happens!
-func (db *YDB) ReplaceTarget(target interface{}, sync bool) error {
+// SetTarget - replace the Target structure
+// Warning - If SetTarget() is called without sync, the data inconsistency happens!
+func (db *YDB) SetTarget(target interface{}, sync bool) error {
 	db.Lock()
 	defer db.Unlock()
-	if sync {
+	if sync && target != nil {
 		if err := db.Convert(target, convertingWithoutLock()); err != nil {
 			return err
 		}
