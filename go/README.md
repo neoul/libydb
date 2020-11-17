@@ -127,31 +127,24 @@ system:
 
 The default YDB data update operation (Default YDB Updater) can be customized and optimized by using `Updater` or `DataUpdate` interfaces defined in the `YDB Go Interface`. These two interfaces have the same operational meaning, but have the different function names and arguments.
 
-- **`Updater`** (`Updater`, `UpdaterStartEnd`, `SyncUpdater`)
-- **`DataUpdate`** (`DataUpdate`, `UpdaterStartEnd`, `DataSync`)
+- **`Updater`** (`Updater`, `UpdaterStartEnd`)
+- **`DataUpdate`** (`DataUpdate`, `DataUpdateStartEnd`)
 
 ### Updater interface
 
 ```go
-// Updater interface to handle a Go struct defined by user
+// Updater - An interface to handle a Go struct defined by user
 type Updater interface {
     Create(keys []string, key string, tag string, value string) error
     Replace(keys []string, key string, tag string, value string) error
     Delete(keys []string, key string) error
 }
 
-// UpdateStartEnd indicates the start and end of the data update.
+// UpdaterStartEnd indicates the start and end of the data update.
 // They will be called before or after the Updater (Create, Replace and Delete) execution.
-type UpdateStartEnd interface {
+type UpdaterStartEnd interface {
     UpdateStart()
     UpdateEnd()
-}
-
-// SyncUpdater - Interface to update the target (pointed by the keys and key) data node on which a request signaled.
-type SyncUpdater interface {
-    // SyncUpdate is a callback for target data node synchronization.
-    // It must return YAML bytes to be updated.
-    SyncUpdate(keys []string, key string) []byte
 }
 ```
 
@@ -165,15 +158,10 @@ type DataUpdate interface {
     UpdateDelete(path string) error
 }
 
-// UpdateStartEnd indicates the start and end of the data update.
+// DataUpdateStartEnd indicates the start and end of the data update.
 // They will be called before or after the DataUpdate (Create, Replace and Delete) execution.
-type UpdateStartEnd interface {
+type DataUpdateStartEnd interface {
     UpdaterStartEnd
-}
-
-// DataSync (= SyncUpdater)
-type DataSync interface {
-    UpdateSync(path string) error
 }
 ```
 
@@ -255,6 +243,8 @@ func main() {
 }
 
 ```
+
+## 
 
 ## Remote data update
 

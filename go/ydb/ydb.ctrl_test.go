@@ -235,7 +235,7 @@ list:
 
 type syncToTestStruct map[string]interface{}
 
-func (s *syncToTestStruct) SyncUpdate(keys []string, key string) []byte {
+func (s *syncToTestStruct) SyncResponse(keys []string, key string) []byte {
 	fmt.Println(keys, key)
 	b := `
 hello:
@@ -263,8 +263,8 @@ list:
   - entry 한글
 `
 	db.Write([]byte(b))
-	db.AddSyncUpdatePath("/hello/ydb")
-	db.AddSyncUpdatePath("/good/ydb")
+	db.AddSyncResponse("/hello/ydb")
+	db.AddSyncResponse("/good/ydb")
 	type args struct {
 		syncIgnoredTime time.Duration
 		prefixSearching bool
@@ -276,7 +276,7 @@ list:
 		wantErr bool
 	}{
 		{
-			name: "SyncUpdate",
+			name: "SyncResponse",
 			args: args{
 				syncIgnoredTime: time.Second * 1,
 				prefixSearching: false,
@@ -294,6 +294,6 @@ list:
 	}
 	fmt.Println(string(db.Read([]byte(""))))
 	time.Sleep(time.Second * 2)
-	db.DeleteSyncUpdatePath("/hello/ydb")
-	db.DeleteSyncUpdatePath("/good/ydb")
+	db.DelSyncResponse("/hello/ydb")
+	db.DelSyncResponse("/good/ydb")
 }

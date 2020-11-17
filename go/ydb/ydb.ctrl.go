@@ -589,7 +589,7 @@ func updateStartEnd(ygo unsafe.Pointer, started C.int) {
 func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 	var db *YDB = (*YDB)(ygo)
 	if db.Target != nil {
-		SyncUpdate, ok := db.Target.(SyncUpdater)
+		SyncResponse, ok := db.Target.(UpdaterSyncResponse)
 		if ok {
 			var b []byte
 			keylist, err := ToSliceKeys(C.GoString(path))
@@ -597,9 +597,9 @@ func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 				return
 			}
 			if klen := len(keylist); klen > 0 {
-				b = SyncUpdate.SyncUpdate(keylist[:klen-1], keylist[klen-1])
+				b = SyncResponse.SyncResponse(keylist[:klen-1], keylist[klen-1])
 			} else {
-				b = SyncUpdate.SyncUpdate(nil, "")
+				b = SyncResponse.SyncResponse(nil, "")
 			}
 			blen := len(b)
 			if blen > 0 {
@@ -995,8 +995,8 @@ func (db *YDB) Timeout(msec int) error {
 	return nil
 }
 
-// AddSyncUpdatePath - registers SyncUpdater
-func (db *YDB) AddSyncUpdatePath(path string) error {
+// AddSyncResponse - registers UpdaterSyncResponse
+func (db *YDB) AddSyncResponse(path string) error {
 	db.Lock()
 	defer db.Unlock()
 	var pp unsafe.Pointer
@@ -1011,8 +1011,8 @@ func (db *YDB) AddSyncUpdatePath(path string) error {
 	return nil
 }
 
-// DeleteSyncUpdatePath - registers SyncUpdater
-func (db *YDB) DeleteSyncUpdatePath(path string) {
+// DelSyncResponse - registers UpdaterSyncResponse
+func (db *YDB) DelSyncResponse(path string) {
 	db.Lock()
 	defer db.Unlock()
 	var pp unsafe.Pointer
@@ -1340,8 +1340,9 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 	return nil
 }
 
-func (db *YDB) UpdateSync(path string) error {
-	return db.SyncTo(time.Second*3, true, path)
+// UpdateSync requests the update to remote YDB instances in order to refresh the data nodes.
+func (db *YDB) UpdateSync(path ...string) error {
+	return db.SyncTo(time.Second*3, true, path...)
 }
 
 //export ylogGo
