@@ -89,10 +89,8 @@ func (db *YDB) UpdateDelete(path string) error {
 
 // UpdateStart function of the DataUpdateStartEnd interface for *YDB
 func (db *YDB) UpdateStart() {
-	db.UpdateStart()
 }
 
 // UpdateEnd function of the DataUpdateStartEnd interface for *YDB
 func (db *YDB) UpdateEnd() {
-	db.UpdateEnd()
 }
