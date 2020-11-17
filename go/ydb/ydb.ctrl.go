@@ -617,7 +617,7 @@ func SetInternalLog(loglevel uint) {
 // YDB (YAML YNode type) to indicate an YDB instance
 type YDB struct {
 	block *C.ydb
-	sync.RWMutex
+	*sync.RWMutex
 	fd     int
 	Name   string
 	Target interface{}
@@ -727,9 +727,10 @@ func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 		target = &EmptyGoStruct{}
 	}
 	db := YDB{
-		Name:   name,
-		block:  C.ydb_open(cname),
-		Target: target,
+		Name:    name,
+		RWMutex: new(sync.RWMutex),
+		block:   C.ydb_open(cname),
+		Target:  target,
 		syncCtrl: syncCtrl{
 			ToBeIgnored: make(map[string]syncInfo),
 		},
