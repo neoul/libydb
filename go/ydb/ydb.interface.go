@@ -71,3 +71,28 @@ type DataUpdate interface {
 type DataUpdateStartEnd interface {
 	UpdaterStartEnd
 }
+
+// UpdateCreate function of the DataUpdate interface for *YDB
+func (db *YDB) UpdateCreate(path string, value string) error {
+	return db.WriteTo(path, value)
+}
+
+// UpdateReplace function of the DataUpdate interface for *YDB
+func (db *YDB) UpdateReplace(path string, value string) error {
+	return db.WriteTo(path, value)
+}
+
+// UpdateDelete function of the DataUpdate interface for *YDB
+func (db *YDB) UpdateDelete(path string) error {
+	return db.DeleteFrom(path)
+}
+
+// UpdateStart function of the DataUpdateStartEnd interface for *YDB
+func (db *YDB) UpdateStart() {
+	db.UpdateStart()
+}
+
+// UpdateEnd function of the DataUpdateStartEnd interface for *YDB
+func (db *YDB) UpdateEnd() {
+	db.UpdateEnd()
+}
