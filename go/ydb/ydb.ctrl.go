@@ -394,56 +394,31 @@ func convertingWithoutLock() ConvertOption {
 }
 
 // getUpdater from v to call the custom Updater interface.
-func getUpdater(v reflect.Value, keys []string) (Updater, DataUpdate, []string) {
-	var updater Updater = nil
-	var dataUpdate DataUpdate = nil
+func getUpdater(target interface{}, keys []string) (interface{}, []string) {
+	var newtarget interface{}
 	var newkey []string = keys
-	if v.Type().NumMethod() > 0 && v.CanInterface() {
-		if u, ok := v.Interface().(Updater); ok {
-			updater = u
-		} else if u, ok := v.Interface().(DataUpdate); ok {
-			dataUpdate = u
-		}
+	if target == nil {
+		return nil, keys
 	}
+	v := reflect.ValueOf(target)
 	for i, key := range keys {
 		var ok bool
 		v, ok = ValFind(v, key, NoSearch)
 		if !ok {
-			return updater, dataUpdate, newkey
+			return target, newkey
 		}
 		if v.Type().NumMethod() > 0 && v.CanInterface() {
 			switch u := v.Interface().(type) {
 			case Updater:
-				updater = u
-				dataUpdate = nil
+				newtarget = u
 				newkey = keys[i+1:]
 			case DataUpdate:
-				updater = nil
-				dataUpdate = u
+				newtarget = u
 				newkey = keys[i+1:]
 			}
 		}
 	}
-
-	// if len(keys) > 0 {
-	// 	fv := FindValue(v, keys...)
-	// 	if !fv.IsValid() {
-	// 		return updater, dataUpdate, newkey
-	// 	}
-	// 	v = fv
-	// 	if v.Type().NumMethod() > 0 && v.CanInterface() {
-	// 		if u, ok := v.Interface().(Updater); ok {
-	// 			updater = u
-	// 			dataUpdate = nil
-	// 			newkey = []string{}
-	// 		} else if u, ok := v.Interface().(DataUpdate); ok {
-	// 			updater = nil
-	// 			dataUpdate = u
-	// 			newkey = []string{}
-	// 		}
-	// 	}
-	// }
-	return updater, dataUpdate, newkey
+	return newtarget, newkey
 }
 
 func yCreate(v reflect.Value, keys []string, key string, tag string, value string) error {
@@ -502,43 +477,37 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 		return nil
 	}
 	v := reflect.ValueOf(target)
-	updater, dataUpdate, newkeys := getUpdater(v, keys)
-	if updater != nil {
-		var err error = nil
+	newtarget, newkeys := getUpdater(target, keys)
+
+	var err error = nil
+	switch u := newtarget.(type) {
+	case Updater:
 		switch op {
 		case 'c':
-			err = updater.Create(newkeys, n.key(), n.tag(), n.value())
+			err = u.Create(newkeys, n.key(), n.tag(), n.value())
 		case 'r':
-			err = updater.Replace(newkeys, n.key(), n.tag(), n.value())
+			err = u.Replace(newkeys, n.key(), n.tag(), n.value())
 		case 'd':
-			err = updater.Delete(newkeys, n.key())
+			err = u.Delete(newkeys, n.key())
 		default:
 			err = fmt.Errorf("unknown op")
 		}
-		if err != nil {
-			return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), err)
-		}
-	} else if dataUpdate != nil {
-		var err error = nil
+	case DataUpdate:
 		path := fmt.Sprintf("%s/%s", strings.Join(newkeys, "/"), n.key())
 		if !strings.HasPrefix(path, "/") {
 			path = "/" + path
 		}
 		switch op {
 		case 'c':
-			err = dataUpdate.UpdateCreate(path, n.value())
+			err = u.UpdateCreate(path, n.value())
 		case 'r':
-			err = dataUpdate.UpdateReplace(path, n.value())
+			err = u.UpdateReplace(path, n.value())
 		case 'd':
-			err = dataUpdate.UpdateDelete(path)
+			err = u.UpdateDelete(path)
 		default:
 			err = fmt.Errorf("unknown op")
 		}
-		if err != nil {
-			return fmt.Errorf("%c %s, %s: %s", op, path, n.value(), err)
-		}
-	} else {
-		var err error = nil
+	default:
 		switch op {
 		case 'c':
 			err = yCreate(v, keys, n.key(), n.tag(), n.value())
@@ -549,9 +518,9 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 		default:
 			err = fmt.Errorf("unknown op")
 		}
-		if err != nil {
-			return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), err)
-		}
+	}
+	if err != nil {
+		return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), err)
 	}
 	return nil
 }
