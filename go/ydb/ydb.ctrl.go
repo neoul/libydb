@@ -395,7 +395,7 @@ func convertingWithoutLock() ConvertOption {
 
 // getUpdater from v to call the custom Updater interface.
 func getUpdater(target interface{}, keys []string) (interface{}, []string) {
-	var newtarget interface{}
+	var newtarget interface{} = target
 	var newkey []string = keys
 	if target == nil {
 		return nil, keys
