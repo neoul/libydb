@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/kr/pretty"
+	"github.com/neoul/gdump"
 	"github.com/neoul/libydb/go/ydb"
 	"github.com/neoul/trie"
 )
@@ -36,6 +37,12 @@ func (u *userdata) UpdateDelete(path string) error {
 	for _, p := range keys {
 		u.Remove(p)
 	}
+	return nil
+}
+
+func (u *userdata) FuzzyFind(path string) error {
+	keys := u.FuzzySearch(path)
+	gdump.Print(keys)
 	return nil
 }
 
@@ -72,7 +79,7 @@ func main() {
 			pretty.Println(i, k)
 		}
 	}
-
+	ud.FuzzyFind("/system/fan/fan[2")
 	// Remove fan[1]
 	db.DeleteFrom("/system/fan/fan[1]")
 

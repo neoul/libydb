@@ -143,8 +143,8 @@ type Updater interface {
 // UpdaterStartEnd indicates the start and end of the data update.
 // They will be called before or after the Updater (Create, Replace and Delete) execution.
 type UpdaterStartEnd interface {
-    UpdateStart()
-    UpdateEnd()
+    UpdateStart() error
+    UpdateEnd() error
 }
 ```
 

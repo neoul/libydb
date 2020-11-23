@@ -10,8 +10,8 @@ type Updater interface {
 // UpdaterStartEnd indicates the start and end of the data update.
 // They will be called before or after the Updater (Create, Replace and Delete) execution.
 type UpdaterStartEnd interface {
-	UpdateStart()
-	UpdateEnd()
+	UpdateStart() error
+	UpdateEnd() error
 }
 
 // UpdaterSyncResponse - An interface to update the target
@@ -44,13 +44,15 @@ func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
 }
 
 // UpdateStart - indicates the start of the YDB update. It will be called ahead of Updater interface
-func (emptyStruct *EmptyGoStruct) UpdateStart() {
+func (emptyStruct *EmptyGoStruct) UpdateStart() error {
 	log.Debugf("emptyStruct.UpdateStart")
+	return nil
 }
 
 // UpdateEnd - indicates the end of the YDB update. It will be called after Updater interface
-func (emptyStruct *EmptyGoStruct) UpdateEnd() {
+func (emptyStruct *EmptyGoStruct) UpdateEnd() error {
 	log.Debugf("emptyStruct.UpdateEnd")
+	return nil
 }
 
 // SyncResponse - Interface to update the target (pointed by the keys and key) data node upon sync request.
@@ -88,9 +90,11 @@ func (db *YDB) UpdateDelete(path string) error {
 }
 
 // UpdateStart function of the DataUpdateStartEnd interface for *YDB
-func (db *YDB) UpdateStart() {
+func (db *YDB) UpdateStart() error {
+	return nil
 }
 
 // UpdateEnd function of the DataUpdateStartEnd interface for *YDB
-func (db *YDB) UpdateEnd() {
+func (db *YDB) UpdateEnd() error {
+	return nil
 }
