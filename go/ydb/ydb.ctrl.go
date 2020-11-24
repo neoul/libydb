@@ -130,13 +130,10 @@ static ydb_res ydb_sync_wrapper(ydb *datablock, void *input_yaml)
 	return res;
 }
 
-static ydb_res ydb_path_write_wrapper(ydb *datablock, void *path, void *data)
+static ydb_res ydb_path_write_wrapper(ydb *datablock, void *path)
 {
 	if (path) {
-		if (data)
-			return ydb_path_write(datablock, "%s=%s", path, data);
-		else
-			return ydb_path_write(datablock, "%s=%s", path, "");
+		return ydb_path_write(datablock, "%s", path);
 	}
 	return YDB_OK;
 }
@@ -905,16 +902,13 @@ func (db *YDB) sync(yaml []byte) error {
 func (db *YDB) WriteTo(path string, value string) error {
 	db.Lock()
 	defer db.Unlock()
-	var pp, pv unsafe.Pointer
-	if path != "" {
-		pbyte := []byte(path)
-		pp = unsafe.Pointer(&pbyte[0])
-	}
-	if value != "" {
-		vbyte := []byte(value)
+	pathvalue := fmt.Sprintf("%s=%s", path, value)
+	var pv unsafe.Pointer
+	if pathvalue != "" {
+		vbyte := []byte(pathvalue)
 		pv = unsafe.Pointer(&vbyte[0])
 	}
-	res := C.ydb_path_write_wrapper(db.block, pp, pv)
+	res := C.ydb_path_write_wrapper(db.block, pv)
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
