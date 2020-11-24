@@ -351,7 +351,7 @@ struct _ydb
 #endif
 };
 
-inline void lock(struct _ydb *datablock)
+static void lock(struct _ydb *datablock)
 {
 #ifdef PTHREAD_LOCK
     if (datablock)
@@ -364,7 +364,7 @@ inline void lock(struct _ydb *datablock)
 #endif
 }
 
-inline void unlock(struct _ydb *datablock)
+static void unlock(struct _ydb *datablock)
 {
 #ifdef PTHREAD_LOCK
     if (datablock)
