@@ -71,7 +71,7 @@ static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, void *path)
 	{
 		int n;
 		if (path)
-			n = ydb_path_fprintf(fp, datablock, "%s", path);
+			n = ydb_path_fprintf(fp, datablock, path);
 		else
 			n = ydb_path_fprintf(fp, datablock, "/");
 		fclose(fp);
@@ -93,7 +93,7 @@ static bufinfo ydb_fprintf_wrapper(ydb *datablock, void *input_yaml)
 	{
 		int n;
 		if (input_yaml)
-			n = ydb_fprintf(fp, datablock, "%s", input_yaml);
+			n = ydb_fprintf(fp, datablock, input_yaml);
 		else
 			n = ydb_path_fprintf(fp, datablock, "/");
 		fclose(fp);
@@ -118,7 +118,7 @@ static ydb_res ydb_delete_wrapper(ydb *datablock, void *input_yaml)
 {
 	ydb_res res = YDB_OK;
 	if (input_yaml)
-		res = ydb_delete(datablock, "%s", input_yaml);
+		res = ydb_delete(datablock, input_yaml);
 	return res;
 }
 
@@ -126,14 +126,14 @@ static ydb_res ydb_sync_wrapper(ydb *datablock, void *input_yaml)
 {
 	ydb_res res = YDB_OK;
 	if (input_yaml)
-		res = ydb_sync(datablock, "%s", input_yaml);
+		res = ydb_sync(datablock, input_yaml);
 	return res;
 }
 
 static ydb_res ydb_path_write_wrapper(ydb *datablock, void *path)
 {
 	if (path) {
-		return ydb_path_write(datablock, "%s", path);
+		return ydb_path_write(datablock, path);
 	}
 	return YDB_OK;
 }
@@ -141,21 +141,21 @@ static ydb_res ydb_path_write_wrapper(ydb *datablock, void *path)
 static ydb_res ydb_path_delete_wrapper(ydb *datablock, void *path)
 {
 	if (path)
-		return ydb_path_delete(datablock, "%s", path);
+		return ydb_path_delete(datablock, path);
 	return YDB_OK;
 }
 
 static char *ydb_path_read_wrapper(ydb *datablock, void *path)
 {
 	if (path)
-		return (char *) ydb_path_read(datablock, "%s", path);
+		return (char *) ydb_path_read(datablock, path);
 	return NULL;
 }
 
 static ydb_res ydb_path_sync_wrapper(ydb *datablock, void *path)
 {
 	if (path)
-		return ydb_path_sync(datablock, "%s", path);
+		return ydb_path_sync(datablock, path);
 	return YDB_OK;
 }
 
@@ -701,6 +701,7 @@ func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 			ToBeIgnored: make(map[string]syncInfo),
 		},
 	}
+	C.ydb_disable_variable_arguments(db.block)
 	C.ydb_write_hook_register(db.block, unsafe.Pointer(&db.block))
 	return &db, func() {
 		db.Close()

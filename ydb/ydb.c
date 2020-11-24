@@ -343,6 +343,7 @@ struct _ydb
     int epollfd;      // EPOLL for YDB IPC
     int synccount;    // The number of connections (needs sync)
     int timeout;      // timeout for ydb_sync, ydb_path_sync
+    bool no_var_args; // disables C variable arguments formatting for golang
 #ifdef PTHREAD_LOCK
     pthread_mutex_t lock;
     pthread_t lock_id;
@@ -350,7 +351,7 @@ struct _ydb
 #endif
 };
 
-static inline void lock(struct _ydb *datablock)
+inline void lock(struct _ydb *datablock)
 {
 #ifdef PTHREAD_LOCK
     if (datablock)
@@ -363,7 +364,7 @@ static inline void lock(struct _ydb *datablock)
 #endif
 }
 
-static inline void unlock(struct _ydb *datablock)
+inline void unlock(struct _ydb *datablock)
 {
 #ifdef PTHREAD_LOCK
     if (datablock)
@@ -871,6 +872,25 @@ failed:
     return NULL;
 }
 
+// disable variable arguments of the ydb instance for golang
+void ydb_disable_variable_arguments(ydb *datablock)
+{
+    if (datablock)
+    {
+        datablock->no_var_args = true;
+    }
+}
+
+static size_t formatting(bool no_var_args, FILE *fp, const char *format, va_list args)
+{
+    if (no_var_args) {
+        size_t len = strlen(format);
+        return fwrite(format, len, 1, fp);
+    } else {
+        return vfprintf(fp, format, args);
+    }
+}
+
 // ydb_connect --
 // Create or connect to YDB IPC (Inter Process Communication) channel
 //  - address: YDB communication channel address.
@@ -1159,7 +1179,7 @@ ynode *ydb_search(ydb *datablock, const char *format, ...)
     {
         va_list args;
         va_start(args, format);
-        vfprintf(fp, format, args);
+        formatting(datablock->no_var_args, fp, format, args);
         va_end(args);
         fclose(fp);
     }
@@ -1255,7 +1275,7 @@ ynode *ydb_find(ynode *base, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(false, fp, format, args);
     va_end(args);
     fclose(fp);
 
@@ -1518,7 +1538,7 @@ ydb_res ydb_write(ydb *datablock, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
 
@@ -1569,7 +1589,7 @@ ydb_res ydb_whisper_merge(ydb *datablock, char *path, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, (const char *)format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
 
@@ -1605,7 +1625,7 @@ ydb_res ydb_whisper_delete(ydb *datablock, char *path, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, (const char *)format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
 
@@ -1650,7 +1670,7 @@ ydb_res ydb_delete(ydb *datablock, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
 
@@ -2178,7 +2198,7 @@ int ydb_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
     lock(datablock);
@@ -2237,7 +2257,7 @@ ydb_res ydb_path_write(ydb *datablock, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
 
@@ -2281,7 +2301,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
 
@@ -2335,7 +2355,7 @@ const char *ydb_path_read(ydb *datablock, const char *format, ...)
     {
         va_list args;
         va_start(args, format);
-        vfprintf(fp, format, args);
+        formatting(datablock->no_var_args, fp, format, args);
         va_end(args);
         fclose(fp);
 
@@ -2386,7 +2406,7 @@ int ydb_path_fprintf(FILE *stream, ydb *datablock, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
 
@@ -4625,7 +4645,7 @@ ydb_res ydb_sync(ydb *datablock, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
     lock(datablock);
@@ -4668,7 +4688,7 @@ ydb_res ydb_path_sync(ydb *datablock, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    formatting(datablock->no_var_args, fp, format, args);
     va_end(args);
     fclose(fp);
 

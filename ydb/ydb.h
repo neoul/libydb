@@ -257,7 +257,7 @@ int ydb_dump_debug(ydb *datablock, FILE *stream);
 
 // ydb_add --
 // Add data to YDB using YAML input string 
-// (that shod be terminated with null as a string)
+// (that should be terminated with null as a string)
 ydb_res ydb_add(ydb *datablock, char *string);
 
 // ydb_rm --
@@ -380,6 +380,8 @@ typedef ydb_res (*ydb_traverse_callback4)(ydb *datablock, ynode *cur, void *U1, 
 typedef ydb_traverse_callback1 ydb_traverse_callback;
 ydb_res ydb_traverse(ydb *datablock, ynode *cur, ydb_traverse_callback func, char *flags, int num, ...);
 
+// disable variable arguments of the ydb instance for golang
+void ydb_disable_variable_arguments(ydb *datablock);
 
 #ifdef __cplusplus
 } // closing brace for extern "C"
