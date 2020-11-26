@@ -675,11 +675,17 @@ func (db *YDB) Close() {
 	}
 }
 
-// Open an YDB instance with a name
+// Open an YDB instance with the name
 // name: The name of the creating YDB instance
-// top: The go structure instance synced with the YDB instance
 func Open(name string) (*YDB, func()) {
 	return OpenWithSync(name, nil)
+}
+
+// New creates an YDB instance with the name
+// name: The name of the creating YDB instance
+func New(name string) *YDB {
+	db, _ := OpenWithSync(name, nil)
+	return db
 }
 
 // OpenWithSync - Open an YDB instance within sync mode.
