@@ -1311,11 +1311,6 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 	return nil
 }
 
-// UpdateSync requests the update to remote YDB instances in order to refresh the data nodes.
-func (db *YDB) UpdateSync(path ...string) error {
-	return db.SyncTo(time.Second*3, true, path...)
-}
-
 //export ylogGo
 // ylogGo - Logging function for YDB native logging facility.
 func ylogGo(level C.int, f *C.char, line C.int, buf *C.char, buflen C.int) {
