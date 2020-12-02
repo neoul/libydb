@@ -110,6 +110,7 @@ char *ydb_res_str(ydb_res res)
         YDB_ERR_STRING(YDB_OK, "ok")
         YDB_ERR_STRING(YDB_W_TIMEOUT, "warning - request timeout")
         YDB_ERR_STRING(YDB_W_MORE_RECV, "warning - need to receive more")
+        YDB_ERR_STRING(YDB_W_NON_EXISTENT_DATA, "warning - non-existent data")
         YDB_ERR_STRING(YDB_W_DISCONN, "warning - disconnected")
         YDB_ERR_STRING(YDB_ERROR, "error")
         YDB_ERR_STRING(YDB_E_TIMER, "timer ctrl error")
@@ -128,7 +129,6 @@ char *ydb_res_str(ydb_res res)
         YDB_ERR_STRING(YDB_E_YAML_INIT_FAILED, "yaml library failed")
         YDB_ERR_STRING(YDB_E_YAML_PARSING_FAILED, "yaml parsing failed")
         YDB_ERR_STRING(YDB_E_MERGE_FAILED, "merge failed")
-        YDB_ERR_STRING(YDB_E_DELETE_FAILED, "delete failed")
         YDB_ERR_STRING(YDB_E_INVALID_MSG, "invalid message format")
         YDB_ERR_STRING(YDB_E_ENTRY_EXISTS, "entry exists")
         YDB_ERR_STRING(YDB_E_NO_CONN, "no connection exists")
@@ -2328,7 +2328,7 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
             free(rbuf);
         }
     }
-    YDB_FAIL(!target, YDB_E_DELETE_FAILED);
+    YDB_FAIL(!target, YDB_W_NON_EXISTENT_DATA);
 failed:
     unlock(datablock);
     CLEAR_BUF(buf, buflen);
