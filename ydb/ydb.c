@@ -66,24 +66,27 @@ extern ylog_func ylog_logger;
         }                                                                    \
     } while (0)
 
-#define YDB_FAIL(state, caused_res)                                              \
-    do                                                                           \
-    {                                                                            \
-        if (state)                                                               \
-        {                                                                        \
-            res = caused_res;                                                    \
-            if (ylog_level >= (YLOG_ERROR))                                      \
-            {                                                                    \
-                ylog_logger(YLOG_ERROR, __func__, __LINE__,                      \
-                            "ydb[%s] '%s': %s %s%s%s\n",                         \
-                            datablock ? datablock->name : "...",                 \
-                            #state, ydb_res_str(res),                            \
-                            (res == YDB_E_SYSTEM_FAILED) ? ":" : "",             \
-                            (res == YDB_E_SYSTEM_FAILED) ? strerror(errno) : "", \
-                            (res == YDB_E_SYSTEM_FAILED) ? ":" : "");            \
-            }                                                                    \
-            goto failed;                                                         \
-        }                                                                        \
+#define YDB_FAIL(state, caused_res)                                                  \
+    do                                                                               \
+    {                                                                                \
+        if (state)                                                                   \
+        {                                                                            \
+            res = caused_res;                                                        \
+            if (ylog_level >= (YLOG_ERROR))                                          \
+            {                                                                        \
+                if (YDB_FAILED(res))                                                 \
+                {                                                                    \
+                    ylog_logger(YLOG_ERROR, __func__, __LINE__,                      \
+                                "ydb[%s] '%s': %s %s%s%s\n",                         \
+                                datablock ? datablock->name : "...",                 \
+                                #state, ydb_res_str(res),                            \
+                                (res == YDB_E_SYSTEM_FAILED) ? ":" : "",             \
+                                (res == YDB_E_SYSTEM_FAILED) ? strerror(errno) : "", \
+                                (res == YDB_E_SYSTEM_FAILED) ? ":" : "");            \
+                }                                                                    \
+            }                                                                        \
+            goto failed;                                                             \
+        }                                                                            \
     } while (0)
 
 #define SET_FLAG(flag, v) ((flag) = ((flag) | (v)))
