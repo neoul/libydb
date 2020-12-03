@@ -252,6 +252,8 @@ func TestYDB_SyncTo(t *testing.T) {
 	db, dbclose := OpenWithSync("TestYDB_SyncTo", &syncToTestStruct{})
 	defer dbclose()
 	// SetInternalLog(LogDebug)
+	// SetLogLevel(logrus.DebugLevel)
+
 	b := `
 hello:
   ydb: yaml data block
@@ -284,10 +286,19 @@ list:
 			},
 			wantErr: false,
 		},
+		{
+			name: "SyncResponse",
+			args: args{
+				syncIgnoredTime: 0,
+				prefixSearching: false,
+				paths:           []string{"/hello/new", "/good/old"},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := db.SyncTo(tt.args.syncIgnoredTime, tt.args.prefixSearching, tt.args.paths...); (err != nil) != tt.wantErr {
+			if err := db.EnhansedSyncTo(tt.args.syncIgnoredTime, tt.args.prefixSearching, tt.args.paths...); (err != nil) != tt.wantErr {
 				t.Errorf("YDB.SyncTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

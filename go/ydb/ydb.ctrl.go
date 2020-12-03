@@ -905,6 +905,48 @@ func (db *YDB) sync(yaml []byte) error {
 	return nil
 }
 
+// Sync - request the update of the YDB instance and return the updated data
+//  foo:          >>   foo:
+//   bar:               bar: "hello yaml"
+func (db *YDB) Sync(yaml []byte) ([]byte, error) {
+	var cptr C.bufinfo
+	db.Lock()
+	defer db.Unlock()
+	err := db.sync(yaml)
+	if err != nil {
+		return nil, err
+	}
+	if len(yaml) == 0 {
+		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(nil))
+	} else {
+		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	}
+	if cptr.buf != nil {
+		defer C.free(unsafe.Pointer(cptr.buf))
+		byt := C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen)
+		return byt, nil
+	}
+	return nil, nil
+}
+
+// SyncTo - request the update of the YDB instance
+//  foo:          >>   foo:
+//   bar:               bar: "hello yaml"
+func (db *YDB) SyncTo(path string) error {
+	db.Lock()
+	defer db.Unlock()
+	var pp unsafe.Pointer
+	if path != "" {
+		pbyte := []byte(path)
+		pp = unsafe.Pointer(&pbyte[0])
+	}
+	res := C.ydb_path_sync_wrapper(db.block, pp)
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
 // WriteTo - writes the value string to the target path in the YDB instance
 func (db *YDB) WriteTo(path string, value string) error {
 	db.Lock()
@@ -1246,15 +1288,15 @@ type syncCtrl struct {
 	syncSequence uint
 }
 
-// SyncTo - request the update to remote YDB instances to refresh the data nodes.
-func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths ...string) error {
+// EnhansedSyncTo - request the update to remote YDB instances to refresh the data nodes.
+func (db *YDB) EnhansedSyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths ...string) error {
 	// retrieve the path ==> YNode list matched to the path
 	// Check syncIgnoreTimer is running
 	// Check the list of the previous sync requests.
 	// send sync and update data from the remote YDB.
 	// Store the path of the Ynode list.
 	// Running syncIgnoreTimer
-
+	var err error
 	db.Lock()
 	defer db.Unlock()
 	db.syncCtrl.syncSequence++
@@ -1278,11 +1320,13 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 	var syncTriggered bool
 	var bb bytes.Buffer
 	for _, node := range nodelist {
-		path := node.getpath(db)
-		if _, ok := db.syncCtrl.ToBeIgnored[path]; ok {
-			continue
+		if syncIgnoredTime > 0 {
+			path := node.getpath(db)
+			if _, ok := db.syncCtrl.ToBeIgnored[path]; ok {
+				continue
+			}
+			db.syncCtrl.ToBeIgnored[path] = syncInfo{syncSequence: sequence}
 		}
-		db.syncCtrl.ToBeIgnored[path] = syncInfo{syncSequence: sequence}
 		cptr := C.ydb_ynode2yaml_wrapper(db.block, node)
 		if cptr.buf != nil {
 			bb.Write(C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen))
@@ -1291,9 +1335,9 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 		syncTriggered = true
 	}
 	if bb.Len() > 0 {
-		db.sync(bb.Bytes())
+		err = db.sync(bb.Bytes())
 	}
-	if syncTriggered {
+	if syncTriggered && syncIgnoredTime > 0 {
 		timer := time.NewTimer(syncIgnoredTime)
 		go func(db *YDB, sequence uint, timer *time.Timer) {
 			select {
@@ -1308,7 +1352,7 @@ func (db *YDB) SyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths
 			}
 		}(db, sequence, timer)
 	}
-	return nil
+	return err
 }
 
 //export ylogGo

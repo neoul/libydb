@@ -31,7 +31,7 @@ func (db *YDB) UpdateEnd() error {
 
 // UpdateSync requests the update to remote YDB instances in order to refresh the data nodes.
 func (db *YDB) UpdateSync(path ...string) error {
-	return db.SyncTo(time.Second*3, true, path...)
+	return db.EnhansedSyncTo(time.Second*3, true, path...)
 }
 
 // UpdateSyncPath requests the update to remote YDB instances in order to refresh the data nodes.
