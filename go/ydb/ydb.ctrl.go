@@ -159,6 +159,13 @@ static ydb_res ydb_path_sync_wrapper(ydb *datablock, void *path)
 	return YDB_OK;
 }
 
+static ynode *ydb_search_wrapper(ydb *datablock, char *path)
+{
+	if (path)
+		return ydb_search(datablock, path);
+	return NULL;
+}
+
 extern void ylogGo(int level, char *f, int line, char *buf, int buflen);
 static int ylog_go(
     int level, const char *f, int line, const char *format, ...)
@@ -362,6 +369,7 @@ type YNode struct {
 
 type retrieveOption struct {
 	keys   []string
+	path   string
 	all    bool
 	depth  int
 	user   interface{}
@@ -375,13 +383,18 @@ type ConvertOption func(*retrieveOption)
 //     return func(s *retrieveOption) { s.ordering = o }
 // }
 
-// ConvertedDepth - The option to set the depth of the converted data
-func ConvertedDepth(d int) ConvertOption {
+// ConvertDepth - The option to set the depth of the converted data
+func ConvertDepth(d int) ConvertOption {
 	return func(s *retrieveOption) { s.depth = d }
 }
 
-// ConvertedTarget - The option to set the start point of the converting
-func ConvertedTarget(k ...string) ConvertOption {
+// ConvertPath - The option to set the start point of the converting
+func ConvertPath(path string) ConvertOption {
+	return func(s *retrieveOption) { s.path = path }
+}
+
+// ConvertPathKey - The option to set the start point of the converting
+func ConvertPathKey(k ...string) ConvertOption {
 	return func(s *retrieveOption) { s.keys = k }
 }
 
@@ -440,7 +453,7 @@ func yDelete(v reflect.Value, keys []string, key string) error {
 	return err
 }
 
-func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
+func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.ynode) error {
 	var n *C.ynode
 	var keys = make([]string, 0, 0)
 	if new != nil {
@@ -448,31 +461,36 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 	} else {
 		n = cur
 	}
-	for p := n.up(); p != nil; p = p.up() {
-		key := p.key()
-		if key != "" {
-			keys = append([]string{key}, keys...)
+	if root != n {
+		for p := n.up(); p != nil && p != root; p = p.up() {
+			key := p.key()
+			if key != "" {
+				keys = append([]string{key}, keys...)
+			}
 		}
 	}
-	if len(keys) >= 1 {
-		// log.Debug(keys, "==>", keys[1:])
-		keys = keys[1:]
-	} else {
-		// ignore root node deletion.
-		if op == 'd' {
-			return nil
-		}
-		switch n.tag() {
-		case "!!map", "!!seq", "!!imap", "!!omap", "!!set":
-			return nil
-		}
-		v := reflect.ValueOf(target)
-		rv := SetValue(v, n.value())
-		if !rv.IsValid() {
-			return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), "Set failed")
-		}
-		return nil
-	}
+	// fmt.Printf("%v %v %v\n", op, keys, n.key())
+
+	// if len(keys) >= 1 {
+	// 	// log.Debug(keys, "==>", keys[1:])
+	// 	keys = keys[1:]
+	// } else {
+	// 	// ignore root node deletion.
+	// 	if op == 'd' {
+	// 		return nil
+	// 	}
+	// 	switch n.tag() {
+	// 	case "!!map", "!!seq", "!!imap", "!!omap", "!!set":
+	// 		return nil
+	// 	}
+	// 	v := reflect.ValueOf(target)
+	// 	rv := SetValue(v, n.value())
+	// 	if !rv.IsValid() {
+	// 		return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), "Set failed")
+	// 	}
+	// 	return nil
+	// }
+
 	v := reflect.ValueOf(target)
 	newtarget, newkeys := getUpdater(target, keys)
 
@@ -527,7 +545,7 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode) error {
 func manipulate(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	var db *YDB = (*YDB)(ygo)
 	if db.Target != nil {
-		err := construct(db.Target, int(op), cur, new)
+		err := construct(db.Target, int(op), cur, new, db.top())
 		if err != nil {
 			db.Errors = append(db.Errors, err)
 		}
@@ -591,13 +609,13 @@ type YDB struct {
 	syncCtrl
 }
 
-func convert(db *YDB, userStruct interface{}, op int, n *C.ynode) {
-	err := construct(userStruct, op, n, nil)
+func convert(db *YDB, userStruct interface{}, op int, n *C.ynode, root *C.ynode) {
+	err := construct(userStruct, op, n, nil, root)
 	if err != nil {
 		db.Errors = append(db.Errors, err)
 	} else {
 		for cn := n.down(); cn != nil; cn = cn.next() {
-			convert(db, userStruct, op, cn)
+			convert(db, userStruct, op, cn, root)
 		}
 	}
 }
@@ -612,17 +630,17 @@ func (db *YDB) ConvertToYNode(options ...ConvertOption) (*YNode, error) {
 	db.RLock()
 	defer db.RUnlock()
 	n := db.top()
-	node = n.createYNode(nil)
 	if len(opt.keys) > 0 {
 		for _, key := range opt.keys {
-			parent = node
 			n = n.find(key)
 			if n == nil {
 				return nil, fmt.Errorf("not found (%s)", key)
 			}
-			node = n.createYNode(parent)
 		}
+	} else if opt.path != "" {
+		n = db.findNode(opt.path)
 	}
+	node = n.createYNode(nil)
 	if opt.all || opt.depth > 0 {
 		parent = node
 		for n := n.down(); n != nil; n = n.next() {
@@ -639,7 +657,7 @@ func (db *YDB) Convert(target interface{}, options ...ConvertOption) error {
 		o(&opt)
 	}
 	if opt.depth > 0 {
-		return fmt.Errorf("ConvertedDepth not supported")
+		return fmt.Errorf("ConvertDepth must be >= 0")
 	}
 	if !opt.nolock {
 		db.RLock()
@@ -650,16 +668,19 @@ func (db *YDB) Convert(target interface{}, options ...ConvertOption) error {
 		for _, key := range opt.keys {
 			n = n.find(key)
 			if n == nil {
-				return fmt.Errorf("Not found data (%s)", key)
+				return fmt.Errorf("Not found data for '%s'", key)
 			}
 		}
+	} else if opt.path != "" {
+		n = db.findNode(opt.path)
 	}
+	top := n
 	errCount := len(db.Errors)
 	for n := n.down(); n != nil; n = n.next() {
-		convert(db, target, 'c', n)
+		convert(db, target, 'c', n, top)
 	}
 	if len(db.Errors) > errCount {
-		return fmt.Errorf("Converting failed")
+		return fmt.Errorf("%T converting is failed", target)
 	}
 	return nil
 }
@@ -1174,6 +1195,12 @@ func (n *C.ynode) empty() bool {
 
 func (n *C.ynode) size() int {
 	return int(C.ydb_size(n))
+}
+
+func (db *YDB) findNode(path string) *C.ynode {
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	return C.ydb_search_wrapper(db.block, p)
 }
 
 func (n *C.ynode) find(key string) *C.ynode {

@@ -834,6 +834,7 @@ ydb *ydb_open(char *name)
     ylog_inout();
     res = (ydb_res)res;
     YDB_FAIL(!name, YDB_E_INVALID_ARGS);
+    YDB_FAIL(strstr(name, "/") != NULL, YDB_E_INVALID_ARGS);
     YDB_FAIL(ypool_create(), YDB_E_CTRL);
     namelen = strlen(name);
     datablock = ytrie_search(ydb_pool, name, namelen);

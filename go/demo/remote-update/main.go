@@ -34,16 +34,4 @@ func main() {
 	for num, err := range db.Errors {
 		log.Println(num, err)
 	}
-	// for i := 0; i < 100; i++ {
-	// 	<-time.After(time.Second * 5)
-	// 	// node := db.ConvertToYNode(ydb.ConvertedDepth(2))
-	// 	// log.Println(node)
-	// 	// log.Println(node.GetChildren())
-	// 	// for _, node := range node.GetChildren() {
-	// 	// 	log.Println(node)
-	// 	// 	for _, child := range node.GetChildren() {
-	// 	// 		log.Println(child)
-	// 	// 	}
-	// 	// }
-	// }
 }

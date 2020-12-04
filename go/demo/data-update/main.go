@@ -7,19 +7,19 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/neoul/gdump"
+	"github.com/neoul/gtrie"
 	"github.com/neoul/libydb/go/ydb"
-	"github.com/neoul/trie"
 )
 
 // DataUpdate interface example
 // Implement DataUpdate interface for the user Go struct.
 
 type userdata struct {
-	*trie.Trie
+	*gtrie.Trie
 }
 
 func newTrie() *userdata {
-	return &userdata{trie.New()}
+	return &userdata{gtrie.New()}
 }
 
 func (u *userdata) UpdateCreate(path string, value string) error {
@@ -71,14 +71,7 @@ func main() {
 	dec := db.NewDecoder(r)
 	dec.Decode()
 	// pretty.Println(ud)
-	for i, k := range ud.Keys() {
-		n, ok := ud.Find(k)
-		if ok {
-			pretty.Println(i, k, n.Meta())
-		} else {
-			pretty.Println(i, k)
-		}
-	}
+
 	ud.FuzzyFind("/system/fan/fan[2")
 	// Remove fan[1]
 	db.DeleteFrom("/system/fan/fan[1]")
@@ -86,12 +79,5 @@ func main() {
 	// The update lock is not required because there is no multiple thread.
 	// db.Lock()
 	// defer db.Unlock()
-	for i, k := range ud.Keys() {
-		n, ok := ud.Find(k)
-		if ok {
-			pretty.Println(i, k, n.Meta())
-		} else {
-			pretty.Println(i, k)
-		}
-	}
+	pretty.Print(ud.Trie.FindAll(""))
 }
