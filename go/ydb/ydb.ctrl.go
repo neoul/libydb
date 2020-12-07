@@ -45,14 +45,14 @@ static ydb_res ydb_read_hooker(ydb *datablock, char *path, FILE *stream, void *U
 	return YDB_OK;
 }
 
-static ydb_res ydb_read_hook_register(ydb *datablock, void *path, void *U1)
+static ydb_res ydb_read_hook_register(ydb *datablock, char *path, void *U1)
 {
-	return ydb_read_hook_add(datablock, (char *) path, (ydb_read_hook)ydb_read_hooker, 1, U1);
+	return ydb_read_hook_add(datablock, path, (ydb_read_hook)ydb_read_hooker, 1, U1);
 }
 
-static void ydb_read_hook_unregister(ydb *datablock, void *path)
+static void ydb_read_hook_unregister(ydb *datablock, char *path)
 {
-	ydb_read_hook_delete(datablock, (char *) path);
+	ydb_read_hook_delete(datablock, path);
 }
 
 static ydb_res ydb_parses_wrapper(ydb *datablock, void *d, size_t dlen)
@@ -61,7 +61,7 @@ static ydb_res ydb_parses_wrapper(ydb *datablock, void *d, size_t dlen)
 }
 
 // The return must be free.
-static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, void *path)
+static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, char *path)
 {
     FILE *fp;
     char *buf = NULL;
@@ -70,10 +70,7 @@ static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, void *path)
 	if (fp)
 	{
 		int n;
-		if (path)
-			n = ydb_path_fprintf(fp, datablock, path);
-		else
-			n = ydb_path_fprintf(fp, datablock, "/");
+		n = ydb_path_fprintf(fp, datablock, "%s", path);
 		fclose(fp);
 	}
 	bufinfo bi;
@@ -83,7 +80,7 @@ static bufinfo ydb_path_fprintf_wrapper(ydb *datablock, void *path)
 }
 
 // The return must be free.
-static bufinfo ydb_fprintf_wrapper(ydb *datablock, void *input_yaml)
+static bufinfo ydb_fprintf_wrapper(ydb *datablock, void *y, size_t ylen)
 {
     FILE *fp;
     char *buf = NULL;
@@ -92,8 +89,8 @@ static bufinfo ydb_fprintf_wrapper(ydb *datablock, void *input_yaml)
 	if (fp)
 	{
 		int n;
-		if (input_yaml)
-			n = ydb_fprintf(fp, datablock, input_yaml);
+		if (y)
+			n = ydb_fprintf(fp, datablock, "%.*s", ylen, y);
 		else
 			n = ydb_path_fprintf(fp, datablock, "/");
 		fclose(fp);
@@ -114,55 +111,55 @@ static bufinfo ydb_ynode2yaml_wrapper(ydb *datablock, ynode *node)
 	return bi;
 }
 
-static ydb_res ydb_delete_wrapper(ydb *datablock, void *input_yaml)
+static ydb_res ydb_delete_wrapper(ydb *datablock, void *input_yaml, size_t ylen)
 {
 	ydb_res res = YDB_OK;
 	if (input_yaml)
-		res = ydb_delete(datablock, input_yaml);
+		res = ydb_delete(datablock, "%.*s", ylen, input_yaml);
 	return res;
 }
 
-static ydb_res ydb_sync_wrapper(ydb *datablock, void *input_yaml)
+static ydb_res ydb_sync_wrapper(ydb *datablock, void *input_yaml, size_t ylen)
 {
 	ydb_res res = YDB_OK;
 	if (input_yaml)
-		res = ydb_sync(datablock, input_yaml);
+		res = ydb_sync(datablock, "%.*s", ylen, input_yaml);
 	return res;
 }
 
-static ydb_res ydb_path_write_wrapper(ydb *datablock, void *path)
+static ydb_res ydb_path_write_wrapper(ydb *datablock, char *path)
 {
 	if (path) {
-		return ydb_path_write(datablock, path);
+		return ydb_path_write(datablock, "%s", path);
 	}
 	return YDB_OK;
 }
 
-static ydb_res ydb_path_delete_wrapper(ydb *datablock, void *path)
+static ydb_res ydb_path_delete_wrapper(ydb *datablock, char *path)
 {
 	if (path)
-		return ydb_path_delete(datablock, path);
+		return ydb_path_delete(datablock, "%s", path);
 	return YDB_OK;
 }
 
-static char *ydb_path_read_wrapper(ydb *datablock, void *path)
+static char *ydb_path_read_wrapper(ydb *datablock, char *path)
 {
 	if (path)
-		return (char *) ydb_path_read(datablock, path);
+		return (char *) ydb_path_read(datablock, "%s", path);
 	return NULL;
 }
 
-static ydb_res ydb_path_sync_wrapper(ydb *datablock, void *path)
+static ydb_res ydb_path_sync_wrapper(ydb *datablock, char *path)
 {
 	if (path)
-		return ydb_path_sync(datablock, path);
+		return ydb_path_sync(datablock, "%s", path);
 	return YDB_OK;
 }
 
 static ynode *ydb_search_wrapper(ydb *datablock, char *path)
 {
 	if (path)
-		return ydb_search(datablock, path);
+		return ydb_search(datablock, "%s", path);
 	return NULL;
 }
 
@@ -728,7 +725,7 @@ func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 			ToBeIgnored: make(map[string]syncInfo),
 		},
 	}
-	C.ydb_disable_variable_arguments(db.block)
+	// C.ydb_disable_variable_arguments(db.block)
 	C.ydb_write_hook_register(db.block, unsafe.Pointer(&db.block))
 	return &db, func() {
 		db.Close()
@@ -882,7 +879,7 @@ func (db *YDB) Delete(yaml []byte) error {
 	}
 	db.Lock()
 	defer db.Unlock()
-	res := C.ydb_delete_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+	res := C.ydb_delete_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -897,10 +894,11 @@ func (db *YDB) Read(yaml []byte) []byte {
 	db.RLock()
 	defer db.RUnlock()
 	var cptr C.bufinfo
-	if len(yaml) == 0 {
-		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(nil))
+	ylen := len(yaml)
+	if ylen == 0 {
+		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(nil), C.ulong(0))
 	} else {
-		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
 	}
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
@@ -915,10 +913,11 @@ func (db *YDB) sync(yaml []byte) error {
 	// db.Lock()
 	// defer db.Unlock()
 	var res C.ydb_res
-	if len(yaml) == 0 {
-		res = C.ydb_sync_wrapper(db.block, unsafe.Pointer(nil))
+	ylen := len(yaml)
+	if ylen == 0 {
+		res = C.ydb_sync_wrapper(db.block, unsafe.Pointer(nil), C.ulong(0))
 	} else {
-		res = C.ydb_sync_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+		res = C.ydb_sync_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
 	}
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
@@ -937,10 +936,11 @@ func (db *YDB) Sync(yaml []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(yaml) == 0 {
-		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(nil))
+	ylen := len(yaml)
+	if ylen == 0 {
+		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(nil), C.ulong(0))
 	} else {
-		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(&yaml[0]))
+		cptr = C.ydb_fprintf_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
 	}
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
@@ -956,12 +956,9 @@ func (db *YDB) Sync(yaml []byte) ([]byte, error) {
 func (db *YDB) SyncTo(path string) error {
 	db.Lock()
 	defer db.Unlock()
-	var pp unsafe.Pointer
-	if path != "" {
-		pbyte := []byte(path)
-		pp = unsafe.Pointer(&pbyte[0])
-	}
-	res := C.ydb_path_sync_wrapper(db.block, pp)
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	res := C.ydb_path_sync_wrapper(db.block, p)
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -972,12 +969,15 @@ func (db *YDB) SyncTo(path string) error {
 func (db *YDB) WriteTo(path string, value string) error {
 	db.Lock()
 	defer db.Unlock()
-	pathvalue := fmt.Sprintf("%s=%s", path, value)
-	var pv unsafe.Pointer
-	if pathvalue != "" {
-		vbyte := []byte(pathvalue)
-		pv = unsafe.Pointer(&vbyte[0])
+	var pathvalue string
+	if value != "" {
+		pathvalue = fmt.Sprintf("%s=%s", path, value)
+	} else {
+		pathvalue = path
 	}
+
+	pv := C.CString(pathvalue)
+	defer C.free(unsafe.Pointer(pv))
 	res := C.ydb_path_write_wrapper(db.block, pv)
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
@@ -989,12 +989,9 @@ func (db *YDB) WriteTo(path string, value string) error {
 func (db *YDB) DeleteFrom(path string) error {
 	db.Lock()
 	defer db.Unlock()
-	var pp unsafe.Pointer
-	if path != "" {
-		pbyte := []byte(path)
-		pp = unsafe.Pointer(&pbyte[0])
-	}
-	res := C.ydb_path_delete_wrapper(db.block, pp)
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	res := C.ydb_path_delete_wrapper(db.block, p)
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -1005,12 +1002,9 @@ func (db *YDB) DeleteFrom(path string) error {
 func (db *YDB) ReadFrom(path string) string {
 	db.RLock()
 	defer db.RUnlock()
-	var pp unsafe.Pointer
-	if path != "" {
-		pbyte := []byte(path)
-		pp = unsafe.Pointer(&pbyte[0])
-	}
-	value := C.ydb_path_read_wrapper(db.block, pp)
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	value := C.ydb_path_read_wrapper(db.block, p)
 	if value == nil {
 		return ""
 	}
@@ -1033,12 +1027,9 @@ func (db *YDB) Timeout(msec int) error {
 func (db *YDB) AddSyncResponse(path string) error {
 	db.Lock()
 	defer db.Unlock()
-	var pp unsafe.Pointer
-	if path != "" {
-		pbyte := []byte(path)
-		pp = unsafe.Pointer(&pbyte[0])
-	}
-	res := C.ydb_read_hook_register(db.block, pp, unsafe.Pointer(&db.block))
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	res := C.ydb_read_hook_register(db.block, p, unsafe.Pointer(&db.block))
 	if res >= C.YDB_ERROR {
 		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
 	}
@@ -1049,12 +1040,9 @@ func (db *YDB) AddSyncResponse(path string) error {
 func (db *YDB) DelSyncResponse(path string) {
 	db.Lock()
 	defer db.Unlock()
-	var pp unsafe.Pointer
-	if path != "" {
-		pbyte := []byte(path)
-		pp = unsafe.Pointer(&pbyte[0])
-	}
-	C.ydb_read_hook_unregister(db.block, pp)
+	p := C.CString(path)
+	defer C.free(unsafe.Pointer(p))
+	C.ydb_read_hook_unregister(db.block, p)
 }
 
 // A Decoder reads and decodes YAML values from an input stream to an YDB instance.
@@ -1115,7 +1103,9 @@ func (enc *Encoder) Encode() error {
 		return enc.err
 	}
 	enc.db.RLock()
-	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, unsafe.Pointer(nil))
+	p := C.CString("/")
+	defer C.free(unsafe.Pointer(p))
+	cptr := C.ydb_path_fprintf_wrapper(enc.db.block, p)
 	enc.db.RUnlock()
 	if cptr.buf != nil {
 		defer C.free(unsafe.Pointer(cptr.buf))
