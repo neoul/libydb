@@ -412,7 +412,7 @@ func getUpdater(target interface{}, keys []string) (interface{}, []string) {
 		var ok bool
 		v, ok = ValFind(v, key, NoSearch)
 		if !ok {
-			return target, newkey
+			return newtarget, newkey
 		}
 		if v.Type().NumMethod() > 0 && v.CanInterface() {
 			switch u := v.Interface().(type) {
@@ -604,6 +604,7 @@ type YDB struct {
 	Target interface{}
 	Errors []error
 	syncCtrl
+	returnWarning bool
 }
 
 func convert(db *YDB, userStruct interface{}, op int, n *C.ynode, root *C.ynode) {
@@ -713,9 +714,6 @@ func New(name string) *YDB {
 func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
-	if target == nil {
-		target = &EmptyGoStruct{}
-	}
 	db := YDB{
 		Name:    name,
 		RWMutex: new(sync.RWMutex),
@@ -746,6 +744,24 @@ func (db *YDB) SetTarget(target interface{}, sync bool) error {
 	return nil
 }
 
+// EnableWarning - enables or disables warning return of the YDB instance.
+func (db *YDB) EnableWarning(enable bool) {
+	db.returnWarning = enable
+}
+
+func (db *YDB) resultErr(res C.ydb_res) error {
+	if db.returnWarning {
+		if res == C.YDB_OK {
+			return nil
+		}
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	if res >= C.YDB_ERROR {
+		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	}
+	return nil
+}
+
 // Connect to YDB IPC (Inter Process Communication) channel
 func (db *YDB) Connect(addr string, flags ...string) error {
 	var gflags string
@@ -763,10 +779,7 @@ func (db *YDB) Connect(addr string, flags ...string) error {
 	db.Lock()
 	defer db.Unlock()
 	res := C.ydb_connect(db.block, caddr, cflags)
-	if res == C.YDB_OK {
-		return nil
-	}
-	return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	return db.resultErr(res)
 }
 
 // Disconnect to YDB IPC channel
@@ -776,10 +789,7 @@ func (db *YDB) Disconnect(addr string) error {
 	db.Lock()
 	defer db.Unlock()
 	res := C.ydb_disconnect(db.block, caddr)
-	if res == C.YDB_OK {
-		return nil
-	}
-	return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
+	return db.resultErr(res)
 }
 
 // SetSignalFilter -- Set signals to ignore
@@ -857,10 +867,7 @@ func (db *YDB) Parse(yaml []byte) error {
 	db.Lock()
 	defer db.Unlock()
 	res := C.ydb_parses_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
+	return db.resultErr(res)
 }
 
 // Write - writes YAML bytes to the YDB instance
@@ -880,10 +887,7 @@ func (db *YDB) Delete(yaml []byte) error {
 	db.Lock()
 	defer db.Unlock()
 	res := C.ydb_delete_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
+	return db.resultErr(res)
 }
 
 // Read - reads YAML bytes from the YDB instance
@@ -919,10 +923,7 @@ func (db *YDB) sync(yaml []byte) error {
 	} else {
 		res = C.ydb_sync_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
 	}
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
+	return db.resultErr(res)
 }
 
 // Sync - request the update of the YDB instance and return the updated data
@@ -959,10 +960,7 @@ func (db *YDB) SyncTo(path string) error {
 	p := C.CString(path)
 	defer C.free(unsafe.Pointer(p))
 	res := C.ydb_path_sync_wrapper(db.block, p)
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
+	return db.resultErr(res)
 }
 
 // WriteTo - writes the value string to the target path in the YDB instance
@@ -979,10 +977,7 @@ func (db *YDB) WriteTo(path string, value string) error {
 	pv := C.CString(pathvalue)
 	defer C.free(unsafe.Pointer(pv))
 	res := C.ydb_path_write_wrapper(db.block, pv)
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
+	return db.resultErr(res)
 }
 
 // DeleteFrom - deletes the value at the target path from the YDB instance
@@ -992,10 +987,7 @@ func (db *YDB) DeleteFrom(path string) error {
 	p := C.CString(path)
 	defer C.free(unsafe.Pointer(p))
 	res := C.ydb_path_delete_wrapper(db.block, p)
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
+	return db.resultErr(res)
 }
 
 // ReadFrom - reads the value(string) from the target path in the YDB instance
@@ -1013,14 +1005,13 @@ func (db *YDB) ReadFrom(path string) string {
 }
 
 // Timeout - Sets the timeout of the YDB instance for sync.
-func (db *YDB) Timeout(msec int) error {
+func (db *YDB) Timeout(t time.Duration) error {
 	db.RLock()
 	defer db.RUnlock()
-	res := C.ydb_timeout(db.block, C.int(msec))
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
+	ms := t / time.Millisecond
+	fmt.Println(ms)
+	res := C.ydb_timeout(db.block, C.int(ms))
+	return db.resultErr(res)
 }
 
 // AddSyncResponse - registers UpdaterSyncResponse
@@ -1030,10 +1021,7 @@ func (db *YDB) AddSyncResponse(path string) error {
 	p := C.CString(path)
 	defer C.free(unsafe.Pointer(p))
 	res := C.ydb_read_hook_register(db.block, p, unsafe.Pointer(&db.block))
-	if res >= C.YDB_ERROR {
-		return fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-	}
-	return nil
+	return db.resultErr(res)
 }
 
 // DelSyncResponse - registers UpdaterSyncResponse
