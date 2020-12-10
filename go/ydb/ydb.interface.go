@@ -73,3 +73,11 @@ type DataUpdate interface {
 type DataUpdateStartEnd interface {
 	UpdaterStartEnd
 }
+
+// UpdateSyncResponse - An interface to update the target
+// data node on which a request (DataUpdateSyncRequester) signaled.
+type UpdateSyncResponse interface {
+	// SyncResponse is a callback for target data node synchronization.
+	// It must return YAML bytes to be updated.
+	SyncResponse(path string) []byte
+}

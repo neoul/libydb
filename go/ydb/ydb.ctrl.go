@@ -465,28 +465,10 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 				keys = append([]string{key}, keys...)
 			}
 		}
+	} else {
+		return nil
 	}
 	// fmt.Printf("%v %v %v\n", op, keys, n.key())
-
-	// if len(keys) >= 1 {
-	// 	// log.Debug(keys, "==>", keys[1:])
-	// 	keys = keys[1:]
-	// } else {
-	// 	// ignore root node deletion.
-	// 	if op == 'd' {
-	// 		return nil
-	// 	}
-	// 	switch n.tag() {
-	// 	case "!!map", "!!seq", "!!imap", "!!omap", "!!set":
-	// 		return nil
-	// 	}
-	// 	v := reflect.ValueOf(target)
-	// 	rv := SetValue(v, n.value())
-	// 	if !rv.IsValid() {
-	// 		return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), "Set failed")
-	// 	}
-	// 	return nil
-	// }
 
 	v := reflect.ValueOf(target)
 	newtarget, newkeys := getUpdater(target, keys)
@@ -570,8 +552,7 @@ func updateStartEnd(ygo unsafe.Pointer, started C.int) {
 func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 	var db *YDB = (*YDB)(ygo)
 	if db.Target != nil {
-		SyncResponse, ok := db.Target.(UpdaterSyncResponse)
-		if ok {
+		if SyncResponse, ok := db.Target.(UpdaterSyncResponse); ok {
 			var b []byte
 			keylist, err := ToSliceKeys(C.GoString(path))
 			if err != nil {
@@ -582,6 +563,13 @@ func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 			} else {
 				b = SyncResponse.SyncResponse(nil, "")
 			}
+			blen := len(b)
+			if blen > 0 {
+				C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
+			}
+		} else if SyncResponse, ok := db.Target.(UpdateSyncResponse); ok {
+			var b []byte
+			b = SyncResponse.SyncResponse(C.GoString(path))
 			blen := len(b)
 			if blen > 0 {
 				C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
@@ -1009,12 +997,12 @@ func (db *YDB) Timeout(t time.Duration) error {
 	db.RLock()
 	defer db.RUnlock()
 	ms := t / time.Millisecond
-	fmt.Println(ms)
+	// fmt.Println(int(ms))
 	res := C.ydb_timeout(db.block, C.int(ms))
 	return db.resultErr(res)
 }
 
-// AddSyncResponse - registers UpdaterSyncResponse
+// AddSyncResponse - registers the path where the UpdaterSyncResponse or UpdateSyncResponse interface is executed.
 func (db *YDB) AddSyncResponse(path string) error {
 	db.Lock()
 	defer db.Unlock()
@@ -1024,7 +1012,7 @@ func (db *YDB) AddSyncResponse(path string) error {
 	return db.resultErr(res)
 }
 
-// DelSyncResponse - registers UpdaterSyncResponse
+// DelSyncResponse - unregisters the path where the UpdaterSyncResponse or UpdateSyncResponse interface is executed.
 func (db *YDB) DelSyncResponse(path string) {
 	db.Lock()
 	defer db.Unlock()
