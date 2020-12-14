@@ -551,29 +551,30 @@ func updateStartEnd(ygo unsafe.Pointer, started C.int) {
 // syncUpdate -- Update YAML Data Block instance upon ydb_sync request.
 func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 	var db *YDB = (*YDB)(ygo)
-	if db.Target != nil {
-		if SyncResponse, ok := db.Target.(UpdaterSyncResponse); ok {
-			var b []byte
-			keylist, err := ToSliceKeys(C.GoString(path))
-			if err != nil {
-				return
-			}
-			if klen := len(keylist); klen > 0 {
-				b = SyncResponse.SyncResponse(keylist[:klen-1], keylist[klen-1])
-			} else {
-				b = SyncResponse.SyncResponse(nil, "")
-			}
-			blen := len(b)
-			if blen > 0 {
-				C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
-			}
-		} else if SyncResponse, ok := db.Target.(UpdateSyncResponse); ok {
-			var b []byte
-			b = SyncResponse.SyncResponse(C.GoString(path))
-			blen := len(b)
-			if blen > 0 {
-				C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
-			}
+	if db.Target == nil {
+		return
+	}
+	if SyncResponse, ok := db.Target.(UpdaterSyncResponse); ok {
+		var b []byte
+		keylist, err := ToSliceKeys(C.GoString(path))
+		if err != nil {
+			return
+		}
+		if klen := len(keylist); klen > 0 {
+			b = SyncResponse.SyncResponse(keylist[:klen-1], keylist[klen-1])
+		} else {
+			b = SyncResponse.SyncResponse(nil, "")
+		}
+		blen := len(b)
+		if blen > 0 {
+			C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
+		}
+	} else if SyncResponse, ok := db.Target.(UpdateSyncResponse); ok {
+		var b []byte
+		b = SyncResponse.SyncResponse(C.GoString(path))
+		blen := len(b)
+		if blen > 0 {
+			C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
 		}
 	}
 }
@@ -581,6 +582,12 @@ func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 // SetInternalLog configures the log level of YDB
 func SetInternalLog(loglevel uint) {
 	C.ylog_level = C.uint(loglevel)
+}
+
+type dataUpdateEntry struct {
+	path     string
+	value    string
+	isDelete bool
 }
 
 // YDB (YAML YNode type) to indicate an YDB instance
@@ -592,7 +599,9 @@ type YDB struct {
 	Target interface{}
 	Errors []error
 	syncCtrl
-	returnWarning bool
+	dataUpdate       []*dataUpdateEntry
+	atomicDataUpdate bool
+	returnWarning    bool
 }
 
 func convert(db *YDB, userStruct interface{}, op int, n *C.ynode, root *C.ynode) {
@@ -737,6 +746,11 @@ func (db *YDB) EnableWarning(enable bool) {
 	db.returnWarning = enable
 }
 
+// EnableAtomicUpdate - enables or disables atomic DataUpdate interface for the YDB instance.
+func (db *YDB) EnableAtomicUpdate(enable bool) {
+	db.atomicDataUpdate = enable
+}
+
 func (db *YDB) resultErr(res C.ydb_res) error {
 	if db.returnWarning {
 		if res == C.YDB_OK {
@@ -846,21 +860,28 @@ func (db *YDB) Receive() error {
 	return nil
 }
 
-// Parse - parse YAML bytes to update YDB
-func (db *YDB) Parse(yaml []byte) error {
+// parse - parse YAML bytes to update YDB
+func (db *YDB) parse(yaml []byte, nolock bool) error {
 	ylen := len(yaml)
 	if ylen == 0 {
 		return nil
 	}
-	db.Lock()
-	defer db.Unlock()
+	if !nolock {
+		db.Lock()
+		defer db.Unlock()
+	}
 	res := C.ydb_parses_wrapper(db.block, unsafe.Pointer(&yaml[0]), C.ulong(ylen))
 	return db.resultErr(res)
 }
 
+// Parse - parse YAML bytes to update YDB
+func (db *YDB) Parse(yaml []byte) error {
+	return db.parse(yaml, false)
+}
+
 // Write - writes YAML bytes to the YDB instance
 func (db *YDB) Write(yaml []byte) error {
-	return db.Parse(yaml)
+	return db.parse(yaml, false)
 }
 
 // Delete - delete the target data from the YDB instance.
