@@ -1,0 +1,20 @@
+sample:
+  str-val: value-string
+  empty-val: true
+  single-key-list[list-key=skey]:
+    list-key: skey
+    country-code: KR
+    dial-code: 82
+  multiple-key-list[str=mkey][integer=1]:
+    str: mkey
+    integer: 1
+    ok: true
+  container-val:
+    leaf-list-val:
+      leaflist1:
+      leaflist2:
+    enum-val: enum3
+    leaf-list-v2:
+      200:
+      100:
+
