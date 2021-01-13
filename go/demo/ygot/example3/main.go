@@ -26,16 +26,6 @@ func (d *device) RootSchema() *yang.Entry {
 	return d.SchemaTree[reflect.TypeOf(d.Root).Elem().Name()]
 }
 
-func FindSchema(entry *yang.Entry, path *gnmipb.Path) *yang.Entry {
-	for _, e := range path.GetElem() {
-		entry = entry.Dir[e.GetName()]
-		if entry == nil {
-			return nil
-		}
-	}
-	return entry
-}
-
 func (d *device) UpdateCreate(path string, value string) error {
 	fmt.Println(":", path, value)
 	gpath, err := xpath.ToGNMIPath(path)
@@ -132,6 +122,50 @@ func writeLeafList(schema *yang.Entry, base interface{}, gpath *gnmipb.Path, t r
 	return nil
 }
 
+func baseType(yangtype *yang.YangType) []reflect.Type {
+	switch yangtype.Kind {
+	case yang.Ystring:
+		return []reflect.Type{reflect.TypeOf(string(""))}
+	case yang.Ybool, yang.Yempty:
+		return []reflect.Type{reflect.TypeOf(bool(false))}
+	case yang.Yint8:
+		return []reflect.Type{reflect.TypeOf(int8(0))}
+	case yang.Yint16:
+		return []reflect.Type{reflect.TypeOf(int16(0))}
+	case yang.Yint32:
+		return []reflect.Type{reflect.TypeOf(int32(0))}
+	case yang.Yint64:
+		return []reflect.Type{reflect.TypeOf(int64(0))}
+	case yang.Yuint8:
+		return []reflect.Type{reflect.TypeOf(uint8(0))}
+	case yang.Yuint16:
+		return []reflect.Type{reflect.TypeOf(uint16(0))}
+	case yang.Yuint32:
+		return []reflect.Type{reflect.TypeOf(uint32(0))}
+	case yang.Yuint64:
+		return []reflect.Type{reflect.TypeOf(uint64(0))}
+	case yang.Ybinary:
+		return []reflect.Type{reflect.TypeOf([]byte{})}
+	case yang.Ybits:
+		return []reflect.Type{reflect.TypeOf(int8(0))}
+	case yang.Ydecimal64:
+		return []reflect.Type{reflect.TypeOf(float64(0))}
+	case yang.YinstanceIdentifier, yang.Yleafref:
+		return []reflect.Type{reflect.TypeOf(string(""))}
+	case yang.Yenum, yang.Yidentityref:
+		return []reflect.Type{reflect.TypeOf(int64(0))}
+	case yang.Yunion:
+		types := []reflect.Type{}
+		for i := range yangtype.Type {
+			types = append(types, baseType(yangtype.Type[i])...)
+		}
+		return types
+	// case yang.Ynone:
+	default:
+		return []reflect.Type{reflect.TypeOf(nil)}
+	}
+}
+
 // writeValue - Write the value to the model instance
 func writeValue(schema *yang.Entry, base interface{}, gpath *gnmipb.Path, value string) error {
 	var err error
@@ -164,7 +198,37 @@ func writeValue(schema *yang.Entry, base interface{}, gpath *gnmipb.Path, value 
 		case curSchema.IsLeafList():
 			// do nothing
 		default:
-			return writeLeaf(schema, base.(ygot.GoStruct), p, reflect.TypeOf(curValue), value)
+			// var ok bool
+
+			// if curValue == nil {
+			// 	bt := reflect.TypeOf(base)
+			// 	ct, ok = ydb.TypeFind(bt, gpath.Elem[i].Name)
+			// 	if !ok {
+			// 		return fmt.Errorf("no matched type found for %s", xpath.ToXPath(gpath))
+			// 	}
+			// 	gdump.PrintInDepth(5, curSchema)
+			// 	// YangType.Kind == union
+			// 	// 	- lookup Type[]: yang.TypeKind(uint16), (string)..
+			// }
+
+			switch curSchema.Type.Kind {
+			case yang.Yempty:
+				_, err = ydb.ValChildSet(reflect.ValueOf(base), gpath.Elem[i].Name, value, ydb.SearchByContent)
+				return err
+			case yang.Yunion:
+				types := baseType(curSchema.Type)
+				for i := range types {
+					if types[i] == reflect.TypeOf(nil) {
+						return fmt.Errorf("invalid union type for %s", xpath.ToXPath(gpath))
+					}
+					if err = writeLeaf(schema, base.(ygot.GoStruct), p, types[i], value); err == nil {
+						break
+					}
+				}
+				return err
+			}
+			ct := reflect.TypeOf(curValue)
+			return writeLeaf(schema, base.(ygot.GoStruct), p, ct, value)
 		}
 	}
 	return nil

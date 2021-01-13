@@ -20,6 +20,16 @@ module sample {
     reference "0.1.1";
   }
 
+  typedef enumtypedef {
+    type enumeration {
+      enum e1;
+      enum e2;
+      enum e3 {
+        value 100;
+      }
+    }
+  }
+
   container sample {
     leaf str-val { type string; }
     leaf empty-val { type empty; }
@@ -53,6 +63,13 @@ module sample {
           enum enum3 {
             value 30;
           }
+        }
+      }
+      leaf union-value {
+        type union {
+          type uint16;
+          type string;
+          type enumtypedef;
         }
       }
     }
