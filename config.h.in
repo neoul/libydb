@@ -34,6 +34,9 @@
 /* Define to 1 if you have the <plog.h> header file. */
 #undef HAVE_PLOG_H
 
+/* Define to 1 if you have the <pthread.h> header file. */
+#undef HAVE_PTHREAD_H
+
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 

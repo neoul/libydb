@@ -10,6 +10,9 @@
 #include "ytree.h"
 // #define YALLOC_DEBUG 1
 
+#include <pthread.h>
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
 struct ystr
 {
     int size;
@@ -59,7 +62,7 @@ const char *ystrndup(char *src, int srclen)
 #endif
         return (char *)empty->data;
     }
-
+    pthread_mutex_lock(&lock);
     if (!ystr_pool)
     {
         ystr_pool = ytrie_create();
@@ -94,6 +97,7 @@ const char *ystrndup(char *src, int srclen)
 #ifdef YALLOC_DEBUG
     ylog_debug("[pid %d] %s str(%p,size=%d)=%s ref=%d\n", getpid(), __func__, str, str->size, str->data, str->ref);
 #endif
+    pthread_mutex_unlock(&lock);
     return (char *)str->data;
 }
 
@@ -127,7 +131,7 @@ const char *ystrnew(const char *format, ...)
         src = NULL;
         goto empty;
     }
-
+    pthread_mutex_lock(&lock);
     if (!ystr_pool)
     {
         ystr_pool = ytrie_create();
@@ -159,6 +163,7 @@ const char *ystrnew(const char *format, ...)
         assert(ytrie_insert(ystr_pool, (const void *)str->data, srclen, str) == NULL);
         assert(ytree_insert(yptr_pool, str->data, str) == NULL);
     }
+    pthread_mutex_unlock(&lock);
     free(src);
     
 #ifdef YALLOC_DEBUG
@@ -191,7 +196,7 @@ const void *ydatadup(void *src, int srclen)
     {
         return NULL;
     }
-
+    pthread_mutex_lock(&lock);
     if (!ystr_pool)
     {
         ystr_pool = ytrie_create();
@@ -226,6 +231,7 @@ const void *ydatadup(void *src, int srclen)
 #ifdef YALLOC_DEBUG
     ylog_debug("[pid %d] %s str(%p,size=%d)=... ref=%d\n", getpid(), __func__, str, str->size, str->ref);
 #endif
+    pthread_mutex_unlock(&lock);
     return (char *)str->data;
 }
 
@@ -254,12 +260,20 @@ static struct ystr *ysearch(const void *src, int srclen)
 
 struct ystr *ystrsearch(const char *src)
 {
-    return ysearch(src, 0);
+    struct ystr *str;
+    pthread_mutex_lock(&lock);
+    str = ysearch(src, 0);
+    pthread_mutex_unlock(&lock);
+    return str;
 }
 
 struct ystr *ydatasearch(const void *src)
 {
-    return ysearch(src, 0);
+    struct ystr *str;
+    pthread_mutex_lock(&lock);
+    str = ysearch(src, 0);
+    pthread_mutex_unlock(&lock);
+    return str;
 }
 
 const void *ystrdata(struct ystr *str)
@@ -313,6 +327,7 @@ void yfree(const void *src)
         return;
     }
 
+    pthread_mutex_lock(&lock);
     str = ysearch(src, 0);
     if (str)
     {
@@ -351,6 +366,7 @@ void yfree(const void *src)
 #endif
         assert(!ystr_pool);
     }
+    pthread_mutex_unlock(&lock);
     return;
 }
 
@@ -363,8 +379,10 @@ static void ystr_free(void *v)
 
 void yfree_all(void)
 {
+    pthread_mutex_lock(&lock);
     if (yptr_pool)
         ytree_destroy_custom(yptr_pool, ystr_free);
     if (ystr_pool)
         ytrie_destroy(ystr_pool);
+    pthread_mutex_unlock(&lock);
 }
