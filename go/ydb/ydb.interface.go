@@ -22,45 +22,6 @@ type UpdaterSyncResponse interface {
 	SyncResponse(keys []string, key string) []byte
 }
 
-// EmptyGoStruct - Empty Go Struct for empty Updater interface
-type EmptyGoStruct struct{}
-
-// Create - Updater function to create an entity on !!map object
-func (emptyStruct *EmptyGoStruct) Create(keys []string, key string, tag string, value string) error {
-	log.Debugf("emptyStruct.Create(%s, %s, %s, %s)", keys, key, tag, value)
-	return nil
-}
-
-// Replace - Updater function to replace the entity on !!map object
-func (emptyStruct *EmptyGoStruct) Replace(keys []string, key string, tag string, value string) error {
-	log.Debugf("emptyStruct.Replace(%s, %s, %s, %s)", keys, key, tag, value)
-	return nil
-}
-
-// Delete - Updater function to delete the entity from !!map object
-func (emptyStruct *EmptyGoStruct) Delete(keys []string, key string) error {
-	log.Debugf("emptyStruct.Delete(%s, %s)", keys, key)
-	return nil
-}
-
-// UpdateStart - indicates the start of the YDB update. It will be called ahead of Updater interface
-func (emptyStruct *EmptyGoStruct) UpdateStart() error {
-	log.Debugf("emptyStruct.UpdateStart")
-	return nil
-}
-
-// UpdateEnd - indicates the end of the YDB update. It will be called after Updater interface
-func (emptyStruct *EmptyGoStruct) UpdateEnd() error {
-	log.Debugf("emptyStruct.UpdateEnd")
-	return nil
-}
-
-// SyncResponse - Interface to update the target (pointed by the keys and key) data node upon sync request.
-func (emptyStruct *EmptyGoStruct) SyncResponse(keys []string, key string) []byte {
-	log.Debugf("emptyStruct.SyncResponse(%s, %s)", keys, key)
-	return nil
-}
-
 // DataUpdate interface (= Updater with different arguments) to handle a Go struct
 type DataUpdate interface {
 	UpdateCreate(path string, value string) error
