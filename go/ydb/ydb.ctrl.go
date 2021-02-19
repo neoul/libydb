@@ -412,7 +412,7 @@ func getUpdater(target interface{}, keys []string) (interface{}, []string) {
 		var ok bool
 		v, ok = ValFind(v, key, NoSearch)
 		if !ok {
-			return newtarget, newkey
+			break
 		}
 		if v.Type().NumMethod() > 0 && v.CanInterface() {
 			switch u := v.Interface().(type) {
@@ -428,52 +428,44 @@ func getUpdater(target interface{}, keys []string) (interface{}, []string) {
 	return newtarget, newkey
 }
 
-func yCreate(v reflect.Value, keys []string, key string, tag string, value string) error {
-	log.Debugf("Node.Create(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
-	err := ValYdbSet(v, keys, key, tag, value)
-	log.Debug("}", err)
-	return err
-}
-
-func yReplace(v reflect.Value, keys []string, key string, tag string, value string) error {
-	log.Debugf("Node.Replace(%v, %s, %s, %s, %s) {", v, keys, key, tag, value)
-	err := ValYdbSet(v, keys, key, tag, value)
-	log.Debug("}", err)
-	return err
-}
-
-// yDelete - constructs the non-updater struct
-func yDelete(v reflect.Value, keys []string, key string) error {
-	log.Debugf("Node.Delete(%v, %s, %s) {", v, keys, key)
-	err := ValYdbUnset(v, keys, key)
-	log.Debug("}", err)
-	return err
+func reverse(ss []string) {
+	last := len(ss) - 1
+	for i := 0; i < len(ss)/2; i++ {
+		ss[i], ss[last-i] = ss[last-i], ss[i]
+	}
 }
 
 func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.ynode) error {
-	var n *C.ynode
-	var keys = make([]string, 0, 0)
-	if new != nil {
-		n = new
-	} else {
+	var n *C.ynode = new
+	if new == nil {
 		n = cur
 	}
+	var keys = make([]string, 0, n.level(root))
 	if root != n {
 		for p := n.up(); p != nil && p != root; p = p.up() {
 			key := p.key()
 			if key != "" {
-				keys = append([]string{key}, keys...)
+				keys = append(keys, key)
 			}
 		}
 	} else {
 		return nil
 	}
-	// fmt.Printf("%v %v %v\n", op, keys, n.key())
+	reverse(keys)
+	// fmt.Printf("%v %v\n", op, keys)
 
-	v := reflect.ValueOf(target)
 	newtarget, newkeys := getUpdater(target, keys)
 
 	var err error = nil
+	switch op {
+	case 'c', 'r':
+		log.Debugf("node.%c(%s, %s, %s, %s) {", op, keys, n.key(), n.tag(), n.value())
+	case 'd':
+		log.Debugf("node.%c(%s, %s) {", op, keys, n.key())
+	default:
+		return fmt.Errorf("%c %s, %s, %s, %s: unknown op", op, keys, n.key(), n.tag(), n.value(), err)
+	}
+
 	switch u := newtarget.(type) {
 	case Updater:
 		switch op {
@@ -483,13 +475,13 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 			err = u.Replace(newkeys, n.key(), n.tag(), n.value())
 		case 'd':
 			err = u.Delete(newkeys, n.key())
-		default:
-			err = fmt.Errorf("unknown op")
 		}
 	case DataUpdate:
-		path := fmt.Sprintf("%s/%s", strings.Join(newkeys, "/"), n.key())
-		if !strings.HasPrefix(path, "/") {
-			path = "/" + path
+		var path string
+		if len(newkeys) > 0 {
+			path = fmt.Sprintf("/%s/%s", strings.Join(newkeys, "/"), n.key())
+		} else {
+			path = fmt.Sprintf("/%s", n.key())
 		}
 		switch op {
 		case 'c':
@@ -498,23 +490,21 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 			err = u.UpdateReplace(path, n.value())
 		case 'd':
 			err = u.UpdateDelete(path)
-		default:
-			err = fmt.Errorf("unknown op")
 		}
 	default:
+		v := reflect.ValueOf(target)
 		switch op {
 		case 'c':
-			err = yCreate(v, keys, n.key(), n.tag(), n.value())
+			err = ValYdbSet(v, keys, n.key(), n.tag(), n.value())
 		case 'r':
-			err = yReplace(v, keys, n.key(), n.tag(), n.value())
+			err = ValYdbSet(v, keys, n.key(), n.tag(), n.value())
 		case 'd':
-			err = yDelete(v, keys, n.key())
-		default:
-			err = fmt.Errorf("unknown op")
+			err = ValYdbUnset(v, keys, n.key())
 		}
 	}
+	log.Debug("}", err)
 	if err != nil {
-		return fmt.Errorf("%c %s, %s, %s, %s: %s", op, keys, n.key(), n.tag(), n.value(), err)
+		return fmt.Errorf("%c %s, %s, %s, %s: %v", op, keys, n.key(), n.tag(), n.value(), err)
 	}
 	return nil
 }
@@ -523,8 +513,8 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 // manipulate -- Update YAML Data Block instance
 func manipulate(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 	var db *YDB = (*YDB)(ygo)
-	if db.Target != nil {
-		err := construct(db.Target, int(op), cur, new, db.top())
+	if db.target != nil {
+		err := construct(db.target, int(op), cur, new, db.top())
 		if err != nil {
 			db.Errors = append(db.Errors, err)
 		}
@@ -535,8 +525,8 @@ func manipulate(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 // updateStartEnd -- indicates the YDB update start and end.
 func updateStartEnd(ygo unsafe.Pointer, started C.int) {
 	var db *YDB = (*YDB)(ygo)
-	if db.Target != nil {
-		startEnd, ok := db.Target.(UpdaterStartEnd)
+	if db.target != nil {
+		startEnd, ok := db.target.(UpdaterStartEnd)
 		if ok {
 			if started != 0 {
 				startEnd.UpdateStart()
@@ -551,10 +541,10 @@ func updateStartEnd(ygo unsafe.Pointer, started C.int) {
 // syncUpdate -- Update YAML Data Block instance upon ydb_sync request.
 func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 	var db *YDB = (*YDB)(ygo)
-	if db.Target == nil {
+	if db.target == nil {
 		return
 	}
-	if SyncResponse, ok := db.Target.(UpdaterSyncResponse); ok {
+	if SyncResponse, ok := db.target.(UpdaterSyncResponse); ok {
 		var b []byte
 		keylist, err := ToSliceKeys(C.GoString(path))
 		if err != nil {
@@ -569,7 +559,7 @@ func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 		if blen > 0 {
 			C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
 		}
-	} else if SyncResponse, ok := db.Target.(UpdateSyncResponse); ok {
+	} else if SyncResponse, ok := db.target.(UpdateSyncResponse); ok {
 		var b []byte
 		b = SyncResponse.SyncResponse(C.GoString(path))
 		blen := len(b)
@@ -596,12 +586,13 @@ type YDB struct {
 	*sync.RWMutex
 	fd     int
 	Name   string
-	Target interface{}
+	target interface{}
 	Errors []error
 	syncCtrl
 	dataUpdate       []*dataUpdateEntry
 	atomicDataUpdate bool
 	returnWarning    bool
+	enabledErrors    bool
 }
 
 func convert(db *YDB, userStruct interface{}, op int, n *C.ynode, root *C.ynode) {
@@ -715,7 +706,7 @@ func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 		Name:    name,
 		RWMutex: new(sync.RWMutex),
 		block:   C.ydb_open(cname),
-		Target:  target,
+		target:  target,
 		syncCtrl: syncCtrl{
 			ToBeIgnored: make(map[string]syncInfo),
 		},
@@ -737,7 +728,7 @@ func (db *YDB) SetTarget(target interface{}, sync bool) error {
 			return err
 		}
 	}
-	db.Target = target
+	db.target = target
 	return nil
 }
 
@@ -1236,6 +1227,10 @@ func (n *C.ynode) key() string {
 
 func (n *C.ynode) value() string {
 	return C.GoString(C.ydb_value(n))
+}
+
+func (n *C.ynode) level(top *C.ynode) int {
+	return int(C.ydb_level(top, n))
 }
 
 func join(strs ...string) string {

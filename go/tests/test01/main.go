@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	s := ""
+	s := map[string]interface{}{}
 	db, close := ydb.OpenWithSync("mydb", &s)
 	defer close()
 
@@ -20,6 +20,7 @@ func main() {
 	dec := db.NewDecoder(r)
 	dec.Decode()
 
+	fmt.Println(db.Errors)
 	fmt.Println(s)
 
 	w, err := os.Create("result.yaml")
