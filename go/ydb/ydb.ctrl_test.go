@@ -251,8 +251,6 @@ list:
 func TestYDB_SyncTo(t *testing.T) {
 	db, dbclose := OpenWithSync("TestYDB_SyncTo", &syncToTestStruct{})
 	defer dbclose()
-	// SetInternalLog(LogDebug)
-	// SetLogLevel(logrus.DebugLevel)
 
 	b := `
 hello:

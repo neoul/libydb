@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/neoul/libydb/go/ydb"
-	"github.com/sirupsen/logrus"
 )
 
 // An example receiving updates from remote process.
@@ -17,7 +16,6 @@ var (
 func main() {
 	flag.Parse()
 	done := ydb.SetSignalFilter()
-	ydb.SetLogLevel(logrus.DebugLevel)
 	datastore := map[string]interface{}{}
 	db, close := ydb.OpenWithSync("host", &datastore)
 	defer close()

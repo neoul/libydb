@@ -201,6 +201,7 @@ import "C"
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -213,23 +214,56 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/golang/glog"
 	"golang.org/x/sys/unix"
 )
 
+// InternalLogLevel of YDB API (C Library)
+type InternalLogLevel uint
+
 const (
-	// LogDebug YDB log level
-	LogDebug = C.YLOG_DEBUG
-	// LogInout YDB log level
-	LogInout = C.YLOG_INOUT
-	// LogInfo YDB log level
-	LogInfo = C.YLOG_INFO
-	// LogWarn YDB log level
-	LogWarn = C.YLOG_WARN
-	// LogError YDB log level
-	LogError = C.YLOG_ERROR
-	// LogCritical YDB log level
-	LogCritical = C.YLOG_CRITICAL
+	// InternalLogCritical YDB log level
+	InternalLogCritical InternalLogLevel = C.YLOG_CRITICAL
+	// InternalLogError YDB log level
+	InternalLogError InternalLogLevel = C.YLOG_ERROR
+	// InternalLogWarn YDB log level
+	InternalLogWarn InternalLogLevel = C.YLOG_WARN
+	// InternalLogInfo YDB log level
+	InternalLogInfo InternalLogLevel = C.YLOG_INFO
+	// InternalLogInout YDB log level
+	InternalLogInout InternalLogLevel = C.YLOG_INOUT
+	// InternalLogDebug YDB log level
+	InternalLogDebug InternalLogLevel = C.YLOG_DEBUG
 )
+
+// SetInternalLog configures the log level of YDB
+func SetInternalLog(level InternalLogLevel) {
+	C.ylog_level = C.uint(level)
+}
+
+// LogLevel of YDB Go API
+type LogLevel uint
+
+const (
+	// LogCritical YDB log level
+	LogCritical LogLevel = 0
+	// LogError YDB log level
+	LogError LogLevel = 1
+	// LogWarn YDB log level
+	LogWarn LogLevel = 2
+	// LogInfo YDB log level
+	LogInfo LogLevel = 3
+)
+
+var ydbLevel LogLevel
+
+// SetLog sets ydbLevel (LogLevel of YDB Go API)
+func SetLog(level LogLevel) {
+	ydbLevel = level
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+}
 
 // Size - Get the number of children
 func (node *YNode) Size() int {
@@ -452,18 +486,20 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 		return nil
 	}
 	reverse(keys)
-	// fmt.Printf("%v %v\n", op, keys)
-
 	newtarget, newkeys := getUpdater(target, keys)
 
 	var err error = nil
 	switch op {
 	case 'c', 'r':
-		log.Debugf("node.%c(%s, %s, %s, %s) {", op, keys, n.key(), n.tag(), n.value())
+		if ydbLevel >= LogInfo {
+			glog.Infof("node.%c(%s, %s, %s, %s)", op, keys, n.key(), n.tag(), n.value())
+		}
 	case 'd':
-		log.Debugf("node.%c(%s, %s) {", op, keys, n.key())
+		if ydbLevel >= LogInfo {
+			glog.Infof("node.%c(%s, %s)", op, keys, n.key())
+		}
 	default:
-		return fmt.Errorf("%c %s, %s, %s, %s: unknown op", op, keys, n.key(), n.tag(), n.value(), err)
+		return fmt.Errorf("%c %s, %s, %s, %s: unknown op", op, keys, n.key(), n.tag(), n.value())
 	}
 
 	switch u := newtarget.(type) {
@@ -502,7 +538,6 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 			err = ValYdbUnset(v, keys, n.key())
 		}
 	}
-	log.Debug("}", err)
 	if err != nil {
 		return fmt.Errorf("%c %s, %s, %s, %s: %v", op, keys, n.key(), n.tag(), n.value(), err)
 	}
@@ -567,11 +602,6 @@ func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 			C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
 		}
 	}
-}
-
-// SetInternalLog configures the log level of YDB
-func SetInternalLog(loglevel uint) {
-	C.ylog_level = C.uint(loglevel)
 }
 
 type dataUpdateEntry struct {
@@ -815,14 +845,14 @@ func (db *YDB) Serve() {
 func (db *YDB) Receive() error {
 	var rfds unix.FdSet
 	if db.fd > 0 {
-		log.Info("Receive() already running.")
+		glog.Errorf("Receive() already running.")
 		return nil
 	}
 	for {
 		db.fd = int(C.ydb_fd(db.block))
 		if db.fd <= 0 {
 			err := errors.New(C.GoString(C.ydb_res_str(C.YDB_E_CONN_FAILED)))
-			log.Errorf("ydb.fd: %v", err)
+			glog.Errorf("ydb.fd: %v", err)
 			return err
 		}
 		rfds.Set(db.fd)
@@ -831,7 +861,7 @@ func (db *YDB) Receive() error {
 			if err == syscall.EINTR {
 				continue
 			}
-			log.Errorf("unix.Select: received %v", err)
+			glog.Errorf("unix.Select: received %v", err)
 			db.fd = 0
 			return err
 		}
@@ -842,7 +872,7 @@ func (db *YDB) Receive() error {
 			db.Unlock()
 			if res >= C.YDB_ERROR {
 				err = fmt.Errorf("%s", C.GoString(C.ydb_res_str(res)))
-				log.Errorf("ydb.serve: %v", err)
+				glog.Errorf("ydb.serve: %v", err)
 				db.fd = 0
 				return err
 			}
@@ -1129,13 +1159,13 @@ func (n *C.ynode) createYNode(parent *YNode) *YNode {
 			key, elem := reflect.ValueOf(node.Key), reflect.ValueOf(node)
 			keytyp := typ.Key()
 			if !key.Type().ConvertibleTo(keytyp) {
-				log.Error("Invalid map key type -", node)
+				glog.Errorf("invalid map key type: %v", node)
 				return nil
 			}
 			key = key.Convert(keytyp)
 			elemtyp := typ.Elem()
 			if elemtyp.Kind() != val.Kind() && !elem.Type().ConvertibleTo(elemtyp) {
-				log.Error("Invalid element type -", node)
+				glog.Errorf("invalid element type %v", node)
 				return nil
 			}
 			val.SetMapIndex(key, elem.Convert(elemtyp))
@@ -1147,7 +1177,6 @@ func (n *C.ynode) createYNode(parent *YNode) *YNode {
 		}
 		node.Parent = parent
 	}
-	// log.Println(node)
 	return node
 }
 
@@ -1367,22 +1396,21 @@ func (db *YDB) EnhansedSyncTo(syncIgnoredTime time.Duration, prefixSearching boo
 //export ylogGo
 // ylogGo - Logging function for YDB native logging facility.
 func ylogGo(level C.int, f *C.char, line C.int, buf *C.char, buflen C.int) {
-	if log == nil {
-		return
-	}
-	switch level {
-	case LogDebug:
-		log.Debugf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
-	case LogInout:
-		log.Debugf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
-	case LogInfo:
-		log.Infof("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
-	case LogWarn:
-		log.Warnf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
-	case LogError:
-		log.Errorf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
-	case LogCritical:
-		log.Fatalf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+	if flag.Parsed() {
+		switch InternalLogLevel(level) {
+		case InternalLogDebug:
+			glog.Infof("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+		case InternalLogInout:
+			glog.Infof("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+		case InternalLogInfo:
+			glog.Infof("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+		case InternalLogWarn:
+			glog.Warningf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+		case InternalLogError:
+			glog.Errorf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+		case InternalLogCritical:
+			glog.Fatalf("%s %d %s", C.GoString(f), line, C.GoStringN(buf, buflen))
+		}
 	}
 }
 

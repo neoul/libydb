@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 
 	"github.com/neoul/gdump"
@@ -9,6 +10,8 @@ import (
 )
 
 func main() {
+	flag.Parse()
+	ydb.SetLog(ydb.LogInfo)
 	dest, close := ydb.Open("dest")
 	defer close()
 	source, close := ydb.OpenWithSync("source", dest)

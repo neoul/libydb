@@ -587,9 +587,7 @@ func newValueStruct(t reflect.Type) reflect.Value {
 				fv.Set(srv)
 			}
 		case reflect.Ptr:
-			// log.Debug(ft.Name, ft.Type)
 			srv := newValue(ft.Type, nil)
-			// log.Debug(fv, srv)
 			if !IsNilOrInvalidValue(srv) {
 				fv.Set(srv)
 			}
@@ -709,21 +707,17 @@ func newPtrOfValue(v reflect.Value) reflect.Value {
 // NewSimpleValue - Creates a reflect.Value of the simple type.
 func NewSimpleValue(t reflect.Type, value interface{}) reflect.Value {
 	if t == reflect.TypeOf(nil) {
-		log.Warning("nil type:", t)
 		return reflect.Value{}
 	}
 	if !isSimpleType(t) {
-		log.Warning("not simple type:", t)
 		return reflect.Value{}
 	}
 	v := newValueScalar(t)
 	if IsValueNil(value) {
-		log.Warning("simple type creation failed:", t)
 		return reflect.Value{}
 	}
 	v, err := setValueScalar(v, value)
 	if err != nil {
-		log.Warning("simple type set failed:", err)
 		return reflect.Value{}
 	}
 	return v
@@ -737,7 +731,6 @@ func NewValue(t reflect.Type, values ...interface{}) reflect.Value {
 	pt := getBaseType(t)
 	switch pt.Kind() {
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
-		log.Warning("Not supported value type:", pt.Kind())
 		return reflect.Value{}
 	case reflect.Struct:
 		var key interface{} = nil
@@ -775,7 +768,6 @@ func NewValue(t reflect.Type, values ...interface{}) reflect.Value {
 		for _, val := range values {
 			nv, err = setValueScalar(nv, val)
 			if err != nil {
-				log.Warningf("Not settable value inserted '%s'", gdump.ValueDumpInline(val, 0, nil))
 			}
 		}
 		return nv
@@ -784,7 +776,6 @@ func NewValue(t reflect.Type, values ...interface{}) reflect.Value {
 
 // SetValue - Set a value.
 func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
-	log.Debugf("SetValue T=%s, V=%v, VALUES=%s", v.Type(), v, values)
 	if !v.IsValid() {
 		return v
 	}
@@ -792,7 +783,6 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 	pt := getBaseType(t)
 	switch pt.Kind() {
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
-		log.Warning("Not supported value type:", pt.Kind())
 		return v
 	case reflect.Struct:
 		var key interface{} = nil
@@ -802,7 +792,6 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 			} else {
 				err := setStructField(v, key, val)
 				if err != nil {
-					log.Warning("set failed:", err)
 				}
 				key = nil
 			}
@@ -816,7 +805,6 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 			} else {
 				err := setMapValue(v, key, val)
 				if err != nil {
-					log.Warning("set failed:", err)
 				}
 				key = nil
 			}
@@ -837,13 +825,11 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 			if v.Elem().CanSet() {
 				v.Elem().Set(nv.Elem())
 			} else {
-				log.Warning("Not settable value", gdump.ValueDumpInline(v.Interface(), 1, nil))
 			}
 		}
 		return nv
 	case reflect.Interface:
 		// interface value is configured based on value's type.
-		// log.Debug("reflect.Interface", v.Kind(), v.Elem().Kind())
 		return SetValue(v.Elem(), values...)
 	default:
 		var err error
@@ -854,7 +840,6 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 		for _, val := range values {
 			nv, err = setValueScalar(nv, val)
 			if err != nil {
-				log.Warning("Not settable value:", gdump.ValueDumpInline(v.Interface(), 0, nil))
 			}
 		}
 		return nv
@@ -863,7 +848,6 @@ func SetValue(v reflect.Value, values ...interface{}) reflect.Value {
 
 // SetChildValue - Set a child value to the parent value.
 func SetChildValue(pv reflect.Value, key interface{}, cv reflect.Value) error {
-	log.Debug("SetChildValue", pv.Type(), cv.Type(), key)
 	t := pv.Type()
 	switch t.Kind() {
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan:
@@ -878,7 +862,6 @@ func SetChildValue(pv reflect.Value, key interface{}, cv reflect.Value) error {
 	case reflect.Map:
 		kv := newValue(pv.Type().Key(), key)
 		pv.SetMapIndex(kv, cv)
-		log.Info("pv.", pv)
 		return nil
 	case reflect.Slice:
 		// nv := copySliceValue(pv)
@@ -919,7 +902,6 @@ func unsetStructField(sv reflect.Value, name interface{}) error {
 
 // UnsetValue - Unset a value indicated by the key from parents
 func UnsetValue(v reflect.Value, key interface{}) error {
-	log.Debugf("UnsetValue T=%s, V=%v, KEY=%s", v.Type(), v, key)
 	if !v.IsValid() {
 		return fmt.Errorf("Invalid value")
 	}
@@ -960,10 +942,8 @@ func GetValue(v reflect.Value, keys ...interface{}) reflect.Value {
 			rkeys := keys[i:]
 			return GetValue(v.Elem(), rkeys...)
 		case reflect.Struct:
-			log.Warning("KEY", key)
 			_, sfv, ok := findStructField(cur, key)
 			if !ok {
-				log.Warning("Not found:", key)
 				return reflect.Value{}
 			}
 			cur = sfv
@@ -971,34 +951,28 @@ func GetValue(v reflect.Value, keys ...interface{}) reflect.Value {
 			mt := cur.Type()
 			kv := newValue(mt.Key(), key)
 			if !kv.IsValid() {
-				log.Warning("Wrong key:", key)
 				return reflect.Value{}
 			}
 			vv := cur.MapIndex(kv)
 			if !vv.IsValid() {
-				log.Warning("Not found:", key)
 				return reflect.Value{}
 			}
 			cur = vv
 		case reflect.Slice, reflect.Array:
 			idxv := newValue(reflect.TypeOf(0), key)
 			if !idxv.IsValid() {
-				log.Warning("Wrong key:", key)
 				return reflect.Value{}
 			}
 			index := idxv.Interface().(int)
 			if cur.Len() <= index {
-				log.Warning("Out of range:", index)
 				return reflect.Value{}
 			}
 			vv := cur.Index(index)
 			if !vv.IsValid() {
-				log.Warning("Invalid value found:", key)
 				return reflect.Value{}
 			}
 			cur = vv
 		default:
-			log.Warning("Not found:", key)
 			return reflect.Value{}
 		}
 	}
@@ -1019,7 +993,6 @@ func FindValue(v reflect.Value, keys ...string) reflect.Value {
 		case reflect.Struct:
 			_, sfv, ok := findStructField(cur, key)
 			if !ok {
-				// log.Debug("Not found:", key)
 				return reflect.Value{}
 			}
 			cur = sfv
@@ -1027,34 +1000,28 @@ func FindValue(v reflect.Value, keys ...string) reflect.Value {
 			mt := cur.Type()
 			kv := newValue(mt.Key(), key)
 			if !kv.IsValid() {
-				// log.Debug("Wrong key:", key)
 				return reflect.Value{}
 			}
 			vv := cur.MapIndex(kv)
 			if !vv.IsValid() {
-				// log.Debug("Not found:", key)
 				return reflect.Value{}
 			}
 			cur = vv
 		case reflect.Slice, reflect.Array:
 			idxv := newValue(reflect.TypeOf(0), key)
 			if !idxv.IsValid() {
-				// log.Debug("Wrong key:", key)
 				return reflect.Value{}
 			}
 			index := idxv.Interface().(int)
 			if cur.Len() <= index {
-				// log.Debug("Out of range:", index)
 				return reflect.Value{}
 			}
 			vv := cur.Index(index)
 			if !vv.IsValid() {
-				// log.Debug("Invalid value found:", key)
 				return reflect.Value{}
 			}
 			cur = vv
 		default:
-			// log.Debug("Not found:", key)
 			return reflect.Value{}
 		}
 	}
@@ -1069,11 +1036,9 @@ func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (re
 		return reflect.Value{}, reflect.Value{}, "", false
 	}
 	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
-		log.Debug(" * cv:", cv.Kind(), keys)
 		return FindValueWithParent(cv, cv.Elem(), keys...)
 	}
 	for i, key = range keys {
-		log.Debug(" * cv:", cv.Kind(), keys)
 		switch cv.Kind() {
 		case reflect.Ptr, reflect.Interface:
 			rkeys := keys[i:]
@@ -1081,7 +1046,6 @@ func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (re
 		case reflect.Struct:
 			_, sfv, ok := findStructField(cv, key)
 			if !ok {
-				log.Warning("Not found:", key)
 				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			pv = cv
@@ -1090,12 +1054,10 @@ func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (re
 			mt := cv.Type()
 			kv := newValue(mt.Key(), key)
 			if !kv.IsValid() {
-				log.Warning("Wrong key:", key)
 				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			vv := cv.MapIndex(kv)
 			if !vv.IsValid() {
-				log.Warning("Not found:", key)
 				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			pv = cv
@@ -1103,23 +1065,19 @@ func FindValueWithParent(pv reflect.Value, cv reflect.Value, keys ...string) (re
 		case reflect.Slice, reflect.Array:
 			idxv := newValue(reflect.TypeOf(0), key)
 			if !idxv.IsValid() {
-				log.Warning("Wrong key:", key)
 				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			index := idxv.Interface().(int)
 			if cv.Len() <= index {
-				log.Warning("Out of range:", index)
 				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			vv := cv.Index(index)
 			if !vv.IsValid() {
-				log.Warning("Invalid value found:", key)
 				return reflect.Value{}, reflect.Value{}, "", false
 			}
 			pv = cv
 			cv = vv
 		default:
-			log.Warning("Not found:", key)
 			return pv, cv, key, false
 		}
 	}
@@ -1158,7 +1116,6 @@ func IsYamlScalar(tag string) bool {
 
 // SetValueChild - Set a child value to the parent value.
 func SetValueChild(pv reflect.Value, cv reflect.Value, key interface{}) (reflect.Value, error) {
-	log.Debug("SetValueChild", pv.Type(), cv.Type(), key)
 	v := GetNonIfOrPtrValueDeep(pv)
 	switch v.Type().Kind() {
 	case reflect.Array, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Interface:
@@ -1190,16 +1147,13 @@ func SetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string,
 	var k string
 	var pkey string
 	var err error
-	// log.Debug("SetValueDeep", keys, key)
 	if !cv.IsValid() {
 		return fmt.Errorf("invalid parent value")
 	}
 	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
-		log.Debug(" * cv:", cv.Kind(), keys)
 		return SetValueDeep(cv, cv.Elem(), keys, key, tag, value)
 	}
 	for i, k = range keys {
-		log.Debug(" * cv:", cv.Kind(), keys)
 		pkey = k
 		switch cv.Kind() {
 		case reflect.Ptr, reflect.Interface:
@@ -1246,7 +1200,6 @@ func SetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string,
 
 		if len(keys) == i+1 {
 			if IsValueInterface(cv) && isValueScalar(cv.Elem()) {
-				log.Debug("pv", pv.Kind(), "cv", cv.Kind(), "cv.Elem()", cv.Elem().Kind())
 				cv = reflect.ValueOf(map[string]interface{}{})
 				pv, err = SetValueChild(pv, cv, k)
 				if err != nil {
@@ -1255,8 +1208,6 @@ func SetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string,
 			}
 		}
 	}
-	log.Debugf("Before pv: %s: %s", pv.Kind(), gdump.ValueDumpInline(pv.Interface(), 1, nil))
-	log.Debugf("Before cv: %s: %s", cv.Kind(), gdump.ValueDumpInline(cv.Interface(), 1, nil))
 
 	cv = GetNonInterfaceValueDeep(cv)
 	if IsYamlSeq(tag) {
@@ -1294,8 +1245,6 @@ func SetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string,
 		}
 	}
 
-	log.Debugf("After cv: %s", cv.Kind())
-	gdump.ValueDump(cv.Interface(), 1, log.Debug)
 	return nil
 }
 
@@ -1303,16 +1252,13 @@ func SetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string,
 func UnsetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key string) error {
 	var i int
 	var k string
-	// log.Debug("UnsetValueDeep", keys, key)
 	if !cv.IsValid() {
 		return fmt.Errorf("invalid parent value")
 	}
 	if cv.Kind() == reflect.Ptr || cv.Kind() == reflect.Interface {
-		log.Debug(" * cv:", cv.Kind(), keys)
 		return UnsetValueDeep(cv, cv.Elem(), keys, key)
 	}
 	for i, k = range keys {
-		log.Debug(" * cv:", cv.Kind(), keys)
 		switch cv.Kind() {
 		case reflect.Ptr, reflect.Interface:
 			rkeys := keys[i:]
@@ -1356,8 +1302,6 @@ func UnsetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key strin
 		default: // scalar
 		}
 	}
-	log.Debugf("Before pv: %s: %s", pv.Kind(), gdump.ValueDumpInline(pv.Interface(), 1, nil))
-	log.Debugf("Before cv: %s: %s", cv.Kind(), gdump.ValueDumpInline(cv.Interface(), 1, nil))
 
 	var err error
 	cv = GetNonInterfaceValueDeep(cv)
@@ -1365,7 +1309,5 @@ func UnsetValueDeep(pv reflect.Value, cv reflect.Value, keys []string, key strin
 		err = UnsetValue(cv, key)
 	}
 
-	log.Debugf("After cv: %s", cv.Kind())
-	gdump.ValueDump(cv.Interface(), 1, log.Debug)
 	return err
 }

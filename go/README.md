@@ -17,6 +17,7 @@ package main
 import (
     "github.com/kr/pretty"
     "github.com/neoul/libydb/go/ydb"
+    // "flag"
 )
 
 // Default Updater interface example
@@ -35,9 +36,9 @@ func main() {
     // Create a user-defined data structure
     userdb := &userData{}
 
-    // Enable log
-    // ydb.SetLogLevel(logrus.DebugLevel)
-    // ydb.SetInternalLog(ydb.LogDebug)
+    // Enable YDB log (flag.Parse() must be invoked.)
+    // flag.Parse()
+    // ydb.SetLog(ydb.LogInfo)
 
     // Open an YDB instance
     db, close := ydb.Open("hello")

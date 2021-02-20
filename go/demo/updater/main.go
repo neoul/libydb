@@ -21,10 +21,6 @@ func main() {
 	// Create a user-defined data structure
 	userdb := &userData{}
 
-	// Enable log
-	// ydb.SetLogLevel(logrus.DebugLevel)
-	// ydb.SetInternalLog(ydb.LogDebug)
-
 	// Open an YDB instance
 	db, close := ydb.Open("hello")
 	defer close()
