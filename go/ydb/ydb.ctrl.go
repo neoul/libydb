@@ -561,8 +561,13 @@ func manipulate(ygo unsafe.Pointer, op C.char, cur *C.ynode, new *C.ynode) {
 func updateStartEnd(ygo unsafe.Pointer, started C.int) {
 	var db *YDB = (*YDB)(ygo)
 	if db.target != nil {
-		startEnd, ok := db.target.(UpdaterStartEnd)
-		if ok {
+		if startEnd, ok := db.target.(UpdaterStartEnd); ok {
+			if started != 0 {
+				startEnd.UpdaterStart()
+			} else {
+				startEnd.UpdaterEnd()
+			}
+		} else if startEnd, ok := db.target.(DataUpdateStartEnd); ok {
 			if started != 0 {
 				startEnd.UpdateStart()
 			} else {
@@ -594,7 +599,7 @@ func syncUpdate(ygo unsafe.Pointer, path *C.char, stream *C.FILE) {
 		if blen > 0 {
 			C.fwrite(unsafe.Pointer(&b[0]), C.ulong(blen), 1, stream)
 		}
-	} else if SyncResponse, ok := db.target.(UpdateSyncResponse); ok {
+	} else if SyncResponse, ok := db.target.(DataUpdateSyncResponse); ok {
 		var b []byte
 		b = SyncResponse.SyncResponse(C.GoString(path))
 		blen := len(b)
@@ -1044,7 +1049,7 @@ func (db *YDB) Timeout(t time.Duration) error {
 	return db.resultErr(res)
 }
 
-// AddSyncResponse - registers the path where the UpdaterSyncResponse or UpdateSyncResponse interface is executed.
+// AddSyncResponse - registers the path where the UpdaterSyncResponse or DataUpdateSyncResponse interface is executed.
 func (db *YDB) AddSyncResponse(path string) error {
 	db.Lock()
 	defer db.Unlock()
@@ -1054,7 +1059,7 @@ func (db *YDB) AddSyncResponse(path string) error {
 	return db.resultErr(res)
 }
 
-// DelSyncResponse - unregisters the path where the UpdaterSyncResponse or UpdateSyncResponse interface is executed.
+// DelSyncResponse - unregisters the path where the UpdaterSyncResponse or DataUpdateSyncResponse interface is executed.
 func (db *YDB) DelSyncResponse(path string) {
 	db.Lock()
 	defer db.Unlock()

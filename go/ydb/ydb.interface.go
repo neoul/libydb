@@ -10,8 +10,8 @@ type Updater interface {
 // UpdaterStartEnd indicates the start and end of the data update.
 // They will be called before or after the Updater (Create, Replace and Delete) execution.
 type UpdaterStartEnd interface {
-	UpdateStart() error
-	UpdateEnd() error
+	UpdaterStart() error
+	UpdaterEnd() error
 }
 
 // UpdaterSyncResponse - An interface to update the target
@@ -32,12 +32,13 @@ type DataUpdate interface {
 // DataUpdateStartEnd indicates the start and end of the data update.
 // They will be called before or after the DataUpdate (Create, Replace and Delete) execution.
 type DataUpdateStartEnd interface {
-	UpdaterStartEnd
+	UpdateStart() error
+	UpdateEnd() error
 }
 
-// UpdateSyncResponse - An interface to update the target
+// DataUpdateSyncResponse - An interface to update the target
 // data node on which a request (DataUpdateSyncRequester) signaled.
-type UpdateSyncResponse interface {
+type DataUpdateSyncResponse interface {
 	// SyncResponse is a callback for target data node synchronization.
 	// It must return YAML bytes to be updated.
 	SyncResponse(path string) []byte
