@@ -25,7 +25,7 @@ void HANDLER_SIGINT(int param)
 ydb_res read_hook(ydb *datablock, char *path, FILE *fp)
 {
     static int enabled;
-    // printf("read_hook path=%s\n", path);
+    printf("read_hook path=%s\n", path);
     enabled = (enabled + 1) % 2;
     fprintf(fp, example_yaml, enabled ? "true" : "false");
     return YDB_OK;
@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
 {
     ydb_res res = YDB_OK;
     ydb *datablock;
+    // ylog_severity = YLOG_DEBUG;
 
     if (argc > 1 && strcmp(argv[1], "subscriber") == 0)
     {
@@ -71,13 +72,14 @@ int main(int argc, char *argv[])
     {
         if (argc > 1 && strcmp(argv[1], "subscriber") == 0)
         {
-            ydb_sync(datablock, "/system");
+            // ydb_sync(datablock, "system:\n");
+            ydb_path_sync(datablock, "/system");
             ydb_serve(datablock, 1000);
             break;
         }
         else
         {
-            res = ydb_serve(datablock, 0);
+            res = ydb_serve(datablock, 1000);
             if (YDB_FAILED(res))
             {
                 fprintf(stderr, "error: %s\n", ydb_res_str(res));
