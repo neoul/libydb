@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "ydb_open failed.\n");
             goto _done;
         }
-        ydb_read_hook_add(datablock, "/", (ydb_read_hook)read_hook, 0);
+        ydb_read_hook_add(datablock, "/system/interface", (ydb_read_hook)read_hook, 0);
         res = ydb_connect(datablock, "us:///tmp/test", "pub");
         if (res)
             goto _done;
@@ -72,8 +72,18 @@ int main(int argc, char *argv[])
     {
         if (argc > 1 && strcmp(argv[1], "subscriber") == 0)
         {
+            // To check ydb_sync operation
+            ylog_severity = YLOG_INFO;
             // ydb_sync(datablock, "system:\n");
             ydb_path_sync(datablock, "/system");
+            ydb_serve(datablock, 1000);
+            ydb_path_sync(datablock, "/system/interface");
+            ydb_serve(datablock, 1000);
+            ydb_path_sync(datablock, "/system/interface/eth0");
+            ydb_serve(datablock, 1000);
+            ydb_path_sync(datablock, "/system/interface/eth1");
+            ydb_serve(datablock, 1000);
+            ydb_path_sync(datablock, "/");
             ydb_serve(datablock, 1000);
             break;
         }
