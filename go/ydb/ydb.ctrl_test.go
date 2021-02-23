@@ -266,9 +266,7 @@ list:
 	db.AddSyncResponse("/hello/ydb")
 	db.AddSyncResponse("/good/ydb")
 	type args struct {
-		syncIgnoredTime time.Duration
-		prefixSearching bool
-		paths           []string
+		paths []string
 	}
 	tests := []struct {
 		name    string
@@ -278,25 +276,21 @@ list:
 		{
 			name: "SyncResponse",
 			args: args{
-				syncIgnoredTime: time.Second * 1,
-				prefixSearching: false,
-				paths:           []string{"/hello/ydb", "/good/ydb"},
+				paths: []string{"/hello/ydb", "/good/ydb"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "SyncResponse",
 			args: args{
-				syncIgnoredTime: 0,
-				prefixSearching: false,
-				paths:           []string{"/hello/new", "/good/old"},
+				paths: []string{"/hello/new", "/good/old"},
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := db.EnhansedSyncTo(tt.args.syncIgnoredTime, tt.args.prefixSearching, tt.args.paths...); (err != nil) != tt.wantErr {
+			if err := db.SyncTo(tt.args.paths...); (err != nil) != tt.wantErr {
 				t.Errorf("YDB.SyncTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

@@ -61,28 +61,35 @@ func (db *YDB) UpdateStart() error {
 }
 
 // ToYAML converts the path and value as YAML bytes and then write them to bytes.Buffer.
-func ToYAML(path *string, value *string, isDel bool) ([]byte, error) {
-	if path == nil {
+func ToYAML(path string, value string, isDel bool) ([]byte, error) {
+	if path == "" {
 		return nil, fmt.Errorf("empty path")
 	}
-	keylist, err := ToSliceKeys(*path)
+	keylist, err := ToSliceKeys(path)
 	if err != nil {
 		return nil, err
 	}
 	indent := 0
 	var b bytes.Buffer
 	for _, key := range keylist {
-		b.WriteString(fmt.Sprintf("\n%s%s:", strings.Repeat(" ", indent), key))
+		// b.WriteString(fmt.Sprintf("\n%s%s:", strings.Repeat(" ", indent), key))
+		b.WriteString("\n")
+		b.WriteString(strings.Repeat(" ", indent))
+		b.WriteString(key)
+		b.WriteString(":")
 		indent++
 	}
 	if isDel {
 		b.WriteString(" !ydb!delete\n")
 		return b.Bytes(), nil
 	}
-	if value == nil || *value == "" {
+	if value == "" {
 		b.WriteString("\n")
 	} else {
-		b.WriteString(fmt.Sprintf(" \"%s\"\n", *value))
+		// b.WriteString(fmt.Sprintf(" \"%s\"\n", value))
+		b.WriteString(" \"")
+		b.WriteString(value)
+		b.WriteString("\"\n")
 	}
 	return b.Bytes(), nil
 }
@@ -95,7 +102,7 @@ func (db *YDB) UpdateEnd() error {
 	defer db.Unlock()
 	var b bytes.Buffer
 	for _, entry := range db.dataUpdate {
-		ybytes, err := ToYAML(&entry.path, &entry.value, entry.isDelete)
+		ybytes, err := ToYAML(entry.path, entry.value, entry.isDelete)
 		if err != nil {
 			db.dataUpdate = nil
 			return err

@@ -515,9 +515,9 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 	case DataUpdate:
 		var path string
 		if len(newkeys) > 0 {
-			path = fmt.Sprintf("/%s/%s", strings.Join(newkeys, "/"), n.key())
+			path = "/" + strings.Join(newkeys, "/") + "/" + n.key()
 		} else {
-			path = fmt.Sprintf("/%s", n.key())
+			path = "/" + n.key()
 		}
 		switch op {
 		case 'c':
@@ -619,11 +619,10 @@ type dataUpdateEntry struct {
 type YDB struct {
 	block *C.ydb
 	*sync.RWMutex
-	fd     int
-	Name   string
-	target interface{}
-	Errors []error
-	syncCtrl
+	fd               int
+	Name             string
+	target           interface{}
+	Errors           []error
 	dataUpdate       []*dataUpdateEntry
 	atomicDataUpdate bool
 	returnWarning    bool
@@ -742,9 +741,6 @@ func OpenWithSync(name string, target interface{}) (*YDB, func()) {
 		RWMutex: new(sync.RWMutex),
 		block:   C.ydb_open(cname),
 		target:  target,
-		syncCtrl: syncCtrl{
-			ToBeIgnored: make(map[string]syncInfo),
-		},
 	}
 	// C.ydb_disable_variable_arguments(db.block)
 	C.ydb_write_hook_register(db.block, unsafe.Pointer(&db.block))
@@ -989,13 +985,40 @@ func (db *YDB) Sync(yaml []byte) ([]byte, error) {
 // SyncTo - request the update of the YDB instance
 //  foo:          >>   foo:
 //   bar:               bar: "hello yaml"
-func (db *YDB) SyncTo(path string) error {
+func (db *YDB) SyncTo(path ...string) error {
+	if len(path) == 0 {
+		return nil
+	} else if len(path) == 1 {
+		db.Lock()
+		defer db.Unlock()
+		p := C.CString(path[0])
+		defer C.free(unsafe.Pointer(p))
+		res := C.ydb_path_sync_wrapper(db.block, p)
+		return db.resultErr(res)
+	}
+
 	db.Lock()
 	defer db.Unlock()
-	p := C.CString(path)
-	defer C.free(unsafe.Pointer(p))
-	res := C.ydb_path_sync_wrapper(db.block, p)
-	return db.resultErr(res)
+	var bb bytes.Buffer
+	for i := range path {
+		if path[i] == "" {
+			continue
+		}
+		keylist, err := ToSliceKeys(path[i])
+		if err != nil {
+			return err
+		}
+		indent := 0
+		for _, key := range keylist {
+			// bb.WriteString(fmt.Sprintf("\n%s%s:", strings.Repeat(" ", indent), key))
+			bb.WriteString("\n")
+			bb.WriteString(strings.Repeat(" ", indent))
+			bb.WriteString(key)
+			bb.WriteString(":")
+			indent++
+		}
+	}
+	return db.sync(bb.Bytes())
 }
 
 // WriteTo - writes the value string to the target path in the YDB instance
@@ -1004,7 +1027,7 @@ func (db *YDB) WriteTo(path string, value string) error {
 	defer db.Unlock()
 	var pathvalue string
 	if value != "" {
-		pathvalue = fmt.Sprintf("%s=%s", path, value)
+		pathvalue = path + "=" + value
 	} else {
 		pathvalue = path
 	}
@@ -1321,81 +1344,9 @@ func findSyncNodeByPrefix(n *C.ynode, prefixkey []string) []*C.ynode {
 	return nodes
 }
 
-// syncInfo - information for sync
-type syncInfo struct {
-	syncSequence uint
-}
-
-type syncCtrl struct {
-	ToBeIgnored  map[string]syncInfo
-	syncSequence uint
-}
-
 // EnhansedSyncTo - request the update to remote YDB instances to refresh the data nodes.
 func (db *YDB) EnhansedSyncTo(syncIgnoredTime time.Duration, prefixSearching bool, paths ...string) error {
-	// retrieve the path ==> YNode list matched to the path
-	// Check syncIgnoreTimer is running
-	// Check the list of the previous sync requests.
-	// send sync and update data from the remote YDB.
-	// Store the path of the Ynode list.
-	// Running syncIgnoreTimer
-	var err error
-	db.Lock()
-	defer db.Unlock()
-	db.syncCtrl.syncSequence++
-	sequence := db.syncCtrl.syncSequence
-	n := db.top()
-	if n == nil {
-		return fmt.Errorf("no top data node")
-	}
-	nodelist := []*C.ynode{}
-	for _, path := range paths {
-		keylist, err := ToSliceKeys(path)
-		if err != nil {
-			continue
-		}
-		if prefixSearching {
-			nodelist = append(nodelist, findSyncNodeByPrefix(n, keylist)...)
-		} else {
-			nodelist = append(nodelist, findSyncNode(n, keylist))
-		}
-	}
-	var syncTriggered bool
-	var bb bytes.Buffer
-	for _, node := range nodelist {
-		if syncIgnoredTime > 0 {
-			path := node.getpath(db)
-			if _, ok := db.syncCtrl.ToBeIgnored[path]; ok {
-				continue
-			}
-			db.syncCtrl.ToBeIgnored[path] = syncInfo{syncSequence: sequence}
-		}
-		cptr := C.ydb_ynode2yaml_wrapper(db.block, node)
-		if cptr.buf != nil {
-			bb.Write(C.GoBytes(unsafe.Pointer(cptr.buf), cptr.buflen))
-			C.free(unsafe.Pointer(cptr.buf))
-		}
-		syncTriggered = true
-	}
-	if bb.Len() > 0 {
-		err = db.sync(bb.Bytes())
-	}
-	if syncTriggered && syncIgnoredTime > 0 {
-		timer := time.NewTimer(syncIgnoredTime)
-		go func(db *YDB, sequence uint, timer *time.Timer) {
-			select {
-			case <-timer.C:
-				db.Lock()
-				defer db.Unlock()
-				for k, v := range db.syncCtrl.ToBeIgnored {
-					if v.syncSequence == sequence {
-						delete(db.syncCtrl.ToBeIgnored, k)
-					}
-				}
-			}
-		}(db, sequence, timer)
-	}
-	return err
+	return fmt.Errorf("EnhansedSyncTo is deprecated")
 }
 
 //export ylogGo
