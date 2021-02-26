@@ -33,7 +33,7 @@ func (u *userdata) UpdateReplace(path string, value string) error {
 }
 
 func (u *userdata) UpdateDelete(path string) error {
-	keys := u.PrefixSearch(path)
+	keys := u.FindByPrefix(path)
 	for _, p := range keys {
 		u.Remove(p)
 	}
@@ -41,7 +41,7 @@ func (u *userdata) UpdateDelete(path string) error {
 }
 
 func (u *userdata) FuzzyFind(path string) error {
-	keys := u.FuzzySearch(path)
+	keys := u.FindByFuzzy(path)
 	gdump.Print(keys)
 	return nil
 }
