@@ -284,11 +284,11 @@ void ydb_connection_log(int enable)
         ydb_conn_log = false;
 }
 static char *yconn_flag_print(yconn *conn);
-static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple);
+static void yconn_print(yconn *conn, const char *func, int line, bool simple, char *state);
 #define YCONN_INFO(conn, state) \
-    yconn_print(conn, __func__, __LINE__, state, false)
+    yconn_print(conn, __func__, __LINE__, false, state)
 #define YCONN_SIMPLE_INFO(conn) \
-    yconn_print(conn, __func__, __LINE__, NULL, true)
+    yconn_print(conn, __func__, __LINE__, true, NULL)
 
 static unsigned int _yconn_flags(const char *address, char *flagstr);
 static yconn *_yconn_new(const char *address, unsigned int flags, ydb *datablock);
@@ -2731,7 +2731,7 @@ void yconn_default_recv_head(
             yfree(conn->name);
         conn->name = ystrdup(name);
     }
-    ylog_info("ydb[%s] head {peer name: %s, seq: %u, type: %s, op: %s, to: %d}\n",
+    ylog_info("ydb[%s] head {peer: %s, seq: %u, type: %s, op: %s, to: %d}\n",
               conn->datablock->name,
               (name[0]) ? name : "...", conn->recvseq, ymsg_str[*type], yconn_op_str[*op],
               conn->recv_timeout);
@@ -3174,7 +3174,7 @@ static char *yconn_flag_print(yconn *conn)
     return flagstr;
 }
 
-static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple)
+static void yconn_print(yconn *conn, const char *func, int line, bool simple, char *state)
 {
     int n;
     char flagstr[128];
@@ -3213,7 +3213,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         if (state)
             ylog_logger(YLOG_INFO, func, line, "ydb[%s] %s conn:\n",
                         conn->datablock ? conn->datablock->name : "...", state);
-        ylog_logger(YLOG_INFO, func, line, " address: %s (peer name: %s, fd: %d)\n",
+        ylog_logger(YLOG_INFO, func, line, " address: %s (peer: %s, fd: %d)\n",
                     conn->address, conn->name ? conn->name : "...", conn->fd);
         if (conn->error_num > 0)
             ylog_logger(YLOG_INFO, func, line, " sys-err: %s\n", strerror(conn->error_num));
@@ -3240,9 +3240,9 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
     }
     else
     {
-        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (peer name: %s, fd: %d)\n",
+        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (peer: %s, fd: %d): %s\n",
                     conn->datablock ? conn->datablock->name : "...",
-                    conn->address, conn->name ? conn->name : "...", conn->fd);
+                    conn->address, conn->name ? conn->name : "...", conn->fd, state ? state : "");
     }
 }
 
@@ -3545,7 +3545,6 @@ ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
 
 ydb_res yconn_reopen_or_close(yconn *conn, ydb *datablock)
 {
-    int len;
     ydb_res res;
     uint64_t expired;
     ylog_inout();
@@ -3558,15 +3557,23 @@ ydb_res yconn_reopen_or_close(yconn *conn, ydb *datablock)
 
     if (conn->timerfd > 0)
     {
-        len = read(conn->timerfd, &expired, sizeof(uint64_t));
+        ssize_t len = recv(conn->timerfd, &expired, sizeof(uint64_t), MSG_DONTWAIT);
+        // ssize_t len = read(conn->timerfd, &expired, sizeof(uint64_t));
         if (len != sizeof(uint64_t))
         {
-            if (errno == EAGAIN)
-                return YDB_OK;
-            YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
-            return YDB_E_SYSTEM_FAILED;
+            ylog_error("ydb[%s] conn: %s (peer: %s, fd: %d): reconnect timer error\n",
+                       conn->datablock ? conn->datablock->name : "...",
+                       conn->address, conn->name ? conn->name : "...");
+
+            // if (errno == EAGAIN)
+            //     return YDB_OK;
+            // YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
+            // return YDB_E_SYSTEM_FAILED;
         }
-        ylog_debug("timerfd %d expired (%d)\n", conn->timerfd, expired);
+        ylog_error("ydb[%s] conn: %s (peer: %s, fd: %d): retry to connect (timerfd %d)\n",
+                   conn->datablock ? conn->datablock->name : "...",
+                   conn->address, conn->name ? conn->name : "...",
+                   conn->timerfd);
     }
 
     conn->func_deinit(conn);
