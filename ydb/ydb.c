@@ -148,6 +148,9 @@ char *ydb_res_str(ydb_res res)
 
 typedef struct _yconn yconn;
 
+// timer conn for timer expiration check.
+yconn tconn;
+
 #define YCONN_ROLE_PUBLISHER 0x0001
 #define YCONN_WRITABLE 0x0002
 #define YCONN_UNSUBSCRIBE 0x0004
@@ -481,7 +484,7 @@ static ydb_res ydb_epoll_timer(ydb *datablock)
 {
     int fd;
     struct epoll_event event;
-    event.data.ptr = NULL;
+    event.data.ptr = &tconn;
     event.events = EPOLLIN;
     fd = ytimer_fd(datablock->timer);
     if (fd <= 0)
@@ -3557,20 +3560,19 @@ ydb_res yconn_reopen_or_close(yconn *conn, ydb *datablock)
 
     if (conn->timerfd > 0)
     {
-        ssize_t len = recv(conn->timerfd, &expired, sizeof(uint64_t), MSG_DONTWAIT);
-        // ssize_t len = read(conn->timerfd, &expired, sizeof(uint64_t));
+        // ssize_t len = recv(conn->timerfd, &expired, sizeof(uint64_t), MSG_DONTWAIT);
+        ssize_t len = read(conn->timerfd, &expired, sizeof(uint64_t));
         if (len != sizeof(uint64_t))
         {
             ylog_error("ydb[%s] conn: %s (peer: %s, fd: %d): reconnect timer error\n",
                        conn->datablock ? conn->datablock->name : "...",
-                       conn->address, conn->name ? conn->name : "...");
-
+                       conn->address, conn->name ? conn->name : "...", conn->timerfd);
             // if (errno == EAGAIN)
             //     return YDB_OK;
             // YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
             // return YDB_E_SYSTEM_FAILED;
         }
-        ylog_error("ydb[%s] conn: %s (peer: %s, fd: %d): retry to connect (timerfd %d)\n",
+        ylog_info("ydb[%s] conn: %s (peer: %s, fd: %d): retry to connect\n",
                    conn->datablock ? conn->datablock->name : "...",
                    conn->address, conn->name ? conn->name : "...",
                    conn->timerfd);
@@ -4421,8 +4423,9 @@ ydb_res yconn_serve(ydb *datablock, int timeout)
     for (i = 0; i < n; i++)
     {
         yconn *conn = event[i].data.ptr;
-        if (event[i].data.ptr == NULL)
-        {
+        if (conn == NULL) {
+            continue;
+        } else if (conn == &tconn) {
             if (ytimer_serve(datablock->timer) < 0)
                 res = YDB_E_CTRL;
         }
@@ -4489,7 +4492,10 @@ ydb_res yconn_serve_blocking(ydb *datablock, eventid eid, int timeout)
         for (i = 0; i < n; i++)
         {
             yconn *conn = event[i].data.ptr;
-            if (event[i].data.ptr == NULL)
+            if (conn == NULL) {
+                continue;
+            }
+            else if (conn == &tconn)
             {
                 waitevent *we;
                 ytimer_serve(datablock->timer);
