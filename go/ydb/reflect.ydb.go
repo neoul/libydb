@@ -30,8 +30,9 @@ func ValYdbSet(v reflect.Value, keys []string, key string, tag string, value str
 		pkey = k
 	}
 
-	ct, ok := TypeFind(v.Type(), key)
-	if ok && IsTypeInterface(ct) {
+	ct, _ := TypeFind(v.Type(), key)
+	// ok && IsTypeInterface(ct)
+	if IsTypeInterface(ct) {
 		switch tag {
 		case "!!map", "!!imap", "!!omap", "!!set":
 			nv := reflect.ValueOf(map[string]interface{}{})
