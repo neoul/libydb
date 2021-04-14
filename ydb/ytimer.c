@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <ylog.h>
 #include <ytimer.h>
+#include <sys/socket.h>
 
 typedef struct _ytimer_cb
 {
@@ -245,10 +246,10 @@ static unsigned int _ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_p
         return 0;
     }
 
-    timer_cb->timer_id = ((++timer->next_id)%10000)+1;
+    timer_cb->timer_id = ((++timer->next_id)%100000)+1;
     while (timer_cb->timer_id > 0 && ytree_search(timer->timer_ids, timer_cb) != NULL)
     {
-        timer_cb->timer_id = ((++timer->next_id)%10000)+1;
+        timer_cb->timer_id = ((++timer->next_id)%100000)+1;
     }
 
     timer_cb->user_num = user_num;
@@ -274,12 +275,12 @@ unsigned int ytimer_set_msec(ytimer *timer, unsigned int msec, bool is_periodic,
     va_list ap;
     void *user[5] = {0};
     va_start(ap, user_num);
-    ylog_debug("user total = %d\n", user_num);
+    // ylog_debug("user total = %d\n", user_num);
     for (i = 0; i < user_num; i++)
     {
         void *p = va_arg(ap, void *);
         user[i] = p;
-        ylog_debug("user[%d]=%p\n", i, user[i]);
+        // ylog_debug("user[%d]=%p\n", i, user[i]);
     }
     va_end(ap);
     return _ytimer_set_msec(timer, msec, is_periodic, timer_fn, user_num, user);
@@ -291,12 +292,12 @@ unsigned int ytimer_set(ytimer *timer, unsigned int seconds, bool is_periodic, y
     va_list ap;
     void *user[5] = {0};
     va_start(ap, user_num);
-    ylog_debug("user total = %d\n", user_num);
+    // ylog_debug("user total = %d\n", user_num);
     for (i = 1; i < user_num; i++)
     {
         void *p = va_arg(ap, void *);
         user[i] = p;
-        ylog_debug("user[%d]=%p\n", i, user[i]);
+        // ylog_debug("user[%d]=%p\n", i, user[i]);
     }
     va_end(ap);
     return _ytimer_set_msec(timer, seconds * 1000, is_periodic, timer_fn, user_num, user);
@@ -388,12 +389,22 @@ int ytimer_serve(ytimer *timer)
         ylog_error("ytimer: no timer created\n");
         return -1;
     }
-
-    ssize_t len = read(timer->timerfd, &num_of_expires, sizeof(uint64_t));
+    if (timer->timerfd <= 0)
+    {
+        ylog_error("ytimer: no timerfd\n");
+        return -1;
+    }
+    // ylog_debug("ytimer[fd=%d]: timer serve\n", timer->timerfd);
+    // check nothing pending timers.
+    if (ytree_size(timer->timers) <= 0)
+        return 0;
+    
+    ssize_t len = recv(timer->timerfd, &num_of_expires, sizeof(uint64_t), MSG_DONTWAIT);
+    // Changed read() to recv() to avoid blocking on read().
+    // ssize_t len = read(timer->timerfd, &num_of_expires, sizeof(uint64_t));
     if (len < 0)
     {
-        ylog_error("ytimer[fd=%d]: %s\n", timer->timerfd, strerror(errno));
-        return -1;
+        ylog_error("ytimer[fd=%d]: read blocking avoided...\n", timer->timerfd);
     }
     // log_debug2("\nagt_timer: expired (%d)", num_of_expires);
 

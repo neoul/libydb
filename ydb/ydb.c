@@ -148,6 +148,9 @@ char *ydb_res_str(ydb_res res)
 
 typedef struct _yconn yconn;
 
+// timer conn for timer expiration check.
+yconn tconn;
+
 #define YCONN_ROLE_PUBLISHER 0x0001
 #define YCONN_WRITABLE 0x0002
 #define YCONN_UNSUBSCRIBE 0x0004
@@ -284,11 +287,11 @@ void ydb_connection_log(int enable)
         ydb_conn_log = false;
 }
 static char *yconn_flag_print(yconn *conn);
-static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple);
+static void yconn_print(yconn *conn, const char *func, int line, bool simple, char *state);
 #define YCONN_INFO(conn, state) \
-    yconn_print(conn, __func__, __LINE__, state, false)
+    yconn_print(conn, __func__, __LINE__, false, state)
 #define YCONN_SIMPLE_INFO(conn) \
-    yconn_print(conn, __func__, __LINE__, NULL, true)
+    yconn_print(conn, __func__, __LINE__, true, NULL)
 
 static unsigned int _yconn_flags(const char *address, char *flagstr);
 static yconn *_yconn_new(const char *address, unsigned int flags, ydb *datablock);
@@ -481,7 +484,7 @@ static ydb_res ydb_epoll_timer(ydb *datablock)
 {
     int fd;
     struct epoll_event event;
-    event.data.ptr = NULL;
+    event.data.ptr = &tconn;
     event.events = EPOLLIN;
     fd = ytimer_fd(datablock->timer);
     if (fd <= 0)
@@ -2731,7 +2734,7 @@ void yconn_default_recv_head(
             yfree(conn->name);
         conn->name = ystrdup(name);
     }
-    ylog_info("ydb[%s] head {peer name: %s, seq: %u, type: %s, op: %s, to: %d}\n",
+    ylog_info("ydb[%s] head {peer: %s, seq: %u, type: %s, op: %s, to: %d}\n",
               conn->datablock->name,
               (name[0]) ? name : "...", conn->recvseq, ymsg_str[*type], yconn_op_str[*op],
               conn->recv_timeout);
@@ -3174,7 +3177,7 @@ static char *yconn_flag_print(yconn *conn)
     return flagstr;
 }
 
-static void yconn_print(yconn *conn, const char *func, int line, char *state, bool simple)
+static void yconn_print(yconn *conn, const char *func, int line, bool simple, char *state)
 {
     int n;
     char flagstr[128];
@@ -3213,7 +3216,7 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
         if (state)
             ylog_logger(YLOG_INFO, func, line, "ydb[%s] %s conn:\n",
                         conn->datablock ? conn->datablock->name : "...", state);
-        ylog_logger(YLOG_INFO, func, line, " address: %s (peer name: %s, fd: %d)\n",
+        ylog_logger(YLOG_INFO, func, line, " address: %s (peer: %s, fd: %d)\n",
                     conn->address, conn->name ? conn->name : "...", conn->fd);
         if (conn->error_num > 0)
             ylog_logger(YLOG_INFO, func, line, " sys-err: %s\n", strerror(conn->error_num));
@@ -3240,9 +3243,9 @@ static void yconn_print(yconn *conn, const char *func, int line, char *state, bo
     }
     else
     {
-        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (peer name: %s, fd: %d)\n",
+        ylog_logger(YLOG_INFO, func, line, "ydb[%s] conn: %s (peer: %s, fd: %d): %s\n",
                     conn->datablock ? conn->datablock->name : "...",
-                    conn->address, conn->name ? conn->name : "...", conn->fd);
+                    conn->address, conn->name ? conn->name : "...", conn->fd, state ? state : "");
     }
 }
 
@@ -3545,7 +3548,6 @@ ydb_res yconn_open(char *addr, char *flags, ydb *datablock)
 
 ydb_res yconn_reopen_or_close(yconn *conn, ydb *datablock)
 {
-    int len;
     ydb_res res;
     uint64_t expired;
     ylog_inout();
@@ -3558,15 +3560,22 @@ ydb_res yconn_reopen_or_close(yconn *conn, ydb *datablock)
 
     if (conn->timerfd > 0)
     {
-        len = read(conn->timerfd, &expired, sizeof(uint64_t));
+        // ssize_t len = recv(conn->timerfd, &expired, sizeof(uint64_t), MSG_DONTWAIT);
+        ssize_t len = read(conn->timerfd, &expired, sizeof(uint64_t));
         if (len != sizeof(uint64_t))
         {
-            if (errno == EAGAIN)
-                return YDB_OK;
-            YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
-            return YDB_E_SYSTEM_FAILED;
+            ylog_error("ydb[%s] conn: %s (peer: %s, fd: %d): reconnect timer error\n",
+                       conn->datablock ? conn->datablock->name : "...",
+                       conn->address, conn->name ? conn->name : "...", conn->timerfd);
+            // if (errno == EAGAIN)
+            //     return YDB_OK;
+            // YCONN_FAILED(conn, YDB_E_SYSTEM_FAILED);
+            // return YDB_E_SYSTEM_FAILED;
         }
-        ylog_debug("timerfd %d expired (%d)\n", conn->timerfd, expired);
+        ylog_info("ydb[%s] conn: %s (peer: %s, fd: %d): retry to connect\n",
+                   conn->datablock ? conn->datablock->name : "...",
+                   conn->address, conn->name ? conn->name : "...",
+                   conn->timerfd);
     }
 
     conn->func_deinit(conn);
@@ -4414,8 +4423,9 @@ ydb_res yconn_serve(ydb *datablock, int timeout)
     for (i = 0; i < n; i++)
     {
         yconn *conn = event[i].data.ptr;
-        if (event[i].data.ptr == NULL)
-        {
+        if (conn == NULL) {
+            continue;
+        } else if (conn == &tconn) {
             if (ytimer_serve(datablock->timer) < 0)
                 res = YDB_E_CTRL;
         }
@@ -4482,7 +4492,10 @@ ydb_res yconn_serve_blocking(ydb *datablock, eventid eid, int timeout)
         for (i = 0; i < n; i++)
         {
             yconn *conn = event[i].data.ptr;
-            if (event[i].data.ptr == NULL)
+            if (conn == NULL) {
+                continue;
+            }
+            else if (conn == &tconn)
             {
                 waitevent *we;
                 ytimer_serve(datablock->timer);
