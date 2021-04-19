@@ -431,8 +431,10 @@ func setValueScalar(v reflect.Value, value interface{}) (reflect.Value, error) {
 		case reflect.Bool:
 			if strings.ToLower(srcstring) == "true" {
 				dv.SetBool(true)
-			} else {
+			} else if strings.ToLower(srcstring) == "false" {
 				dv.SetBool(false)
+			} else {
+				return dv, fmt.Errorf("Not Convertible to Bool: %s", srcstring)
 			}
 			return dv, nil
 		}
