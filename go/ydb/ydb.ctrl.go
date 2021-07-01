@@ -514,12 +514,12 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 		}
 	case DataUpdate:
 		var path string
-		if len(newkeys) > 0 {
-			path = "/" + strings.Join(newkeys, "/") + "/" + n.key()
-		} else {
-			path = "/" + n.key()
-		}
 		if n.up().tag() == "!!set" {
+			if len(newkeys) > 0 {
+				path = "/" + strings.Join(newkeys, "/")
+			} else {
+				path = "/"
+			}
 			switch op {
 			case 'c':
 				err = u.UpdateCreate(path, n.key())
@@ -529,6 +529,11 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 				err = u.UpdateDelete(path)
 			}
 		} else {
+			if len(newkeys) > 0 {
+				path = "/" + strings.Join(newkeys, "/") + "/" + n.key()
+			} else {
+				path = "/" + n.key()
+			}
 			switch op {
 			case 'c':
 				err = u.UpdateCreate(path, n.value())
