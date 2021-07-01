@@ -63,7 +63,7 @@ func main() {
 	// 	ram: 4G
 	// 	cpu: pentium
 	// 	mainboard: gigabyte
-	r, err := os.Open("../../../examples/yaml/ydb-input.yaml")
+	r, err := os.Open("../../../examples/yaml/ydb-input2.yaml")
 	defer r.Close()
 	if err != nil {
 		panic(err)

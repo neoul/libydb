@@ -519,13 +519,24 @@ func construct(target interface{}, op int, cur *C.ynode, new *C.ynode, root *C.y
 		} else {
 			path = "/" + n.key()
 		}
-		switch op {
-		case 'c':
-			err = u.UpdateCreate(path, n.value())
-		case 'r':
-			err = u.UpdateReplace(path, n.value())
-		case 'd':
-			err = u.UpdateDelete(path)
+		if n.up().tag() == "!!set" {
+			switch op {
+			case 'c':
+				err = u.UpdateCreate(path, n.key())
+			case 'r':
+				err = u.UpdateReplace(path, n.key())
+			case 'd':
+				err = u.UpdateDelete(path)
+			}
+		} else {
+			switch op {
+			case 'c':
+				err = u.UpdateCreate(path, n.value())
+			case 'r':
+				err = u.UpdateReplace(path, n.value())
+			case 'd':
+				err = u.UpdateDelete(path)
+			}
 		}
 	default:
 		v := reflect.ValueOf(target)

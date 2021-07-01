@@ -1,0 +1,19 @@
+# YAML data
+system:
+  fan:
+    fan[1]:
+      config_speed: 100
+      current_speed: 100
+    fan[2]:
+      config_speed: 200
+      current_speed: 200
+  ram: 4G
+  cpu: pentium
+  mainboard: gigabyte
+  key:
+   - VAL1
+   - VAL2
+performance-monitoring: 
+ collecting:  
+  state:
+    enabled-stats: !!set { STATS_ETH, STATS_SYS }
