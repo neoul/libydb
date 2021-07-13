@@ -2321,11 +2321,21 @@ ydb_res ydb_path_delete(ydb *datablock, const char *format, ...)
         target = ynode_search(datablock->top, buf);
         if (target)
         {
-            int index = ynode_index(target);
-            if (index <= 0)
-                ynode_delete(target, log);
-            else
-                res = YDB_E_DENIED_DELETE;
+            if (target == datablock->top) {
+                ynode *n = ynode_down(datablock->top);
+                while (n)
+                {
+                    // The root should not be deleted.
+                    ynode_delete(n, log);
+                    n = ynode_down(datablock->top);
+                }
+            } else {
+                int index = ynode_index(target);
+                if (index <= 0)
+                    ynode_delete(target, log);
+                else
+                    res = YDB_E_DENIED_DELETE;
+            }
         }
         ydb_log_close(datablock, log, &rbuf, &rbuflen);
         if (rbuf)
