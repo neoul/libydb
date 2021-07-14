@@ -124,6 +124,7 @@ void interpret_mode_help()
  [YDB Interpret mode commands]\n\n\
   write   /path/to/data=DATA   Write DATA to /path\n\
   delete  /path/to/data        Delete DATA from /path\n\
+  clean                        Remove All children \n\
   read    /path/to/data        Read DATA (value only) from /path\n\
   print   /path/to/data        Print DATA (all) in /path\n\
   sync    /path/to/data        Request sync of /path\n\
@@ -166,6 +167,8 @@ ydb_res interpret_mode_run(ydb *datablock)
         op = 's';
     else if (strncmp(cmd, "delete", 2) == 0)
         op = 'd';
+    else if (strncmp(cmd, "clean", 2) == 0)
+        op = 'l';
     else if (strncmp(cmd, "read", 1) == 0)
         op = 'r';
     else if (strncmp(cmd, "print", 2) == 0)
@@ -213,6 +216,15 @@ ydb_res interpret_mode_run(ydb *datablock)
     case 'd':
         res = ydb_path_delete(datablock, "%s", path);
         break;
+    case 'l':
+    {
+        ynode *node = ydb_search(datablock, "%s", path);
+        if (node != NULL)
+        {
+            ydb_clean(datablock, node);
+        }
+    }
+    break;
     case 's':
         res = ydb_path_sync(datablock, "%s", path);
         break;
